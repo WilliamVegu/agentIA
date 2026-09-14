@@ -1,0 +1,239 @@
+import pytest
+from app.models.requirements import SpecificationDraft
+from app.models.blueprint import DomainEntity, EntityAttribute, UserStoryRecord, AcceptanceScenarioRecord
+from app.services.model_sql_service import (
+    model_sql_service,
+    generate_schema_sql,
+    generate_seed_data_sql,
+    generate_mermaid_er_diagram,
+    generate_java_entity_source,
+    to_plural_table_name,
+    to_snake_case,
+)
+from app.models.domain_model import (
+    DomainEntityDefinition,
+    EntityAttributeDefinition,
+    EntityRelationshipDefinition,
+    RelationshipType,
+    SqlDataType,
+    JavaPropertyType,
+)
+
+@pytest.fixture
+def sample_draft() -> SpecificationDraft:
+    return SpecificationDraft(
+        serviceName="catalog-service",
+        packageName="com.example.catalog",
+        basePort=8080,
+        entities=[
+            DomainEntity(
+                name="Product",
+                tableName="products",
+                attributes=[
+                    EntityAttribute(name="name", type="String", isPrimaryKey=False),
+                    EntityAttribute(name="price", type="BigDecimal", isPrimaryKey=False),
+                    EntityAttribute(name="sku", type="String", isPrimaryKey=False),
+                ]
+            ),
+            DomainEntity(
+                name="Category",
+                tableName="categories",
+                attributes=[
+                    EntityAttribute(name="title", type="String", isPrimaryKey=False),
+                    EntityAttribute(name="code", type="String", isPrimaryKey=False),
+                ]
+            )
+        ],
+        userStories=[]
+    )
+
+def test_synthesize_domain_models_primary_key_and_audit(sample_draft: SpecificationDraft):
+    response = model_sql_service.synthesize_domain_models_and_sql(sample_draft)
+    assert response.serviceName == "catalog-service"
+    assert len(response.entities) == 2
+
+    for entity in response.entities:
+        pk_attrs = [a for a in entity.attributes if a.isPrimaryKey]
+        assert len(pk_attrs) == 1
+        assert pk_attrs[0].name == "id"
+        assert pk_attrs[0].javaType == JavaPropertyType.LONG
+        assert pk_attrs[0].sqlType == SqlDataType.BIGINT
+
+        # Check audit fields
+        audit_names = [a.name for a in entity.attributes if a.name in ("createdAt", "updatedAt")]
+        assert len(audit_names) == 2
+        assert entity.hasAuditFields is True
+
+def test_generate_schema_sql_syntax_and_constraints():
+    entities = [
+        DomainEntityDefinition(
+            name="Order",
+            tableName="orders",
+            packageName="com.example.model",
+            attributes=[
+                EntityAttributeDefinition(
+                    name="id",
+                    columnName="id",
+                    javaType=JavaPropertyType.LONG,
+                    sqlType=SqlDataType.BIGINT,
+                    isPrimaryKey=True,
+                ),
+                EntityAttributeDefinition(
+                    name="orderNumber",
+                    columnName="order_number",
+                    javaType=JavaPropertyType.STRING,
+                    sqlType=SqlDataType.VARCHAR,
+                    length=100,
+                    isUnique=True,
+                ),
+                EntityAttributeDefinition(
+                    name="createdAt",
+                    columnName="created_at",
+                    javaType=JavaPropertyType.INSTANT,
+                    sqlType=SqlDataType.TIMESTAMP_TZ,
+                    defaultValue="CURRENT_TIMESTAMP",
+                ),
+            ],
+            relationships=[],
+            hasAuditFields=True,
+        ),
+        DomainEntityDefinition(
+            name="OrderItem",
+            tableName="order_items",
+            packageName="com.example.model",
+            attributes=[
+                EntityAttributeDefinition(
+                    name="id",
+                    columnName="id",
+                    javaType=JavaPropertyType.LONG,
+                    sqlType=SqlDataType.BIGINT,
+                    isPrimaryKey=True,
+                ),
+                EntityAttributeDefinition(
+                    name="orderId",
+                    columnName="order_id",
+                    javaType=JavaPropertyType.LONG,
+                    sqlType=SqlDataType.BIGINT,
+                    hasIndex=True,
+                ),
+            ],
+            relationships=[
+                EntityRelationshipDefinition(
+                    sourceEntity="OrderItem",
+                    targetEntity="Order",
+                    relationshipType=RelationshipType.MANY_TO_ONE,
+                    joinColumnName="order_id",
+                    cascadeType="ALL",
+                )
+            ],
+            hasAuditFields=False,
+        )
+    ]
+
+    ddl = generate_schema_sql(entities)
+    assert "CREATE TABLE IF NOT EXISTS orders" in ddl
+    assert "CREATE TABLE IF NOT EXISTS order_items" in ddl
+    assert "BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY" in ddl
+    assert "FOREIGN KEY (order_id) REFERENCES orders(id)" in ddl
+    assert "CREATE INDEX IF NOT EXISTS idx_order_items_order_id" in ddl
+
+def test_generate_seed_data_sql_inserts():
+    entities = [
+        DomainEntityDefinition(
+            name="Customer",
+            tableName="customers",
+            packageName="com.example.model",
+            attributes=[
+                EntityAttributeDefinition(
+                    name="id",
+                    columnName="id",
+                    javaType=JavaPropertyType.LONG,
+                    sqlType=SqlDataType.BIGINT,
+                    isPrimaryKey=True,
+                ),
+                EntityAttributeDefinition(
+                    name="email",
+                    columnName="email",
+                    javaType=JavaPropertyType.STRING,
+                    sqlType=SqlDataType.VARCHAR,
+                ),
+            ],
+            relationships=[],
+            hasAuditFields=False,
+        )
+    ]
+
+    dml = generate_seed_data_sql(entities)
+    assert "INSERT INTO customers (id, email) VALUES" in dml
+    assert "1" in dml
+
+def test_generate_mermaid_er_diagram():
+    entities = [
+        DomainEntityDefinition(
+            name="Order",
+            tableName="orders",
+            packageName="com.example.model",
+            attributes=[
+                EntityAttributeDefinition(name="id", columnName="id", javaType=JavaPropertyType.LONG, sqlType=SqlDataType.BIGINT, isPrimaryKey=True),
+            ],
+            relationships=[
+                EntityRelationshipDefinition(
+                    sourceEntity="Order",
+                    targetEntity="OrderItem",
+                    relationshipType=RelationshipType.ONE_TO_MANY,
+                    inversePropertyName="items"
+                )
+            ]
+        ),
+        DomainEntityDefinition(
+            name="OrderItem",
+            tableName="order_items",
+            packageName="com.example.model",
+            attributes=[
+                EntityAttributeDefinition(name="id", columnName="id", javaType=JavaPropertyType.LONG, sqlType=SqlDataType.BIGINT, isPrimaryKey=True),
+            ],
+            relationships=[]
+        )
+    ]
+
+    mermaid = generate_mermaid_er_diagram(entities)
+    assert "erDiagram" in mermaid
+    assert "ORDERS" in mermaid
+    assert "ORDER_ITEMS" in mermaid
+    assert "||--o{" in mermaid
+
+def test_generate_java_entity_source():
+    entity = DomainEntityDefinition(
+        name="Invoice",
+        tableName="invoices",
+        packageName="com.corp.billing",
+        attributes=[
+            EntityAttributeDefinition(name="id", columnName="id", javaType=JavaPropertyType.LONG, sqlType=SqlDataType.BIGINT, isPrimaryKey=True),
+            EntityAttributeDefinition(name="invoiceNumber", columnName="invoice_number", javaType=JavaPropertyType.STRING, sqlType=SqlDataType.VARCHAR, length=50, isUnique=True),
+            EntityAttributeDefinition(name="createdAt", columnName="created_at", javaType=JavaPropertyType.INSTANT, sqlType=SqlDataType.TIMESTAMP_TZ),
+        ],
+        relationships=[],
+        hasAuditFields=True,
+    )
+
+    code = generate_java_entity_source(entity)
+    assert "package com.corp.billing.model;" in code
+    assert "@Entity" in code
+    assert '@Table(name = "invoices")' in code
+    assert "public class Invoice {" in code
+    assert "@Id" in code
+    assert "@GeneratedValue(strategy = GenerationType.IDENTITY)" in code
+    assert "private Long id;" in code
+    assert "private String invoiceNumber;" in code
+
+def test_refine_domain_models_updates_schema(sample_draft: SpecificationDraft):
+    initial = model_sql_service.synthesize_domain_models_and_sql(sample_draft)
+    refined = model_sql_service.refine_domain_models_and_sql(
+        current_response=initial,
+        feedback_prompt="Agrega trackingNumber a Product",
+        target_entity="Product"
+    )
+
+    product = next(e for e in refined.entities if e.name == "Product")
+    assert any(a.name == "trackingNumber" for a in product.attributes)
+    assert "tracking_number" in refined.sqlSchema.schemaDdl

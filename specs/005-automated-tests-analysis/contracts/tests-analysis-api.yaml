@@ -1,0 +1,369 @@
+openapi: 3.0.3
+info:
+  title: Test Generation, Code Analysis & Self-Repair API
+  version: 1.0.0
+  description: Endpoints for synthesizing unit and integration test suites, diagnosing build/assertion failures, executing autonomous surgical repair iterations, and human-in-the-loop overrides.
+paths:
+  /api/v1/tests/synthesize:
+    post:
+      summary: Synthesize hybrid unit and integration test suites
+      operationId: synthesizeTestSuites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestSynthesisRequest'
+      responses:
+        '200':
+          description: Test suites synthesized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestSynthesisResponse'
+        '400':
+          description: Invalid specification blueprint
+        '401':
+          description: Missing or invalid LLM API key
+
+  /api/v1/tests/analyze:
+    post:
+      summary: Analyze build logs, test results, and static code compliance
+      operationId: analyzeCodeCompliance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeAnalysisRequest'
+      responses:
+        '200':
+          description: Code analysis and diagnostics completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeAnalysisResponse'
+
+  /api/v1/tests/repair:
+    post:
+      summary: Plan and apply an autonomous surgical self-repair patch
+      operationId: executeRepairIteration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepairExecutionRequest'
+      responses:
+        '200':
+          description: Repair iteration planned and applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepairIterationRecord'
+        '422':
+          description: Max repair iterations exhausted (transitions to BLOCKED)
+
+  /api/v1/sessions/{sessionId}/repairs:
+    get:
+      summary: Retrieve complete repair history, metrics, and diffs for a session
+      operationId: getSessionRepairHistory
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repair history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepairHistoryResponse'
+        '404':
+          description: Session not found
+
+  /api/v1/sessions/{sessionId}/manual-repair:
+    post:
+      summary: Submit developer manual code edit or AI prompt hint to resolve a BLOCKED session
+      operationId: submitManualRepair
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualRepairRequest'
+      responses:
+        '200':
+          description: Manual repair applied; sandbox re-execution triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualRepairResponse'
+        '400':
+          description: Invalid file path or malformed source code
+
+components:
+  schemas:
+    TestSynthesisRequest:
+      type: object
+      required:
+        - specId
+      properties:
+        specId:
+          type: string
+        testTypes:
+          type: array
+          items:
+            type: string
+            enum: [UNIT, INTEGRATION_WEB, INTEGRATION_DB]
+        apiKey:
+          type: string
+          nullable: true
+
+    TestSynthesisResponse:
+      type: object
+      required:
+        - specId
+        - suites
+        - totalTestCases
+      properties:
+        specId:
+          type: string
+        suites:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestSuiteDefinition'
+        totalTestCases:
+          type: integer
+
+    TestSuiteDefinition:
+      type: object
+      required:
+        - className
+        - targetClassName
+        - testType
+        - filePath
+        - fullSourceCode
+      properties:
+        className:
+          type: string
+        targetClassName:
+          type: string
+        testType:
+          type: string
+          enum: [UNIT, INTEGRATION_WEB, INTEGRATION_DB]
+        filePath:
+          type: string
+        testCases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              scenarioId:
+                type: string
+                nullable: true
+              description:
+                type: string
+        fullSourceCode:
+          type: string
+
+    CodeAnalysisRequest:
+      type: object
+      required:
+        - sessionId
+      properties:
+        sessionId:
+          type: string
+        rawBuildLogs:
+          type: string
+          default: ""
+        sourceFiles:
+          type: object
+          additionalProperties:
+            type: string
+
+    CodeAnalysisResponse:
+      type: object
+      required:
+        - hasErrors
+        - diagnostics
+        - constitutionalCompliant
+      properties:
+        hasErrors:
+          type: boolean
+        constitutionalCompliant:
+          type: boolean
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/FailureDiagnostic'
+
+    FailureDiagnostic:
+      type: object
+      required:
+        - id
+        - category
+        - severity
+        - filePath
+        - errorSummary
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+          enum: [COMPILATION_ERROR, ASSERTION_FAILURE, CONSTITUTIONAL_VIOLATION, RUNTIME_EXCEPTION]
+        severity:
+          type: string
+          enum: [BLOCKING, HIGH, MEDIUM, LOW]
+        filePath:
+          type: string
+        lineNumber:
+          type: integer
+          nullable: true
+        errorSummary:
+          type: string
+        expectedValue:
+          type: string
+          nullable: true
+        actualValue:
+          type: string
+          nullable: true
+        rawStackTrace:
+          type: string
+
+    RepairExecutionRequest:
+      type: object
+      required:
+        - sessionId
+        - iterationNumber
+        - diagnostics
+      properties:
+        sessionId:
+          type: string
+        iterationNumber:
+          type: integer
+          minimum: 1
+          maximum: 3
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/FailureDiagnostic'
+        apiKey:
+          type: string
+          nullable: true
+
+    CodeRepairPatch:
+      type: object
+      required:
+        - id
+        - filePath
+        - patchType
+        - originalSnippet
+        - replacementSnippet
+        - explanation
+      properties:
+        id:
+          type: string
+        filePath:
+          type: string
+        patchType:
+          type: string
+          enum: [METHOD_REPLACE, IMPORT_ADD, STATEMENT_REPLACE, WHOLE_FILE]
+        originalSnippet:
+          type: string
+        replacementSnippet:
+          type: string
+        explanation:
+          type: string
+
+    RepairIterationRecord:
+      type: object
+      required:
+        - iterationNumber
+        - diagnostics
+        - patchesApplied
+        - outcome
+        - diffSummary
+      properties:
+        iterationNumber:
+          type: integer
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/FailureDiagnostic'
+        patchesApplied:
+          type: array
+          items:
+            $ref: '#/components/schemas/CodeRepairPatch'
+        diffSummary:
+          type: string
+        durationSeconds:
+          type: number
+        outcome:
+          type: string
+          enum: [SUCCESS, FAILED_CONTINUE, FAILED_BLOCKED]
+
+    RepairHistoryResponse:
+      type: object
+      required:
+        - sessionId
+        - totalIterations
+        - finalState
+        - iterations
+      properties:
+        sessionId:
+          type: string
+        totalIterations:
+          type: integer
+        finalState:
+          type: string
+        iterations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RepairIterationRecord'
+        canRetryManually:
+          type: boolean
+        currentBlockedDiagnostic:
+          $ref: '#/components/schemas/FailureDiagnostic'
+
+    ManualRepairRequest:
+      type: object
+      required:
+        - filePath
+      properties:
+        filePath:
+          type: string
+        modifiedCode:
+          type: string
+          nullable: true
+        guidanceHint:
+          type: string
+          nullable: true
+        apiKey:
+          type: string
+          nullable: true
+
+    ManualRepairResponse:
+      type: object
+      required:
+        - sessionId
+        - status
+        - message
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+

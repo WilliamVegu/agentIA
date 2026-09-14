@@ -1,0 +1,292 @@
+openapi: 3.0.3
+info:
+  title: Microservice Code Studio - Domain Models & SQL Schema API
+  description: Endpoints for automated JPA entity modeling, relationship inference, and PostgreSQL/H2 SQL DDL and seed data generation.
+  version: 1.0.0
+paths:
+  /api/v1/models/generate:
+    post:
+      summary: Synthesize Domain Entity Models and SQL Scripts from Specification
+      description: Decomposes domain entities, infers JPA relationships, injects Long identity primary keys and audit timestamps, and emits schema.sql, data.sql, and Mermaid erDiagram.
+      operationId: generateModelsAndSql
+      parameters:
+        - in: header
+          name: X-LLM-API-Key
+          schema:
+            type: string
+          required: false
+          description: Ephemeral OpenAI API key in memory (Constitution Principle VI).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelSqlGenerationRequest'
+      responses:
+        '200':
+          description: Domain models and SQL schema successfully synthesized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataModelSynthesisResponse'
+        '400':
+          description: Invalid request payload or missing entities.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Missing ephemeral LLM API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/v1/models/refine:
+    post:
+      summary: Interactively Refine Domain Models and SQL Schema
+      description: Applies natural language adjustments to existing entity models and synchronizes SQL DDL and Mermaid ER diagrams.
+      operationId: refineModelsAndSql
+      parameters:
+        - in: header
+          name: X-LLM-API-Key
+          schema:
+            type: string
+          required: false
+          description: Ephemeral OpenAI API key in memory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelSqlRefinementRequest'
+      responses:
+        '200':
+          description: Models and SQL schema refined successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataModelSynthesisResponse'
+        '400':
+          description: Invalid refinement prompt or payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Missing ephemeral LLM API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+components:
+  schemas:
+    ModelSqlGenerationRequest:
+      type: object
+      required:
+        - draft
+      properties:
+        draft:
+          type: object
+          description: SpecificationDraft or architectural blueprint containing domain entities.
+        apiKey:
+          type: string
+          nullable: true
+          description: Ephemeral OpenAI API key.
+
+    ModelSqlRefinementRequest:
+      type: object
+      required:
+        - currentResponse
+        - feedbackPrompt
+      properties:
+        currentResponse:
+          $ref: '#/components/schemas/DataModelSynthesisResponse'
+        feedbackPrompt:
+          type: string
+          minLength: 3
+          description: Natural language modification instructions.
+        targetEntity:
+          type: string
+          nullable: true
+          description: Optional entity class name to focus adjustments on.
+        apiKey:
+          type: string
+          nullable: true
+
+    EntityAttributeDefinition:
+      type: object
+      required:
+        - name
+        - columnName
+        - javaType
+        - sqlType
+      properties:
+        name:
+          type: string
+          example: orderNumber
+        columnName:
+          type: string
+          example: order_number
+        javaType:
+          type: string
+          enum: [Long, Integer, String, BigDecimal, Boolean, Instant, UUID, LocalDate]
+        sqlType:
+          type: string
+          enum: [BIGINT, INTEGER, VARCHAR, TEXT, NUMERIC, BOOLEAN, TIMESTAMP WITH TIME ZONE, UUID, DATE]
+        length:
+          type: integer
+          nullable: true
+        nullable:
+          type: boolean
+          default: false
+        isPrimaryKey:
+          type: boolean
+          default: false
+        isUnique:
+          type: boolean
+          default: false
+        hasIndex:
+          type: boolean
+          default: false
+        defaultValue:
+          type: string
+          nullable: true
+
+    EntityRelationshipDefinition:
+      type: object
+      required:
+        - sourceEntity
+        - targetEntity
+        - relationshipType
+      properties:
+        sourceEntity:
+          type: string
+          example: OrderItem
+        targetEntity:
+          type: string
+          example: Order
+        relationshipType:
+          type: string
+          enum: [ONE_TO_MANY, MANY_TO_ONE, ONE_TO_ONE, MANY_TO_MANY]
+        joinColumnName:
+          type: string
+          nullable: true
+          example: order_id
+        inversePropertyName:
+          type: string
+          nullable: true
+          example: items
+        cascadeType:
+          type: string
+          default: ALL
+        fetchType:
+          type: string
+          default: LAZY
+
+    DomainEntityDefinition:
+      type: object
+      required:
+        - name
+        - tableName
+        - packageName
+        - attributes
+      properties:
+        name:
+          type: string
+          example: Order
+        tableName:
+          type: string
+          example: orders
+        packageName:
+          type: string
+          example: com.example.orderservice.model
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityAttributeDefinition'
+        relationships:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityRelationshipDefinition'
+        hasAuditFields:
+          type: boolean
+          default: true
+
+    SqlSchemaScript:
+      type: object
+      required:
+        - schemaDdl
+        - seedDml
+        - dialect
+      properties:
+        schemaDdl:
+          type: string
+          description: ANSI/PostgreSQL DDL script with CREATE TABLE, PK, FK, INDEX.
+        seedDml:
+          type: string
+          description: Sample INSERT statements derived from acceptance preconditions.
+        tableNames:
+          type: array
+          items:
+            type: string
+        dialect:
+          type: string
+          example: postgresql_h2
+
+    DataModelSynthesisResponse:
+      type: object
+      required:
+        - serviceName
+        - packageName
+        - entities
+        - sqlSchema
+        - mermaidErDiagram
+      properties:
+        serviceName:
+          type: string
+          example: order-service
+        packageName:
+          type: string
+          example: com.example.orderservice
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/DomainEntityDefinition'
+        sqlSchema:
+          $ref: '#/components/schemas/SqlSchemaScript'
+        mermaidErDiagram:
+          type: string
+          description: Renderable Mermaid erDiagram definition.
+        javaEntityClasses:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of entity name to full Java 21 JPA class code.
+        validationErrors:
+          type: array
+          items:
+            type: string
+
+    ApiErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - message
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Invalid entity definition or missing required fields.
+        details:
+          type: array
+          items:
+            type: string
+

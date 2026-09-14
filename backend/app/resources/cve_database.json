@@ -1,0 +1,79 @@
+{
+  "version": "2026.09.13",
+  "description": "Curated Offline Maven CVE Database for Hermetic Auditing (Constitution Principle IV)",
+  "entries": [
+    {
+      "groupId": "org.yaml",
+      "artifactId": "snakeyaml",
+      "vulnerableVersionPattern": "^(0\\.|1\\.)",
+      "cveId": "CVE-2022-25857",
+      "cvss": 7.5,
+      "severity": "HIGH",
+      "title": "Denial of Service via Unrestricted Entity Expansion in SnakeYAML",
+      "description": "SnakeYAML versions prior to 2.0 are vulnerable to Denial of Service via stack overflow during unvalidated recursive entity parsing.",
+      "safeVersion": "2.0",
+      "remediationGuidance": "Upgrade org.yaml:snakeyaml to version 2.0 or higher in pom.xml."
+    },
+    {
+      "groupId": "com.fasterxml.jackson.core",
+      "artifactId": "jackson-databind",
+      "vulnerableVersionPattern": "^(2\\.(?:[0-9]|1[0-4])\\.)",
+      "cveId": "CVE-2023-35116",
+      "cvss": 7.5,
+      "severity": "HIGH",
+      "title": "Denial of Service via Deeply Nested JSON Objects in Jackson-databind",
+      "description": "Jackson-databind before 2.15.0 mishandles stack limits during recursive deserialization of deeply nested JSON structures.",
+      "safeVersion": "2.15.2",
+      "remediationGuidance": "Upgrade com.fasterxml.jackson.core:jackson-databind to 2.15.2 or later."
+    },
+    {
+      "groupId": "org.springframework",
+      "artifactId": "spring-webmvc",
+      "vulnerableVersionPattern": "^(5\\.|6\\.0\\.(?:[0-9]|1[0-3])$)",
+      "cveId": "CVE-2023-34055",
+      "cvss": 7.5,
+      "severity": "HIGH",
+      "title": "Path Traversal in Spring MVC Resource Handler",
+      "description": "Spring MVC versions prior to 6.0.14 can be susceptible to path traversal via malformed URI requests in static resource handlers.",
+      "safeVersion": "6.0.14",
+      "remediationGuidance": "Upgrade org.springframework:spring-webmvc to 6.0.14 or later."
+    },
+    {
+      "groupId": "ch.qos.logback",
+      "artifactId": "logback-core",
+      "vulnerableVersionPattern": "^(1\\.[0-2]\\.|1\\.3\\.(?:[0-9]|1[0-1])$|1\\.4\\.(?:[0-9]|1[0-1])$)",
+      "cveId": "CVE-2023-6378",
+      "cvss": 7.4,
+      "severity": "HIGH",
+      "title": "Serialization Vulnerability in Logback Receiver",
+      "description": "Logback versions before 1.3.12 / 1.4.12 contain a deserialization flaw in SocketReceiver allowing remote arbitrary code execution.",
+      "safeVersion": "1.4.14",
+      "remediationGuidance": "Upgrade ch.qos.logback:logback-core to 1.4.14 or higher."
+    },
+    {
+      "groupId": "org.apache.tomcat.embed",
+      "artifactId": "tomcat-embed-core",
+      "vulnerableVersionPattern": "^(9\\.|10\\.0\\.|10\\.1\\.(?:[0-9]|1[0-8])$)",
+      "cveId": "CVE-2024-24549",
+      "cvss": 7.5,
+      "severity": "HIGH",
+      "title": "HTTP/2 Header Denial of Service in Apache Tomcat",
+      "description": "Apache Tomcat embedded core before 10.1.19 does not properly limit HTTP/2 continuation frames, leading to denial of service.",
+      "safeVersion": "10.1.19",
+      "remediationGuidance": "Upgrade org.apache.tomcat.embed:tomcat-embed-core to 10.1.19 or higher."
+    },
+    {
+      "groupId": "org.apache.logging.log4j",
+      "artifactId": "log4j-core",
+      "vulnerableVersionPattern": "^(2\\.(?:[0-9]|1[0-6])\\.|2\\.17\\.0$)",
+      "cveId": "CVE-2021-44228",
+      "cvss": 10.0,
+      "severity": "CRITICAL",
+      "title": "Remote Code Execution via JNDI in Log4j (Log4Shell)",
+      "description": "Apache Log4j2 versions up to 2.17.0 are vulnerable to Remote Code Execution via unauthenticated JNDI lookup expressions.",
+      "safeVersion": "2.17.1",
+      "remediationGuidance": "Upgrade org.apache.logging.log4j:log4j-core to 2.17.1 or higher immediately."
+    }
+  ]
+}
+

@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: DevOps, Containerization & Deployment API
+  description: REST API for generating multi-stage Dockerfiles, compose orchestrations, CI/CD pipelines, Kubernetes manifests, and managing local container execution.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local FastAPI Backend
+
+paths:
+  /devops/{session_id}/generate:
+    post:
+      summary: Generate all DevOps assets
+      description: Generates multi-stage Dockerfile, .dockerignore, docker-compose.yml, GitHub Actions, GitLab CI, and Kubernetes manifests for the workspace session.
+      operationId: generateDevOpsManifests
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Session identifier
+      responses:
+        '200':
+          description: DevOps manifests generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevOpsManifestBundle'
+        '403':
+          description: Blocked by Quality Gate (Principio V / Feature 006)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Session workspace not found
+
+  /devops/{session_id}/deploy:
+    post:
+      summary: Trigger local container deployment
+      description: Builds the Docker image and executes docker compose up to launch microservice and database containers.
+      operationId: deployLocalContainer
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevOpsDeployRequest'
+      responses:
+        '200':
+          description: Local deployment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+        '403':
+          description: Blocked by Quality Gate
+        '503':
+          description: Docker Daemon unreachable (triggers Export-Only mode)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+
+  /devops/{session_id}/status:
+    get:
+      summary: Get local deployment status and health
+      description: Returns container status, mapped ports, uptime, and actuator healthcheck results.
+      operationId: getDeploymentStatus
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current deployment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+        '404':
+          description: Session not found
+
+  /devops/{session_id}/logs/stream:
+    get:
+      summary: Stream live Docker logs
+      description: Streams real-time build and container execution logs using Server-Sent Events (SSE).
+      operationId: streamDeploymentLogs
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream of Docker logs
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /devops/{session_id}/stop:
+    post:
+      summary: Stop local deployment containers
+      description: Gracefully shuts down and cleans up containers, networks, and resources for the session.
+      operationId: stopDeployment
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Containers stopped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+
+  /devops/{session_id}/smoke-test:
+    post:
+      summary: Execute automated smoke test
+      description: Polls /actuator/health to verify runtime readiness and measure latency.
+      operationId: runSmokeTest
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Smoke test outcome
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmokeTestResult'
+
+components:
+  schemas:
+    DevOpsManifestBundle:
+      type: object
+      required:
+        - sessionId
+        - serviceName
+        - databaseEngine
+        - dockerfileContent
+        - dockerignoreContent
+        - dockerComposeContent
+        - githubActionsWorkflow
+        - gitlabCiWorkflow
+        - kubernetesManifests
+        - generatedAt
+      properties:
+        sessionId:
+          type: string
+        serviceName:
+          type: string
+        databaseEngine:
+          type: string
+          enum: [POSTGRESQL, MYSQL, H2]
+        dockerfileContent:
+          type: string
+        dockerignoreContent:
+          type: string
+        dockerComposeContent:
+          type: string
+        githubActionsWorkflow:
+          type: string
+        gitlabCiWorkflow:
+          type: string
+        kubernetesManifests:
+          type: object
+          additionalProperties:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
+
+    LocalDeploymentSession:
+      type: object
+      required:
+        - sessionId
+        - status
+        - hostPort
+        - containerPort
+      properties:
+        sessionId:
+          type: string
+        containerId:
+          type: string
+          nullable: true
+        databaseContainerId:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [IDLE, BUILDING, RUNNING, HEALTHY, FAILED, STOPPED, DOCKER_UNAVAILABLE]
+        hostPort:
+          type: integer
+          default: 8080
+        containerPort:
+          type: integer
+          default: 8080
+        testUrl:
+          type: string
+          nullable: true
+        healthStatus:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    DevOpsDeployRequest:
+      type: object
+      properties:
+        hostPort:
+          type: integer
+          default: 8080
+        rebuild:
+          type: boolean
+          default: false
+
+    SmokeTestResult:
+      type: object
+      required:
+        - passed
+        - statusCode
+        - latencyMs
+        - testUrl
+        - checkedAt
+        - details
+      properties:
+        passed:
+          type: boolean
+        statusCode:
+          type: integer
+        statusPayload:
+          type: object
+        latencyMs:
+          type: number
+        testUrl:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+        details:
+          type: string
+
+    ApiError:
+      type: object
+      required:
+        - timestamp
+        - status
+        - message
+      properties:
+        timestamp:
+          type: string
+        status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: string
+

@@ -1,0 +1,50 @@
+import os
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    APP_NAME: str = "Microservice Code Studio"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
+    
+    # Server configuration
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:8501",
+        "http://127.0.0.1:8501",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    
+    # Concurrency and worker queue limit (FR-004)
+    MAX_CONCURRENT_SESSIONS: int = Field(default=2, description="Max concurrent Docker sandbox executions")
+    
+    # Sandbox & Docker Execution
+    DOCKER_IMAGE: str = Field(
+        default="maven:3.9-eclipse-temurin-21",
+        description="Docker base image with pre-cached Maven 3.9 and Java 21 LTS"
+    )
+    MAVEN_CACHE_DIR: str = Field(
+        default=str(Path.home() / ".m2" / "repository"),
+        description="Host path to Maven local repository for read-only mount"
+    )
+    WORKSPACE_DIR: str = Field(
+        default=str(Path(__file__).resolve().parent.parent / "workspaces"),
+        description="Directory where generated code is synthesized and built"
+    )
+    
+    # Maximum auto-repair iterations (Constitution Principle V)
+    MAX_REPAIR_ATTEMPTS: int = 3
+    
+    # Database
+    DATABASE_URL: str = "sqlite:///./studio.db"
+
+settings = Settings()
+
+# Ensure workspace directory exists
+os.makedirs(settings.WORKSPACE_DIR, exist_ok=True)
+

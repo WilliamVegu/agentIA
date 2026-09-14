@@ -1,0 +1,267 @@
+openapi: 3.0.3
+info:
+  title: Requirements Transformation & Refinement API
+  description: >
+    API for converting natural language requirements into structured User Stories
+    with Given/When/Then acceptance criteria and extracting domain entities for microservices.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Code Studio internal API
+
+paths:
+  /requirements/transform:
+    post:
+      summary: Transform raw requirements to user stories and criteria
+      description: Analyzes unstructured requirements narrative and generates a formal specification draft.
+      operationId: transformRequirements
+      parameters:
+        - name: X-LLM-API-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Ephemeral LLM API key passed in memory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementsTransformRequest'
+      responses:
+        '200':
+          description: Specification draft successfully generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecificationDraft'
+        '400':
+          description: Invalid input or unparseable text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Missing required LLM API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /requirements/refine:
+    post:
+      summary: Refine specification draft with feedback prompt
+      description: Applies user feedback or delta prompt to update specific stories or criteria.
+      operationId: refineSpecification
+      parameters:
+        - name: X-LLM-API-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Ephemeral LLM API key passed in memory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefinementRequest'
+      responses:
+        '200':
+          description: Specification draft successfully refined.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecificationDraft'
+        '400':
+          description: Invalid refinement payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+components:
+  schemas:
+    RequirementsTransformRequest:
+      type: object
+      required:
+        - rawText
+      properties:
+        rawText:
+          type: string
+          minLength: 10
+          example: "Quiero un servicio de pagos donde los clientes puedan pagar con tarjeta y se valide el saldo."
+        serviceName:
+          type: string
+          example: "payment-service"
+        packageName:
+          type: string
+          example: "com.corp.payment"
+        apiKey:
+          type: string
+          description: Optional payload field for ephemeral API key.
+
+    RefinementRequest:
+      type: object
+      required:
+        - currentDraft
+        - feedbackPrompt
+      properties:
+        currentDraft:
+          $ref: '#/components/schemas/SpecificationDraft'
+        feedbackPrompt:
+          type: string
+          example: "Agrega un escenario de validación cuando el saldo es insuficiente"
+        targetStoryId:
+          type: string
+          example: "US-1"
+        apiKey:
+          type: string
+
+    SpecificationDraft:
+      type: object
+      required:
+        - serviceName
+        - packageName
+        - basePort
+        - entities
+        - userStories
+        - markdownSpec
+      properties:
+        serviceName:
+          type: string
+          example: "payment-service"
+        packageName:
+          type: string
+          example: "com.corp.payment"
+        basePort:
+          type: integer
+          default: 8080
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/DomainEntity'
+        userStories:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserStory'
+        assumptions:
+          type: array
+          items:
+            type: string
+        markdownSpec:
+          type: string
+          description: Formatted Spec Kit spec.md markdown document ready to download.
+
+    DomainEntity:
+      type: object
+      required:
+        - name
+        - tableName
+        - attributes
+      properties:
+        name:
+          type: string
+          example: "Payment"
+        tableName:
+          type: string
+          example: "payments"
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityAttribute'
+
+    EntityAttribute:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          example: "amount"
+        type:
+          type: string
+          example: "BigDecimal"
+        nullable:
+          type: boolean
+          default: false
+        isPrimaryKey:
+          type: boolean
+          default: false
+        validationRules:
+          type: array
+          items:
+            type: string
+
+    UserStory:
+      type: object
+      required:
+        - id
+        - priority
+        - role
+        - intent
+        - benefit
+        - scenarios
+      properties:
+        id:
+          type: string
+          example: "US-1"
+        priority:
+          type: string
+          enum: [P1, P2, P3]
+        role:
+          type: string
+          example: "Customer"
+        intent:
+          type: string
+          example: "submit credit card payment"
+        benefit:
+          type: string
+          example: "complete purchase"
+        scenarios:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/AcceptanceScenario'
+
+    AcceptanceScenario:
+      type: object
+      required:
+        - scenarioId
+        - given
+        - when
+        - then
+      properties:
+        scenarioId:
+          type: string
+          example: "AC-1.1"
+        given:
+          type: string
+          example: "a customer with a valid card and sufficient balance"
+        when:
+          type: string
+          example: "POST /payments is invoked"
+        then:
+          type: string
+          example: "payment is saved with status SUCCESS and 201 Created is returned"
+
+    ApiErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - message
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: string
+
