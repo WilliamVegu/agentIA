@@ -11,8 +11,8 @@ class LLMProvider(str, Enum):
 
 # Default models per provider (all chosen for high quality and generous/free tiers)
 DEFAULT_MODELS = {
-    LLMProvider.GEMINI: "gemini-3.6-flash",
-    LLMProvider.GROQ: "llama-3.3-70b-versatile",
+    LLMProvider.GEMINI: "gemini-2.5-flash",
+    LLMProvider.GROQ: "qwen/qwen3.8-27b",
     LLMProvider.OPENAI: "gpt-4o-mini",
 }
 

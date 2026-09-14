@@ -47,10 +47,13 @@ def render_lifecycle_stepper(backend_url: str, session_id: Optional[str] = None)
     with st.container(border=True):
         col_title, col_prog = st.columns([3, 1])
         with col_title:
-            mode_badge = "🚀 Auto-Pilot" if active_mode == "AUTO_PILOT" else "👣 Modo Paso a Paso"
+            mode_badge_html = '<span class="app-pill app-pill-primary">🚀 Auto-Pilot</span>' if active_mode == "AUTO_PILOT" else '<span class="app-pill app-pill-neutral">👣 Modo Paso a Paso</span>'
+            status_badge_type = "success" if pipeline_status == "COMPLETED" else ("warning" if pipeline_status in ("PAUSED", "RUNNING") else ("danger" if pipeline_status in ("FAILED", "CANCELLED") else "neutral"))
+            status_badge_html = f'<span class="app-pill app-pill-{status_badge_type}">{pipeline_badge}</span>'
             st.markdown(
-                f"**⚡ Flujo del Microservicio** &nbsp;|&nbsp; Modo: `{mode_badge}` &nbsp;|&nbsp; "
-                f"Estado: `{pipeline_badge}` &nbsp;|&nbsp; Sesión: `{session_id[:8]}...`"
+                f"**⚡ Flujo del Microservicio** &nbsp;|&nbsp; Modo: {mode_badge_html} &nbsp;|&nbsp; "
+                f"Estado: {status_badge_html} &nbsp;|&nbsp; Sesión: `{(session_id or '')[:8]}...`",
+                unsafe_allow_html=True,
             )
         with col_prog:
             st.progress(min(max(completion_pct / 100.0, 0.0), 1.0))

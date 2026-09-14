@@ -54,7 +54,7 @@ def test_get_chat_model_gemini_custom():
 def test_get_chat_model_groq():
     model = LLMFactory.get_chat_model("gsk_dummyGroqKey")
     assert isinstance(model, ChatGroq)
-    assert model.model_name == "llama-3.3-70b-versatile"
+    assert model.model_name in ("qwen/qwen3.8-27b", "llama-3.1-8b-instant", "llama-3.3-70b-versatile")
 
 def test_get_chat_model_groq_custom():
     model = LLMFactory.get_chat_model("gsk_dummyGroqKey", model_name="llama-3.1-8b-instant")

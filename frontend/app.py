@@ -1,42 +1,53 @@
+import os
+import sys
+from pathlib import Path
 import requests
 import streamlit as st
 
+# Ensure frontend root and app directory are accessible
+_FRONTEND_ROOT = Path(__file__).resolve().parent
+if str(_FRONTEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_FRONTEND_ROOT))
+
+from utils.ui import load_css, render_header, render_status_badge
+
 st.set_page_config(
-    page_title="Microservice Code Studio",
+    page_title="AgentIA | Microservice Code Studio",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for styling
-st.markdown("""
-<style>
-    .main-title {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #1E3A8A;
-        margin-bottom: 0.2rem;
-    }
-    .subtitle {
-        color: #4B5563;
-        font-size: 1.05rem;
-        margin-bottom: 1.5rem;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        padding-top: 10px;
-        padding-bottom: 10px;
-        font-weight: 600;
-    }
-</style>
-""", unsafe_allow_html=True)
+# 1. Load TalentIA-based SaaS Stylesheet
+load_css()
 
-# Sidebar Configuration
-st.sidebar.title("⚙️ Configuración")
-backend_url = st.sidebar.text_input("URL del Backend FastAPI", value="http://localhost:8000", help="Servidor de orquestación y sandbox")
-st.sidebar.markdown("---")
+# 2. Sidebar Branding & Configuration
+with st.sidebar:
+    logo_path = _FRONTEND_ROOT / "assets" / "logo.png"
+    if logo_path.exists():
+        st.image(str(logo_path), width=190)
+    st.markdown(
+        """
+        <div class="sidebar-brand-box">
+            <div>
+                <div class="sidebar-brand-title">AgentIA Studio</div>
+                <div class="sidebar-brand-subtitle">Autonomous Microservice Architect</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.divider()
+
+
+    st.markdown("##### ⚙️ Configuración del Sistema")
+    backend_url = st.text_input(
+        "URL del Backend FastAPI",
+        value=st.session_state.get("backend_url", "http://localhost:8000"),
+        help="Servidor de orquestación y sandbox hermético",
+    )
+    st.divider()
+
 
 # Session State & Active Session Selector
 if "active_session_id" not in st.session_state:
@@ -251,9 +262,13 @@ st.session_state.openai_key = api_key_input  # Retrocompatibilidad
 st.session_state.llm_provider = selected_provider
 st.session_state.llm_model = selected_model_name
 
-# Header
-st.markdown('<div class="main-title">⚡ Microservice Code Studio</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Generación autónoma y verificación hermética de microservicios Java 21 / Spring Boot 3.x</div>', unsafe_allow_html=True)
+# Header (Hero Banner TalentIA Style)
+render_header(
+    title="⚡ AgentIA Microservice Code Studio",
+    subtitle="Plataforma de generación autónoma, diseño arquitectónico y verificación hermética de microservicios Java 21 / Spring Boot 3.x",
+    badge="v1.1.0 • Java 21 LTS • Spring Boot 3.x • Sandbox Hermético",
+)
+
 
 # Global Persistent Stepper
 try:
