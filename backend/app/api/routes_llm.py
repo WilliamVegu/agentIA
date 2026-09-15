@@ -83,6 +83,8 @@ def verify_llm_connection(payload: LLMVerifyRequest):
             hint = "La API Key ingresada es inválida o expiró. Verifica que no tenga espacios adicionales."
         elif "RESOURCE_EXHAUSTED" in error_msg or "429" in error_msg:
             hint = "Límite de cuota alcanzado (Rate Limit). Espera unos segundos o prueba otra clave."
+        elif "CERTIFICATE_VERIFY_FAILED" in error_msg or "SSLCertVerificationError" in error_msg:
+            hint = "Error de validación SSL con el proxy o firewall corporativo."
         else:
             hint = error_msg[:200]
 

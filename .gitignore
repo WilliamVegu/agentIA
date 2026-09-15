@@ -22,6 +22,7 @@ wheels/
 *.egg
 .env
 .env.*
+!.env.example
 venv/
 .venv/
 ENV/
@@ -61,5 +62,8 @@ backend/workspaces/*
 
 # Pytest cache
 .pytest_cache/
+
+# Local SSL CA bundle
+backend/app/resources/ca-bundle.pem
 
 

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 
 # Ensure environment variables from .env files are loaded into os.environ
 load_dotenv()
@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     APP_NAME: str = "Microservice Code Studio"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return v.strip().lower() in ("true", "1", "yes", "on", "t", "debug")
+        return bool(v)
     
     # AI / LLM Configuration
     GEMINI_API_KEY: str | None = None

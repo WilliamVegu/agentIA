@@ -1,3 +1,4 @@
+import app.ssl_compat  # noqa: F401
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware

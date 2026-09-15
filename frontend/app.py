@@ -13,6 +13,8 @@ load_dotenv(_FRONTEND_ROOT.parent / "backend" / ".env")
 if str(_FRONTEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_FRONTEND_ROOT))
 
+import ssl_compat  # noqa: F401
+
 from utils.ui import load_css, render_header, render_status_badge
 
 st.set_page_config(
