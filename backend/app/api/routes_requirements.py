@@ -66,7 +66,7 @@ def resolve_api_key(
         500: {"model": ApiErrorResponse, "description": "Internal server error"},
     },
 )
-async def transform_requirements_endpoint(
+def transform_requirements_endpoint(
     request: RequirementsTransformRequest,
     x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
@@ -96,7 +96,7 @@ async def transform_requirements_endpoint(
         500: {"model": ApiErrorResponse, "description": "Internal server error"},
     },
 )
-async def refine_requirements_endpoint(
+def refine_requirements_endpoint(
     request: RefinementRequest,
     x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),

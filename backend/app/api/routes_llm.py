@@ -27,7 +27,7 @@ class LLMVerifyResponse(BaseModel):
 
 
 @router.post("/verify", response_model=LLMVerifyResponse)
-async def verify_llm_connection(payload: LLMVerifyRequest):
+def verify_llm_connection(payload: LLMVerifyRequest):
     """
     Validates ephemeral LLM credentials with a lightweight ping invocation,
     measuring latency and confirming provider availability.

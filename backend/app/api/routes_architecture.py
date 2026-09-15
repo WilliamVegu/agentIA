@@ -38,7 +38,7 @@ router = APIRouter(prefix="/architecture", tags=["Architecture & Component Desig
         500: {"model": ApiErrorResponse, "description": "Internal server error"},
     },
 )
-async def design_architecture_endpoint(
+def design_architecture_endpoint(
     request: ArchitectureDesignRequest,
     x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
@@ -68,7 +68,7 @@ async def design_architecture_endpoint(
         500: {"model": ApiErrorResponse, "description": "Internal server error"},
     },
 )
-async def refine_architecture_endpoint(
+def refine_architecture_endpoint(
     request: ArchitectureRefinementRequest,
     x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),

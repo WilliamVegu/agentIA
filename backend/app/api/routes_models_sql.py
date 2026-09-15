@@ -32,7 +32,7 @@ router = APIRouter(prefix="/models", tags=["Domain Models & SQL Schema"])
         500: {"model": ApiErrorResponse, "description": "Internal server error"},
     },
 )
-async def generate_models_and_sql_endpoint(
+def generate_models_and_sql_endpoint(
     request: ModelSqlGenerationRequest,
     x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
@@ -62,7 +62,7 @@ async def generate_models_and_sql_endpoint(
         500: {"model": ApiErrorResponse, "description": "Internal server error"},
     },
 )
-async def refine_models_and_sql_endpoint(
+def refine_models_and_sql_endpoint(
     request: ModelSqlRefinementRequest,
     x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),

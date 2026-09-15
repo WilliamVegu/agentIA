@@ -3,9 +3,13 @@ import sys
 from pathlib import Path
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 
 # Ensure frontend root and app directory are accessible
 _FRONTEND_ROOT = Path(__file__).resolve().parent
+load_dotenv()
+load_dotenv(_FRONTEND_ROOT.parent / ".env")
+load_dotenv(_FRONTEND_ROOT.parent / "backend" / ".env")
 if str(_FRONTEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_FRONTEND_ROOT))
 
@@ -142,10 +146,12 @@ if selected_provider == "mock":
     api_key_input = "mock-key"
     st.sidebar.success("✅ Modo Mock activo: Cero costo, sin llamadas a internet.")
 else:
+    default_env_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     api_key_input = st.sidebar.text_input(
         "API Key Efímera",
+        value=st.session_state.get("api_key") or default_env_key,
         type="password",
-        help="Introduce tu API Key gratuita de Gemini (AIza...), Groq (gsk_...) o OpenAI (sk-...). Se procesa estrictamente en memoria.",
+        help="Introduce tu API Key gratuita de Gemini (AIza... / AQ...), Groq (gsk_...) o OpenAI (sk-...). Se procesa estrictamente en memoria.",
     )
     clean_key = (api_key_input or "").strip()
     if not clean_key or clean_key in ("mock-key", "test-key", "mock"):
@@ -173,8 +179,11 @@ else:
     model_options_map = {
         "gemini": [
             "gemini-3.6-flash (Recomendado / Alta Inteligencia)",
+            "gemini-3.8-flash (Máxima Inteligencia Flash)",
             "gemini-3.5-flash-lite (Ultra Rápido / Liviano)",
-            "gemini-3.1-pro-preview (Avanzado)",
+            "gemini-3.5-flash (Balanceado)",
+            "gemini-2.5-flash (Rápido / Estable)",
+            "gemini-1.5-flash (Estable Legacy)",
             "Personalizado / Escribir otro...",
         ],
         "groq": [
@@ -212,7 +221,7 @@ else:
                             "provider": selected_provider,
                             "model": selected_model_name,
                         },
-                        timeout=12.0,
+                        timeout=30.0,
                     )
                     if verify_resp.status_code == 200:
                         st.session_state["llm_verify_result"] = verify_resp.json()

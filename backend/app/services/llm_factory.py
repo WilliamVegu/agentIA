@@ -11,7 +11,7 @@ class LLMProvider(str, Enum):
 
 # Default models per provider (all chosen for high quality and generous/free tiers)
 DEFAULT_MODELS = {
-    LLMProvider.GEMINI: "gemini-2.5-flash",
+    LLMProvider.GEMINI: "gemini-3.6-flash",
     LLMProvider.GROQ: "qwen/qwen3.8-27b",
     LLMProvider.OPENAI: "gpt-4o-mini",
 }
@@ -97,6 +97,8 @@ class LLMFactory:
                 model=selected_model,
                 google_api_key=resolved_key,
                 temperature=temperature,
+                max_retries=2,
+                timeout=120.0,
             )
 
         if detected_provider == LLMProvider.GROQ.value:
@@ -107,6 +109,8 @@ class LLMFactory:
                 model=selected_model,
                 groq_api_key=resolved_key,
                 temperature=temperature,
+                max_retries=2,
+                request_timeout=120.0,
             )
 
         if detected_provider == LLMProvider.OPENAI.value:
@@ -117,6 +121,8 @@ class LLMFactory:
                 model=selected_model,
                 api_key=resolved_key,
                 temperature=temperature,
+                max_retries=2,
+                timeout=120.0,
             )
 
         raise ValueError(f"Unsupported LLM provider: {detected_provider}")

@@ -36,13 +36,15 @@ def render_architecture_view(backend_url: str, openai_key: str = None, provider:
                             headers["X-LLM-API-Key"] = active_api_key
                         if active_provider:
                             headers["X-LLM-Provider"] = active_provider
-                        resp = requests.post(f"{backend_url}/api/v1/architecture/design", json=payload, headers=headers, timeout=45)
+                        resp = requests.post(f"{backend_url}/api/v1/architecture/design", json=payload, headers=headers, timeout=180)
                         if resp.status_code == 200:
                             st.session_state.architecture_design = resp.json()
                             st.success("✅ ¡Arquitectura y componentes diseñados exitosamente!")
                             st.rerun()
                         else:
                             st.error(f"Error {resp.status_code}: {resp.text}")
+                    except requests.exceptions.Timeout:
+                        st.error("⏱️ Tiempo de espera agotado al diseñar la arquitectura con IA. Intenta nuevamente.")
                     except Exception as e:
                         st.error(f"Error conectando con el backend: {e}")
         else:
@@ -153,13 +155,15 @@ def render_architecture_view(backend_url: str, openai_key: str = None, provider:
                 }
                 try:
                     headers = {"X-LLM-API-Key": active_api_key} if active_api_key else {}
-                    resp = requests.post(f"{backend_url}/api/v1/architecture/refine", json=payload, headers=headers, timeout=45)
+                    resp = requests.post(f"{backend_url}/api/v1/architecture/refine", json=payload, headers=headers, timeout=180)
                     if resp.status_code == 200:
                         st.session_state.architecture_design = resp.json()
                         st.success("✅ ¡Diseño arquitectónico refinado exitosamente!")
                         st.rerun()
                     else:
                         st.error(f"Error {resp.status_code}: {resp.text}")
+                except requests.exceptions.Timeout:
+                    st.error("⏱️ Tiempo de espera agotado al refinar el diseño arquitectónico con IA. Intenta nuevamente.")
                 except Exception as e:
                     st.error(f"Error conectando con el backend: {e}")
 
@@ -217,13 +221,15 @@ def render_architecture_view(backend_url: str, openai_key: str = None, provider:
                     "provider": active_provider,
                 }
                 try:
-                    resp = requests.post(f"{backend_url}/api/v1/models/generate", json=payload, headers=headers, timeout=60)
+                    resp = requests.post(f"{backend_url}/api/v1/models/generate", json=payload, headers=headers, timeout=180)
                     if resp.status_code == 200:
                         st.session_state.data_model_design = resp.json()
                         st.success("🎉 ¡Modelos de dominio y esquema SQL generados exitosamente!")
                         st.info("👉 Pasa a la pestaña **'💾 3. Modelos & SQL'** para inspeccionar entidades, diagramas ER y scripts SQL.")
                     else:
                         st.error(f"Error {resp.status_code}: {resp.text}")
+                except requests.exceptions.Timeout:
+                    st.error("⏱️ Tiempo de espera agotado al generar modelos de datos y esquema SQL con IA. Intenta nuevamente.")
                 except Exception as e:
                     st.error(f"Error conectando con el backend: {e}")
 

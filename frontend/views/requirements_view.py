@@ -80,7 +80,7 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                         "modelName": active_model,
                     }
                     try:
-                        resp = requests.post(f"{backend_url}/api/v1/requirements/transform", json=payload, timeout=45)
+                        resp = requests.post(f"{backend_url}/api/v1/requirements/transform", json=payload, timeout=180)
                         if resp.status_code == 200:
                             st.session_state.draft_spec = resp.json()
                             if active_session_id:
@@ -89,6 +89,8 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                             st.rerun()
                         else:
                             st.error(f"Error ({resp.status_code}): {resp.text}")
+                    except requests.exceptions.Timeout:
+                        st.error("⏱️ **Tiempo de espera agotado**: El modelo de IA tardó más de lo esperado en sintetizar los requerimientos. Intenta nuevamente o selecciona un modelo más liviano en la barra lateral.")
                     except Exception as e:
                         st.error(f"Error conectando con backend: {e}")
 
@@ -152,7 +154,7 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                             f"{backend_url}/api/v1/requirements/transform",
                             json=payload,
                             headers=headers,
-                            timeout=45,
+                            timeout=180,
                         )
                         if resp.status_code == 200:
                             st.session_state.draft_spec = resp.json()
@@ -164,6 +166,8 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                             st.error("❌ Error 401: Clave de API no válida o ausente.")
                         else:
                             st.error(f"Error {resp.status_code}: {resp.text}")
+                    except requests.exceptions.Timeout:
+                        st.error("⏱️ **Tiempo de espera agotado (Read timed out)**: El modelo de IA tardó más de lo esperado en procesar los requerimientos. Intenta nuevamente o selecciona un modelo más rápido como **gemini-3.5-flash-lite** / **gemini-2.5-flash** o **Modo Mock**.")
                     except Exception as e:
                         st.error(f"Error conectando con el backend: {e}")
 
@@ -325,7 +329,7 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                             f"{backend_url}/api/v1/requirements/refine",
                             json=refine_payload,
                             headers=headers,
-                            timeout=45,
+                            timeout=180,
                         )
                         if resp.status_code == 200:
                             st.session_state.draft_spec = resp.json()
@@ -333,6 +337,8 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                             st.rerun()
                         else:
                             st.error(f"Error al refinar: {resp.status_code} - {resp.text}")
+                    except requests.exceptions.Timeout:
+                        st.error("⏱️ Tiempo de espera agotado al refinar con IA. Intenta nuevamente.")
                     except Exception as e:
                         st.error(f"Error conectando con el backend: {e}")
 
@@ -356,7 +362,7 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                             f"{backend_url}/api/v1/architecture/design",
                             json=payload,
                             headers=headers,
-                            timeout=45,
+                            timeout=180,
                         )
                         if resp.status_code == 200:
                             st.session_state.architecture_design = resp.json()
@@ -368,6 +374,8 @@ def render_requirements_view(backend_url: str, openai_key: str = None, provider:
                             st.rerun()
                         else:
                             st.error(f"Error al diseñar arquitectura: {resp.status_code} - {resp.text}")
+                    except requests.exceptions.Timeout:
+                        st.error("⏱️ Tiempo de espera agotado al diseñar la arquitectura con IA. Intenta nuevamente.")
                     except Exception as e:
                         st.error(f"Error conectando con el backend: {e}")
 
