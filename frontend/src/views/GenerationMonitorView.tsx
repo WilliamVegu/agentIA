@@ -38,17 +38,36 @@ export const GenerationMonitorView: React.FC = () => {
     currentSpecId,
     selectSession,
     refreshSessions,
+    reloadCurrentOverview,
     setActiveTab,
   } = useStudio();
 
   // SSE Stream URL
   const sseUrl = activeSessionId ? `/api/v1/sessions/${activeSessionId}/stream` : null;
-  const { logs, isConnected, clearLogs } = useSSE(sseUrl);
+  const { logs, isConnected, clearLogs, lastEvent } = useSSE(sseUrl);
 
   const [autoScroll, setAutoScroll] = useState(true);
   const [isTriggering, setIsTriggering] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
   const terminalEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Instantly refresh sessions & overview upon receiving completion or milestone events
+  useEffect(() => {
+    if (!lastEvent) return;
+    const evtType = lastEvent.event || lastEvent.type;
+    const isMilestoneOrFinished =
+      evtType === 'session_completed' ||
+      evtType === 'session_blocked' ||
+      evtType === 'phase_transition' ||
+      lastEvent.status === 'COMPLETED' ||
+      lastEvent.status === 'BLOCKED' ||
+      (lastEvent.percent && lastEvent.percent >= 100);
+
+    if (isMilestoneOrFinished) {
+      refreshSessions();
+      reloadCurrentOverview();
+    }
+  }, [lastEvent, refreshSessions, reloadCurrentOverview]);
 
   useEffect(() => {
     if (autoScroll && terminalEndRef.current) {

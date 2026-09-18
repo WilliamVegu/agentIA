@@ -69,6 +69,22 @@ def _emit_event(session_id: str, phase: LifecyclePhase, step: str, percent: floa
     )
     _get_queue(session_id).put(evt)
 
+    try:
+        from app.api.routes_session import broadcast_session_event
+        broadcast_session_event(session_id, "pipeline_progress", {
+            "sessionId": session_id,
+            "phase": phase.value if hasattr(phase, "value") else str(phase),
+            "stage": phase.value if hasattr(phase, "value") else str(phase),
+            "step": step,
+            "percent": percent,
+            "message": message,
+            "status": status.value if hasattr(status, "value") else str(status),
+            "error": error,
+            "log": f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] [{step}] {message}"
+        })
+    except Exception:
+        pass
+
 
 def get_pipeline_status(session_id: str) -> PipelineRunStatus:
     return _pipeline_statuses.get(session_id, PipelineRunStatus.IDLE)
@@ -390,6 +406,19 @@ def _execute_pipeline_steps(
         _emit_event(session_id, LifecyclePhase.COMPLETED, "Finalizado", 100.0, "🎉 ¡Pipeline completado con éxito! Todos los artefactos están listos.", PhaseStatus.COMPLETED)
         _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
 
+        try:
+            from app.api.routes_session import broadcast_session_event
+            broadcast_session_event(session_id, "session_completed", {
+                "sessionId": session_id,
+                "status": "COMPLETED",
+                "message": "Pipeline completado con éxito.",
+                "percent": 100.0,
+                "artifactCount": 10,
+                "downloadUrl": f"/api/v1/sessions/{session_id}/export"
+            })
+        except Exception:
+            pass
+
         db_comp = SessionLocal()
         try:
             s = db_comp.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
@@ -405,6 +434,18 @@ def _execute_pipeline_steps(
     except Exception as e:
         _emit_event(session_id, LifecyclePhase.INITIAL, "Error", 0.0, f"Error en ejecución de pipeline: {str(e)}", PhaseStatus.BLOCKED, error=str(e))
         _pipeline_statuses[session_id] = PipelineRunStatus.FAILED
+
+        try:
+            from app.api.routes_session import broadcast_session_event
+            broadcast_session_event(session_id, "session_blocked", {
+                "sessionId": session_id,
+                "status": "BLOCKED",
+                "failureReason": str(e),
+                "error": str(e)
+            })
+        except Exception:
+            pass
+
         db_err = SessionLocal()
         try:
             s = db_err.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()

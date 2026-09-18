@@ -36,18 +36,34 @@ class CreateSessionRequest(BaseModel):
 
 def broadcast_session_event(session_id: str, event_type: str, data: dict):
     """Stores event in history and broadcasts to all active SSE subscribers."""
+    data_with_meta = dict(data)
+    if "event" not in data_with_meta:
+        data_with_meta["event"] = event_type
+    if "type" not in data_with_meta:
+        data_with_meta["type"] = event_type
+
     event = {
         "id": len(SESSION_EVENT_HISTORY.get(session_id, [])) + 1,
         "event": event_type,
-        "data": json.dumps(data)
+        "data": json.dumps(data_with_meta)
     }
     if session_id not in SESSION_EVENT_HISTORY:
         SESSION_EVENT_HISTORY[session_id] = []
     SESSION_EVENT_HISTORY[session_id].append(event)
 
     subscribers = SESSION_EVENT_SUBSCRIBERS.get(session_id, [])
-    for q in subscribers:
-        q.put_nowait(event)
+    for q in list(subscribers):
+        try:
+            loop = getattr(q, "_loop", None)
+            if loop and loop.is_running():
+                loop.call_soon_threadsafe(q.put_nowait, event)
+            else:
+                q.put_nowait(event)
+        except Exception:
+            try:
+                q.put_nowait(event)
+            except Exception:
+                pass
 
 async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: str, blueprint_dict: dict):
     """Background worker executing the LangGraph pipeline with concurrency controls."""

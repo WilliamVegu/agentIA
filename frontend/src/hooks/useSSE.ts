@@ -46,7 +46,7 @@ export function useSSE(streamUrl: string | null) {
       });
     };
 
-    es.onmessage = (event) => {
+    const handleEvent = (event: MessageEvent) => {
       try {
         const parsed = JSON.parse(event.data);
         setLastEvent(parsed);
@@ -55,7 +55,7 @@ export function useSSE(streamUrl: string | null) {
           id: event.lastEventId || Date.now() + Math.random(),
           timestamp: new Date().toLocaleTimeString(),
           stage: parsed.stage || parsed.phase,
-          type: parsed.type || 'INFO',
+          type: parsed.type || parsed.event || 'INFO',
           message: msg,
           raw: parsed,
         });
@@ -69,11 +69,26 @@ export function useSSE(streamUrl: string | null) {
       }
     };
 
+    es.onmessage = handleEvent;
+    const customEvents = [
+      'phase_transition',
+      'session_completed',
+      'session_blocked',
+      'pipeline_progress',
+      'progress',
+    ];
+    customEvents.forEach((evtName) => {
+      es.addEventListener(evtName, handleEvent as EventListener);
+    });
+
     es.onerror = () => {
       setIsConnected(false);
     };
 
     return () => {
+      customEvents.forEach((evtName) => {
+        es.removeEventListener(evtName, handleEvent as EventListener);
+      });
       es.close();
       eventSourceRef.current = null;
       setIsConnected(false);
