@@ -35,8 +35,11 @@ export const exportService = {
   async getArtifactContent(sessionId: string, filePath: string): Promise<string> {
     const response = await apiClient.get<string>(`/sessions/${sessionId}/artifacts/content`, {
       params: { path: filePath },
+      transformResponse: [(data) => data],
+      responseType: 'text',
     });
-    return response.data;
+    const content = response.data;
+    return typeof content === 'string' ? content : JSON.stringify(content, null, 2);
   },
 
   async publishToGit(sessionId: string, payload: PublishPayload): Promise<PublishResult> {

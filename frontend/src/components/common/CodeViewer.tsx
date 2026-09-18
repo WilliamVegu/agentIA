@@ -10,7 +10,7 @@ interface CodeViewerProps {
 }
 
 export const CodeViewer: React.FC<CodeViewerProps> = ({
-  code,
+  code = '',
   language = 'java',
   filename,
   maxHeight = 'max-h-96',
@@ -18,9 +18,13 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
+  const safeCode = typeof code === 'string'
+    ? code
+    : (code !== null && code !== undefined ? JSON.stringify(code, null, 2) : '');
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(safeCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -28,7 +32,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
     }
   };
 
-  const lines = code.split('\n');
+  const lines = safeCode.split('\n');
 
   return (
     <div className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-900 overflow-hidden shadow-sm ${className}`}>

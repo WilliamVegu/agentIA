@@ -136,19 +136,21 @@ export const CodeExplorerView: React.FC = () => {
     exportService
       .listArtifacts(activeSessionId)
       .then((items: ArtifactItem[]) => {
-        if (items && items.length > 0) {
+        if (Array.isArray(items) && items.length > 0) {
           setArtifacts(items);
-          setSelectedFile(items[0].relativePath);
-          setManualFile(items[0].relativePath);
-          exportService
-            .getArtifactContent(activeSessionId, items[0].relativePath)
-            .then((c) => {
-              if (c) {
-                setFileContent(c);
-                setManualCode(c);
-              }
-            })
-            .catch(() => {});
+          const firstPath = items[0]?.relativePath || '';
+          setSelectedFile(firstPath);
+          setManualFile(firstPath);
+          if (firstPath) {
+            exportService
+              .getArtifactContent(activeSessionId, firstPath)
+              .then((c) => {
+                const safeC = typeof c === 'string' ? c : (c ? JSON.stringify(c, null, 2) : '');
+                setFileContent(safeC);
+                setManualCode(safeC);
+              })
+              .catch(() => {});
+          }
         }
       })
       .catch(() => {});
@@ -158,7 +160,7 @@ export const CodeExplorerView: React.FC = () => {
       .then((data: RepairHistoryResponse) => {
         if (data) {
           setRepairData(data);
-          if (data.iterations) {
+          if (Array.isArray(data.iterations)) {
             setRepairs(data.iterations);
           }
         }
@@ -167,22 +169,26 @@ export const CodeExplorerView: React.FC = () => {
   }, [activeSessionId]);
 
   const handleSelectArtifact = async (path: string) => {
+    if (!path) return;
     setSelectedFile(path);
     if (!activeSessionId) return;
     try {
       const content = await exportService.getArtifactContent(activeSessionId, path);
-      setFileContent(content);
+      const safeContent = typeof content === 'string' ? content : (content ? JSON.stringify(content, null, 2) : '');
+      setFileContent(safeContent);
     } catch {
       // Fallback
     }
   };
 
   const handleSelectManualFile = async (path: string) => {
+    if (!path) return;
     setManualFile(path);
     if (!activeSessionId) return;
     try {
       const content = await exportService.getArtifactContent(activeSessionId, path);
-      setManualCode(content);
+      const safeContent = typeof content === 'string' ? content : (content ? JSON.stringify(content, null, 2) : '');
+      setManualCode(safeContent);
     } catch {
       // Fallback
     }
@@ -209,35 +215,46 @@ export const CodeExplorerView: React.FC = () => {
     }
   };
 
+  const getFileLanguage = (fileName?: string) => {
+    if (!fileName) return 'java';
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.xml')) return 'xml';
+    if (lower.endsWith('.yml') || lower.endsWith('.yaml')) return 'yaml';
+    if (lower.endsWith('.json')) return 'json';
+    if (lower.endsWith('.md')) return 'markdown';
+    if (lower.endsWith('.sql')) return 'sql';
+    return 'java';
+  };
+
   // Categories filtering
   const categories: Record<string, ArtifactItem[]> = {
-    Todos: artifacts,
-    'DTOs (Java Records)': artifacts.filter(
-      (a) => a.fileType === 'JAVA_RECORD' || a.relativePath.toLowerCase().includes('dto')
+    Todos: artifacts || [],
+    'DTOs (Java Records)': (artifacts || []).filter(
+      (a) => a?.fileType === 'JAVA_RECORD' || a?.relativePath?.toLowerCase().includes('dto')
     ),
-    'Entidades JPA': artifacts.filter(
-      (a) => a.relativePath.includes('model') || a.relativePath.includes('entity')
+    'Entidades JPA': (artifacts || []).filter(
+      (a) => a?.relativePath?.includes('model') || a?.relativePath?.includes('entity')
     ),
-    'Servicios & Repositorios': artifacts.filter(
-      (a) => a.relativePath.includes('service') || a.relativePath.includes('repository')
+    'Servicios & Repositorios': (artifacts || []).filter(
+      (a) => a?.relativePath?.includes('service') || a?.relativePath?.includes('repository')
     ),
-    'Controladores REST': artifacts.filter((a) => a.relativePath.includes('controller')),
-    'Pruebas Java (Unit, Web, DB)': artifacts.filter(
-      (a) => a.fileType === 'TEST_SOURCE' || a.relativePath.includes('src/test/java')
+    'Controladores REST': (artifacts || []).filter((a) => a?.relativePath?.includes('controller')),
+    'Pruebas Java (Unit, Web, DB)': (artifacts || []).filter(
+      (a) => a?.fileType === 'TEST_SOURCE' || a?.relativePath?.includes('src/test/java')
     ),
-    'Configuración & Pom': artifacts.filter(
-      (a) => a.fileType === 'POM_XML' || a.relativePath.endsWith('.xml') || a.relativePath.endsWith('.yml')
+    'Configuración & Pom': (artifacts || []).filter(
+      (a) => a?.fileType === 'POM_XML' || a?.relativePath?.endsWith('.xml') || a?.relativePath?.endsWith('.yml')
     ),
   };
 
-  const filteredArtifacts = categories[selectedCategory] || artifacts;
+  const filteredArtifacts = categories[selectedCategory] || artifacts || [];
 
   const finalState = repairData?.finalState || (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : 'VERIFIED');
-  const totalIters = repairData?.totalIterations ?? repairs.length;
+  const totalIters = repairData?.totalIterations ?? (Array.isArray(repairs) ? repairs.length : 0);
   const isBlocked = finalState === 'BLOCKED';
 
-  const testArtifacts = artifacts.filter(
-    (a) => a.fileType === 'TEST_SOURCE' || a.relativePath.includes('src/test/java')
+  const testArtifacts = (artifacts || []).filter(
+    (a) => a?.fileType === 'TEST_SOURCE' || a?.relativePath?.includes('src/test/java')
   );
 
   return (
@@ -393,8 +410,8 @@ export const CodeExplorerView: React.FC = () => {
             <div className="lg:col-span-3">
               <CodeViewer
                 code={fileContent}
-                language={selectedFile.endsWith('.xml') ? 'xml' : selectedFile.endsWith('.yml') ? 'yaml' : 'java'}
-                filename={selectedFile}
+                language={getFileLanguage(selectedFile)}
+                filename={selectedFile || 'archivo'}
                 maxHeight="max-h-[500px]"
               />
             </div>
@@ -548,8 +565,8 @@ export const CodeExplorerView: React.FC = () => {
                 onChange={(e) => handleSelectManualFile(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
-                {artifacts
-                  .filter((a) => a.relativePath.endsWith('.java') || a.relativePath.endsWith('.xml'))
+                {(artifacts || [])
+                  .filter((a) => a?.relativePath && (a.relativePath.endsWith('.java') || a.relativePath.endsWith('.xml') || a.relativePath.endsWith('.yml') || a.relativePath.endsWith('.json') || a.relativePath.endsWith('.md')))
                   .map((a) => (
                     <option key={a.relativePath} value={a.relativePath}>
                       {a.relativePath}
@@ -564,7 +581,7 @@ export const CodeExplorerView: React.FC = () => {
               </label>
               <textarea
                 rows={14}
-                value={manualCode}
+                value={typeof manualCode === 'string' ? manualCode : (manualCode ? JSON.stringify(manualCode, null, 2) : '')}
                 onChange={(e) => setManualCode(e.target.value)}
                 className="w-full p-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-950 text-slate-100 font-mono text-xs leading-relaxed focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
               />
