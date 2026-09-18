@@ -248,7 +248,7 @@ def render_overview_view(backend_url: str, session_id: Optional[str] = None):
             elif cur_key.startswith("AIza") or cur_key.startswith("AQ."):
                 engine_desc = "🟢 Google Gemini (gemini-3.6-flash)"
             elif cur_key.startswith("gsk_"):
-                engine_desc = "🟢 Groq Cloud (llama-3.3-70b-versatile)"
+                engine_desc = "🟢 Groq Cloud (qwen/qwen3.8-27b)"
             elif cur_key.startswith("sk-"):
                 engine_desc = "🟢 OpenAI (gpt-4o-mini)"
             else:

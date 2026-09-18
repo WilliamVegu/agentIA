@@ -43,7 +43,7 @@ class RequirementsTransformRequest(BaseModel):
     )
     modelName: Optional[str] = Field(
         default=None,
-        description="Optional custom LLM model name (e.g. 'gemini-2.0-flash', 'llama-3.3-70b-versatile').",
+        description="Optional custom LLM model name (e.g. 'gemini-3.6-flash', 'qwen/qwen3.8-27b').",
     )
 
 class SpecificationDraft(BaseModel):

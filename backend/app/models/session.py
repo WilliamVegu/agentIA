@@ -16,6 +16,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 class SessionStatus(str, Enum):
     QUEUED = "QUEUED"
     RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     BLOCKED = "BLOCKED"
     CANCELLED = "CANCELLED"

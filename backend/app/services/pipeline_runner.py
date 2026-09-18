@@ -76,37 +76,55 @@ def get_pipeline_status(session_id: str) -> PipelineRunStatus:
 
 def pause_pipeline(session_id: str) -> bool:
     """Signals an active Auto-Pilot thread to pause cooperatively and switch to Guided Step mode."""
-    if session_id in _pause_events and _pipeline_statuses.get(session_id) == PipelineRunStatus.RUNNING:
+    if session_id in _pause_events:
         _pause_events[session_id].set()
-        _pipeline_statuses[session_id] = PipelineRunStatus.PAUSED
+    _pipeline_statuses[session_id] = PipelineRunStatus.PAUSED
 
-        # Update DB to GUIDED_STEP
-        db = SessionLocal()
-        try:
-            sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-            if sess:
-                sess.lifecycle_mode = PipelineExecutionMode.GUIDED_STEP.value
-                db.commit()
-        finally:
-            db.close()
-        return True
-    return False
+    # Update DB to GUIDED_STEP and PAUSED
+    db = SessionLocal()
+    try:
+        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        if sess:
+            sess.status = SessionStatus.PAUSED
+            sess.lifecycle_mode = PipelineExecutionMode.GUIDED_STEP.value
+            db.commit()
+            return True
+    finally:
+        db.close()
+    return session_id in _pause_events
 
 
 def resume_pipeline(session_id: str) -> bool:
     """Resumes a paused Auto-Pilot pipeline."""
-    if _pipeline_statuses.get(session_id) == PipelineRunStatus.PAUSED:
-        creds = _session_credentials.get(session_id, {})
-        return run_pipeline(
-            session_id,
-            api_key=creds.get("api_key"),
-            provider=creds.get("provider"),
-        )
-    return False
+    db = SessionLocal()
+    try:
+        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        if sess:
+            sess.status = SessionStatus.RUNNING
+            sess.lifecycle_mode = PipelineExecutionMode.AUTO_PILOT.value
+            db.commit()
+    finally:
+        db.close()
+
+    # Wait briefly if the previous thread is still unwinding from pause
+    t = _active_threads.get(session_id)
+    if t and t.is_alive():
+        t.join(timeout=1.0)
+
+    creds = _session_credentials.get(session_id, {})
+    return run_pipeline(
+        session_id,
+        api_key=creds.get("api_key"),
+        provider=creds.get("provider"),
+        model_name=creds.get("model_name"),
+        force=True,
+    )
 
 
 def cancel_pipeline(session_id: str) -> bool:
     """Signals an active Auto-Pilot thread to cancel immediately and marks status as CANCELLED."""
+    if session_id in _stop_events:
+        _stop_events[session_id].set()
     if session_id in _pause_events:
         _pause_events[session_id].set()
     _pipeline_statuses[session_id] = PipelineRunStatus.CANCELLED
@@ -221,7 +239,7 @@ def _execute_pipeline_steps(
 
     detected_llm = LLMFactory.detect_provider(api_key, provider)
     is_mock = LLMFactory.is_mock(api_key, provider)
-    active_model = model_name or ("offline-mock" if is_mock else ("gemini-3.6-flash" if detected_llm == "gemini" else "default"))
+    active_model = "offline-mock" if is_mock else LLMFactory.resolve_model_name(detected_llm, model_name)
     llm_label = "Modo Mock (Offline)" if is_mock else f"Motor LLM: {detected_llm.upper()} ({active_model})"
 
     db = SessionLocal()
@@ -397,7 +415,10 @@ def _execute_pipeline_steps(
         finally:
             db_err.close()
     finally:
-        if pause_event.is_set():
+        if stop_event.is_set():
+            _emit_event(session_id, LifecyclePhase.COMPLETED, "Cancel", 0.0, "Pipeline cancelado por el usuario.", PhaseStatus.BLOCKED)
+            _pipeline_statuses[session_id] = PipelineRunStatus.CANCELLED
+        elif pause_event.is_set():
             _emit_event(session_id, LifecyclePhase.INITIAL, "Pausa", 0.0, "Pipeline pausado cooperativamente. Se mantiene el progreso alcanzado.", PhaseStatus.IN_PROGRESS)
             _pipeline_statuses[session_id] = PipelineRunStatus.PAUSED
 
@@ -410,9 +431,11 @@ def run_pipeline(
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     model_name: Optional[str] = None,
+    force: bool = False,
 ) -> bool:
     """Initiates an asynchronous background thread for autonomous Auto-Pilot execution."""
-    if _pipeline_statuses.get(session_id) == PipelineRunStatus.RUNNING:
+    t = _active_threads.get(session_id)
+    if not force and t and t.is_alive() and _pipeline_statuses.get(session_id) == PipelineRunStatus.RUNNING:
         return False
 
     if api_key or provider or model_name:

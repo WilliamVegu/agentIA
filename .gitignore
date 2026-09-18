@@ -66,4 +66,15 @@ backend/workspaces/*
 # Local SSL CA bundle
 backend/app/resources/ca-bundle.pem
 
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend-legacy/.streamlit/
+
+# Temporary presentation previews
+slide_previews/
+slide_previews_ejempl/
+test_open.pptx
+
 

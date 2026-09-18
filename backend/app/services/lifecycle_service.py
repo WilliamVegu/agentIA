@@ -10,6 +10,7 @@ from app.models.orchestrator import (
     PhaseState,
     PhaseStatus,
     PipelineExecutionMode,
+    PipelineRunStatus,
     ProjectOverviewSummary,
 )
 from app.models.session import GenerationSessionDB, SessionLocal, SessionStatus
@@ -267,6 +268,21 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
 
         from app.services.pipeline_runner import get_pipeline_status
         pipe_status = get_pipeline_status(session_id)
+        if pipe_status == PipelineRunStatus.IDLE and sess:
+            if sess.status == SessionStatus.RUNNING:
+                pipe_status = PipelineRunStatus.RUNNING
+            elif sess.status == SessionStatus.PAUSED:
+                pipe_status = PipelineRunStatus.PAUSED
+            elif sess.status == SessionStatus.CANCELLED:
+                pipe_status = PipelineRunStatus.CANCELLED
+            elif sess.status == SessionStatus.COMPLETED:
+                pipe_status = PipelineRunStatus.COMPLETED
+
+        if sess.status == SessionStatus.CANCELLED:
+            is_blocked = True
+            next_action = "Pipeline cancelado por el usuario"
+        elif sess.status == SessionStatus.PAUSED:
+            next_action = "Pipeline pausado. Puede reanudar o continuar en modo asistido"
 
         return LifecycleState(
             sessionId=session_id,

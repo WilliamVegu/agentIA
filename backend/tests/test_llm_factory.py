@@ -39,7 +39,7 @@ def test_get_chat_model_mock():
 def test_get_chat_model_gemini():
     model = LLMFactory.get_chat_model("AIzaSyDummyGeminiKey", provider="gemini")
     assert isinstance(model, ChatGoogleGenerativeAI)
-    assert model.model in ("gemini-3.6-flash", "gemini-2.0-flash")
+    assert model.model in ("gemini-3.6-flash", "gemini-3.5-flash-lite")
 
     # Test AQ. prefix detection
     model_aq = LLMFactory.get_chat_model("AQ.Ab8RN6DummyKey")
@@ -47,22 +47,42 @@ def test_get_chat_model_gemini():
     assert model_aq.model == "gemini-3.6-flash"
 
 def test_get_chat_model_gemini_custom():
-    model = LLMFactory.get_chat_model("AIzaSyDummyGeminiKey", model_name="gemini-1.5-flash")
+    model = LLMFactory.get_chat_model("AIzaSyDummyGeminiKey", model_name="gemini-3.5-flash-lite")
     assert isinstance(model, ChatGoogleGenerativeAI)
-    assert model.model == "gemini-1.5-flash"
+    assert model.model == "gemini-3.5-flash-lite"
 
 def test_get_chat_model_groq():
     model = LLMFactory.get_chat_model("gsk_dummyGroqKey")
     assert isinstance(model, ChatGroq)
-    assert model.model_name in ("qwen/qwen3.8-27b", "llama-3.1-8b-instant", "llama-3.3-70b-versatile")
+    assert model.model_name in ("qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b")
 
 def test_get_chat_model_groq_custom():
-    model = LLMFactory.get_chat_model("gsk_dummyGroqKey", model_name="llama-3.1-8b-instant")
+    model = LLMFactory.get_chat_model("gsk_dummyGroqKey", model_name="openai/gpt-oss-120b")
     assert isinstance(model, ChatGroq)
-    assert model.model_name == "llama-3.1-8b-instant"
+    assert model.model_name == "openai/gpt-oss-120b"
 
 def test_get_chat_model_openai():
     model = LLMFactory.get_chat_model("sk-dummyOpenAIKey")
     assert isinstance(model, ChatOpenAI)
     assert model.model_name == "gpt-4o-mini"
+
+def test_deprecated_model_fallbacks():
+    # Gemini decommissioned fallbacks
+    assert LLMFactory.resolve_model_name("gemini", "gemini-1.5-flash") == "gemini-3.6-flash"
+    assert LLMFactory.resolve_model_name("gemini", "gemini-1.5-pro") == "gemini-3.6-flash"
+    assert LLMFactory.resolve_model_name("gemini", "gemini-2.0-flash") == "gemini-3.6-flash"
+    assert LLMFactory.resolve_model_name("gemini", "gemini-2.0-flash-lite") == "gemini-3.5-flash-lite"
+    assert LLMFactory.resolve_model_name("gemini", "gemini-2.5-flash") == "gemini-3.6-flash"
+
+    # Groq decommissioned / unavailable fallbacks
+    assert LLMFactory.resolve_model_name("groq", "llama-3.3-70b-versatile") == "qwen/qwen3.8-27b"
+    assert LLMFactory.resolve_model_name("groq", "llama-3.1-8b-instant") == "qwen/qwen3.8-27b"
+    assert LLMFactory.resolve_model_name("groq", "llama3-70b-8192") == "qwen/qwen3.8-27b"
+    assert LLMFactory.resolve_model_name("groq", "mixtral-8x7b-32768") == "qwen/qwen3.8-27b"
+
+    # Preserves active supported models
+    assert LLMFactory.resolve_model_name("gemini", "gemini-3.6-flash") == "gemini-3.6-flash"
+    assert LLMFactory.resolve_model_name("gemini", "gemini-3.5-flash-lite") == "gemini-3.5-flash-lite"
+    assert LLMFactory.resolve_model_name("groq", "qwen/qwen3.8-27b") == "qwen/qwen3.8-27b"
+    assert LLMFactory.resolve_model_name("groq", "openai/gpt-oss-120b") == "openai/gpt-oss-120b"
 

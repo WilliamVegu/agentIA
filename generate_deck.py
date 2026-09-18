@@ -13,8 +13,8 @@ TEMPLATE_PATH = r"C:\Users\willi\Downloads\PPT_EJEMPL.pptx"
 OUT_PATH_DOWNLOADS = r"C:\Users\willi\Downloads\Microservice_Code_Studio_Presentacion.pptx"
 OUT_PATH_LOCAL = r"c:\Users\willi\Downloads\agentIA\Microservice_Code_Studio_Presentacion.pptx"
 
-IMG_STUDIO = r"c:\Users\willi\Downloads\agentIA\frontend\assets\screen_studio_cropped.png"
-IMG_SECURITY = r"c:\Users\willi\Downloads\agentIA\frontend\assets\screen_security_cropped.png"
+IMG_STUDIO = r"c:\Users\willi\Downloads\agentIA\assets_ppt\slide5_studio.png"
+IMG_SECURITY = r"c:\Users\willi\Downloads\agentIA\assets_ppt\slide5_security.png"
 
 prs = pptx.Presentation(TEMPLATE_PATH)
 
@@ -92,8 +92,8 @@ sh = find_shape(s1, "Text 4")
 if sh:
     sh.width = Inches(7.5)
     update_shape_paragraphs(sh, [
-        {"text": "Microservice Code Studio", "size": 42.0, "bold": True, "color": "F7FAFC"},
-        {"text": "Arquitectura & Java 21 Autónomo", "size": 34.0, "bold": True, "color": "F7FAFC"}
+        {"text": "Microservice Code Studio", "size": 40.0, "bold": True, "color": "F7FAFC"},
+        {"text": "Arquitectura & Java 21 Autónomo", "size": 32.0, "bold": True, "color": "F7FAFC"}
     ])
 
 sh = find_shape(s1, "Text 5")
@@ -166,14 +166,9 @@ if sh:
 # =========================================================================
 s3 = prs.slides[2]
 
-sh = find_shape(s3, "Text 3")
-if sh: update_shape_paragraphs(sh, [{"text": "MÉTODO DE TRABAJO", "size": 10.5, "bold": True, "color": "00D7FF"}])
-
-sh = find_shape(s3, "Text 4")
-if sh: update_shape_paragraphs(sh, [{"text": "De la idea al impacto", "size": 29.0, "bold": True, "color": "F7FAFC"}])
-
-sh = find_shape(s3, "Text 5")
-if sh: update_shape_paragraphs(sh, [{"text": "Mantenemos el esquema del reto: cuatro fases centradas en valor, usuario y evidencia.", "size": 12.2, "color": "AEB8C7"}])
+sh = find_shape(s3, "Text 3"); sh and update_shape_paragraphs(sh, [{"text": "MÉTODO DE TRABAJO", "size": 10.5, "bold": True, "color": "00D7FF"}])
+sh = find_shape(s3, "Text 4"); sh and update_shape_paragraphs(sh, [{"text": "De la idea al impacto", "size": 29.0, "bold": True, "color": "F7FAFC"}])
+sh = find_shape(s3, "Text 5"); sh and update_shape_paragraphs(sh, [{"text": "Mantenemos el esquema del reto: cuatro fases centradas en valor, usuario y evidencia.", "size": 12.2, "color": "AEB8C7"}])
 
 # Phase 1: DISCOVERY
 sh = find_shape(s3, "Text 7");  sh and update_shape_paragraphs(sh, [{"text": "1", "size": 18.0, "bold": True, "color": "2F80FF"}])
@@ -235,64 +230,105 @@ sh = find_shape(s4, "Text 15"); sh and update_shape_paragraphs(sh, [{"text": "Se
 sh = find_shape(s4, "Text 16"); sh and update_shape_paragraphs(sh, [{"text": "Modelo y runtime usados", "size": 11.2, "bold": True, "color": "00D7FF"}])
 sh = find_shape(s4, "Text 17"); sh and update_shape_paragraphs(sh, [{"text": "Google Gemini 2.5 Flash / Groq · Python 3.12 · FastAPI · LangGraph · Streamlit · Docker · Java 21 LTS · Spring Boot 3.2 · Maven · PostgreSQL / SQLite", "size": 9.0, "color": "AEB8C7"}])
 
-# Right card - La Solución
-sh = find_shape(s4, "Text 19"); sh and update_shape_paragraphs(sh, [{"text": "La Solución: Microservice Code Studio", "size": 15.5, "bold": True, "color": "F7FAFC"}])
+# Right card - Header: Microservice Code Studio
+# Reposition cleanly so there is NO overlap with the body text
+sh_title = find_shape(s4, "Text 19")
+if sh_title:
+    sh_title.left = Inches(6.85)
+    sh_title.top = Inches(2.20)
+    sh_title.width = Inches(4.25)
+    sh_title.height = Inches(0.35)
+    update_shape_paragraphs(sh_title, [{"text": "Microservice Code Studio", "size": 15.5, "bold": True, "color": "F7FAFC"}])
 
 right_box = find_shape(s4, "Text 9", shape_id=54)
 if not right_box:
     right_box = find_shape(s4, "Text 9", min_left=6.0)
 
 if right_box:
-    right_box.width = Inches(4.15)
-    right_box.top = Inches(2.58)
+    right_box.left = Inches(6.85)
+    right_box.top = Inches(2.62)
+    right_box.width = Inches(4.20)
+    right_box.height = Inches(3.45)
     tf = right_box.text_frame
+    tf.word_wrap = True
+    tf.margin_left = Inches(0.0)
+    tf.margin_right = Inches(0.0)
+    tf.margin_top = Inches(0.0)
+    tf.margin_bottom = Inches(0.0)
     tf.vertical_anchor = MSO_ANCHOR.TOP
     
-    features = [
-        ("Capacidades del sistema web en producción:", 11.5, True, "F7FAFC"),
-        ("• Inicio Rápido 1-Click & Auto-Pilot: Síntesis autónoma desatendida o modo asistido con pausa/reanudar en caliente.", 9.0, False, "F7FAFC"),
-        ("• Ingesta Dual de Especificaciones: Carga de spec.md (Spec Kit) o payload REST JSON con validación BDD Given/When/Then.", 9.0, False, "F7FAFC"),
-        ("• Arquitectura 4 Capas & Mermaid: Diagrama jerárquico (Controller ➔ Service ➔ Repo ➔ Model) y ERD relacional interactivo.", 9.0, False, "F7FAFC"),
-        ("• Entidades JPA & DDL Sincronizado: Jakarta Persistence fuertemente tipado con scripts sincronizados schema.sql y data.sql.", 9.0, False, "F7FAFC"),
-        ("• Sandbox Hermético Offline: Verificación en contenedor Docker con red desconectada y caché .m2 inmutable contra alucinaciones.", 9.0, False, "F7FAFC"),
-        ("• Auto-Reparación Acotada (3x): Parser de errores de compilación Maven que reintenta hasta 3 parches antes de solicitar HITL.", 9.0, False, "F7FAFC"),
-        ("• Auditoría SAST & Quality Gate: Análisis estático de código, detección de secretos, métricas CC y auto-parcheo 1-clic.", 9.0, False, "F7FAFC"),
-        ("• DevOps & Despliegue Multi-Cloud: Dockerfile multi-stage, Docker Compose, pipelines CI/CD (GitHub/GitLab) y Kubernetes.", 9.0, False, "F7FAFC"),
-        ("• Exportación ZIP & Publicación Git: Descarga de bundle completo y push atómico a rama remota con credenciales efímeras.", 9.0, False, "F7FAFC"),
+    bodyPr = right_box.text_frame._bodyPr
+    for child in list(bodyPr):
+        if "Autofit" in child.tag or "autofit" in child.tag.lower():
+            bodyPr.remove(child)
+    noAutofit = OxmlElement("a:noAutofit")
+    bodyPr.append(noAutofit)
+    bodyPr.set("anchor", "t")
+
+    feature_items = [
+        ("• Inicio Rápido & Auto-Pilot: ", "Síntesis autónoma 1-Click o modo asistido con controles hot-pause, resume y cancel en caliente."),
+        ("• Ingesta Dual BDD (Spec Kit): ", "Carga de spec.md o JSON blueprint con validación formal de criterios Given/When/Then."),
+        ("• Arquitectura 4 Capas & JPA: ", "Topología limpia (Controller➔Service➔Repo➔Model), DTOs Java Records inmutables y scripts SQL sincronizados."),
+        ("• Sandbox Hermético Offline: ", "Compilación y pruebas Mockito con --network none contra caché .m2 de solo lectura inmutable."),
+        ("• Auto-Reparación Acotada (3x): ", "Diagnóstico automático de trazas Maven con auto-parcheo de código antes de escalar a HITL."),
+        ("• Quality Gate SAST & DevOps: ", "Cero secretos persistidos, reporte estático 100/100, Dockerfile multi-stage, Compose y K8s.")
     ]
     
-    while len(tf.paragraphs) > len(features):
+    while len(tf.paragraphs) > len(feature_items):
         p_extra = tf.paragraphs[-1]
         p_extra._p.getparent().remove(p_extra._p)
         
-    for i, (f_text, f_size, f_bold, f_color) in enumerate(features):
+    for i, (title_text, desc_text) in enumerate(feature_items):
         if i < len(tf.paragraphs):
             p = tf.paragraphs[i]
         else:
             p = tf.add_paragraph()
         clean_paragraph_indent(p)
-        p.space_before = Pt(2)
-        p.space_after = Pt(1)
-        set_p_text(p, text=f_text, font_name="Century Gothic", size=f_size, bold=f_bold, color=f_color)
+        p.space_before = Pt(5)
+        p.space_after = Pt(2)
+        
+        # Clear existing runs
+        for r in p.runs:
+            r.text = ""
+            
+        # Run 1: Bold title
+        r1 = p.add_run() if not p.runs else p.runs[0]
+        r1.text = title_text
+        r1.font.name = "Century Gothic"
+        r1.font.size = Pt(10.0)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor.from_string("F7FAFC")
+        
+        # Run 2: Description
+        r2 = p.add_run()
+        r2.text = desc_text
+        r2.font.name = "Century Gothic"
+        r2.font.size = Pt(9.5)
+        r2.font.bold = False
+        r2.font.color.rgb = RGBColor.from_string("D1D5DB")
 
-# Update badges on the right with clean typography
+# Update 4 badges on the right with clean typography and vertical centering
+badge_configs = {
+    "Grupo 40": ("Text 21", "Ingesta BDD &\nAuto-Pilot"),
+    "Grupo 37": ("Text 24", "Sandbox Docker\nHermético"),
+    "Grupo 39": ("Text 27", "Auto-Reparación\nAcotada (3x)"),
+    "Grupo 38": ("Text 30", "Quality Gate &\nDevOps K8s")
+}
+
 for s in s4.shapes:
-    if s.name == "Grupo 40":
+    if s.name in badge_configs:
+        target_sub, target_text = badge_configs[s.name]
         for sub in s.shapes:
-            if sub.has_text_frame and sub.name == "Text 21":
-                update_shape_paragraphs(sub, [{"text": "Ingesta BDD &\nAuto-Pilot", "size": 7.5, "color": "F7FAFC"}])
-    elif s.name == "Grupo 37":
-        for sub in s.shapes:
-            if sub.has_text_frame and sub.name == "Text 24":
-                update_shape_paragraphs(sub, [{"text": "Sandbox Docker\nHermético", "size": 7.5, "color": "F7FAFC"}])
-    elif s.name == "Grupo 39":
-        for sub in s.shapes:
-            if sub.has_text_frame and sub.name == "Text 27":
-                update_shape_paragraphs(sub, [{"text": "Auto-Reparación\nAcotada (3x)", "size": 7.5, "color": "F7FAFC"}])
-    elif s.name == "Grupo 38":
-        for sub in s.shapes:
-            if sub.has_text_frame and sub.name == "Text 30":
-                update_shape_paragraphs(sub, [{"text": "Quality Gate &\nDevOps K8s", "size": 7.5, "color": "F7FAFC"}])
+            if sub.has_text_frame and sub.name == target_sub:
+                sub.text_frame.word_wrap = True
+                sub.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                update_shape_paragraphs(sub, [{
+                    "text": target_text,
+                    "size": 8.0,
+                    "bold": True,
+                    "color": "F7FAFC",
+                    "align": PP_ALIGN.CENTER
+                }])
 
 sh = find_shape(s4, "Text 32"); sh and update_shape_paragraphs(sh, [{"text": "AI Lab Perú · TCS Microservice Code Studio", "size": 8.5, "color": "AEB8C7"}])
 
@@ -305,7 +341,7 @@ sh = find_shape(s5, "Text 3"); sh and update_shape_paragraphs(sh, [{"text": "CIE
 sh = find_shape(s5, "Text 4"); sh and update_shape_paragraphs(sh, [{"text": "Evidencia, impacto y escalabilidad", "size": 29.0, "bold": True, "color": "F7FAFC"}])
 sh = find_shape(s5, "Text 5"); sh and update_shape_paragraphs(sh, [{"text": "Una solución técnica real convertida en activo estratégico para la aceleración del ciclo de software.", "size": 12.2, "color": "AEB8C7"}])
 
-# Replace images with authentic project UI captures
+# Replace images with authentic high-res project UI captures
 for s in s5.shapes:
     if s.name == "Imagen 36" and os.path.exists(IMG_STUDIO):
         rId = s._element.xpath('.//a:blip')[0].attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed']

@@ -161,7 +161,7 @@ else:
     elif clean_key.startswith("AIza") or clean_key.startswith("AQ."):
         detected_engine_badge = "🟢 Google Gemini (gemini-3.6-flash)"
     elif clean_key.startswith("gsk_"):
-        detected_engine_badge = "🟢 Groq Cloud (llama-3.3-70b-versatile)"
+        detected_engine_badge = "🟢 Groq Cloud (qwen/qwen3.8-27b)"
     elif clean_key.startswith("sk-"):
         detected_engine_badge = "🟢 OpenAI (gpt-4o-mini)"
     else:
@@ -181,17 +181,15 @@ else:
     model_options_map = {
         "gemini": [
             "gemini-3.6-flash (Recomendado / Alta Inteligencia)",
-            "gemini-3.8-flash (Máxima Inteligencia Flash)",
             "gemini-3.5-flash-lite (Ultra Rápido / Liviano)",
-            "gemini-3.5-flash (Balanceado)",
-            "gemini-2.5-flash (Rápido / Estable)",
-            "gemini-1.5-flash (Estable Legacy)",
+            "gemini-3.8-flash (Máxima Inteligencia Flash)",
             "Personalizado / Escribir otro...",
         ],
         "groq": [
-            "llama-3.3-70b-versatile (Recomendado)",
-            "llama-3.1-8b-instant (Rápido)",
-            "mixtral-8x7b-32768",
+            "qwen/qwen3.8-27b (Recomendado / Ultra Veloz)",
+            "openai/gpt-oss-120b (Alta Capacidad)",
+            "openai/gpt-oss-20b (Ligero)",
+            "groq/compound (Multi-tarea)",
             "Personalizado / Escribir otro...",
         ],
         "openai": [

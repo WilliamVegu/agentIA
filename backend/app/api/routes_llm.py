@@ -34,7 +34,7 @@ def verify_llm_connection(payload: LLMVerifyRequest):
     """
     clean_key = (payload.api_key or "").strip()
     detected = LLMFactory.detect_provider(clean_key, payload.provider)
-    model_name = payload.model or DEFAULT_MODELS.get(detected, "offline-mock")
+    model_name = LLMFactory.resolve_model_name(detected, payload.model)
 
     if LLMFactory.is_mock(clean_key, payload.provider):
         return LLMVerifyResponse(
@@ -47,11 +47,13 @@ def verify_llm_connection(payload: LLMVerifyRequest):
 
     t0 = time.perf_counter()
     try:
+        ping_max_tokens = 25 if detected in (LLMProvider.GROQ.value, LLMProvider.OPENAI.value) else None
         chat_model = LLMFactory.get_chat_model(
             api_key=clean_key,
             provider=payload.provider,
             model_name=model_name,
             temperature=0.0,
+            max_tokens=ping_max_tokens,
         )
         if not chat_model:
             return LLMVerifyResponse(

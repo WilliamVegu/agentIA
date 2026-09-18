@@ -9,11 +9,54 @@ class LLMProvider(str, Enum):
     OPENAI = "openai"
     MOCK = "mock"
 
-# Default models per provider (all chosen for high quality and generous/free tiers)
+# Default models per provider (all chosen for high quality and verified active tiers)
 DEFAULT_MODELS = {
     LLMProvider.GEMINI: "gemini-3.6-flash",
     LLMProvider.GROQ: "qwen/qwen3.8-27b",
     LLMProvider.OPENAI: "gpt-4o-mini",
+}
+
+# Verified active models per provider
+SUPPORTED_MODELS = {
+    LLMProvider.GEMINI: [
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
+    ],
+    LLMProvider.GROQ: [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "groq/compound",
+    ],
+    LLMProvider.OPENAI: [
+        "gpt-4o-mini",
+        "gpt-4o",
+    ],
+    LLMProvider.MOCK: [
+        "offline-mock",
+    ],
+}
+
+# Resilient fallback mapping for deprecated or decommissioned models
+DEPRECATED_MODEL_FALLBACKS = {
+    # Gemini decommissioned models -> active models
+    "gemini-1.0-pro": "gemini-3.6-flash",
+    "gemini-1.5-flash": "gemini-3.6-flash",
+    "gemini-1.5-pro": "gemini-3.6-flash",
+    "gemini-2.0-flash": "gemini-3.6-flash",
+    "gemini-2.0-flash-lite": "gemini-3.5-flash-lite",
+    "gemini-2.5-flash": "gemini-3.6-flash",
+    "gemini-2.5-pro": "gemini-3.6-flash",
+    # Groq decommissioned / unavailable models -> active models
+    "llama-3.3-70b-versatile": "qwen/qwen3.8-27b",
+    "llama-3.1-8b-instant": "qwen/qwen3.8-27b",
+    "llama3-70b-8192": "qwen/qwen3.8-27b",
+    "llama3-8b-8192": "qwen/qwen3.8-27b",
+    "mixtral-8x7b-32768": "qwen/qwen3.8-27b",
+    "gemma2-9b-it": "qwen/qwen3.8-27b",
+    "qwen-2.5-32b": "qwen/qwen3.8-27b",
+    "deepseek-r1-distill-llama-70b": "qwen/qwen3.8-27b",
 }
 
 class LLMFactory:
@@ -72,11 +115,35 @@ class LLMFactory:
         return LLMFactory.detect_provider(api_key, explicit_provider) == LLMProvider.MOCK.value
 
     @staticmethod
+    def resolve_model_name(
+        provider: str,
+        model_name: Optional[str] = None
+    ) -> str:
+        """
+        Resolves model name, mapping deprecated/decommissioned models to active supported models.
+        """
+        clean_model = (model_name or "").strip()
+        if not clean_model:
+            return DEFAULT_MODELS.get(provider, "default")
+
+        # Automatically translate legacy/decommissioned model requests
+        if clean_model in DEPRECATED_MODEL_FALLBACKS:
+            return DEPRECATED_MODEL_FALLBACKS[clean_model]
+
+        return clean_model
+
+    @staticmethod
+    def get_supported_models(provider: str) -> list[str]:
+        """Returns the list of verified supported models for the provider."""
+        return SUPPORTED_MODELS.get(provider, [])
+
+    @staticmethod
     def get_chat_model(
         api_key: Optional[str] = None,
         provider: Optional[str] = None,
         model_name: Optional[str] = None,
         temperature: float = 0.2,
+        max_tokens: Optional[int] = None,
     ) -> Optional[BaseChatModel]:
         """
         Instantiates and returns the configured LangChain chat model.
@@ -88,13 +155,13 @@ class LLMFactory:
             return None
 
         clean_key = (api_key or "").strip()
+        resolved_model = LLMFactory.resolve_model_name(detected_provider, model_name)
 
         if detected_provider == LLMProvider.GEMINI.value:
             from langchain_google_genai import ChatGoogleGenerativeAI
-            selected_model = model_name or DEFAULT_MODELS[LLMProvider.GEMINI]
             resolved_key = clean_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
             return ChatGoogleGenerativeAI(
-                model=selected_model,
+                model=resolved_model,
                 google_api_key=resolved_key,
                 temperature=temperature,
                 max_retries=2,
@@ -103,26 +170,30 @@ class LLMFactory:
 
         if detected_provider == LLMProvider.GROQ.value:
             from langchain_groq import ChatGroq
-            selected_model = model_name or DEFAULT_MODELS[LLMProvider.GROQ]
             resolved_key = clean_key or os.environ.get("GROQ_API_KEY")
-            return ChatGroq(
-                model=selected_model,
-                groq_api_key=resolved_key,
-                temperature=temperature,
-                max_retries=2,
-                request_timeout=120.0,
-            )
+            kwargs: dict[str, Any] = {
+                "model": resolved_model,
+                "groq_api_key": resolved_key,
+                "temperature": temperature,
+                "max_retries": 2,
+                "request_timeout": 120.0,
+            }
+            if max_tokens is not None:
+                kwargs["max_tokens"] = max_tokens
+            return ChatGroq(**kwargs)
 
         if detected_provider == LLMProvider.OPENAI.value:
             from langchain_openai import ChatOpenAI
-            selected_model = model_name or DEFAULT_MODELS[LLMProvider.OPENAI]
             resolved_key = clean_key or os.environ.get("OPENAI_API_KEY")
-            return ChatOpenAI(
-                model=selected_model,
-                api_key=resolved_key,
-                temperature=temperature,
-                max_retries=2,
-                timeout=120.0,
-            )
+            kwargs_oa: dict[str, Any] = {
+                "model": resolved_model,
+                "api_key": resolved_key,
+                "temperature": temperature,
+                "max_retries": 2,
+                "timeout": 120.0,
+            }
+            if max_tokens is not None:
+                kwargs_oa["max_tokens"] = max_tokens
+            return ChatOpenAI(**kwargs_oa)
 
         raise ValueError(f"Unsupported LLM provider: {detected_provider}")
