@@ -48,14 +48,19 @@ export function useSSE(streamUrl: string | null) {
 
     const handleEvent = (event: MessageEvent) => {
       try {
-        const parsed = JSON.parse(event.data);
+        const parsed = typeof event.data === 'string' && event.data.startsWith('{')
+          ? JSON.parse(event.data)
+          : event.data;
         setLastEvent(parsed);
-        const msg = parsed.message || parsed.log || JSON.stringify(parsed);
+        const msg =
+          (typeof parsed === 'object' && parsed !== null)
+            ? (parsed.line || parsed.message || parsed.log || parsed.diffSummary || JSON.stringify(parsed))
+            : String(parsed);
         addLog({
           id: event.lastEventId || Date.now() + Math.random(),
           timestamp: new Date().toLocaleTimeString(),
-          stage: parsed.stage || parsed.phase,
-          type: parsed.type || parsed.event || 'INFO',
+          stage: parsed?.stage || parsed?.phase || parsed?.currentPhase,
+          type: parsed?.type || parsed?.event || event.type || 'INFO',
           message: msg,
           raw: parsed,
         });
@@ -76,6 +81,10 @@ export function useSSE(streamUrl: string | null) {
       'session_blocked',
       'pipeline_progress',
       'progress',
+      'build_log',
+      'repair_iteration',
+      'queue_status',
+      'connect',
     ];
     customEvents.forEach((evtName) => {
       es.addEventListener(evtName, handleEvent as EventListener);

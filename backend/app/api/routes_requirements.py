@@ -32,14 +32,21 @@ router = APIRouter(prefix="/requirements", tags=["Requirements Transformation"])
 def resolve_api_key(
     payload_key: Optional[str] = None,
     header_key: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> str:
     """
     Resolves the ephemeral LLM API key with priority:
-    1. Payload key (ephemeral session state from Streamlit)
-    2. Header X-LLM-API-Key
-    3. Host environment variables: GEMINI_API_KEY / GOOGLE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY
+    1. Offline mock if provider is 'mock'
+    2. Payload key
+    3. Header X-LLM-API-Key
+    4. Host environment variables: GEMINI_API_KEY / GOOGLE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY
+    5. Fallback to offline-mock if ALLOW_OFFLINE_MOCK is True
     Raises HTTP 401 if no valid key is resolved per Constitution Principle VI.
     """
+    clean_provider = (provider or "").strip().lower()
+    if clean_provider == "mock":
+        return "offline-mock"
+
     key = (
         payload_key
         or header_key
@@ -49,6 +56,16 @@ def resolve_api_key(
         or os.environ.get("OPENAI_API_KEY")
     )
     if not key or not key.strip():
+        allow_mock = os.environ.get("ALLOW_OFFLINE_MOCK", "").lower() in ("true", "1", "yes")
+        try:
+            from app.config import settings
+            allow_mock = allow_mock or getattr(settings, "ALLOW_OFFLINE_MOCK", False)
+        except Exception:
+            pass
+
+        if allow_mock:
+            return "offline-mock"
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="LLM API key is required to perform requirements transformation. "
@@ -75,8 +92,8 @@ def transform_requirements_endpoint(
     Decompose natural language requirements narrative into formal User Stories
     with Given/When/Then acceptance criteria and extracted Domain Entities.
     """
-    api_key = resolve_api_key(request.apiKey, x_llm_api_key)
     provider = request.provider or x_llm_provider
+    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
         draft = transform_requirements(request, api_key, provider=provider)
         return draft
@@ -105,8 +122,8 @@ def refine_requirements_endpoint(
     Refine existing specification draft based on natural language feedback prompt,
     updating specific stories or globally adjusting criteria.
     """
-    api_key = resolve_api_key(request.apiKey, x_llm_api_key)
     provider = request.provider or x_llm_provider
+    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
         refined_draft = refine_specification(request, api_key, provider=provider)
         return refined_draft

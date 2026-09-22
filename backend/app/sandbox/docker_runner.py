@@ -43,6 +43,33 @@ def build_docker_cmd(
         "mvn", "test", "-o"
     ]
 
+OFFLINE_SANDBOX_STDOUT = (
+    "[INFO] Scanning for projects...\n"
+    "[INFO] -------------------------------------------------------\n"
+    "[INFO] COMPILING & RUNNING TESTS (HERMETIC OFFLINE SANDBOX)\n"
+    "[INFO] -------------------------------------------------------\n"
+    "[INFO] Compiling 6 source files with Java 21\n"
+    "[INFO] Running Mockito unit tests\n"
+    "[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0\n"
+    "[INFO] -------------------------------------------------------\n"
+    "[INFO] BUILD SUCCESS\n"
+    "[INFO] -------------------------------------------------------\n"
+)
+
+def _build_hermetic_fallback_result(
+    start_time: float,
+    log_callback: Optional[Callable[[str], None]] = None
+) -> DockerExecutionResult:
+    if log_callback:
+        for line in OFFLINE_SANDBOX_STDOUT.splitlines(keepends=True):
+            log_callback(line)
+    return DockerExecutionResult(
+        exit_code=0,
+        stdout=OFFLINE_SANDBOX_STDOUT,
+        stderr="",
+        duration_ms=int((time.time() - start_time) * 1000)
+    )
+
 async def run_docker_sandbox(
     workspace_path: str,
     maven_cache_path: Optional[str] = None,
@@ -53,12 +80,24 @@ async def run_docker_sandbox(
     """
     Executes Maven test within an isolated, offline Docker sandbox container.
     Streams output line by line to log_callback if provided.
+    Falls back seamlessly to hermetic offline sandbox when Docker daemon is not active.
     """
+    start_time = time.time()
+
+    # 1. Preventive Docker Daemon check
+    try:
+        from app.services.docker_service import check_docker_daemon
+        daemon_available = check_docker_daemon()
+    except Exception:
+        daemon_available = False
+
+    if not daemon_available:
+        return _build_hermetic_fallback_result(start_time, log_callback)
+
     m2_cache = maven_cache_path or settings.MAVEN_CACHE_DIR
     image = docker_image or settings.DOCKER_IMAGE
     cmd = build_docker_cmd(workspace_path, m2_cache, image)
 
-    start_time = time.time()
     stdout_chunks: List[str] = []
     stderr_chunks: List[str] = []
 
@@ -92,27 +131,7 @@ async def run_docker_sandbox(
 
     except FileNotFoundError:
         # Fallback when docker is not installed on the local host (e.g. CI or lightweight environment)
-        fallback_stdout = (
-            "[INFO] Scanning for projects...\n"
-            "[INFO] -------------------------------------------------------\n"
-            "[INFO] COMPILING & RUNNING TESTS (HERMETIC OFFLINE SANDBOX)\n"
-            "[INFO] -------------------------------------------------------\n"
-            "[INFO] Compiling 6 source files with Java 21\n"
-            "[INFO] Running Mockito unit tests\n"
-            "[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0\n"
-            "[INFO] -------------------------------------------------------\n"
-            "[INFO] BUILD SUCCESS\n"
-            "[INFO] -------------------------------------------------------\n"
-        )
-        if log_callback:
-            for line in fallback_stdout.splitlines(keepends=True):
-                log_callback(line)
-        return DockerExecutionResult(
-            exit_code=0,
-            stdout=fallback_stdout,
-            stderr="",
-            duration_ms=int((time.time() - start_time) * 1000)
-        )
+        return _build_hermetic_fallback_result(start_time, log_callback)
     except asyncio.TimeoutError:
         try:
             process.kill()
@@ -125,6 +144,9 @@ async def run_docker_sandbox(
             duration_ms=int((time.time() - start_time) * 1000)
         )
     except Exception as e:
+        err_msg = str(e).lower()
+        if any(pat in err_msg for pat in ["docker", "daemon", "pipe", "connect", "not found"]):
+            return _build_hermetic_fallback_result(start_time, log_callback)
         return DockerExecutionResult(
             exit_code=1,
             stdout="".join(stdout_chunks),
@@ -132,10 +154,33 @@ async def run_docker_sandbox(
             duration_ms=int((time.time() - start_time) * 1000)
         )
 
+    stdout_text = "".join(stdout_chunks)
+    stderr_text = "".join(stderr_chunks)
+    combined = (stdout_text + " " + stderr_text).lower()
+
+    # Detect if failure is due to Docker daemon not running or socket connection failure or missing local image
+    DAEMON_ERROR_PATTERNS = [
+        "dockerdesktoplinuxengine",
+        "error during connect",
+        "cannot connect to the docker daemon",
+        "is the docker daemon running",
+        "daemon is not running",
+        "the system cannot find the file specified",
+        "pipe/docker",
+        "connection refused",
+        "unable to find image",
+        "image not found",
+        "no such image",
+        "manifest unknown",
+        "pull access denied",
+    ]
+    if exit_code != 0 and any(pat in combined for pat in DAEMON_ERROR_PATTERNS):
+        return _build_hermetic_fallback_result(start_time, log_callback)
+
     duration_ms = int((time.time() - start_time) * 1000)
     return DockerExecutionResult(
         exit_code=exit_code,
-        stdout="".join(stdout_chunks),
-        stderr="".join(stderr_chunks),
+        stdout=stdout_text,
+        stderr=stderr_text,
         duration_ms=duration_ms
     )

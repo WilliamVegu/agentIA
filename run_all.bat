@@ -12,14 +12,14 @@ start "AgentIA - Backend Orchestrator (:8000)" cmd /k "cd /d "%~dp0backend" && p
 echo [2/2] Esperando inicializacion del backend (3 segundos)...
 timeout /t 3 /nobreak >nul
 
-echo [2/2] Iniciando Frontend Studio (Streamlit en http://localhost:8501)...
-start "AgentIA - Frontend Studio (:8501)" cmd /k "cd /d "%~dp0" && python -m streamlit run frontend/app.py --server.port 8501"
+echo [2/2] Iniciando Frontend Studio (React/Vite en http://localhost:3000)...
+start "AgentIA - Frontend Studio (:3000)" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 
 echo.
 echo ==============================================================================
 echo Los servicios se estan ejecutando en ventanas dedicadas:
 echo.
-echo   * Frontend Web UI : http://localhost:8501
+echo   * Frontend Web UI : http://localhost:3000
 echo   * Backend REST API: http://localhost:8000
 echo   * Swagger Docs    : http://localhost:8000/docs
 echo.

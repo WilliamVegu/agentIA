@@ -47,8 +47,8 @@ def design_architecture_endpoint(
     Synthesizes a formal 4-layer Spring Boot 3 architecture, component catalog,
     REST endpoints, Mermaid flowchart, and OpenAPI 3.0 specification from a specification draft.
     """
-    api_key = resolve_api_key(request.apiKey, x_llm_api_key)
     provider = request.provider or x_llm_provider
+    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
         design = design_architecture(request, api_key, provider=provider)
         return design
@@ -77,8 +77,8 @@ def refine_architecture_endpoint(
     Applies natural language feedback or delta adjustments to update the component
     catalog, layers, or REST endpoints.
     """
-    api_key = resolve_api_key(request.apiKey, x_llm_api_key)
     provider = request.provider or x_llm_provider
+    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
         refined_design = refine_architecture(request, api_key, provider=provider)
         return refined_design

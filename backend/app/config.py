@@ -59,8 +59,14 @@ class Settings(BaseSettings):
     # Maximum auto-repair iterations (Constitution Principle V)
     MAX_REPAIR_ATTEMPTS: int = 3
     
-    # Database
-    DATABASE_URL: str = "sqlite:///./studio.db"
+    # Allow offline mock fallback without requiring external API keys
+    ALLOW_OFFLINE_MOCK: bool = Field(default=False, description="Allow falling back to offline-mock when no API key is supplied")
+    
+    # Database (anchored to backend/studio.db by default; future migration target is PostgreSQL)
+    DATABASE_URL: str = Field(
+        default_factory=lambda: f"sqlite:///{(Path(__file__).resolve().parent.parent / 'studio.db').as_posix()}",
+        description="Database connection URL (PostgreSQL in production or SQLite for local development)"
+    )
 
 settings = Settings()
 

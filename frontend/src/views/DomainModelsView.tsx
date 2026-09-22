@@ -26,6 +26,7 @@ import { useLlm } from '../context/LlmContext';
 import { modelsService } from '../services/modelsService';
 import { specService } from '../services/specService';
 import { orchestratorService } from '../services/orchestratorService';
+import apiClient from '../services/apiClient';
 
 const DEFAULT_ER_MERMAID = `erDiagram
     ORDER ||--|{ ORDER_ITEM : contains
@@ -112,6 +113,8 @@ export const DomainModelsView: React.FC = () => {
     setParsedSpec,
     reloadCurrentOverview,
     setActiveTab,
+    refreshSessions,
+    selectSession,
   } = useStudio();
   const { provider, apiKey } = useLlm();
 
@@ -373,21 +376,89 @@ public class OrderItem {
     setIsSynthesizing(true);
     setErrorMsg(null);
     try {
+      const rawServiceName = (design.serviceName || activeSession?.specName || currentDraft?.serviceName || 'order-service')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/^-+|-+$/g, '') || 'order-service';
+      const cleanPackage = design.packageName || currentDraft?.packageName || `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
+
+      const rawEntities = (design.entities && design.entities.length > 0)
+        ? design.entities
+        : (currentDraft?.entities && currentDraft.entities.length > 0)
+        ? currentDraft.entities
+        : [{ name: 'Order', tableName: 'orders', attributes: [{ name: 'id', type: 'Long', isPrimaryKey: true }] }];
+
+      const rawStories = (architectureDesign?.userStories && architectureDesign.userStories.length > 0)
+        ? architectureDesign.userStories
+        : (currentDraft?.userStories && currentDraft.userStories.length > 0)
+        ? currentDraft.userStories
+        : [
+            {
+              id: 'US-001',
+              priority: 'P1',
+              role: 'Usuario',
+              intent: 'Gestionar entidades relacionales',
+              benefit: 'Mantener consistencia transaccional',
+              scenarios: [
+                {
+                  scenarioId: 'AC-1.1',
+                  given: 'Servicio y repositorio JPA inicializados',
+                  when: 'Se envía una petición HTTP para persistir la entidad',
+                  then: 'Se almacena en la tabla relacional y se retorna 201 Created',
+                },
+              ],
+            },
+          ];
+
       const blueprintPayload = {
-        serviceName: design.serviceName,
-        packageName: design.packageName,
+        serviceName: rawServiceName,
+        packageName: cleanPackage,
         basePort: 8080,
-        entities: (design.entities || []).map((e: any) => ({
-          name: e.name,
-          tableName: e.tableName,
-          attributes: e.attributes || [{ name: 'id', type: 'Long', isPrimaryKey: true }],
+        databaseMode: 'PostgreSQL',
+        entities: rawEntities.map((e: any) => {
+          const name = typeof e === 'string' ? e : e?.name || 'Order';
+          const tableName = typeof e === 'object' && e?.tableName ? e.tableName : `${name.toLowerCase()}s`;
+          return {
+            name,
+            tableName,
+            attributes: ((typeof e === 'object' && (e?.attributes || e?.fields)) || [{ name: 'id', type: 'Long', isPrimaryKey: true }]).map((a: any) => ({
+              name: a.name,
+              type: a.type || a.javaType || 'Long',
+              nullable: !!a.nullable,
+              isPrimaryKey: !!a.isPrimaryKey || !!a.primaryKey,
+              validationRules: a.validationRules || [],
+            })),
+          };
+        }),
+        userStories: rawStories.map((s: any) => ({
+          id: s.id,
+          priority: s.priority || 'P1',
+          role: s.role || 'Usuario',
+          intent: s.intent || s.feature || 'Gestionar entidades de negocio',
+          benefit: s.benefit || 'Completar operaciones',
+          scenarios: (s.scenarios || []).map((sc: any, idx: number) => ({
+            scenarioId: sc.scenarioId || `AC-${s.id}.${idx + 1}`,
+            given: sc.given || 'Precondición válida',
+            when: sc.when || 'Operación ejecutada',
+            then: sc.then || 'Resultado esperado obtenido',
+          })),
         })),
-        userStories: architectureDesign?.userStories || currentDraft?.userStories || [],
       };
+
       const res = await specService.submitJson(blueprintPayload);
       if (res?.specId) {
         setCurrentSpecId(res.specId);
         setParsedSpec(res);
+        try {
+          const sessResp = await apiClient.post('/sessions', { specId: res.specId });
+          const newSessionId = sessResp.data?.sessionId || sessResp.data?.session_id;
+          if (newSessionId) {
+            await refreshSessions();
+            selectSession(newSessionId);
+          }
+        } catch (sessErr) {
+          console.warn('Could not auto-start session:', sessErr);
+        }
       }
       if (activeSessionId) {
         await orchestratorService.invalidateDownstream(activeSessionId, 'DATA_MODEL');
@@ -395,6 +466,7 @@ public class OrderItem {
       }
       setActiveTab(5); // Switch to Tab 5 Monitor
     } catch (err: any) {
+      console.error('Error al transferir modelos a generación:', err);
       setActiveTab(5);
     } finally {
       setIsSynthesizing(false);
@@ -504,25 +576,27 @@ public class OrderItem {
 
         <div className="space-y-3">
           {entities.map((entity: any) => {
-            const isExpanded = expandedEntity === entity.name;
-            const javaCode = design.javaEntityClasses?.[entity.name];
+            const entityName = typeof entity === 'string' ? entity : entity?.name || 'Order';
+            const entityTableName = typeof entity === 'object' && entity?.tableName ? entity.tableName : `${entityName.toLowerCase()}s`;
+            const isExpanded = expandedEntity === entityName;
+            const javaCode = design.javaEntityClasses?.[entityName];
 
             return (
               <div
-                key={entity.name}
+                key={entityName}
                 className="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 overflow-hidden shadow-sm"
               >
                 <div
-                  onClick={() => setExpandedEntity(isExpanded ? null : entity.name)}
+                  onClick={() => setExpandedEntity(isExpanded ? null : entityName)}
                   className="flex flex-wrap items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors"
                 >
                   <div className="flex items-center gap-2 font-mono">
                     <span className="font-bold text-sm text-slate-900 dark:text-white">
-                      📦 {entity.name}
+                      📦 {entityName}
                     </span>
                     <span className="text-slate-400 text-xs">➔</span>
                     <span className="px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">
-                      Tabla: {entity.tableName}
+                      Tabla: {entityTableName}
                     </span>
                   </div>
 
@@ -791,11 +865,15 @@ public class OrderItem {
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="Todas las entidades">Todas las entidades (Global)</option>
-              {entities.map((e: any) => (
-                <option key={e.name} value={e.name}>
-                  {e.name} (Tabla: {e.tableName})
-                </option>
-              ))}
+              {entities.map((e: any) => {
+                const eName = typeof e === 'string' ? e : e?.name || 'Order';
+                const eTable = typeof e === 'object' && e?.tableName ? e.tableName : `${eName.toLowerCase()}s`;
+                return (
+                  <option key={eName} value={eName}>
+                    {eName} (Tabla: {eTable})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

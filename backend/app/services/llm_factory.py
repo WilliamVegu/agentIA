@@ -74,17 +74,25 @@ class LLMFactory:
         """
         Detects the LLM provider based on explicit choice or API key heuristic prefix.
         """
+        if explicit_provider:
+            norm = explicit_provider.strip().lower()
+            if norm in ("mock", "mock-mode", "offline", "offline-mock", "testing") or "mock" in norm:
+                return LLMProvider.MOCK.value
+
         if not api_key or not api_key.strip():
             return LLMProvider.MOCK.value
 
         clean_key = api_key.strip()
-        if clean_key in ("mock-key", "test-key", "testing", "mock") or clean_key.startswith("mock-"):
+        if (
+            clean_key in ("mock-key", "test-key", "testing", "mock", "offline-mock")
+            or clean_key.startswith("mock-")
+            or clean_key.startswith("offline-")
+            or "mock" in clean_key.lower()
+        ):
             return LLMProvider.MOCK.value
 
         if explicit_provider:
             norm = explicit_provider.strip().lower()
-            if norm in ("mock", "mock-mode", "offline", "testing"):
-                return LLMProvider.MOCK.value
             if norm in ("gemini", "google", "google-gemini"):
                 return LLMProvider.GEMINI.value
             if norm in ("groq", "groq-cloud"):

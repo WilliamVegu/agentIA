@@ -25,6 +25,7 @@ import { architectureService } from '../services/architectureService';
 import { modelsService } from '../services/modelsService';
 import { specService } from '../services/specService';
 import { orchestratorService } from '../services/orchestratorService';
+import apiClient from '../services/apiClient';
 
 const DEFAULT_MERMAID = `flowchart TD
   subgraph Layer1["Capa 1: Controllers (REST / HTTP)"]
@@ -65,6 +66,8 @@ export const ArchitectureView: React.FC = () => {
     setParsedSpec,
     reloadCurrentOverview,
     setActiveTab,
+    refreshSessions,
+    selectSession,
   } = useStudio();
   const { provider, apiKey } = useLlm();
 
@@ -289,20 +292,95 @@ export const ArchitectureView: React.FC = () => {
     setIsGenerating(true);
     setErrorMsg(null);
     try {
+      const rawServiceName = (design.serviceName || activeSession?.specName || currentDraft?.serviceName || 'order-service')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/^-+|-+$/g, '') || 'order-service';
+      const cleanPackage = design.packageName || currentDraft?.packageName || `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
+
+      const draftEntities = (currentDraft?.entities && currentDraft.entities.length > 0)
+        ? currentDraft.entities
+        : [
+            {
+              name: 'Order',
+              tableName: 'orders',
+              attributes: [{ name: 'id', type: 'Long', nullable: false, isPrimaryKey: true, validationRules: [] }],
+            },
+          ];
+
+      const draftStories = (currentDraft?.userStories && currentDraft.userStories.length > 0)
+        ? currentDraft.userStories
+        : [
+            {
+              id: 'US-001',
+              priority: 'P1',
+              role: 'Usuario',
+              intent: 'Gestionar pedidos',
+              benefit: 'Operar el negocio',
+              scenarios: [
+                {
+                  scenarioId: 'AC-1.1',
+                  given: 'Servicio en ejecución y base de datos disponible',
+                  when: 'Cliente envía solicitud REST',
+                  then: 'El microservicio procesa y retorna 201 Created',
+                },
+              ],
+            },
+          ];
+
       const blueprintPayload = {
-        serviceName: design.serviceName,
-        packageName: design.packageName,
+        serviceName: rawServiceName,
+        packageName: cleanPackage,
         basePort: design.basePort || 8080,
-        entities: design.entities || [],
-        userStories: design.userStories || [],
+        databaseMode: 'PostgreSQL',
+        entities: draftEntities.map((e: any) => {
+          const name = typeof e === 'string' ? e : e?.name || 'Order';
+          const tableName = typeof e === 'object' && e?.tableName ? e.tableName : `${name.toLowerCase()}s`;
+          return {
+            name,
+            tableName,
+            attributes: ((typeof e === 'object' && (e.attributes || e.fields)) || [{ name: 'id', type: 'Long', isPrimaryKey: true }]).map((a: any) => ({
+              name: a.name,
+              type: a.type || a.javaType || 'Long',
+              nullable: !!a.nullable,
+              isPrimaryKey: !!a.isPrimaryKey || !!a.primaryKey,
+              validationRules: a.validationRules || [],
+            })),
+          };
+        }),
+        userStories: draftStories.map((s: any) => ({
+          id: s.id,
+          priority: s.priority || 'P1',
+          role: s.role || 'Usuario',
+          intent: s.intent || s.feature || 'Gestionar entidades de negocio',
+          benefit: s.benefit || 'Completar operaciones',
+          scenarios: (s.scenarios || []).map((sc: any, idx: number) => ({
+            scenarioId: sc.scenarioId || `AC-${s.id}.${idx + 1}`,
+            given: sc.given || 'Precondición válida',
+            when: sc.when || 'Operación ejecutada',
+            then: sc.then || 'Resultado esperado obtenido',
+          })),
+        })),
       };
+
       const res = await specService.submitJson(blueprintPayload);
       if (res?.specId) {
         setCurrentSpecId(res.specId);
         setParsedSpec(res);
+        try {
+          const sessResp = await apiClient.post('/sessions', { specId: res.specId });
+          const newSessionId = sessResp.data?.sessionId || sessResp.data?.session_id;
+          if (newSessionId) {
+            await refreshSessions();
+            selectSession(newSessionId);
+          }
+        } catch (sessErr) {
+          console.warn('Could not auto-start session:', sessErr);
+        }
       }
       setActiveTab(5); // Go to tab 5 (Generación & Logs)
     } catch (err: any) {
+      console.error('Error al transferir arquitectura a generación:', err);
       setActiveTab(5);
     } finally {
       setIsGenerating(false);

@@ -66,3 +66,47 @@ def test_submit_spec_json_invalid_payload():
     data = response.json()
     assert data["status"] == 400
 
+def test_submit_spec_json_frontend_transfer_payload():
+    payload = {
+        "serviceName": "customer-billing-service",
+        "packageName": "com.tcs.billing",
+        "basePort": 8080,
+        "databaseMode": "PostgreSQL",
+        "entities": [
+            {
+                "name": "Invoice",
+                "tableName": "invoices",
+                "attributes": [
+                    {"name": "id", "type": "Long", "isPrimaryKey": True, "nullable": False, "validationRules": []},
+                    {"name": "customerId", "type": "String", "isPrimaryKey": False, "nullable": False, "validationRules": ["@NotBlank"]},
+                    {"name": "amount", "type": "BigDecimal", "isPrimaryKey": False, "nullable": False, "validationRules": ["@NotNull"]},
+                    {"name": "createdAt", "type": "Instant", "isPrimaryKey": False, "nullable": True, "validationRules": []}
+                ]
+            }
+        ],
+        "userStories": [
+            {
+                "id": "US-1",
+                "priority": "P1",
+                "role": "BillingManager",
+                "intent": "Emit invoice for completed order",
+                "benefit": "Collect payment from customer",
+                "scenarios": [
+                    {
+                        "scenarioId": "AC-1.1",
+                        "given": "Valid order with customer ID and amount",
+                        "when": "POST request sent to /api/v1/invoices",
+                        "then": "Invoice is persisted and HTTP 201 Created is returned"
+                    }
+                ]
+            }
+        ]
+    }
+    response = client.post("/api/v1/specifications", json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["serviceName"] == "customer-billing-service"
+    assert data["isValid"] is True
+    assert "specId" in data
+
+

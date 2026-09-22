@@ -43,7 +43,7 @@ def broadcast_session_event(session_id: str, event_type: str, data: dict):
         data_with_meta["type"] = event_type
 
     event = {
-        "id": len(SESSION_EVENT_HISTORY.get(session_id, [])) + 1,
+        "id": str(len(SESSION_EVENT_HISTORY.get(session_id, [])) + 1),
         "event": event_type,
         "data": json.dumps(data_with_meta)
     }
@@ -257,6 +257,7 @@ async def list_sessions(limit: int = 50):
                     specId=s.spec_id,
                     specName=s.spec_name,
                     status=s.status,
+                    phase=s.phase,
                     currentLifecyclePhase=s.current_lifecycle_phase or "INITIAL",
                     lifecycleMode=s.lifecycle_mode or "GUIDED_STEP",
                     completionPercentage=pct,
@@ -441,16 +442,16 @@ async def stream_session_events(session_id: str, request: Request):
             for past_event in history:
                 yield past_event
 
-            # Listen for new events
+            # Listen for new events (cancellation handled by sse_starlette when client disconnects)
             while True:
-                if await request.is_disconnected():
-                    break
                 try:
                     event = await asyncio.wait_for(client_queue.get(), timeout=1.0)
                     yield event
                 except asyncio.TimeoutError:
                     # Keepalive comment
                     yield {"comment": "keepalive"}
+        except asyncio.CancelledError:
+            pass
         finally:
             if session_id in SESSION_EVENT_SUBSCRIBERS and client_queue in SESSION_EVENT_SUBSCRIBERS[session_id]:
                 SESSION_EVENT_SUBSCRIBERS[session_id].remove(client_queue)

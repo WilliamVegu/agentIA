@@ -15,6 +15,7 @@ export interface SessionListItem {
   specId: string;
   specName: string;
   status: 'CREATED' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED';
+  phase?: string;
   currentLifecyclePhase: string;
   lifecycleMode: string;
   completionPercentage: number;

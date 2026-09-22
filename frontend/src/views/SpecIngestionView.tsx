@@ -4,6 +4,7 @@ import { SingleRowCard } from '../components/common/SingleRowCard';
 import { specService } from '../services/specService';
 import { sessionService } from '../services/sessionService';
 import { useStudio } from '../context/StudioContext';
+import apiClient from '../services/apiClient';
 
 export const SpecIngestionView: React.FC = () => {
   const { refreshSessions, selectSession, setActiveTab, parsedSpec, setParsedSpec, setCurrentSpecId } = useStudio();
@@ -14,20 +15,37 @@ export const SpecIngestionView: React.FC = () => {
     JSON.stringify(
       {
         serviceName: "customer-billing-service",
-        database: "POSTGRESQL",
+        packageName: "com.tcs.billing",
+        basePort: 8080,
+        databaseMode: "PostgreSQL",
         entities: [
           {
             name: "Invoice",
-            fields: [
-              { name: "id", type: "Long", primaryKey: true },
-              { name: "customerId", type: "String", nullable: false },
-              { name: "amount", type: "BigDecimal", nullable: false },
-              { name: "createdAt", type: "Instant" }
+            tableName: "invoices",
+            attributes: [
+              { name: "id", type: "Long", isPrimaryKey: true, nullable: false, validationRules: [] },
+              { name: "customerId", type: "String", isPrimaryKey: false, nullable: false, validationRules: ["@NotBlank"] },
+              { name: "amount", type: "BigDecimal", isPrimaryKey: false, nullable: false, validationRules: ["@NotNull"] },
+              { name: "createdAt", type: "Instant", isPrimaryKey: false, nullable: true, validationRules: [] }
             ]
           }
         ],
-        endpoints: [
-          { method: "POST", path: "/api/v1/invoices", description: "Emit invoice" }
+        userStories: [
+          {
+            id: "US-1",
+            priority: "P1",
+            role: "BillingManager",
+            intent: "Emit invoice for completed order",
+            benefit: "Collect payment from customer",
+            scenarios: [
+              {
+                scenarioId: "AC-1.1",
+                given: "Valid order with customer ID and amount",
+                when: "POST request sent to /api/v1/invoices",
+                then: "Invoice is persisted and HTTP 201 Created is returned"
+              }
+            ]
+          }
         ]
       },
       null,
@@ -251,7 +269,21 @@ export const SpecIngestionView: React.FC = () => {
 
           <div className="flex justify-end pt-1">
             <button
-              onClick={() => setActiveTab(5)}
+              onClick={async () => {
+                if (parsedSpec?.specId) {
+                  try {
+                    const sessResp = await apiClient.post('/sessions', { specId: parsedSpec.specId });
+                    const newSessId = sessResp.data?.sessionId || sessResp.data?.session_id;
+                    if (newSessId) {
+                      await refreshSessions();
+                      selectSession(newSessId);
+                    }
+                  } catch (e) {
+                    console.warn(e);
+                  }
+                }
+                setActiveTab(5);
+              }}
               className="py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
             >
               ➡️ Proceder a Generar Microservicio

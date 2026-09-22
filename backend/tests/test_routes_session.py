@@ -66,3 +66,15 @@ def test_get_session_by_id(sample_spec):
     assert detail["id"] == sess_id
     assert "status" in detail
 
+def test_broadcast_session_event_string_id():
+    from app.api.routes_session import broadcast_session_event, SESSION_EVENT_HISTORY
+    test_sid = "test-session-sse-id-type"
+    broadcast_session_event(test_sid, "phase_transition", {"phase": "SCAFFOLDING"})
+    events = SESSION_EVENT_HISTORY.get(test_sid, [])
+    assert len(events) >= 1
+    last_event = events[-1]
+    assert isinstance(last_event["id"], str)
+    assert last_event["id"] == "1"
+    assert last_event["event"] == "phase_transition"
+
+

@@ -33,7 +33,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
 
   const handleSaveAndVerify = async () => {
     setApiKey(localKey);
-    await verifyConnection();
+    await verifyConnection(localKey, provider, model);
   };
 
   return (

@@ -12,11 +12,11 @@ El sistema opera desacoplado en dos capas:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│             Streamlit Web Studio (Frontend :8501)           │
-│  - Ingesta de spec.md / JSON Editor                         │
-│  - Terminal de Logs en Vivo con Server-Sent Events (SSE)    │
-│  - Explorador Jerárquico de Código con Resaltado Java       │
-│  - Descarga de ZIP y Modal de Publicación Git               │
+│             React / Vite Web Studio (Frontend :3000)        │
+│  - Asistente BDD, Arquitectura y Modelos Relacionales       │
+│  - Ingesta de spec.md / JSON Blueprint                      │
+│  - Monitor en Vivo con Server-Sent Events (SSE) y Logs      │
+│  - Auditoría SAST, Calidad, DevOps y Exportación de Código  │
 └──────────────────────────────┬──────────────────────────────┘
                                │ HTTP / SSE / REST API
 ┌──────────────────────────────▼──────────────────────────────┐
@@ -66,15 +66,16 @@ python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000 --re
 ```
 *Documentación interactiva Swagger UI disponible en:* `http://localhost:8000/docs`
 
-### 3. Configurar el Frontend (Streamlit)
+### 3. Configurar el Frontend (React + Vite + TypeScript)
 ```bash
-# En una terminal separada, instalar dependencias del frontend
-pip install -r frontend/requirements.txt
+# En una terminal separada, navegar a frontend e instalar paquetes
+cd frontend
+npm install
 
-# Iniciar la interfaz web Streamlit en el puerto 8501
-python -m streamlit run frontend/app.py --server.port 8501
+# Iniciar el servidor de desarrollo Vite en el puerto 3000
+npm run dev
 ```
-*Interfaz de usuario disponible en:* `http://localhost:8501`
+*Interfaz de usuario disponible en:* `http://localhost:3000`
 
 ---
 

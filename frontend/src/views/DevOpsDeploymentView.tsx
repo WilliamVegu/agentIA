@@ -18,6 +18,7 @@ import {
   Boxes,
   Cpu,
   Layers,
+  ExternalLink,
 } from 'lucide-react';
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { CodeViewer } from '../components/common/CodeViewer';
@@ -372,14 +373,40 @@ export const DevOpsDeploymentView: React.FC = () => {
     }
   };
 
-  const handleCreateOrderSubmit = (e: React.FormEvent) => {
+  const handleCreateOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCustomerEmail) return;
-    const newOrd = {
-      id: orders.length + 101,
+
+    let createdId = orders.length + 101;
+    let actualStatus = 'CONFIRMED';
+    const payload = {
       customerEmail: newCustomerEmail,
       totalAmount: parseFloat(newTotalAmount) || 99.99,
       status: 'CONFIRMED',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      const resp = await fetch(`http://localhost:${hostPort}/api/v1/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data?.id) createdId = data.id;
+        if (data?.status) actualStatus = data.status;
+      }
+    } catch {
+      // Local fallback if container not reachable
+    }
+
+    const newOrd = {
+      id: createdId,
+      customerEmail: newCustomerEmail,
+      totalAmount: parseFloat(newTotalAmount) || 99.99,
+      status: actualStatus,
       createdAt: new Date().toLocaleTimeString(),
     };
     setOrders([newOrd, ...orders]);
@@ -389,9 +416,37 @@ export const DevOpsDeploymentView: React.FC = () => {
     ]);
   };
 
-  const handleSendCustomRest = () => {
+  const handleSendCustomRest = async () => {
     const t0 = performance.now();
-    setTimeout(() => {
+    const cleanEndpoint = reqEndpoint.startsWith('/') ? reqEndpoint : `/${reqEndpoint}`;
+    const url = `http://localhost:${hostPort}${cleanEndpoint}`;
+
+    try {
+      const options: RequestInit = {
+        method: reqMethod,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
+        },
+      };
+      if (reqMethod === 'POST' && reqBody.trim()) {
+        options.body = reqBody;
+      }
+
+      const resp = await fetch(url, options);
+      const t1 = performance.now();
+      setRestLatency(Math.round(t1 - t0));
+      setRestStatusCode(resp.status);
+
+      const text = await resp.text();
+      try {
+        const json = JSON.parse(text);
+        setRestResponse(JSON.stringify(json, null, 2));
+      } catch {
+        setRestResponse(text || '// Respuesta recibida (HTTP ' + resp.status + ')');
+      }
+    } catch {
+      // Local simulated response fallback
       const t1 = performance.now();
       setRestLatency(Math.round(t1 - t0) + 8);
       if (reqMethod === 'GET') {
@@ -409,7 +464,7 @@ export const DevOpsDeploymentView: React.FC = () => {
         setRestStatusCode(204);
         setRestResponse('{}');
       }
-    }, 40);
+    }
   };
 
   const currentStatus = deployment?.status || 'RUNNING';
@@ -484,8 +539,19 @@ export const DevOpsDeploymentView: React.FC = () => {
         </div>
 
         {feedback && (
-          <div className="mt-2.5 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs text-blue-800 dark:text-blue-200">
-            {feedback}
+          <div className="mt-2.5 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs text-blue-800 dark:text-blue-200 flex items-center justify-between">
+            <span>{feedback}</span>
+            {isRunning && (
+              <a
+                href={`http://localhost:${hostPort}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline shrink-0 ml-2"
+              >
+                <span>Abrir en navegador</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         )}
 
@@ -502,14 +568,28 @@ export const DevOpsDeploymentView: React.FC = () => {
 
       {/* 2. Interactive API & Database Playground */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <Database className="w-4 h-4 text-blue-600" />
             <span>2. Probador Visual de API & Base de Datos (Live Playground)</span>
           </h3>
-          <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-            PostgreSQL + Spring Boot 3 Conectados
-          </span>
+          <div className="flex items-center gap-2">
+            {isRunning && (
+              <a
+                href={`http://localhost:${hostPort}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors flex items-center gap-1.5"
+                title="Abrir página raíz y catálogo de APIs del microservicio"
+              >
+                <span>🌐 http://localhost:{hostPort}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+            <span className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+              PostgreSQL + Spring Boot 3 Conectados
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

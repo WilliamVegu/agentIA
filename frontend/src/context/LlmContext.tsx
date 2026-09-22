@@ -14,7 +14,7 @@ interface LlmContextType {
   setProvider: (p: LlmProviderType) => void;
   setApiKey: (k: string) => void;
   setModel: (m: string) => void;
-  verifyConnection: () => Promise<boolean>;
+  verifyConnection: (overrideKey?: string, overrideProvider?: LlmProviderType, overrideModel?: string) => Promise<boolean>;
 }
 
 export interface ModelOption {
@@ -91,13 +91,21 @@ export const LlmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setModelState(m);
   };
 
-  const verifyConnection = async (): Promise<boolean> => {
+  const verifyConnection = async (
+    overrideKey?: string,
+    overrideProvider?: LlmProviderType,
+    overrideModel?: string
+  ): Promise<boolean> => {
+    const keyToUse = overrideKey !== undefined ? overrideKey : apiKey;
+    const providerToUse = overrideProvider !== undefined ? overrideProvider : provider;
+    const modelToUse = overrideModel !== undefined ? overrideModel : model;
+
     setIsVerifying(true);
     try {
       const res = await llmService.verifyConnection({
-        apiKey,
-        provider,
-        model,
+        apiKey: keyToUse,
+        provider: providerToUse,
+        model: modelToUse,
       });
       setIsVerified(res.status === 'CONNECTED' || res.status === 'READY');
       setLatencyMs(res.latencyMs || 0);

@@ -90,6 +90,7 @@ class GenerationSessionListItem(BaseModel):
     spec_id: Optional[str] = Field(None, alias="specId")
     spec_name: str = Field(..., alias="specName")
     status: SessionStatus
+    phase: Optional[SessionPhase] = Field(None, alias="phase")
     current_lifecycle_phase: Optional[str] = Field("INITIAL", alias="currentLifecyclePhase")
     lifecycle_mode: Optional[str] = Field("GUIDED_STEP", alias="lifecycleMode")
     completion_percentage: float = Field(0.0, alias="completionPercentage")

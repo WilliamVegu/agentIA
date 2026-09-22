@@ -41,8 +41,8 @@ def generate_models_and_sql_endpoint(
     Synthesizes domain entity models (JPA Java 21 classes), ANSI/PostgreSQL DDL (schema.sql),
     seed data DML (data.sql), and Mermaid ER diagram from a specification draft.
     """
-    api_key = resolve_api_key(request.apiKey, x_llm_api_key)
     provider = request.provider or x_llm_provider
+    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
         response = model_sql_service.synthesize_domain_models_and_sql(request.draft, api_key, provider=provider)
         return response
@@ -71,8 +71,8 @@ def refine_models_and_sql_endpoint(
     Interactively refines domain entity models, fields, and constraints,
     re-synchronizing SQL DDL and Mermaid ER diagrams.
     """
-    api_key = resolve_api_key(request.apiKey, x_llm_api_key)
     provider = request.provider or x_llm_provider
+    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
         refined = model_sql_service.refine_domain_models_and_sql(
             current_response=request.currentResponse,

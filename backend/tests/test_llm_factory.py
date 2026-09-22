@@ -5,13 +5,16 @@ from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 
 def test_detect_provider_mock_keys():
-    for key in ("mock-key", "test-key", "testing", "mock", "mock-custom-123"):
+    for key in ("mock-key", "test-key", "testing", "mock", "mock-custom-123", "offline-mock"):
         assert LLMFactory.detect_provider(api_key=key) == LLMProvider.MOCK.value
         assert LLMFactory.is_mock(api_key=key) is True
 
     assert LLMFactory.detect_provider(api_key=None) == LLMProvider.MOCK.value
     assert LLMFactory.detect_provider(api_key="") == LLMProvider.MOCK.value
     assert LLMFactory.is_mock(api_key=None) is True
+    assert LLMFactory.is_mock("offline-mock", None) is True
+    assert LLMFactory.is_mock("any-key", "mock") is True
+    assert LLMFactory.is_mock("any-key", "offline") is True
 
 def test_detect_provider_heuristics():
     # Gemini keys start with AIza

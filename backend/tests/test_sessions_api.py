@@ -45,9 +45,11 @@ def test_list_sessions_endpoint():
         assert isinstance(data, list)
         assert len(data) >= 2
         
-        found_ids = [s["sessionId"] for s in data]
-        assert sess_id1 in found_ids
-        assert sess_id2 in found_ids
+        found_sessions = {s["sessionId"]: s for s in data}
+        assert sess_id1 in found_sessions
+        assert sess_id2 in found_sessions
+        assert found_sessions[sess_id1].get("phase") == "INITIALIZATION"
+        assert found_sessions[sess_id2].get("phase") == "VERIFIED"
     finally:
         db.query(GenerationSessionDB).filter(GenerationSessionDB.id.in_([sess_id1, sess_id2])).delete()
         db.commit()

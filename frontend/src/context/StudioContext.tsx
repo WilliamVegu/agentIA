@@ -118,16 +118,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const activeSession = sessions.find((s) => s.sessionId === activeSessionId) || null;
   const isQueued = activeSession?.status === 'QUEUED';
 
-  // Real-time reactive polling across all tabs when any session or pipeline is RUNNING or QUEUED
-  const isAnyRunning = sessions.some(
-    (s) => s.status === 'RUNNING' || s.status === 'QUEUED'
-  );
+  // Real-time reactive polling only when the active session or its pipeline is RUNNING or QUEUED
   const isActiveRunning =
     activeSession?.status === 'RUNNING' ||
     activeSession?.status === 'QUEUED' ||
     lifecycle?.pipelineStatus === 'RUNNING' ||
     lifecycle?.pipeline_status === 'RUNNING';
-  const shouldPoll = isAnyRunning || isActiveRunning;
+  const shouldPoll = Boolean(isActiveRunning);
 
   useEffect(() => {
     if (!shouldPoll) return;

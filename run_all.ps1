@@ -10,12 +10,12 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir\ba
 
 Start-Sleep -Seconds 3
 
-Write-Host "[2/2] Iniciando Frontend Studio (Streamlit en http://localhost:8501)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir'; python -m streamlit run frontend/app.py --server.port 8501"
+Write-Host "[2/2] Iniciando Frontend Studio (React/Vite en http://localhost:3000)..." -ForegroundColor Yellow
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir\frontend'; npm run dev"
 
 Write-Host "`n==============================================================================" -ForegroundColor Green
 Write-Host "Servicios iniciados en consolas independientes:" -ForegroundColor Green
-Write-Host "  * Frontend Web UI : http://localhost:8501" -ForegroundColor White
+Write-Host "  * Frontend Web UI : http://localhost:3000" -ForegroundColor White
 Write-Host "  * Backend REST API: http://localhost:8000" -ForegroundColor White
 Write-Host "  * Swagger Docs    : http://localhost:8000/docs" -ForegroundColor White
 Write-Host "==============================================================================" -ForegroundColor Green

@@ -49,11 +49,22 @@ export const GenerationMonitorView: React.FC = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const [isTriggering, setIsTriggering] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [livePhase, setLivePhase] = useState<string | null>(null);
   const terminalEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Instantly reset live phase on session switch
+  useEffect(() => {
+    setLivePhase(null);
+  }, [activeSessionId]);
 
   // Instantly refresh sessions & overview upon receiving completion or milestone events
   useEffect(() => {
     if (!lastEvent) return;
+    const evtPhase = lastEvent.currentPhase || lastEvent.phase || lastEvent.stage;
+    if (evtPhase) {
+      setLivePhase(evtPhase);
+    }
+
     const evtType = lastEvent.event || lastEvent.type;
     const isMilestoneOrFinished =
       evtType === 'session_completed' ||
@@ -78,14 +89,19 @@ export const GenerationMonitorView: React.FC = () => {
   const handleStartGeneration = async () => {
     setIsTriggering(true);
     try {
-      const resp = await apiClient.post('/sessions', { specId: currentSpecId });
+      const specToUse = currentSpecId || activeSession?.specId;
+      if (!specToUse) {
+        alert('No hay una especificación cargada para generar. Ingeste o diseñe una especificación primero.');
+        return;
+      }
+      const resp = await apiClient.post('/sessions', { specId: specToUse });
       const sessId = resp.data?.sessionId || resp.data?.session_id;
       await refreshSessions();
       if (sessId) {
         selectSession(sessId);
       }
-    } catch {
-      // Fallback
+    } catch (err: any) {
+      console.error('Error starting generation session:', err);
     } finally {
       setIsTriggering(false);
     }
@@ -105,10 +121,11 @@ export const GenerationMonitorView: React.FC = () => {
   };
 
   const currentStatus = activeSession?.status || 'RUNNING';
-  const currentPhase = activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || 'CODE_TESTS';
+  const currentPhase = livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || 'INITIALIZATION';
   const repairs = activeSession?.repairAttempts || 0;
   const isCompleted = currentStatus === 'COMPLETED';
   const isBlocked = currentStatus === 'BLOCKED';
+  const isActiveRunning = currentStatus === 'RUNNING' || currentStatus === 'QUEUED';
 
   return (
     <div className="space-y-6">
@@ -142,16 +159,17 @@ export const GenerationMonitorView: React.FC = () => {
         actions={
           <div className="flex flex-wrap items-center justify-between w-full gap-2">
             <div className="flex items-center gap-2">
-              {!activeSessionId ? (
+              {(!activeSessionId || !isActiveRunning || (currentSpecId && activeSession?.specId !== currentSpecId)) && (
                 <button
                   onClick={handleStartGeneration}
-                  disabled={isTriggering}
+                  disabled={isTriggering || (!currentSpecId && !activeSession?.specId)}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>{isTriggering ? 'Encolando...' : '▶️ Iniciar Generación Autónoma'}</span>
                 </button>
-              ) : (
+              )}
+              {activeSessionId && isActiveRunning && (
                 <button
                   onClick={handleCancelSession}
                   disabled={isCanceling}
@@ -234,14 +252,33 @@ export const GenerationMonitorView: React.FC = () => {
       {/* LangGraph 6-Stage Visualizer */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
         {LANGGRAPH_STAGES.map((st, idx) => {
-          const isDone = idx <= 3 || isCompleted;
-          const isActive = idx === 4 && !isCompleted && !isBlocked;
+          const PHASE_TO_STAGE_INDEX: Record<string, number> = {
+            INITIALIZATION: 0,
+            SCAFFOLDING: 0,
+            CODE_GEN: 1,
+            CODE_GENERATION: 1,
+            TEST_SYNTHESIS: 2,
+            SANDBOX_BUILD: 3,
+            TEST_EXECUTION: 3,
+            SELF_REPAIR: 4,
+            SELF_REPAIR_LOOP: 4,
+            VERIFIED: 5,
+            COMPLETED: 5,
+          };
+          const rawPhase = (livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || '').toUpperCase();
+          const currentStageIndex = PHASE_TO_STAGE_INDEX[rawPhase] ?? (isQueued ? -1 : 0);
+
+          const isDone = isCompleted || idx < currentStageIndex;
+          const isActive = !isCompleted && !isBlocked && idx === currentStageIndex;
+          const isFailedStage = isBlocked && idx === currentStageIndex;
 
           return (
             <div
               key={st.key}
               className={`p-3 rounded-xl border text-xs flex flex-col justify-between transition-all ${
-                isActive
+                isFailedStage
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-900 dark:text-rose-200'
+                  : isActive
                   ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-200 ring-2 ring-blue-500/20'
                   : isDone
                   ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
@@ -250,7 +287,9 @@ export const GenerationMonitorView: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-semibold">{st.label}</span>
-                {isDone ? (
+                {isFailedStage ? (
+                  <AlertCircle className="w-4 h-4 text-rose-500" />
+                ) : isDone ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 ) : isActive ? (
                   <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />
