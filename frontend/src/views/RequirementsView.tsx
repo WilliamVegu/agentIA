@@ -37,10 +37,13 @@ const getEntityTableName = (ent: string | EntityItem | any): string | null => {
   return ent.tableName || null;
 };
 
-const normalizeEntitiesForDraft = (rawEntities: (string | EntityItem | any)[]) => {
-  const list = rawEntities.length > 0 ? rawEntities : ['Order'];
+const normalizeEntitiesForDraft = (rawEntities: (string | EntityItem | any)[], defaultServiceName?: string) => {
+  const fallback = defaultServiceName
+    ? defaultServiceName.replace(/[^a-zA-Z0-9]/g, '').replace(/^[0-9]+/, '') || 'Resource'
+    : 'Resource';
+  const list = rawEntities.length > 0 ? rawEntities : [fallback];
   return list.map((e) => {
-    const name = getEntityName(e) || 'Order';
+    const name = getEntityName(e) || fallback;
     const tableName = (typeof e === 'object' && e?.tableName)
       ? e.tableName
       : `${name.toLowerCase()}s`;
@@ -95,56 +98,21 @@ export const RequirementsView: React.FC = () => {
   } = useStudio();
   const { provider, apiKey } = useLlm();
 
-  const [promptText, setPromptText] = useState(
-    'Microservicio de gestión de órdenes de compra. Debe permitir crear pedidos con detalle de ítems, validar disponibilidad de stock con servicio externo, actualizar estado a PROCESANDO o RECHAZADO, y emitir eventos de confirmación.'
-  );
-  const [stories, setStories] = useState<BddStory[]>([
-    {
-      id: 'US-001',
-      title: 'Creación de Orden de Compra',
-      role: 'Cliente Comprador',
-      feature: 'Registrar un nuevo pedido con ítems y montos',
-      benefit: 'Iniciar el proceso de compra y facturación',
-      scenarios: [
-        {
-          title: 'Creación exitosa con stock disponible',
-          given: 'El cliente tiene un carrito válido y stock suficiente',
-          when: 'Envía la solicitud POST a /api/v1/orders con los ítems',
-          then: 'Se genera la orden con estado PENDIENTE y se retorna HTTP 201',
-        },
-      ],
-      detected_entities: ['Order', 'OrderItem', 'Customer'],
-    },
-    {
-      id: 'US-002',
-      title: 'Validación de Disponibilidad de Inventario',
-      role: 'Sistema de Órdenes',
-      feature: 'Verificar existencias antes de confirmar el cobro',
-      benefit: 'Prevenir sobreventa de productos sin disponibilidad física',
-      scenarios: [
-        {
-          title: 'Stock insuficiente para uno de los ítems',
-          given: 'La orden contiene un producto sin existencias en almacén',
-          when: 'Se ejecuta el proceso de validación de disponibilidad',
-          then: 'La orden pasa a estado RECHAZADA y se notifica la causa',
-        },
-      ],
-      detected_entities: ['InventoryReservation', 'StockItem'],
-    },
-  ]);
-  const [entities, setEntities] = useState<(string | EntityItem)[]>([
-    'Order',
-    'OrderItem',
-    'Customer',
-    'InventoryReservation',
-  ]);
+  const [promptText, setPromptText] = useState('');
+  const [stories, setStories] = useState<BddStory[]>([]);
+  const [entities, setEntities] = useState<(string | EntityItem)[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!activeSessionId) return;
+    if (!activeSessionId) {
+      setPromptText('');
+      setStories([]);
+      setEntities([]);
+      return;
+    }
 
     let isMounted = true;
     requirementsService
@@ -153,15 +121,24 @@ export const RequirementsView: React.FC = () => {
         if (!isMounted || !data) return;
         if (data.rawPrompt && data.rawPrompt.trim()) {
           setPromptText(data.rawPrompt);
+        } else {
+          setPromptText('');
         }
         if (data.hasDraft && data.draft) {
-          if (data.draft.entities && Array.isArray(data.draft.entities) && data.draft.entities.length > 0) {
+          if (data.draft.entities && Array.isArray(data.draft.entities)) {
             setEntities(data.draft.entities);
+          } else {
+            setEntities([]);
           }
           const incoming = data.draft.userStories || data.draft.stories;
           if (incoming && Array.isArray(incoming) && incoming.length > 0) {
             setStories(mapIncomingStories(incoming, data.draft.entities || []));
+          } else {
+            setStories([]);
           }
+        } else {
+          setEntities([]);
+          setStories([]);
         }
       })
       .catch((err) => {
@@ -195,7 +172,7 @@ export const RequirementsView: React.FC = () => {
         setStories(mapIncomingStories(incomingStories, nextEntities));
       }
 
-      setFeedbackMsg('Requerimientos transformados a especificación BDD formal.');
+      setFeedbackMsg('Requerimientos transformados: Historias BDD generadas exitosamente (mínimo 3 historias).');
     } catch {
       setFeedbackMsg('Modo autónomo local: Historias formalizadas con éxito.');
     } finally {
@@ -207,7 +184,11 @@ export const RequirementsView: React.FC = () => {
     if (!refinePrompt.trim()) return;
     setIsProcessing(true);
     try {
-      const normalizedEntities = normalizeEntitiesForDraft(entities);
+      const rawServiceName = (activeSession?.specName || 'order-service')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/^-+|-+$/g, '') || 'order-service';
+      const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
       const normalizedStories = stories.map((s, idx) => ({
         id: s.id || `US-${idx + 1}`,
         priority: 'P1',
@@ -221,11 +202,6 @@ export const RequirementsView: React.FC = () => {
           then: sc.then || 'Resultado esperado obtenido',
         })),
       }));
-
-      const rawServiceName = (activeSession?.specName || 'order-service')
-        .toLowerCase()
-        .replace(/[^a-z0-9-]/g, '-')
-        .replace(/^-+|-+$/g, '') || 'order-service';
 
       const res = await requirementsService.refine({
         specificationDraft: {
@@ -263,6 +239,7 @@ export const RequirementsView: React.FC = () => {
   };
 
   const handleDownloadSpecMd = () => {
+    if (stories.length === 0) return;
     const mdLines = [
       `# Especificación de Requisitos: ${activeSession?.specName || 'microservice'}`,
       `\n## Descripción de Alto Nivel\n${promptText}\n`,
@@ -290,11 +267,15 @@ export const RequirementsView: React.FC = () => {
   };
 
   const handleTransferDirect = async () => {
+    if (stories.length === 0) {
+      setFeedbackMsg('Debe generar o agregar historias de usuario antes de transferir a generación.');
+      return;
+    }
     setIsProcessing(true);
     try {
       const rawServiceName = (activeSession?.specName || 'order-service').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '') || 'order-service';
       const cleanPackage = `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
-      const normalizedEntities = normalizeEntitiesForDraft(entities);
+      const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
 
       const blueprintPayload = {
         serviceName: rawServiceName,
@@ -302,24 +283,7 @@ export const RequirementsView: React.FC = () => {
         basePort: 8080,
         databaseMode: 'PostgreSQL',
         entities: normalizedEntities,
-        userStories: (stories.length > 0 ? stories : [
-          {
-            id: 'US-001',
-            title: 'Gestión Principal',
-            role: 'Usuario',
-            feature: 'Administrar entidad',
-            benefit: 'Operación del negocio',
-            scenarios: [
-              {
-                title: 'Operación exitosa',
-                given: 'El microservicio está en ejecución',
-                when: 'Se envía una petición válida',
-                then: 'Se procesa y retorna 201 Created',
-              },
-            ],
-            detected_entities: normalizedEntities.slice(0, 1).map((e) => e.name),
-          },
-        ]).map((s, idx) => ({
+        userStories: stories.map((s, idx) => ({
           id: s.id || `US-${idx + 1}`,
           priority: 'P1',
           role: s.role || 'Usuario',
@@ -380,20 +344,20 @@ export const RequirementsView: React.FC = () => {
   };
 
   const handleDeleteStory = (storyId: string) => {
-    if (stories.length <= 1) {
-      alert('Debe conservar al menos una historia de usuario.');
-      return;
-    }
     setStories(stories.filter((s) => s.id !== storyId));
   };
 
   const handleProceedToArchitecture = async () => {
+    if (stories.length === 0) {
+      setFeedbackMsg('Debe generar o agregar al menos una historia de usuario antes de pasar a Arquitectura.');
+      return;
+    }
     const rawServiceName = (activeSession?.specName || 'order-service')
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '-')
       .replace(/^-+|-+$/g, '') || 'order-service';
     const cleanPackage = `com.corp.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
-    const normalizedEntities = normalizeEntitiesForDraft(entities);
+    const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
 
     const draftObj = {
       serviceName: rawServiceName,
@@ -460,13 +424,15 @@ export const RequirementsView: React.FC = () => {
             </button>
             <button
               onClick={() => setIsRefineOpen(true)}
-              className="py-2 px-3 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-colors"
+              disabled={isProcessing || stories.length === 0}
+              className="py-2 px-3 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Refinar con IA
             </button>
             <button
               onClick={handleDownloadSpecMd}
-              className="flex items-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-colors"
+              disabled={stories.length === 0}
+              className="flex items-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="Descargar documento spec.md compatible con Spec Kit"
             >
               <Download className="w-3.5 h-3.5" />
@@ -474,13 +440,15 @@ export const RequirementsView: React.FC = () => {
             </button>
             <button
               onClick={handleTransferDirect}
-              className="py-2 px-3 rounded-lg text-xs font-medium bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition-colors"
+              disabled={isProcessing || stories.length === 0}
+              className="py-2 px-3 rounded-lg text-xs font-medium bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Transferir a Generación
             </button>
             <button
               onClick={handleProceedToArchitecture}
-              className="py-2 px-4 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
+              disabled={isProcessing || stories.length === 0}
+              className="py-2 px-4 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Aprobar y Diseñar Arquitectura →
             </button>
@@ -508,25 +476,31 @@ export const RequirementsView: React.FC = () => {
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 mr-2">
               Entidades de Dominio Detectadas:
             </span>
-            <div className="inline-flex flex-wrap gap-1.5 mt-1">
-              {entities.map((ent, i) => {
-                const name = getEntityName(ent);
-                const tableName = getEntityTableName(ent);
-                return (
-                  <span
-                    key={i}
-                    className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 inline-flex items-center gap-1"
-                  >
-                    <span>{name}</span>
-                    {tableName && (
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
-                        ({tableName})
-                      </span>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
+            {entities.length === 0 ? (
+              <span className="text-xs text-slate-400 italic">
+                Ninguna aún. Ingrese el prompt funcional y presione "Descomponer con IA".
+              </span>
+            ) : (
+              <div className="inline-flex flex-wrap gap-1.5 mt-1">
+                {entities.map((ent, i) => {
+                  const name = getEntityName(ent);
+                  const tableName = getEntityTableName(ent);
+                  return (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 inline-flex items-center gap-1"
+                    >
+                      <span>{name}</span>
+                      {tableName && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
+                          ({tableName})
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </SingleRowCard>
@@ -546,73 +520,108 @@ export const RequirementsView: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {stories.map((story) => (
-            <SingleRowCard
-              key={story.id}
-              title={`${story.id}: ${story.title}`}
-              subtitle={`Rol: ${story.role}`}
-              badge={
-                <div className="flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
-                    BDD Verified
-                  </span>
-                  <button
-                    onClick={() => handleDeleteStory(story.id)}
-                    className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                    title="Eliminar historia de usuario"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              }
-              actions={
-                <div className="flex items-center justify-between w-full text-xs text-slate-500">
-                  <span>{story.scenarios?.length || 0} escenario(s) de prueba</span>
-                  <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400">
-                    {Array.isArray(story.detected_entities)
-                      ? story.detected_entities.map((e: any) => getEntityName(e)).filter(Boolean).join(', ')
-                      : ''}
-                  </span>
-                </div>
-              }
-            >
-              <div className="space-y-3">
-                <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-1">
-                  <div>
-                    <strong>Como</strong> {story.role},
+        {stories.length === 0 ? (
+          <div className="p-8 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                No hay historias de usuario en esta sesión
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-lg mx-auto">
+                Escriba la descripción funcional del microservicio en el campo superior y presione{' '}
+                <strong className="text-slate-700 dark:text-slate-300">"Descomponer con IA"</strong>{' '}
+                para generar automáticamente un mínimo de 3 historias de usuario formalizadas con criterios Given / When / Then.
+              </p>
+            </div>
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                onClick={handleTransform}
+                disabled={isProcessing || !promptText.trim()}
+                className="inline-flex items-center gap-2 py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-all disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Descomponer con IA (Mínimo 3 Historias)</span>
+              </button>
+              <button
+                onClick={handleAddStory}
+                className="inline-flex items-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Crear Manualmente</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {stories.map((story) => (
+              <SingleRowCard
+                key={story.id}
+                title={`${story.id}: ${story.title}`}
+                subtitle={`Rol: ${story.role}`}
+                badge={
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
+                      BDD Verified
+                    </span>
+                    <button
+                      onClick={() => handleDeleteStory(story.id)}
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      title="Eliminar historia de usuario"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div>
-                    <strong>Quiero</strong> {story.feature},
+                }
+                actions={
+                  <div className="flex items-center justify-between w-full text-xs text-slate-500">
+                    <span>{story.scenarios?.length || 0} escenario(s) de prueba</span>
+                    <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400">
+                      {Array.isArray(story.detected_entities)
+                        ? story.detected_entities.map((e: any) => getEntityName(e)).filter(Boolean).join(', ')
+                        : ''}
+                    </span>
                   </div>
-                  <div>
-                    <strong>Para</strong> {story.benefit}.
+                }
+              >
+                <div className="space-y-3">
+                  <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-1">
+                    <div>
+                      <strong>Como</strong> {story.role},
+                    </div>
+                    <div>
+                      <strong>Quiero</strong> {story.feature},
+                    </div>
+                    <div>
+                      <strong>Para</strong> {story.benefit}.
+                    </div>
                   </div>
-                </div>
 
-                {story.scenarios?.map((sc: BddScenario, sIdx: number) => (
-                  <div
-                    key={sIdx}
-                    className="p-2.5 rounded-lg bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs space-y-1"
-                  >
-                    <div className="font-semibold text-slate-800 dark:text-slate-200 mb-1">
-                      Escenario: {sc.title || (sc as any).scenarioId || `Escenario ${sIdx + 1}`}
+                  {story.scenarios?.map((sc: BddScenario, sIdx: number) => (
+                    <div
+                      key={sIdx}
+                      className="p-2.5 rounded-lg bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs space-y-1"
+                    >
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                        Escenario: {sc.title || (sc as any).scenarioId || `Escenario ${sIdx + 1}`}
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                        <span className="font-semibold text-indigo-600 dark:text-indigo-400">DADO</span> {sc.given}
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">CUANDO</span> {sc.when}
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">ENTONCES</span> {sc.then}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">DADO</span> {sc.given}
-                    </div>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                      <span className="font-semibold text-blue-600 dark:text-blue-400">CUANDO</span> {sc.when}
-                    </div>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">ENTONCES</span> {sc.then}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SingleRowCard>
-          ))}
-        </div>
+                  ))}
+                </div>
+              </SingleRowCard>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* SlideOverDrawer for Conversational AI Refinement */}

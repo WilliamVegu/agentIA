@@ -22,82 +22,6 @@ import { useStudio } from '../context/StudioContext';
 import { testsService, RepairIterationRecord, RepairHistoryResponse } from '../services/testsService';
 import { exportService, ArtifactItem } from '../services/exportService';
 
-const SAMPLE_CONTROLLER = `package com.tcs.microservice.controller;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-import com.tcs.microservice.service.OrderService;
-import com.tcs.microservice.dto.CreateOrderRequest;
-import com.tcs.microservice.dto.OrderResponse;
-
-@RestController
-@RequestMapping("/api/v1/orders")
-public class OrderController {
-
-    private final OrderService orderService;
-
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
-    }
-
-    @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
-        OrderResponse response = orderService.processOrder(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<OrderResponse> getOrder(@PathVariable Long id) {
-        return ResponseEntity.ok(orderService.getOrderById(id));
-    }
-}
-`;
-
-const SAMPLE_TEST = `package com.tcs.microservice.controller;
-
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import com.tcs.microservice.service.OrderService;
-import com.tcs.microservice.dto.OrderResponse;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-
-@WebMvcTest(OrderController.class)
-class OrderControllerTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
-    private OrderService orderService;
-
-    @Test
-    void shouldReturn201WhenOrderCreated() throws Exception {
-        OrderResponse mockResponse = new OrderResponse(101L, "CONFIRMED");
-        given(orderService.processOrder(any())).willReturn(mockResponse);
-
-        mockMvc.perform(post("/api/v1/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {"customerId": "cust-01", "items": []}
-                """))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(101))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"));
-    }
-}
-`;
-
 export const CodeExplorerView: React.FC = () => {
   const { activeSessionId, activeSession, reloadCurrentOverview, setActiveTab } = useStudio();
 
@@ -105,33 +29,36 @@ export const CodeExplorerView: React.FC = () => {
   const [activeSubtab, setActiveSubtab] = useState<number>(0);
 
   // Artifacts state
-  const [artifacts, setArtifacts] = useState<ArtifactItem[]>([
-    { id: '1', sessionId: 'default', relativePath: 'src/main/java/com/tcs/microservice/controller/OrderController.java', fileType: 'JAVA_SOURCE', sizeBytes: 1200 },
-    { id: '2', sessionId: 'default', relativePath: 'src/main/java/com/tcs/microservice/service/OrderService.java', fileType: 'JAVA_SOURCE', sizeBytes: 1800 },
-    { id: '3', sessionId: 'default', relativePath: 'src/main/java/com/tcs/microservice/model/Order.java', fileType: 'JAVA_SOURCE', sizeBytes: 1500 },
-    { id: '4', sessionId: 'default', relativePath: 'src/main/java/com/tcs/microservice/dto/CreateOrderRequest.java', fileType: 'JAVA_RECORD', sizeBytes: 600 },
-    { id: '5', sessionId: 'default', relativePath: 'src/test/java/com/tcs/microservice/OrderControllerTest.java', fileType: 'TEST_SOURCE', sizeBytes: 1400 },
-    { id: '6', sessionId: 'default', relativePath: 'pom.xml', fileType: 'POM_XML', sizeBytes: 2400 },
-  ]);
+  const [artifacts, setArtifacts] = useState<ArtifactItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
-  const [selectedFile, setSelectedFile] = useState<string>('src/main/java/com/tcs/microservice/controller/OrderController.java');
-  const [fileContent, setFileContent] = useState<string>(SAMPLE_CONTROLLER);
+  const [selectedFile, setSelectedFile] = useState<string>('');
+  const [fileContent, setFileContent] = useState<string>('');
 
   // Repair and metrics state
   const [repairData, setRepairData] = useState<RepairHistoryResponse | null>(null);
   const [repairs, setRepairs] = useState<RepairIterationRecord[]>([]);
-  const [metricsData, setMetricsData] = useState<{ passedTests: number; totalTests: number }>({ passedTests: 5, totalTests: 5 });
+  const [metricsData, setMetricsData] = useState<{ passedTests: number; totalTests: number }>({ passedTests: 0, totalTests: 0 });
 
   // Manual repair editor state
-  const [manualFile, setManualFile] = useState<string>('src/main/java/com/tcs/microservice/controller/OrderController.java');
-  const [manualCode, setManualCode] = useState<string>(SAMPLE_CONTROLLER);
+  const [manualFile, setManualFile] = useState<string>('');
+  const [manualCode, setManualCode] = useState<string>('');
   const [manualHint, setManualHint] = useState<string>('');
   const [isSubmittingRepair, setIsSubmittingRepair] = useState<boolean>(false);
   const [repairFeedback, setRepairFeedback] = useState<string | null>(null);
 
   // Load artifacts and repairs for session
   useEffect(() => {
-    if (!activeSessionId) return;
+    if (!activeSessionId) {
+      setArtifacts([]);
+      setSelectedFile('');
+      setFileContent('');
+      setManualFile('');
+      setManualCode('');
+      setRepairData(null);
+      setRepairs([]);
+      setMetricsData({ passedTests: 0, totalTests: 0 });
+      return;
+    }
 
     exportService
       .listArtifacts(activeSessionId)
@@ -151,9 +78,21 @@ export const CodeExplorerView: React.FC = () => {
               })
               .catch(() => {});
           }
+        } else {
+          setArtifacts([]);
+          setSelectedFile('');
+          setFileContent('');
+          setManualFile('');
+          setManualCode('');
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setArtifacts([]);
+        setSelectedFile('');
+        setFileContent('');
+        setManualFile('');
+        setManualCode('');
+      });
 
     testsService
       .getRepairHistory(activeSessionId)
@@ -374,48 +313,62 @@ export const CodeExplorerView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            {/* File List */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 p-3 space-y-1 max-h-[500px] overflow-y-auto">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                Archivos Encontrados ({filteredArtifacts.length})
+          {artifacts.length === 0 ? (
+            <div className="p-10 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center space-y-3">
+              <div className="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <Code className="w-6 h-6" />
               </div>
-              {filteredArtifacts.length === 0 ? (
-                <div className="text-xs text-slate-400 p-3 italic">
-                  No hay archivos en la categoría seleccionada.
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                No hay artefactos de código generados aún
+              </h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Inicie la síntesis y compilación desde la pestaña de Generación & Monitor para producir el arquetipo Maven pom.xml, modelos JPA, controladores REST y tests.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              {/* File List */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 p-3 space-y-1 max-h-[500px] overflow-y-auto">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
+                  Archivos Encontrados ({filteredArtifacts.length})
                 </div>
-              ) : (
-                filteredArtifacts.map((art) => {
-                  const isSelected = selectedFile === art.relativePath;
-                  return (
-                    <button
-                      key={art.id || art.relativePath}
-                      onClick={() => handleSelectArtifact(art.relativePath)}
-                      className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center gap-2 truncate ${
-                        isSelected
-                          ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                      title={art.relativePath}
-                    >
-                      {art.relativePath.includes('Test') ? '🧪 ' : '📄 '}
-                      <span className="truncate">{art.relativePath.split('/').pop()}</span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+                {filteredArtifacts.length === 0 ? (
+                  <div className="text-xs text-slate-400 p-3 italic">
+                    No hay archivos en la categoría seleccionada.
+                  </div>
+                ) : (
+                  filteredArtifacts.map((art) => {
+                    const isSelected = selectedFile === art.relativePath;
+                    return (
+                      <button
+                        key={art.id || art.relativePath}
+                        onClick={() => handleSelectArtifact(art.relativePath)}
+                        className={`w-full text-left p-2 rounded-lg text-xs font-mono transition-colors flex items-center gap-2 truncate ${
+                          isSelected
+                            ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                        }`}
+                        title={art.relativePath}
+                      >
+                        {art.relativePath.includes('Test') ? '🧪 ' : '📄 '}
+                        <span className="truncate">{art.relativePath.split('/').pop()}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
 
-            {/* Code Viewer */}
-            <div className="lg:col-span-3">
-              <CodeViewer
-                code={fileContent}
-                language={getFileLanguage(selectedFile)}
-                filename={selectedFile || 'archivo'}
-                maxHeight="max-h-[500px]"
-              />
+              {/* Code Viewer */}
+              <div className="lg:col-span-3">
+                <CodeViewer
+                  code={fileContent}
+                  language={getFileLanguage(selectedFile)}
+                  filename={selectedFile || 'archivo'}
+                  maxHeight="max-h-[500px]"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -443,12 +396,9 @@ export const CodeExplorerView: React.FC = () => {
 
           <div className="space-y-3">
             {testArtifacts.length === 0 ? (
-              <CodeViewer
-                code={SAMPLE_TEST}
-                language="java"
-                filename="src/test/java/com/tcs/microservice/OrderControllerTest.java"
-                maxHeight="max-h-[450px]"
-              />
+              <div className="p-8 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center text-xs text-slate-500">
+                No se han sintetizado suites de pruebas unitarias o de integración para esta sesión.
+              </div>
             ) : (
               testArtifacts.map((t, idx) => (
                 <div key={idx} className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 space-y-3">
@@ -464,7 +414,7 @@ export const CodeExplorerView: React.FC = () => {
                     </span>
                   </div>
                   <CodeViewer
-                    code={SAMPLE_TEST}
+                    code={fileContent && selectedFile === t.relativePath ? fileContent : '// Seleccione este archivo en la pestaña de Artefactos para visualizar su código fuente'}
                     language="java"
                     filename={t.relativePath}
                     maxHeight="max-h-72"

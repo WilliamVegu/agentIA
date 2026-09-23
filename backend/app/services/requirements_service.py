@@ -58,8 +58,8 @@ class LLMRequirementsDecomposition(BaseModel):
         description="List of domain entities extracted from requirements",
     )
     userStories: List[LLMStoryDecomposition] = Field(
-        min_length=1,
-        description="Synthesized user stories with prioritized Given/When/Then acceptance criteria",
+        min_length=3,
+        description="Synthesized user stories with prioritized Given/When/Then acceptance criteria. You MUST provide at least 3 distinct user stories (min 3: P1 core MVP flow, P2 validation/secondary workflow, P3 auxiliary/inquiry flow).",
     )
 
 def serialize_draft_to_markdown(draft: SpecificationDraft) -> str:
@@ -165,7 +165,49 @@ def _generate_mock_decomposition(raw_text: str, service_name: Optional[str] = No
                         then="system rejects with 400 Bad Request and validation error details",
                     ),
                 ],
-            )
+            ),
+            LLMStoryDecomposition(
+                id="US-2",
+                priority="P2",
+                role="Inventory Operator",
+                intent="validate and update order processing status",
+                benefit="ensure sufficient stock before fulfillment",
+                scenarios=[
+                    AcceptanceScenarioRecord(
+                        scenarioId="AC-2.1",
+                        given="an active order with valid item reservations",
+                        when="processing the order verification workflow",
+                        then="order status is updated to CONFIRMED and 200 OK is returned",
+                    ),
+                    AcceptanceScenarioRecord(
+                        scenarioId="AC-2.2",
+                        given="an order with insufficient warehouse stock or invalid state",
+                        when="attempting fulfillment transition",
+                        then="system rejects with 400 Bad Request error and cancellation reason",
+                    ),
+                ],
+            ),
+            LLMStoryDecomposition(
+                id="US-3",
+                priority="P3",
+                role="Auditor",
+                intent="query and audit historical order records",
+                benefit="track transaction lifecycle and reconcile accounts",
+                scenarios=[
+                    AcceptanceScenarioRecord(
+                        scenarioId="AC-3.1",
+                        given="an authenticated auditor with valid search criteria and active session",
+                        when="querying order transactions by identifier or date filter",
+                        then="matching order records are returned with 200 OK",
+                    ),
+                    AcceptanceScenarioRecord(
+                        scenarioId="AC-3.2",
+                        given="an invalid query parameter or unauthorized request",
+                        when="fetching order audit logs",
+                        then="system rejects with 400 Bad Request error or 401 Unauthorized",
+                    ),
+                ],
+            ),
         ],
     )
 
@@ -205,8 +247,11 @@ def transform_requirements(
                 "1. SERVICE & PACKAGE: Propose a kebab-case serviceName (e.g. 'payment-service') and Java packageName (e.g. 'com.corp.payment').\n"
                 "2. DOMAIN ENTITIES: Extract all business domain entities. Each entity MUST have an 'id' attribute (UUID or Long, isPrimaryKey=True) "
                 "and typed attributes (String, Long, BigDecimal, Boolean, DateTime, UUID) with Jakarta Validation rules (@NotBlank, @NotNull, @Positive, @Email, etc.).\n"
-                "3. USER STORIES: Synthesize formal User Stories adhering strictly to 'As a [role], I want [action], so that [benefit]'. "
-                "Assign priorities: P1 for MVP core flows, P2 for secondary workflows, P3 for auxiliary operations.\n"
+                "3. USER STORIES: Synthesize AT LEAST 3 formal User Stories (minItems: 3). You MUST provide a minimum of 3 distinct user stories:\n"
+                "   - Story 1 (Priority P1): Core MVP transaction/creation flow (As a [role], I want to create/register [entity], so that [benefit]).\n"
+                "   - Story 2 (Priority P2): Secondary business workflow, state transition, or validation flow.\n"
+                "   - Story 3 (Priority P3): Auxiliary inquiry, search, or audit flow.\n"
+                "   Adhere strictly to 'As a [role], I want [action], so that [benefit]'.\n"
                 "4. ACCEPTANCE SCENARIOS: For EVERY user story, generate AT LEAST 2 Given/When/Then acceptance scenarios (minItems: 2):\n"
                 "   - At least 1 Happy Path scenario.\n"
                 "   - At least 1 Validation / Business Error scenario (e.g. invalid input, insufficient balance, resource not found).\n"
@@ -266,6 +311,50 @@ def transform_requirements(
             intent=st.intent,
             benefit=st.benefit,
             scenarios=scenarios,
+        ))
+
+    # Ensure minimum 3 user stories (P1 core, P2 secondary/validation, P3 audit/inquiry)
+    while len(user_stories) < 3:
+        st_idx = len(user_stories) + 1
+        prio = "P2" if st_idx == 2 else "P3"
+        ent_name = entities[0].name if entities else "Resource"
+        if st_idx == 2:
+            intent_val = f"process and update {ent_name.lower()} state"
+            benefit_val = f"ensure operational consistency of {ent_name.lower()}"
+            sc1 = AcceptanceScenarioRecord(
+                scenarioId=f"AC-{st_idx}.1",
+                given=f"an existing {ent_name.lower()} in an active and valid state",
+                when="executing status update or validation workflow",
+                then=f"the {ent_name.lower()} status is updated and 200 OK is returned",
+            )
+            sc2 = AcceptanceScenarioRecord(
+                scenarioId=f"AC-{st_idx}.2",
+                given=f"an invalid update payload or non-existent {ent_name.lower()}",
+                when="submitting the processing request",
+                then="system rejects with 400 Bad Request error and details",
+            )
+        else:
+            intent_val = f"query and audit {ent_name.lower()} records"
+            benefit_val = f"verify transaction history for {ent_name.lower()}"
+            sc1 = AcceptanceScenarioRecord(
+                scenarioId=f"AC-{st_idx}.1",
+                given=f"an authenticated client with valid query filters and active session",
+                when=f"requesting {ent_name.lower()} records by ID or criteria",
+                then=f"matching {ent_name.lower()} records are returned with 200 OK",
+            )
+            sc2 = AcceptanceScenarioRecord(
+                scenarioId=f"AC-{st_idx}.2",
+                given=f"an invalid filter or unauthorized query for {ent_name.lower()}",
+                when="executing the query",
+                then="system rejects with 400 Bad Request error or 401 Unauthorized",
+            )
+        user_stories.append(UserStoryRecord(
+            id=f"US-{st_idx}",
+            priority=prio,
+            role="System Operator" if st_idx == 2 else "Auditor",
+            intent=intent_val,
+            benefit=benefit_val,
+            scenarios=[sc1, sc2],
         ))
 
     service_name = request.serviceName or decomp.serviceName

@@ -36,6 +36,16 @@ export const LifecycleStepper: React.FC = () => {
 
   const [isActing, setIsActing] = useState(false);
 
+  const phaseMap = React.useMemo(() => {
+    const map: Record<string, any> = {};
+    if (Array.isArray(lifecycle?.phases)) {
+      lifecycle.phases.forEach((p: any) => {
+        map[p.phase] = p;
+      });
+    }
+    return map;
+  }, [lifecycle?.phases]);
+
   if (!activeSessionId) return null;
 
   const completionPct =
@@ -53,16 +63,6 @@ export const LifecycleStepper: React.FC = () => {
   const isCancelled = pipeStatus === 'CANCELLED';
   const isCompleted = pipeStatus === 'COMPLETED' || completionPct >= 100;
   const hasOutdated = lifecycle?.isOutdated || lifecycle?.is_outdated || false;
-
-  const phaseMap = React.useMemo(() => {
-    const map: Record<string, any> = {};
-    if (Array.isArray(lifecycle?.phases)) {
-      lifecycle.phases.forEach((p: any) => {
-        map[p.phase] = p;
-      });
-    }
-    return map;
-  }, [lifecycle?.phases]);
 
   const handlePause = async () => {
     setIsActing(true);

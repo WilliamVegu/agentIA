@@ -22,88 +22,27 @@ import { securityService, SecurityQualityReport, AuditFinding } from '../service
 export const SecurityQualityView: React.FC = () => {
   const { activeSessionId, reloadCurrentOverview, setActiveTab } = useStudio();
 
-  const [report, setReport] = useState<any>({
-    sessionId: activeSessionId || 'default',
-    serviceName: 'order-service',
-    qualityGate: {
-      status: 'PASS',
-      score: 95,
-      canExport: true,
-      summaryMessage: 'Cumplimiento óptimo de reglas constitucionales y estándares de seguridad corporativos TCS.',
-      criticalCount: 0,
-      highCount: 0,
-      mediumCount: 0,
-      lowCount: 0,
-    },
-    metrics: {
-      averageCyclomaticComplexity: 1.4,
-      maxCyclomaticComplexity: 3,
-      totalMethodsAudited: 12,
-      methodsExceedingThreshold: 0,
-      totalLinesOfCode: 284,
-      duplicationPercentage: 0.0,
-      testAssertionDensity: 2.2,
-      totalCodeSmells: 0,
-    },
-    vulnerabilities: [
-      {
-        id: 'SEC-VULN-001',
-        title: 'Credencial o Secreto Expuesto en Configuración',
-        category: 'SECRET_LEAK',
-        severity: 'HIGH',
-        cweId: 'CWE-798',
-        owaspCategory: 'A07:2021-Identification and Authentication Failures',
-        filePath: 'src/main/resources/application.yml',
-        lineNumber: 14,
-        codeSnippet: 'password: "admin_password_123"',
-        description: 'Se detectó una credencial en texto plano hardcodeada en application.yml violando el Principio VI.',
-        remediationGuidance: 'Reemplazar con variable de entorno: password: "${DB_PASSWORD:postgres}"',
-        autoFixAvailable: true,
-      },
-      {
-        id: 'SEC-VULN-002',
-        title: 'Consulta SQL Dinámica con Riesgo de Inyección',
-        category: 'SAST_INJECTION',
-        severity: 'MEDIUM',
-        cweId: 'CWE-89',
-        owaspCategory: 'A03:2021-Injection',
-        filePath: 'src/main/java/com/tcs/microservice/repository/OrderRepository.java',
-        lineNumber: 42,
-        codeSnippet: 'SELECT * FROM orders WHERE customer_id = \' + customerId',
-        description: 'Concatenación directa de parámetros en consulta SQL nativa.',
-        remediationGuidance: 'Usar parámetros vinculados (:customerId) o Spring Data JPA derivado.',
-        autoFixAvailable: true,
-      },
-    ],
-    violations: [
-      {
-        id: 'CONST-VIOL-001',
-        principle: 'PRINCIPLE_II_IMMUTABLE_DTOS',
-        severity: 'HIGH',
-        filePath: 'src/main/java/com/tcs/microservice/dto/CreateOrderRequest.java',
-        offendingElement: 'class CreateOrderRequest',
-        ruleDescription: 'Los DTOs de entrada y salida deben definirse obligatoriamente como Java Records inmutables.',
-        suggestedFix: 'Convertir la clase mutable en: public record CreateOrderRequest(String customerId, List<OrderItemDto> items) {}',
-        autoFixAvailable: true,
-      },
-    ],
-  });
-
+  const [report, setReport] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [remediatingId, setRemediatingId] = useState<string | null>(null);
   const [remediationDiffs, setRemediationDiffs] = useState<Record<string, string>>({});
   const [remediatedIds, setRemediatedIds] = useState<Set<string>>(new Set());
 
   const fetchAudit = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId) {
+      setReport(null);
+      return;
+    }
     setIsLoading(true);
     try {
       const rep = await securityService.getAuditReport(activeSessionId);
       if (rep) {
         setReport(rep);
+      } else {
+        setReport(null);
       }
     } catch {
-      // Keep existing or simulated report
+      setReport(null);
     } finally {
       setIsLoading(false);
     }
@@ -139,21 +78,49 @@ export const SecurityQualityView: React.FC = () => {
     }
   };
 
-  const qg = report.qualityGate || {};
-  const metrics = report.metrics || {};
-  const vulns = report.vulnerabilities || [];
-  const viols = report.violations || [];
+  const qg = report?.qualityGate || {};
+  const metrics = report?.metrics || {};
+  const vulns = report?.vulnerabilities || [];
+  const viols = report?.violations || [];
 
-  const score = qg.score ?? 95;
+  const score = qg.score ?? 0;
   const qgStatus = qg.status || (score >= 80 ? 'PASS' : score >= 60 ? 'WARNING' : 'BLOCKED');
   const rating = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : 'F';
   const summaryMsg = qg.summaryMessage || 'Evaluación de seguridad completada con compuerta de calidad aprobada.';
 
   return (
     <div className="space-y-6">
-      {/* 1. Quality Gate Verdict Banner */}
-      <div
-        className={`p-6 rounded-2xl border shadow-sm transition-all ${
+      {!report ? (
+        <div className="p-10 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5 max-w-lg mx-auto">
+            <h4 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+              Auditoría SAST y Quality Gate no disponibles
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              {isLoading
+                ? 'Analizando el código del microservicio, verificando reglas de seguridad CWE/OWASP y evaluando la compuerta de calidad...'
+                : 'Ejecute la generación del microservicio para realizar el análisis estático de vulnerabilidades (CWE/OWASP), cálculo de complejidad ciclomática y verificación de Principios Constitucionales.'}
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              onClick={fetchAudit}
+              disabled={isLoading || !activeSessionId}
+              className="inline-flex items-center gap-2 py-2.5 px-5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>{isLoading ? 'Analizando...' : 'Ejecutar / Actualizar Auditoría'}</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 1. Quality Gate Verdict Banner */}
+          <div
+            className={`p-6 rounded-2xl border shadow-sm transition-all ${
           qgStatus === 'BLOCKED'
             ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-900 text-rose-900 dark:text-rose-100'
             : qgStatus === 'WARNING'
@@ -287,11 +254,11 @@ export const SecurityQualityView: React.FC = () => {
                         {isRemediated ? 'REMEDIADO' : sev}
                       </span>
                       <strong className="text-slate-900 dark:text-white text-xs">
-                        {v.title}
+                        {v.title || v.category || v.message}
                       </strong>
                       <span className="text-slate-400">—</span>
                       <code className="text-slate-600 dark:text-slate-400">
-                        {v.filePath}:{v.lineNumber || 1}
+                        {v.filePath || v.file}:{v.lineNumber || v.line || 1}
                       </code>
                     </div>
 
@@ -494,6 +461,8 @@ export const SecurityQualityView: React.FC = () => {
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

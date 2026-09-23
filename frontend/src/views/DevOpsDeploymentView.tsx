@@ -236,16 +236,7 @@ spec:
 export const DevOpsDeploymentView: React.FC = () => {
   const { activeSessionId, reloadCurrentOverview } = useStudio();
 
-  const [deployment, setDeployment] = useState<LocalDeploymentSession | null>({
-    sessionId: activeSessionId || 'default',
-    serviceName: 'order-service',
-    status: 'RUNNING',
-    hostPort: 8080,
-    containerId: 'c89fa10b98',
-    dbEngine: 'POSTGRESQL',
-    healthStatus: 'UP',
-    message: 'Contenedor en línea y respondiendo a probes HTTP Actuator.',
-  });
+  const [deployment, setDeployment] = useState<LocalDeploymentSession | null>(null);
 
   const [hostPort, setHostPort] = useState<number>(8080);
   const [activeManifestTab, setActiveManifestTab] = useState<'docker' | 'compose' | 'cicd' | 'k8s'>('docker');
@@ -258,46 +249,41 @@ export const DevOpsDeploymentView: React.FC = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [smokeResult, setSmokeResult] = useState<SmokeTestResult | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [terminalLogs, setTerminalLogs] = useState<string[]>([
-    '[system] Initializing multi-stage build container...',
-    '[docker] Loading Eclipse Temurin 21 LTS JDK runtime layer...',
-    '[docker] Building layertools spring-boot-loader & application dependencies...',
-    '[compose] Network app-network created (bridge mode).',
-    '[postgres] PostgreSQL 16 ready for connections on port 5432.',
-    '[spring] Started OrderServiceApplication in 3.42 seconds (process running on port 8080).',
-    '[health] GET /actuator/health responded 200 OK {"status":"UP"} in 12ms.',
-  ]);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
 
-  // Live Playground State: Orders CRUD
-  const [orders, setOrders] = useState<any[]>([
-    { id: 101, customerEmail: 'architect@tcs.com', totalAmount: 250.0, status: 'CONFIRMED', createdAt: '2026-09-17 18:30:00' },
-    { id: 102, customerEmail: 'enterprise@corp.com', totalAmount: 1420.5, status: 'PENDING', createdAt: '2026-09-17 19:15:00' },
-  ]);
-  const [newCustomerEmail, setNewCustomerEmail] = useState('cliente@ejemplo.com');
-  const [newTotalAmount, setNewTotalAmount] = useState('99.99');
+  // Live Playground State: Dynamic CRUD
+  const [orders, setOrders] = useState<any[]>([]);
+  const [newCustomerEmail, setNewCustomerEmail] = useState('');
+  const [newTotalAmount, setNewTotalAmount] = useState('');
 
   // REST Console State
   const [reqMethod, setReqMethod] = useState<'GET' | 'POST' | 'DELETE'>('GET');
-  const [reqEndpoint, setReqEndpoint] = useState('/api/v1/orders');
-  const [reqBody, setReqBody] = useState('{\n  "customerEmail": "demo@corp.com",\n  "totalAmount": 149.50\n}');
+  const [reqEndpoint, setReqEndpoint] = useState('/actuator/health');
+  const [reqBody, setReqBody] = useState('{}');
   const [restResponse, setRestResponse] = useState<string | null>(null);
   const [restLatency, setRestLatency] = useState<number | null>(null);
   const [restStatusCode, setRestStatusCode] = useState<number | null>(null);
 
   const fetchStatus = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId) {
+      setDeployment(null);
+      setTerminalLogs([]);
+      return;
+    }
     try {
       const s = await devopsService.getDeploymentStatus(activeSessionId);
       if (s) {
         setDeployment(s);
         if (s.hostPort) setHostPort(s.hostPort);
+      } else {
+        setDeployment(null);
       }
       const logs = await devopsService.getLogs(activeSessionId);
       if (logs && logs.length > 0) {
         setTerminalLogs(logs);
       }
     } catch {
-      // Fallback
+      setDeployment(null);
     }
   };
 
@@ -467,7 +453,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     }
   };
 
-  const currentStatus = deployment?.status || 'RUNNING';
+  const currentStatus = deployment?.status || 'STOPPED';
   const isRunning = currentStatus === 'RUNNING' || currentStatus === 'HEALTHY';
   const isDockerUnavailable = currentStatus === 'DOCKER_UNAVAILABLE';
 
@@ -526,11 +512,11 @@ export const DevOpsDeploymentView: React.FC = () => {
       >
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
           <span>
-            Puerto Mapeado: <strong className="text-slate-900 dark:text-white">{hostPort}:8080</strong>
+            Puerto Mapeado: <strong className="text-slate-900 dark:text-white">{deployment ? `${hostPort}:8080` : '—'}</strong>
           </span>
           <span>•</span>
           <span>
-            Estado Actuator: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{deployment?.healthStatus || 'UP'}</strong>
+            Estado Actuator: <strong className={`font-mono ${isRunning ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>{deployment?.healthStatus || 'NO INICIADO'}</strong>
           </span>
           <span>•</span>
           <span>
@@ -731,11 +717,17 @@ export const DevOpsDeploymentView: React.FC = () => {
         </h3>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 h-48 overflow-y-auto space-y-1 shadow-inner">
-          {terminalLogs.map((line, idx) => (
-            <div key={idx} className="hover:bg-slate-900/50 py-0.5">
-              {line}
+          {terminalLogs.length === 0 ? (
+            <div className="text-slate-500 italic py-2">
+              [system] Esperando inicio del contenedor. Presione "🚀 Desplegar Localmente" para compilar la imagen Docker y lanzar los logs del contenedor.
             </div>
-          ))}
+          ) : (
+            terminalLogs.map((line, idx) => (
+              <div key={idx} className="hover:bg-slate-900/50 py-0.5">
+                {line}
+              </div>
+            ))
+          )}
         </div>
       </div>
 

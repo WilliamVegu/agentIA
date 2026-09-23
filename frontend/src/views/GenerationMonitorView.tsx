@@ -81,7 +81,7 @@ export const GenerationMonitorView: React.FC = () => {
   }, [lastEvent, refreshSessions, reloadCurrentOverview]);
 
   useEffect(() => {
-    if (autoScroll && terminalEndRef.current) {
+    if (autoScroll && terminalEndRef.current?.scrollIntoView) {
       terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [logs, autoScroll]);

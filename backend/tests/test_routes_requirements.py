@@ -17,7 +17,7 @@ def test_transform_requirements_success_with_payload_key():
     assert data["serviceName"] == "order-service"
     assert data["packageName"] == "com.corp.order"
     assert len(data["entities"]) >= 1
-    assert len(data["userStories"]) >= 1
+    assert len(data["userStories"]) >= 3
     # Check scenario exhaustiveness (at least 2 scenarios per story)
     for story in data["userStories"]:
         assert len(story["scenarios"]) >= 2
@@ -35,7 +35,7 @@ def test_transform_requirements_success_with_header_key():
     assert response.status_code == 200
     data = response.json()
     assert data["serviceName"] == "invoice-service"
-    assert len(data["userStories"]) >= 1
+    assert len(data["userStories"]) >= 3
 
 def test_transform_requirements_missing_api_key_returns_401(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

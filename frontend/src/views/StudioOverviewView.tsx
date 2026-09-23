@@ -41,22 +41,24 @@ export const StudioOverviewView: React.FC = () => {
   const { provider, apiKey } = useLlm();
 
   // Quick Start Form state
-  const [serviceName, setServiceName] = useState('order-fulfillment-service');
+  const [serviceName, setServiceName] = useState('');
   const [database, setDatabase] = useState<'POSTGRESQL' | 'MYSQL' | 'H2'>('POSTGRESQL');
-  const [prompt, setPrompt] = useState(
-    'Microservicio para procesamiento de órdenes de compra con persistencia en PostgreSQL, validación de inventario, auditoría de estados y endpoints REST con Java Records.'
-  );
+  const [prompt, setPrompt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPipelineWorking, setIsPipelineWorking] = useState(false);
 
   const handleCreateQuickStart = async (isAuto: boolean) => {
+    if (!serviceName.trim() || !prompt.trim()) {
+      setSubmitError('Por favor complete el nombre del microservicio y la descripción de requisitos.');
+      return;
+    }
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
       const res = await sessionService.quickStart({
-        service_name: serviceName.trim() || 'order-service',
+        service_name: serviceName.trim(),
         prompt: prompt.trim(),
         database: database,
         auto_run: isAuto,
@@ -210,6 +212,7 @@ export const StudioOverviewView: React.FC = () => {
                     type="text"
                     value={serviceName}
                     onChange={(e) => setServiceName(e.target.value)}
+                    placeholder="ej. order-fulfillment-service"
                     required
                     className="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
@@ -239,6 +242,7 @@ export const StudioOverviewView: React.FC = () => {
                   rows={3}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Describa el objetivo de negocio, entidades principales, validaciones y reglas requeridas..."
                   required
                   className="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs leading-relaxed focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
@@ -248,8 +252,8 @@ export const StudioOverviewView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleCreateQuickStart(true)}
-                  disabled={isSubmitting}
-                  className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 shadow-md transition-all disabled:opacity-50"
+                  disabled={isSubmitting || !serviceName.trim() || !prompt.trim()}
+                  className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>⚡ Crear y Ejecutar Auto-Pilot Completo</span>
@@ -258,8 +262,8 @@ export const StudioOverviewView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleCreateQuickStart(false)}
-                  disabled={isSubmitting}
-                  className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all disabled:opacity-50"
+                  disabled={isSubmitting || !serviceName.trim() || !prompt.trim()}
+                  className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <span>👣 Crear e Iniciar Modo Asistido</span>
                 </button>

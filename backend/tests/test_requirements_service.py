@@ -27,7 +27,7 @@ def test_transform_requirements_mock_mode():
     assert isinstance(draft, SpecificationDraft)
     assert draft.serviceName == "billing-service"
     assert draft.packageName == "com.corp.billing"
-    assert len(draft.userStories) >= 1
+    assert len(draft.userStories) >= 3
 
     # Constitution Principle V: >= 2 scenarios per story
     for story in draft.userStories:

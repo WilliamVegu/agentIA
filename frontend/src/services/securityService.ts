@@ -10,6 +10,11 @@ export interface AuditFinding {
   message: string;
   snippet?: string;
   remediation?: string;
+  title?: string;
+  filePath?: string;
+  lineNumber?: number;
+  cweId?: string;
+  owaspCategory?: string;
 }
 
 export interface SecurityQualityReport {

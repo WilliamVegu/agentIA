@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, GitBranch, GitPullRequest, CheckCircle2, AlertCircle, Share2, Send } from 'lucide-react';
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { useStudio } from '../context/StudioContext';
@@ -7,13 +7,20 @@ import { exportService, PublishResult } from '../services/exportService';
 export const ExportPublishView: React.FC = () => {
   const { activeSessionId, activeSession } = useStudio();
 
-  const [repoUrl, setRepoUrl] = useState('https://github.com/tcs-enterprise/order-microservice.git');
-  const [branchName, setBranchName] = useState('feature/001-order-service');
+  const [repoUrl, setRepoUrl] = useState('');
+  const [branchName, setBranchName] = useState('');
   const [gitToken, setGitToken] = useState('');
   const [commitMsg, setCommitMsg] = useState('feat: initial autonomous generation and verified test suite');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<PublishResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeSession?.specName && !branchName) {
+      const sanitized = activeSession.specName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      setBranchName(`feature/001-${sanitized}`);
+    }
+  }, [activeSession?.specName]);
 
   const handleDownloadZip = () => {
     if (!activeSessionId) return;
@@ -133,6 +140,7 @@ export const ExportPublishView: React.FC = () => {
                 type="text"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
+                placeholder="https://github.com/org/repo.git"
                 required
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
@@ -146,6 +154,7 @@ export const ExportPublishView: React.FC = () => {
                 type="text"
                 value={branchName}
                 onChange={(e) => setBranchName(e.target.value)}
+                placeholder="feature/001-microservice"
                 required
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />

@@ -11,47 +11,7 @@ export const SpecIngestionView: React.FC = () => {
 
   const [activeTabMode, setActiveTabMode] = useState<'upload' | 'json'>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [jsonText, setJsonText] = useState(
-    JSON.stringify(
-      {
-        serviceName: "customer-billing-service",
-        packageName: "com.tcs.billing",
-        basePort: 8080,
-        databaseMode: "PostgreSQL",
-        entities: [
-          {
-            name: "Invoice",
-            tableName: "invoices",
-            attributes: [
-              { name: "id", type: "Long", isPrimaryKey: true, nullable: false, validationRules: [] },
-              { name: "customerId", type: "String", isPrimaryKey: false, nullable: false, validationRules: ["@NotBlank"] },
-              { name: "amount", type: "BigDecimal", isPrimaryKey: false, nullable: false, validationRules: ["@NotNull"] },
-              { name: "createdAt", type: "Instant", isPrimaryKey: false, nullable: true, validationRules: [] }
-            ]
-          }
-        ],
-        userStories: [
-          {
-            id: "US-1",
-            priority: "P1",
-            role: "BillingManager",
-            intent: "Emit invoice for completed order",
-            benefit: "Collect payment from customer",
-            scenarios: [
-              {
-                scenarioId: "AC-1.1",
-                given: "Valid order with customer ID and amount",
-                when: "POST request sent to /api/v1/invoices",
-                then: "Invoice is persisted and HTTP 201 Created is returned"
-              }
-            ]
-          }
-        ]
-      },
-      null,
-      2
-    )
-  );
+  const [jsonText, setJsonText] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -217,14 +177,15 @@ export const SpecIngestionView: React.FC = () => {
             rows={14}
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
+            placeholder={`{\n  "serviceName": "nombre-del-servicio",\n  "packageName": "com.empresa.servicio",\n  "basePort": 8080,\n  "databaseMode": "PostgreSQL",\n  "entities": [\n    {\n      "name": "Entidad",\n      "tableName": "entidades",\n      "attributes": [\n        { "name": "id", "type": "Long", "isPrimaryKey": true, "nullable": false, "validationRules": [] }\n      ]\n    }\n  ],\n  "userStories": [\n    {\n      "id": "US-1",\n      "priority": "P1",\n      "role": "Usuario",\n      "intent": "Objetivo de negocio",\n      "benefit": "Beneficio esperado",\n      "scenarios": [\n        {\n          "scenarioId": "AC-1.1",\n          "given": "Precondición",\n          "when": "Acción",\n          "then": "Resultado esperado"\n        }\n      ]\n    }\n  ]\n}`}
             className="w-full p-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-900 text-slate-100 font-mono text-xs leading-relaxed focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
           />
 
           <div className="flex justify-end">
             <button
               onClick={handleJsonSubmit}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm"
+              disabled={isSubmitting || !jsonText.trim()}
+              className="flex items-center gap-2 py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Validar e Ingestar JSON Blueprint</span>

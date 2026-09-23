@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layers,
   Sparkles,
@@ -22,37 +22,11 @@ import { SlideOverDrawer } from '../components/common/SlideOverDrawer';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
 import { architectureService } from '../services/architectureService';
+import { requirementsService } from '../services/requirementsService';
 import { modelsService } from '../services/modelsService';
 import { specService } from '../services/specService';
 import { orchestratorService } from '../services/orchestratorService';
 import apiClient from '../services/apiClient';
-
-const DEFAULT_MERMAID = `flowchart TD
-  subgraph Layer1["Capa 1: Controllers (REST / HTTP)"]
-    OrderController["OrderController\\n@RestController /api/v1/orders"]
-  end
-
-  subgraph Layer2["Capa 2: Services (Lógica de Negocio)"]
-    OrderService["OrderService\\n@Service @Transactional"]
-  end
-
-  subgraph Layer3["Capa 3: Repositories (Spring Data JPA)"]
-    OrderRepository["OrderRepository\\nJpaRepository<Order, Long>"]
-  end
-
-  subgraph Layer4["Capa 4: Models & SQL (PostgreSQL)"]
-    OrderEntity["Order Entity\\n@Table(name='orders')"]
-  end
-
-  subgraph Layer5["Capa 5: Infraestructura Transversal"]
-    GlobalExceptionHandler["GlobalExceptionHandler\\n@RestControllerAdvice"]
-  end
-
-  OrderController --> OrderService
-  OrderService --> OrderRepository
-  OrderRepository --> OrderEntity
-  OrderController -.-> GlobalExceptionHandler
-`;
 
 export const ArchitectureView: React.FC = () => {
   const {
@@ -71,101 +45,8 @@ export const ArchitectureView: React.FC = () => {
   } = useStudio();
   const { provider, apiKey } = useLlm();
 
-  // Active design or fallback
-  const [design, setDesign] = useState<any>(
-    architectureDesign || {
-      serviceName: activeSession?.specName || currentDraft?.serviceName || 'order-service',
-      packageName: currentDraft?.packageName || 'com.tcs.microservice',
-      basePort: 8080,
-      mermaidDiagram: DEFAULT_MERMAID,
-      architectureMarkdown: `# Arquitectura del Microservicio: ${activeSession?.specName || 'order-service'}\n\nTopología en 4 capas estrictas conforme a la Constitución de Desarrollo Autónomo.`,
-      openapiYaml: `openapi: 3.0.3\ninfo:\n  title: ${activeSession?.specName || 'order-service'} API\n  version: 1.0.0\npaths:\n  /api/v1/orders:\n    post:\n      summary: Crear orden de compra\n    get:\n      summary: Listar órdenes`,
-      components: [
-        {
-          name: 'OrderController',
-          layer: 'controller',
-          stereotype: '@RestController',
-          packageName: 'com.tcs.microservice.controller',
-          responsibilities: [
-            'Exponer endpoints REST para creación y consulta de órdenes',
-            'Validar contratos inmutables de entrada (Java Records)',
-          ],
-          dependencies: ['OrderService'],
-          mappedStories: ['US-001'],
-        },
-        {
-          name: 'OrderService',
-          layer: 'service',
-          stereotype: '@Service',
-          packageName: 'com.tcs.microservice.service',
-          responsibilities: [
-            'Coordinar la transacción de negocio con aislamiento @Transactional',
-            'Mapear DTOs a entidades de dominio JPA',
-          ],
-          dependencies: ['OrderRepository'],
-          mappedStories: ['US-001', 'US-002'],
-        },
-        {
-          name: 'OrderRepository',
-          layer: 'repository',
-          stereotype: '@Repository',
-          packageName: 'com.tcs.microservice.repository',
-          responsibilities: [
-            'Interfaz Spring Data JPA para persistencia en base de datos relacional',
-            'Consultas derivadas por nombre de método herméticas',
-          ],
-          dependencies: ['Order'],
-          mappedStories: ['US-001'],
-        },
-        {
-          name: 'Order',
-          layer: 'model',
-          stereotype: '@Entity',
-          packageName: 'com.tcs.microservice.model',
-          responsibilities: [
-            'Entidad de dominio con clave primaria autonumérica e inmutabilidad',
-            'Auditoría temporal normalizada con Instant createdAt y updatedAt',
-          ],
-          dependencies: [],
-          mappedStories: ['US-001'],
-        },
-        {
-          name: 'GlobalExceptionHandler',
-          layer: 'infrastructure',
-          stereotype: '@RestControllerAdvice',
-          packageName: 'com.tcs.microservice.infrastructure',
-          responsibilities: [
-            'Captura centralizada de excepciones de negocio y de validación Bean',
-            'Mapeo uniforme a ProblemDetails RFC 7807',
-          ],
-          dependencies: [],
-          mappedStories: ['US-001'],
-        },
-      ],
-      endpoints: [
-        {
-          method: 'POST',
-          path: '/api/v1/orders',
-          summary: 'Crear nueva orden de compra con validación de stock',
-          requestDto: 'CreateOrderRequest',
-          responseDto: 'OrderResponse',
-          successStatus: 201,
-          errorStatuses: [400, 422, 500],
-          mappedScenarioId: 'AC-US-001.1',
-        },
-        {
-          method: 'GET',
-          path: '/api/v1/orders/{id}',
-          summary: 'Consultar estado detallado de una orden',
-          requestDto: null,
-          responseDto: 'OrderDetailResponse',
-          successStatus: 200,
-          errorStatuses: [404, 500],
-          mappedScenarioId: 'AC-US-001.2',
-        },
-      ],
-    }
-  );
+  // Active design or null if not yet synthesized
+  const [design, setDesign] = useState<any>(architectureDesign || null);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -182,7 +63,15 @@ export const ArchitectureView: React.FC = () => {
   });
   const [showMermaidSource, setShowMermaidSource] = useState(false);
 
-  // Sync state if context updates
+  // Sync state if context or session updates
+  useEffect(() => {
+    if (architectureDesign) {
+      setDesign(architectureDesign);
+    } else {
+      setDesign(null);
+    }
+  }, [architectureDesign, activeSessionId]);
+
   const updateDesign = (newDesign: any) => {
     setDesign(newDesign);
     setArchitectureDesign(newDesign);
@@ -192,13 +81,30 @@ export const ArchitectureView: React.FC = () => {
     setIsGenerating(true);
     setErrorMsg(null);
     try {
-      const draftPayload = currentDraft || {
-        serviceName: activeSession?.specName || 'order-service',
-        packageName: 'com.tcs.microservice',
-        basePort: 8080,
-        entities: [{ name: 'Order', tableName: 'orders', attributes: [{ name: 'id', type: 'Long', isPrimaryKey: true }] }],
-        userStories: [],
-      };
+      let draftPayload = currentDraft;
+      if (!draftPayload && activeSessionId) {
+        try {
+          const reqData = await requirementsService.getSessionRequirements(activeSessionId);
+          if (reqData?.hasDraft && reqData.draft) {
+            draftPayload = reqData.draft;
+          }
+        } catch (e) {
+          console.warn('Could not load draft from session:', e);
+        }
+      }
+      if (!draftPayload) {
+        const rawServiceName = (activeSession?.specName || 'app-service')
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, '-')
+          .replace(/^-+|-+$/g, '') || 'app-service';
+        draftPayload = {
+          serviceName: rawServiceName,
+          packageName: `com.corp.${rawServiceName.replace(/[^a-z0-9]/g, '')}`,
+          basePort: 8080,
+          entities: [{ name: 'Resource', tableName: 'resources', attributes: [{ name: 'id', type: 'Long', isPrimaryKey: true }] }],
+          userStories: [],
+        };
+      }
       const res = await architectureService.design({
         draft: draftPayload,
         apiKey,
@@ -395,7 +301,7 @@ export const ArchitectureView: React.FC = () => {
     infrastructure: { label: 'Componentes Transversales & Infraestructura', icon: Server, color: 'text-rose-600 dark:text-rose-400' },
   };
 
-  const components = design.components || [];
+  const components = design?.components || [];
 
   return (
     <div className="space-y-6">
@@ -420,14 +326,15 @@ export const ArchitectureView: React.FC = () => {
             </button>
             <button
               onClick={() => setIsRefining(true)}
-              className="py-2 px-3.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors"
+              disabled={isGenerating || !design}
+              className="py-2 px-3.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Refinar con IA
             </button>
             <button
               onClick={handleGotoModelsSql}
-              disabled={isGenerating}
-              className="py-2 px-4 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+              disabled={isGenerating || !design}
+              className="py-2 px-4 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span>Diseñar Modelos & SQL →</span>
             </button>
@@ -452,32 +359,58 @@ export const ArchitectureView: React.FC = () => {
         )}
       </SingleRowCard>
 
-      {/* 1. Mermaid Architecture Flowchart */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Workflow className="w-4 h-4 text-blue-600" />
-            <span>1. Diagrama Direccional de Capas y Componentes (Mermaid)</span>
-          </h3>
-          <button
-            onClick={() => setShowMermaidSource(!showMermaidSource)}
-            className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            {showMermaidSource ? 'Ocultar código fuente' : 'Ver código Mermaid'}
-          </button>
+      {!design ? (
+        <div className="p-10 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center space-y-4">
+          <div className="w-14 h-14 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400">
+            <Layers className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5 max-w-lg mx-auto">
+            <h4 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+              Arquitectura no sintetizada para este microservicio
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Presione <strong className="text-slate-700 dark:text-slate-300">"Sintetizar con IA"</strong> para deducir automáticamente la topología en 4 capas (Controllers, Services, Repositories, JPA Entities), endpoints REST y contratos inmutables a partir de los requerimientos de la sesión activa.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              onClick={handleGenerateAi}
+              disabled={isGenerating}
+              className="inline-flex items-center gap-2 py-2.5 px-5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-all disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>{isGenerating ? 'Sintetizando Arquitectura...' : 'Sintetizar Arquitectura con IA'}</span>
+            </button>
+          </div>
         </div>
+      ) : (
+        <>
+          {/* 1. Mermaid Architecture Flowchart */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <Workflow className="w-4 h-4 text-blue-600" />
+                <span>1. Diagrama Direccional de Capas y Componentes (Mermaid)</span>
+              </h3>
+              <button
+                onClick={() => setShowMermaidSource(!showMermaidSource)}
+                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {showMermaidSource ? 'Ocultar código fuente' : 'Ver código Mermaid'}
+              </button>
+            </div>
 
-        <MermaidViewer
-          chart={design.mermaidDiagram || DEFAULT_MERMAID}
-          title="Topología Arquitectónica en 4 Capas"
-        />
+            <MermaidViewer
+              chart={design.mermaidDiagram || ''}
+              title="Topología Arquitectónica en 4 Capas"
+            />
 
-        {showMermaidSource && (
-          <pre className="p-3 bg-slate-950 text-emerald-400 rounded-xl font-mono text-xs overflow-x-auto border border-slate-800">
-            {design.mermaidDiagram || DEFAULT_MERMAID}
-          </pre>
-        )}
-      </div>
+            {showMermaidSource && (
+              <pre className="p-3 bg-slate-950 text-emerald-400 rounded-xl font-mono text-xs overflow-x-auto border border-slate-800">
+                {design.mermaidDiagram || ''}
+              </pre>
+            )}
+          </div>
 
       {/* 2. Hierarchical Component Catalog by Layer */}
       <div className="space-y-4">
@@ -703,6 +636,8 @@ export const ArchitectureView: React.FC = () => {
           </button>
         </div>
       </div>
+      </>
+      )}
 
       {/* SlideOverDrawer for Architecture Refinement */}
       <SlideOverDrawer
