@@ -27,7 +27,7 @@ except ImportError:
 
 def repair_node(state: GenerationAgentState) -> Dict[str, Any]:
     repair_attempts = state.get("repair_attempts", 0) + 1
-    max_attempts = state.get("max_repair_attempts", 3)
+    max_attempts = state.get("max_repair_attempts", 5)
     session_id = state.get("session_id", "default-session")
     diag = state.get("last_diagnostic", {})
     logs = state.get("logs", [])
@@ -53,7 +53,7 @@ def repair_node(state: GenerationAgentState) -> Dict[str, Any]:
                 FailureDiagnostic(
                     id=f"DIAG-{repair_attempts}",
                     category=category,
-                    severity=DiagnosticSeverity.BLOCKING if repair_attempts >= 3 else DiagnosticSeverity.HIGH,
+                    severity=DiagnosticSeverity.BLOCKING if repair_attempts >= max_attempts else DiagnosticSeverity.HIGH,
                     filePath=failed_file,
                     errorSummary=error_msg,
                     lineNumber=diag.get("line_number") or diag.get("lineNumber"),
@@ -61,8 +61,8 @@ def repair_node(state: GenerationAgentState) -> Dict[str, Any]:
                 )
             )
 
-    if not can_retry(repair_attempts - 1, max_attempts) or repair_attempts > 3:
-        logs.append("[REPAIR] Bloqueo por intervención humana requerida: 3 repair attempts exhausted.")
+    if not can_retry(repair_attempts - 1, max_attempts) or repair_attempts > max_attempts:
+        logs.append(f"[REPAIR] Bloqueo por intervención humana requerida: {max_attempts} repair attempts exhausted.")
         if diagnostics:
             BLOCKED_SESSIONS_STORE[session_id] = {
                 "blocked": True,
@@ -72,8 +72,8 @@ def repair_node(state: GenerationAgentState) -> Dict[str, Any]:
             "repair_attempts": repair_attempts,
             "status": SessionStatus.BLOCKED.value,
             "current_phase": SessionPhase.FAILED.value,
-            "error": "Bloqueo por intervención humana requerida: Maximum repair attempts (3) exhausted.",
-            "diff_summary": "-- Maximum repair attempts (3) exhausted. Human intervention required.",
+            "error": f"Bloqueo por intervención humana requerida: Maximum repair attempts ({max_attempts}) exhausted.",
+            "diff_summary": f"-- Maximum repair attempts ({max_attempts}) exhausted. Human intervention required.",
             "logs": logs,
         }
 

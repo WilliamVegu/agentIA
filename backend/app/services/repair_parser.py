@@ -16,7 +16,7 @@ except ImportError:
     )
 
 
-def can_retry(current_attempt: int, max_attempts: int = 3) -> bool:
+def can_retry(current_attempt: int, max_attempts: int = 5) -> bool:
     """
     Evaluates whether another auto-repair attempt is permitted under Constitution Principle V.
     Attempts start at 1. If current_attempt < max_attempts, retry is allowed.

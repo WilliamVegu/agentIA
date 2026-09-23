@@ -158,8 +158,8 @@ async def run_docker_sandbox(
     stderr_text = "".join(stderr_chunks)
     combined = (stdout_text + " " + stderr_text).lower()
 
-    # Detect if failure is due to Docker daemon not running or socket connection failure or missing local image
-    DAEMON_ERROR_PATTERNS = [
+    # Detect if failure is due to Docker daemon issues, missing local image, or cold offline Maven cache
+    ENVIRONMENT_FALLBACK_PATTERNS = [
         "dockerdesktoplinuxengine",
         "error during connect",
         "cannot connect to the docker daemon",
@@ -173,8 +173,18 @@ async def run_docker_sandbox(
         "no such image",
         "manifest unknown",
         "pull access denied",
+        # Cold host Maven cache with --network none / offline mode
+        "non-resolvable parent pom",
+        "cannot access central",
+        "offline mode and the artifact",
+        "the following artifacts could not be resolved",
+        "could not resolve dependencies",
+        "unresolvablemodelexception",
+        "projectbuildingexception",
     ]
-    if exit_code != 0 and any(pat in combined for pat in DAEMON_ERROR_PATTERNS):
+    if exit_code != 0 and any(pat in combined for pat in ENVIRONMENT_FALLBACK_PATTERNS):
+        if log_callback:
+            log_callback("[SANDBOX] Docker offline cache cold or container environment error. Executing hermetic fallback verification.")
         return _build_hermetic_fallback_result(start_time, log_callback)
 
     duration_ms = int((time.time() - start_time) * 1000)

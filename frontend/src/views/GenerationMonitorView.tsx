@@ -25,7 +25,7 @@ const LANGGRAPH_STAGES = [
   { key: 'CODE_GEN', label: '2. Generación Código', desc: 'Controllers, Services y Modelos Java 21' },
   { key: 'TEST_SYNTHESIS', label: '3. Síntesis Tests', desc: 'Pruebas unitarias Mockito y WebMvcTest' },
   { key: 'SANDBOX_BUILD', label: '4. Compilación Docker', desc: 'mvn clean test en sandbox aislado' },
-  { key: 'SELF_REPAIR_LOOP', label: '5. Auto-Reparación', desc: 'Diagnóstico AST y parches quirúrgicos (Max 3)' },
+  { key: 'SELF_REPAIR_LOOP', label: '5. Auto-Reparación', desc: 'Diagnóstico AST y parches quirúrgicos (Max 5)' },
   { key: 'VERIFIED', label: '6. Verificado', desc: 'Build exitoso y Quality Gate aprobado' },
 ];
 
@@ -237,14 +237,14 @@ export const GenerationMonitorView: React.FC = () => {
         <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 font-medium">Iteración Auto-Reparación</span>
           <div className="text-sm font-bold font-mono text-slate-900 dark:text-white mt-1">
-            {repairs} / 3 intentos
+            {repairs} / 5 intentos
           </div>
         </div>
 
         <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 font-medium">Límite Constitucional</span>
           <div className="text-sm font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
-            Máx 3 (Principio V)
+            Máx 5 (Principio V)
           </div>
         </div>
       </div>
@@ -341,7 +341,7 @@ export const GenerationMonitorView: React.FC = () => {
             </h4>
           </div>
           <p className="text-xs">
-            Se agotaron los 3 intentos permitidos de auto-reparación quirúrgica sin resolver todos los fallos de compilación detectados.
+            Se agotaron los 5 intentos permitidos de auto-reparación adaptativa sin resolver todos los fallos de compilación detectados.
           </p>
           <button
             onClick={() => setActiveTab(6)}

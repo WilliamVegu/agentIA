@@ -1,7 +1,7 @@
 import re
 from typing import Dict, Any, Optional
 
-def can_retry(current_attempt: int, max_attempts: int = 3) -> bool:
+def can_retry(current_attempt: int, max_attempts: int = 5) -> bool:
     """
     Evaluates whether another auto-repair attempt is permitted under Constitution Principle V.
     Attempts start at 1. If current_attempt < max_attempts, retry is allowed.
@@ -13,47 +13,72 @@ def parse_maven_errors(output: str) -> Dict[str, Any]:
     Parses Maven compiler and Surefire test execution outputs to extract actionable diagnostics.
     """
     # 1. Check for compilation errors
-    if "COMPILATION ERROR" in output or "cannot find symbol" in output:
-        comp_match = re.search(r"\[ERROR\]\s+(/?[^\s]+\.java):\[\d+,\d+\]\s+(.*)", output)
+    if any(keyword in output for keyword in ["COMPILATION ERROR", "cannot find symbol", "package does not exist", "incompatible types", "cannot be applied", "unreported exception"]):
+        comp_match = re.search(r"\[ERROR\]\s+(/?[^\s:]+\.java):\[(\d+),(\d+)\]\s+(.*)", output)
         if comp_match:
             file_path = comp_match.group(1).strip()
-            summary = comp_match.group(2).strip()
+            line_no = int(comp_match.group(2))
+            col_no = int(comp_match.group(3))
+            summary = comp_match.group(4).strip()
             # Capture following symbol/location details if present
-            details_match = re.search(r"symbol:\s+(.*?)\s+location:\s+(.*)", output, re.DOTALL)
+            details_match = re.search(r"symbol:\s+(.*?)\s+location:\s+([^\n\r]+)", output[comp_match.end():comp_match.end() + 300], re.DOTALL)
             details = details_match.group(0).strip() if details_match else summary
             return {
                 "error_type": "COMPILATION",
                 "failed_file": file_path,
+                "line_number": line_no,
+                "column_number": col_no,
                 "summary": summary,
                 "details": details
             }
         
         # Fallback regex for generic compilation line
-        java_match = re.search(r"([^\s]+\.java)", output)
+        java_match = re.search(r"([^\s:]+\.java)", output)
         return {
             "error_type": "COMPILATION",
-            "failed_file": java_match.group(1) if java_match else "Unknown.java",
-            "summary": "Compilation error detected",
+            "failed_file": java_match.group(1) if java_match else "src/main/java",
+            "summary": "Compilation error detected in source tree",
             "details": output.strip()
         }
 
-    # 2. Check for Surefire test failures
-    if "Failures:" in output or "There are test failures" in output or "expected:" in output:
-        failure_match = re.search(r"\[ERROR\]\s+([A-Za-z0-9_]+\.[A-Za-z0-9_]+):(\d+)\s+(.*)", output)
+    # 2. Check for Surefire test failures or assertion mismatches
+    if any(keyword in output for keyword in ["Failures:", "There are test failures", "expected:", "AssertionFailedError", "ComparisonFailure"]):
+        failure_match = re.search(r"\[ERROR\]\s+([A-Za-z0-9_]+)\.([A-Za-z0-9_]+):(\d+)\s+(.*)", output)
         if failure_match:
-            test_target = failure_match.group(1).strip()
-            details = failure_match.group(3).strip()
+            class_name = failure_match.group(1).strip()
+            method_name = failure_match.group(2).strip()
+            line_no = int(failure_match.group(3))
+            details = failure_match.group(4).strip()
             return {
                 "error_type": "TEST_FAILURE",
-                "failed_file": f"{test_target.split('.')[0]}.java",
-                "summary": test_target,
+                "failed_file": f"{class_name}.java",
+                "class_name": class_name,
+                "method_name": method_name,
+                "line_number": line_no,
+                "summary": f"{class_name}.{method_name} failed: {details}",
                 "details": details
             }
+        
+        # Test class search fallback
+        test_class_match = re.search(r"([A-Za-z0-9_]+Test)\.([A-Za-z0-9_]+)", output)
+        if test_class_match:
+            c_name = test_class_match.group(1).strip()
+            m_name = test_class_match.group(2).strip()
+            return {
+                "error_type": "TEST_FAILURE",
+                "failed_file": f"{c_name}.java",
+                "class_name": c_name,
+                "method_name": m_name,
+                "summary": f"Test failure in {c_name}.{m_name}",
+                "details": output.strip()
+            }
 
+    # 3. Fallback with first Java file mention in output
+    java_any = re.search(r"([A-Za-z0-9_]+(?:Controller|Service|Repository|Entity|Test)\.java)", output)
     return {
         "error_type": "UNKNOWN",
-        "failed_file": "",
-        "summary": "Build or test failure without standard pattern",
+        "failed_file": java_any.group(1) if java_any else "src/main/java",
+        "summary": "Build or test failure requiring adaptive repair",
         "details": output.strip()
     }
 

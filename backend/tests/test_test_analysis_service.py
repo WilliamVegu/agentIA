@@ -130,7 +130,7 @@ public class OrderServiceImpl {
     assert "import java.math.BigDecimal;" in updated_files["src/main/java/com/corp/order/service/OrderServiceImpl.java"]
     assert "+import java.math.BigDecimal;" in diff
 
-def test_execute_repair_iteration_and_cap_at_3():
+def test_execute_repair_iteration_and_cap_at_5():
     source_files = {
         "src/main/java/com/corp/order/service/OrderServiceImpl.java": "public class OrderServiceImpl { public String val() { return \"90.00\"; } }"
     }
@@ -150,7 +150,7 @@ def test_execute_repair_iteration_and_cap_at_3():
     assert len(iter1.patchesApplied) >= 1
     assert "80.00" in iter1.diffSummary
 
-    # Iteration 3 (Exhaustion)
+    # Iteration 3 (Permitted and succeeds)
     iter3 = test_analysis_service.execute_repair_iteration(
         session_id="session-1",
         iteration_number=3,
@@ -158,15 +158,26 @@ def test_execute_repair_iteration_and_cap_at_3():
         source_files=source_files
     )
     assert iter3.iterationNumber == 3
-    assert iter3.outcome == RepairOutcome.FAILED_BLOCKED
+    assert iter3.outcome == RepairOutcome.SUCCESS
 
-    # Iteration 4 (Must raise ValueError / Constitution Principle V Violation)
+    # Iteration 5 (Exhaustion cap)
+    iter5 = test_analysis_service.execute_repair_iteration(
+        session_id="session-1",
+        iteration_number=5,
+        diagnostics=analysis.diagnostics,
+        source_files=source_files
+    )
+    assert iter5.iterationNumber == 5
+    assert iter5.outcome == RepairOutcome.FAILED_BLOCKED
+
+    # Iteration 6 (Must raise ValueError / Constitution Principle V Violation)
     with pytest.raises(ValueError) as exc:
         test_analysis_service.execute_repair_iteration(
             session_id="session-1",
-            iteration_number=4,
+            iteration_number=6,
             diagnostics=analysis.diagnostics,
             source_files=source_files
         )
-    assert "hard-capped at 3 iterations" in str(exc.value)
+    assert "hard-capped at 5 iterations" in str(exc.value)
+
 

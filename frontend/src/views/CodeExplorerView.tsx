@@ -225,7 +225,7 @@ export const CodeExplorerView: React.FC = () => {
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 dark:text-slate-400 font-medium">Iteraciones de Auto-Reparación</span>
           <div className="text-base font-bold font-mono text-slate-900 dark:text-white mt-1">
-            {totalIters} / 3
+            {totalIters} / 5
           </div>
         </div>
 
@@ -247,7 +247,7 @@ export const CodeExplorerView: React.FC = () => {
                 🛑 Sesión Bloqueada por Intervención Humana (Principio V de la Constitución)
               </strong>
               <span>
-                Se han agotado los 3 intentos permitidos de auto-reparación. Aplique una corrección o sugerencia en la subpestaña de Intervención Manual para desbloquear el flujo.
+                Se han agotado los 5 intentos permitidos de auto-reparación adaptativa. Aplique una corrección o sugerencia en la subpestaña de Intervención Manual para desbloquear el flujo.
               </span>
             </div>
           </div>

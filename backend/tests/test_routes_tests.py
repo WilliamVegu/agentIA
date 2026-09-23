@@ -88,18 +88,18 @@ def test_repair_endpoint_success_and_boundary():
     assert resp1.status_code == 200
     assert resp1.json()["iterationNumber"] == 1
 
-    # Iteration 4 (Must be rejected per Principle V limit <= 3)
-    payload["iterationNumber"] = 4
-    resp4 = client.post("/api/v1/tests/repair", json=payload)
-    assert resp4.status_code in (400, 422)
+    # Iteration 6 (Must be rejected per Principle V limit <= 5)
+    payload["iterationNumber"] = 6
+    resp6 = client.post("/api/v1/tests/repair", json=payload)
+    assert resp6.status_code in (400, 422)
 
 def test_get_repairs_and_manual_override():
     session_id = "blocked-session-999"
 
-    # Simulate 3rd iteration failure
+    # Simulate 5th iteration failure (Constitutional Exhaustion)
     payload = {
         "sessionId": session_id,
-        "iterationNumber": 3,
+        "iterationNumber": 5,
         "diagnostics": [
             {
                 "id": "DIAG-BLOCK",

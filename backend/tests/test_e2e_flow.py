@@ -116,10 +116,10 @@ def test_quickstart_feature_005_e2e():
     assert len(repair_record["patchesApplied"]) >= 1
     assert "import java.math.BigDecimal;" in repair_record["diffSummary"]
 
-    # 4. Trigger iteration 3 and verify BLOCKED state
+    # 4. Trigger iteration 5 and verify BLOCKED state (Principle V: max 5 attempts)
     client.post("/api/v1/tests/repair", json={
         "sessionId": sess_id,
-        "iterationNumber": 3,
+        "iterationNumber": 5,
         "diagnostics": analysis_data["diagnostics"],
         "sourceFiles": {
             "src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\npublic class OrderServiceImpl {}"

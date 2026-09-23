@@ -76,7 +76,7 @@ class CodeRepairPatch(BaseModel):
     explanation: str = Field(..., description="Rationale for the change")
 
 class RepairIterationRecord(BaseModel):
-    iterationNumber: int = Field(..., ge=1, le=3)
+    iterationNumber: int = Field(..., ge=1, le=5)
     diagnostics: List[FailureDiagnostic]
     patchesApplied: List[CodeRepairPatch]
     passedTestsBefore: int = 0
@@ -123,7 +123,7 @@ class CodeAnalysisResponse(BaseModel):
 
 class RepairExecutionRequest(BaseModel):
     sessionId: str
-    iterationNumber: int = Field(..., ge=1, le=3)
+    iterationNumber: int = Field(..., ge=1, le=5)
     diagnostics: List[FailureDiagnostic]
     sourceFiles: Dict[str, str] = Field(default_factory=dict)
     apiKey: Optional[str] = None

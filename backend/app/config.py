@@ -56,8 +56,8 @@ class Settings(BaseSettings):
         description="Directory where generated code is synthesized and built"
     )
     
-    # Maximum auto-repair iterations (Constitution Principle V)
-    MAX_REPAIR_ATTEMPTS: int = 3
+    # Maximum auto-repair iterations (Adaptive Constitution Principle V)
+    MAX_REPAIR_ATTEMPTS: int = 5
     
     # Allow offline mock fallback without requiring external API keys
     ALLOW_OFFLINE_MOCK: bool = Field(default=False, description="Allow falling back to offline-mock when no API key is supplied")

@@ -122,10 +122,10 @@ def execute_repair_iteration(
     """
     effective_key = request.apiKey or x_llm_api_key
 
-    if request.iterationNumber > 3:
+    if request.iterationNumber > 5:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Constitution Principle V Violation: Auto-repair cycle hard-capped at 3 iterations. Session is now BLOCKED.",
+            detail="Constitution Principle V Violation: Auto-repair cycle hard-capped at 5 iterations. Session is now BLOCKED.",
         )
 
     try:
