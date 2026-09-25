@@ -1,0 +1,727 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{promptbg}{RGB}{250,250,252}
+\definecolor{promptborder}{RGB}{200,205,215}
+\definecolor{codebg}{RGB}{248,248,250}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  pdftitle={SkillOpt Reference --- AgentIA},
+  pdfauthor={AgentIA Engineering}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}SkillOpt Reference $\cdot$ AgentIA}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\newtcolorbox{keybox}[1][]{
+  colback=softgray, colframe=accent, boxrule=0.4pt,
+  arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  breakable, #1
+}
+
+\newtcolorbox{promptbox}[1][]{
+  colback=promptbg, colframe=promptborder, boxrule=0.4pt,
+  arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  fontupper=\small\ttfamily, breakable, #1
+}
+
+\lstset{
+  basicstyle=\small\ttfamily,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{promptborder},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false
+}
+
+\title{\vspace{-2cm}\textbf{SkillOpt Reference}\\[0.2em]
+\large Skill format, prompt templates, and implementation hyperparameters}
+\author{AgentIA Engineering}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{keybox}
+\textbf{Purpose.} This is the implementation companion to the proposal.
+It reproduces the skill document format, the published prompt templates
+from SkillOpt (arXiv:2605.23904, Appendix~C.2), the CODESKILL skill
+examples (arXiv:2605.25430, Figures~4--14), and the hyperparameters
+required to build the loop. Templates are verbatim from the sources so
+they can be copied directly into the codebase under
+\texttt{backend/app/resources/prompts/skillopt/}.
+\end{keybox}
+
+\tableofcontents
+\newpage
+
+\section{Optimization in text space}
+
+\begin{keybox}
+\textbf{The one-sentence version.} Take the four things that make weight
+training reliable --- a bounded step size, a validation gate, negative
+feedback, and momentum --- and apply them to a text document instead of
+to a matrix of numbers. Everything else in this reference is a detail
+underneath that sentence.
+\end{keybox}
+
+\subsection{Why it is not obvious}
+
+Before SkillOpt, there were two ways to improve an LLM's guidance text.
+
+\begin{description}[leftmargin=1.2em]
+  \item[Hand-editing.] A human writes a prompt, tests it, edits it,
+  tests again. Works, but does not scale, and the human's judgment is
+  the only signal.
+  \item[Self-editing.] The model reads its own failures and rewrites
+  its own prompt. Scales, but is unreliable --- no bound on how much it
+  rewrites, no validation that the rewrite helped, no memory of what
+  was tried and failed. In practice, self-editing drifts: the document
+  grows longer, more contradictory, and eventually worse.
+\end{description}
+
+SkillOpt is a third option: self-editing \emph{with the discipline of
+an optimizer}. Bounded edits, validated against held-out data, with
+negative feedback and momentum. It borrows every control that makes
+gradient descent reproducible, and applies those controls to text.
+
+\subsection{The deep-learning analogy}
+
+The analogy is operational, not decorative. Every row matters.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Deep learning & SkillOpt & What it prevents \\
+\midrule
+Weights & The skill document & (the trainable object) \\
+Forward pass & Rollout batch on training tasks & Editing from too little evidence \\
+Loss & Task score (0/1 from verifier) & (the objective) \\
+Gradient & Reflection --- LLM proposes edits & (the proposed direction) \\
+Learning rate & Edit budget \(L_t\) per step & Unbounded rewriting \\
+Optimizer step & Apply bounded edits \(\to\) candidate & (the move) \\
+Validation set & Held-out selection split & Overfitting to motivating examples \\
+Acceptance rule & Strict improvement, ties rejected & Silent drift and degradation \\
+Momentum & Epoch-wise slow/meta update & Long-horizon drift \\
+Rejected gradients & Rejected-edit buffer & Repeated bad proposals \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The analogy is the argument: if you believe in gradient descent, you
+should believe in bounded text editing with a validation gate, because
+they are the same algorithm in different spaces.
+
+\subsection{Why the gate is inside the update}
+
+This is the part a technical judge will care about. In standard SGD:
+
+\begin{promptbox}
+weights \(\leftarrow\) weights \(-\) lr \(\cdot\) gradient
+\hfill (always take the step)
+\end{promptbox}
+
+You always move. Validation runs separately to pick checkpoints.
+
+In SkillOpt:
+
+\begin{promptbox}
+candidate \(\leftarrow\) apply\_bounded\_edits(skill)\\
+if score(candidate) \(>\) score(current):\\
+\hspace*{2em}skill \(\leftarrow\) candidate\\
+else:\\
+\hspace*{2em}reject, log to buffer
+\end{promptbox}
+
+\textbf{The step is conditional on validation.} The gradient (the
+LLM's reflection) proposes; the held-out score disposes. This is closer
+to a \emph{trust-region} or \emph{line-search} method than to vanilla
+SGD --- and it is necessary because the ``gradient'' here is a language
+model's guess, not a computed direction. A language model's reflection
+can look plausible and be wrong. The gate is what makes an unreliable
+proposer safe.
+
+The consequence: the loop is monotone. The skill's selection score
+never goes down, by construction. Every accepted edit is a measurable
+improvement on held-out data.
+
+\subsection{The three failure modes of naive text editing}
+
+If someone pushes back with ``isn't this just prompt engineering,''
+answer with the three ways naive editing fails --- each corresponding
+to a control SkillOpt adds.
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Unbounded editing.} Naive self-editing rewrites the
+  whole document. You lose the ability to attribute improvement to any
+  specific change, and the document drifts. SkillOpt bounds each step
+  to \(L_t\) edits (default \(4\)), preserving continuity between
+  versions.
+  \item \textbf{Unvalidated editing.} Naive self-editing accepts any
+  plausible rewrite. A plausible textual diagnosis can still hurt the
+  actual model. SkillOpt requires strict improvement on a held-out
+  split before any candidate becomes current.
+  \item \textbf{No momentum.} Naive self-editing only compares adjacent
+  versions. It cannot see slow drift across many steps. SkillOpt re-runs
+  the \emph{same tasks} across epoch boundaries and writes durable
+  guidance to a protected section that step-level edits cannot touch.
+\end{enumerate}
+
+The paper's ablation is the empirical proof: removing the momentum
+mechanisms (meta skill + slow update) drops SpreadsheetBench from
+\(77.5\) to \(55.0\) --- a \(22.5\)-point degradation. That is the cost
+of skipping the control.
+
+\subsection{Why ``text space'' is the right phrase}
+
+The optimization is literally happening over the space of possible
+skill documents. Each document is a point in that space. Each edit is a
+move. The validation score is the objective. The gate keeps you on the
+improving side.
+
+The subtlety: this space is \textbf{non-differentiable and open-ended}.
+You cannot take a gradient, and the set of possible edits is anything a
+language model can write. SkillOpt replaces the gradient with a
+language-model reflection, and replaces the step-size schedule with an
+edit-count budget. Everything else --- validation, momentum, negative
+feedback --- is directly imported.
+
+\subsection{How to say it at different depths}
+
+\begin{description}[leftmargin=1.2em]
+  \item[Ten seconds.] ``It's a training loop for a text document.
+  Each round, the model proposes small edits, and the edit is only
+  kept if it measurably improves performance on a held-out set. Same
+  discipline as training a neural network --- just applied to a prompt
+  instead of to weights.''
+  \item[Thirty seconds.] ``You have a skill document that gets
+  prepended to the generation prompt. An optimizer model reads rollout
+  trajectories and proposes atomic edits --- append, insert, replace,
+  delete --- capped at a fixed number per step. Each candidate document
+  is scored on a held-out split, and accepted only if the score
+  strictly improves. Rejected edits go into a buffer so the next round
+  does not repeat them. At each epoch, the same tasks are re-run under
+  the old and new documents, and durable guidance gets written to a
+  protected section. The controls --- learning rate, validation,
+  momentum, negative feedback --- are exactly the ones you would want
+  in SGD.''
+  \item[Two minutes.] The four-control mapping above, plus the
+  trust-region framing of the gate, plus the \(22.5\)-point ablation
+  as evidence that the controls matter.
+\end{description}
+
+\begin{keybox}
+\textbf{The three sentences to have ready.}
+(1) \emph{The skill document is the trainable parameter, and the model
+stays frozen.} No weights touched, no fine-tuning, no training
+infrastructure --- just text.
+(2) \emph{The step is validated before it is taken.} Every candidate
+must strictly beat the current version on a held-out set. This is what
+makes self-editing safe where naive self-editing drifts.
+(3) \emph{The four controls --- bounded edits, validation gate,
+rejected-edit buffer, epoch-wise momentum --- are exactly the controls
+that make weight-space optimization reproducible, applied to text
+space.}
+\end{keybox}
+
+\section{Skill document format}
+\label{sec:format}
+
+Every skill is a standalone markdown file. This format is the
+convergence point of all three 2026 papers (SkillOpt, CODESKILL,
+SkillBrew); it is the contract between authoring, injection, and
+optimization.
+
+\begin{promptbox}
+\# Title\\
+\# <short reusable name --- no repo, class, file, or variable names>\\[0.4em]
+\#\# Granularity\\
+task-level | event-driven\\[0.4em]
+\#\# When to apply\\
+<transferable trigger condition --- high-level, not instance-specific>\\[0.4em]
+\#\# Rules\\
+1. <actionable rule>\\
+2. <actionable rule>\\
+...\\[0.4em]
+<!-- SLOW\_UPDATE\_START -->\\
+<!-- SLOW\_UPDATE\_END -->
+\end{promptbox}
+
+\subsection{Field semantics}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Title.} Short, reusable, capability-oriented.
+  Describes \emph{what the skill enables}, not a specific instance of it.
+  \item \textbf{Granularity.} Two values. \emph{Task-level} for
+  whole-task strategies (e.g., ``diagnose Maven build failures'').
+  \emph{Event-driven} for local trigger-response patterns
+  (e.g., ``handle missing test-jar dependency'').
+  \item \textbf{When to apply.} The trigger condition. High-level
+  enough to fire on unseen tasks of the same family; specific enough
+  not to fire on every task. This is the hardest field to author well.
+  \item \textbf{Rules.} Ordered, procedural, actionable. Each rule
+  should describe a concrete action or check. Prefer numbered steps
+  over prose.
+  \item \textbf{Protected section.} Empty in seed skills. Only the
+  epoch-wise slow/meta update (see \S\ref{sec:slow}) may write here.
+  Step-level edits are blocked from touching it by design.
+\end{itemize}
+
+\subsection{Authoring rules}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item Rules must be \textbf{procedural}, not declarative.
+  \item Rules must be \textbf{ordered} when sequencing matters.
+  \item Trigger conditions must be \textbf{transferable}.
+  \item \textbf{No instance-specific identifiers.} No repo names, file
+  paths, class names, module names, or one-off literals.
+  \item Every rule must be \textbf{grounded} in observed failure
+  evidence or constitutional principles.
+  \item Combined length per skill: \textbf{under 500 tokens}.
+  \item Combined length of all seed skills: \textbf{under 2,000 tokens}.
+\end{enumerate}
+
+\section{Reference skill examples}
+\label{sec:examples}
+
+Two examples from CODESKILL's maintained bank. They are Java/Maven
+specific and represent the target quality bar for AgentIA's seed skills.
+
+\subsection*{Task-level example}
+
+\begin{promptbox}
+\# Diagnose Maven build failures via environment, config, and dependency
+resolution.\\[0.3em]
+\#\# Granularity\\
+task-level\\[0.3em]
+\#\# When to apply\\
+When a Java/Maven project fails to build and the cause may involve
+toolchain or wrapper configuration, repository settings, missing or
+stale dependencies, or build-phase ordering rather than source-code
+errors.\\[0.3em]
+\#\# Rules\\
+1. Identify the project type and build instructions from repository
+metadata before making changes.\\
+2. Run the build with the project's Maven wrapper first, then capture
+both early and later output to distinguish dependency-download progress
+from the actual failure.\\
+3. Use the first concrete failure message to distinguish network or
+repository issues, missing artifacts, and compilation errors before
+changing code.\\
+4. If the build fails in the enforcer or toolchain phase, use verbose
+output to identify the required Java and Maven versions.\\
+5. Check active Java and Maven toolchain versions and align them with
+the project's documented requirements.\\
+6. When a dependency cannot be resolved, check whether the missing
+artifact is generated later in the build.\\
+7. Inspect local Maven settings and repository configuration before
+changing code.\\
+8. After adjusting toolchain, wrapper, repository, or dependency
+configuration, rerun and re-check the logs to confirm the failure mode
+changed.
+\end{promptbox}
+
+\subsection*{Event-driven example}
+
+\begin{promptbox}
+\# Handle missing Maven test-jar dependencies.\\[0.3em]
+\#\# Granularity\\
+event-driven\\[0.3em]
+\#\# When to apply\\
+When a Maven build fails with a dependency resolution error for a
+test-jar or similar scoped artifact that has not yet been produced or
+installed.\\[0.3em]
+\#\# Rules\\
+1. Inspect the failing module's POM to confirm dependency type and
+scope.\\
+2. Check the producing module's POM for an existing execution for the
+required artifact.\\
+3. If the test jar is only generated when tests run, either run the
+tests or explicitly invoke the Maven test-jar goal before rebuilding.\\
+4. If the artifact is missing, add or configure the appropriate plugin
+execution in the producing module's POM.\\
+5. Do not retry the same Maven install command with tests skipped;
+skipping prevents the test jar from being created.\\
+6. After generating or configuring the artifact, run a full install
+so it is installed into the local repository.\\
+7. Verify the artifact is present in the local Maven repository before
+retrying the original command.
+\end{promptbox}
+
+\section{SkillOpt prompt templates}
+\label{sec:prompts}
+
+All templates below are reproduced verbatim from SkillOpt, Appendix~C.2,
+with terminology aligned to the optimizer/target framing. They are
+designed to be dropped into \texttt{prompts/skillopt/} as-is. Prompt
+outputs are JSON so the pipeline can parse, filter, apply, and validate
+without manual intervention.
+
+\subsection{Failure analysis --- \texttt{analyst\_error.md}}
+
+\begin{promptbox}
+You are an expert failure-analysis agent for AI agent tasks.
+
+You will be given MULTIPLE failed agent trajectories from a single
+minibatch and the current skill document. Your job is to identify the
+most important COMMON failure patterns across the batch and propose a
+concise set of skill edits.\\[0.4em]
+\#\# Analysis Process\\
+1. Read ALL trajectories in the minibatch.\\
+2. Identify the most prevalent, systematic failure patterns.\\
+3. For each pattern, classify its failure type.\\
+4. Propose skill edits that address the COMMON patterns, not individual
+edge cases.\\
+5. Edits must be generalizable; do not hardcode task-specific values.\\
+6. Only patch gaps in the skill; do not duplicate existing content.\\[0.4em]
+You will be told the maximum number of edits (the budget L). Produce
+AT MOST L edits.\\[0.4em]
+Respond ONLY with a valid JSON object:\\
+\{\\
+\hspace*{1em}"reasoning": "<why these edits address the batch's common
+failures>",\\
+\hspace*{1em}"edits": [\\
+\hspace*{2em}\{"op": "append", "content": "<markdown to add at end of
+skill>"\},\\
+\hspace*{2em}\{"op": "insert\_after", "target": "<exact heading/text>",
+"content": "<markdown>"\},\\
+\hspace*{2em}\{"op": "replace", "target": "<exact text>", "content":
+"<replacement>"\},\\
+\hspace*{2em}\{"op": "delete", "target": "<exact text>"\}\\
+\hspace*{1em}]\\
+\}
+\end{promptbox}
+
+\subsection{Success analysis --- \texttt{analyst\_success.md}}
+
+\begin{promptbox}
+You are an expert success-pattern analyst for AI agents.
+
+You will be given MULTIPLE successful agent trajectories from a single
+minibatch and the current skill document. Identify generalizable
+behavior patterns COMMON across the batch worth encoding in the
+skill.\\[0.4em]
+\#\# Rules\\
+- Only propose patches for patterns NOT already covered.\\
+- Focus on patterns appearing across MULTIPLE trajectories.\\
+- Patterns must generalize beyond specific tasks.\\
+- Prefer reinforcing existing sections over adding new ones.\\[0.4em]
+Produce AT MOST L edits. Output: same JSON schema as failure analysis
+with a "success\_patterns" array added.
+\end{promptbox}
+
+\subsection{Failure merge --- \texttt{merge\_failure.md}}
+
+\begin{promptbox}
+You are a skill-edit coordinator. Merge multiple independently-proposed
+patches from FAILURE analysis into ONE coherent patch.\\[0.4em]
+Merge guidelines:\\
+1. Deduplicate: keep the best-worded version of similar edits.\\
+2. Resolve conflicts: choose the one with stronger justification or
+synthesize both.\\
+3. Preserve unique insights: include all non-redundant corrective
+edits.\\
+4. Prevalent-pattern bias: edits appearing across multiple patches get
+HIGH priority.\\
+5. Independence: no two edits may target the same text region.\\
+6. Support count: for each merged edit, estimate how many source
+patches support it.\\
+7. PROTECTED SECTION: do not target content between
+\texttt{SLOW\_UPDATE\_START} and \texttt{SLOW\_UPDATE\_END}.
+\end{promptbox}
+
+\subsection{Success merge --- \texttt{merge\_success.md}}
+
+Same structure as failure merge, applied to success-driven patches. Be
+conservative: success patches reinforce existing behavior; only include
+edits for patterns not already in the skill.
+
+\subsection{Cross-priority merge --- \texttt{merge\_priority.md}}
+
+\begin{promptbox}
+Merge failure and success patches.\\[0.4em]
+1. FAILURE PATCHES TAKE PRIORITY: failure-driven edits are preserved
+unless they directly conflict with a well-supported success pattern.\\
+2. Deduplicate: when a failure and success edit cover the same point,
+keep the failure version.\\
+3. Preserve success insights for patterns not addressed by failures.\\
+4. Higher-level merges represent broader consensus; give priority.\\
+5. Carry forward support\_count and source\_type for each edit.\\
+6. PROTECTED SECTION: do not target protected content.
+\end{promptbox}
+
+\subsection{Ranking and selection --- \texttt{ranking.md}}
+
+\begin{promptbox}
+You are an expert edit-ranking optimizer for a skill optimization
+system. Rank the edits and select the top ones.\\[0.4em]
+Ranking criteria (in priority order):\\
+1. Systematic impact: edits addressing widespread, recurring failure
+patterns rank highest. A rule fixing 50\% of failures beats one fixing
+a single edge case.\\
+2. Complementarity: edits filling gaps, not duplicating content.\\
+3. Generality: general principles rank higher than instance-specific
+advice.\\
+4. Actionability: concrete guidance ranks higher than vague advice.\\[0.4em]
+Respond ONLY with:\\
+\{"reasoning": "...", "selected\_indices": [<0-based indices>]\}
+\end{promptbox}
+
+\subsection{Epoch-wise slow update --- \texttt{slow\_update.md}}
+\label{sec:slow}
+
+\begin{promptbox}
+You are a strategic skill advisor for an AI agent optimization system.
+You see how the skill has evolved across an entire epoch by comparing
+the SAME tasks under two consecutive skill versions. This longitudinal
+view lets you identify systemic drift, regressions, and persistent
+blind spots that step-level edits cannot catch.\\[0.4em]
+\#\# What you receive\\
+1. Previous epoch's skill and current epoch's skill.\\
+2. Longitudinal comparison: same 20 training tasks under both skills,
+categorized into regressions, persistent failures, improvements, and
+stable successes.\\
+3. Previous slow update guidance, if any.\\[0.4em]
+\#\# Your process\\
+1. Reflect on the previous guidance: what was effective, what
+backfired, what was missed.\\
+2. Write updated guidance that retains what worked, revises what
+didn't, adds new instructions for observed regressions and persistent
+failures.\\[0.4em]
+\#\# Output requirements\\
+Write a strategic guidance block that will OVERWRITE the previous
+guidance in the protected section. Prioritize: (1) preventing
+regressions, (2) fixing persistent failures, (3) reinforcing successful
+patterns. Do NOT duplicate content already in the main skill body.\\[0.4em]
+Respond ONLY with:\\
+\{"reasoning": "...", "slow\_update\_content": "<exact text>"\}
+\end{promptbox}
+
+\subsection{Optimizer meta skill --- \texttt{meta\_skill.md}}
+
+\begin{promptbox}
+You are an optimizer coach. Your job is to write a compact
+optimizer-side meta skill that helps future optimizer calls produce
+better skill edits in this environment.\\[0.4em]
+\#\# What you receive\\
+1. Previous epoch's last-step skill.\\
+2. Current epoch's last-step skill.\\
+3. Longitudinal comparison on the SAME sampled tasks.\\
+4. Previous optimizer memory, if one existed.\\[0.4em]
+\#\# Your goal\\
+Capture: which kinds of edits help in this environment; which tend to
+be vague, redundant, brittle, or harmful; what level of abstraction
+works best; which failure-repair patterns to prioritize; which
+regression risks to guard against.\\[0.4em]
+\#\# Constraints\\
+- Address the FUTURE OPTIMIZER directly, not the training model.\\
+- Use evidence from the adjacent-epoch comparison, not generic advice.\\
+- Keep it compact and high-signal.\\[0.4em]
+Respond ONLY with:\\
+\{"reasoning": "...", "meta\_skill\_content": "<compact guidance>"\}
+\end{promptbox}
+
+\section{CODESKILL supplementary templates}
+\label{sec:codeskill}
+
+CODESKILL's prompt set (Figures~6--14) is complementary to SkillOpt's.
+Use CODESKILL's extraction and maintenance prompts for the initial
+skill authoring pass, and SkillOpt's prompts for the optimization loop.
+
+\subsection{Task-level extraction --- Figure 6}
+
+\begin{promptbox}
+1. A bootstrap skill is a task-level reusable pattern supported by
+multiple trajectories. It must be broader than a single local event.\\
+2. Generate only if the pattern is reusable across similar tasks. Keep
+\texttt{when\_to\_apply} high-level and write transferable, actionable
+rules.\\
+3. Ground every part of the skill in repeated evidence from the
+trajectories and outcomes. Do not invent unsupported steps, checks, or
+guidance. If failed trajectories reveal reusable cautions, include them
+as cautionary rules.\\
+4. Skip if the evidence is weak, contradictory, accidental, too local,
+or collapses into an event-level reaction instead of a task-level
+pattern.\\
+5. Do not include repository names, issue descriptions, exact task
+goals, variable names, function names, class names, module names,
+exact file paths, or one-off literals.\\[0.4em]
+Output schema:\\
+\{"action": "generate", "skill": \{"title": "...", "granularity":
+"general", "when\_to\_apply": "...", "rules": [...]\}\}\\
+or \{"action": "skip", "reason": "..."\}
+\end{promptbox}
+
+\subsection{Event-driven extraction --- Figure 7}
+
+\begin{promptbox}
+You are an expert at extracting reusable memory from bash-agent
+trajectories. Extract one reusable event-driven skill from a full
+trajectory. Use only the provided evidence.\\[0.4em]
+\#\# Rules\\
+1. An event-driven skill is a local trigger-response pattern. Focus on
+one important event; stay narrower than a whole-task workflow.\\
+2. Generate only if the event yields a reusable lesson beyond this
+exact task.\\
+3. Ground the trigger and guidance in the trajectory and result. Do
+not invent an event.\\
+4. If multiple candidate events exist, choose the single most
+reusable one.\\
+5. Skip if there is no strong reusable local event, or if the lesson
+is too task-specific or workflow-level.\\
+6. No repository names, file paths, or one-off literals.\\[0.4em]
+Output: same schema with \texttt{"granularity": "event-driven"}.
+\end{promptbox}
+
+\subsection{Evolution --- Figure 8}
+
+\begin{promptbox}
+Choose exactly one action: \texttt{evolve} (revise exactly one existing
+skill) or \texttt{skip} (make no revision).\\[0.4em]
+\#\# Rules\\
+1. Alignment and need: choose evolve only when one existing skill is
+clearly aligned with the current trajectory and the result shows it
+should be revised.\\
+2. Reusability: revise only if the trajectory reveals a reusable
+missing case, missing check, better decision rule, improved ordering,
+or reusable caution.\\
+3. Applicability: \texttt{when\_to\_apply} remains high-transferable.\\
+4. Grounding: the revision must be directly supported by the provided
+trajectory and result.\\
+5. Identity preservation: keep the same capability identity.\\
+6. Skip if the evidence is weak, contradictory, or the trajectory is
+better described as a brand-new skill.
+\end{promptbox}
+
+\subsection{Bank maintenance --- Figure 9}
+
+\begin{promptbox}
+Choose exactly one action: \texttt{add}, \texttt{merge}, or
+\texttt{drop}.\\[0.4em]
+1. \textbf{add}: candidate is reusable, coherent, and distinct from
+retrieved skills.\\
+2. \textbf{merge}: candidate and one retrieved skill share the same
+capability identity and can be combined into one stronger skill.\\
+3. \textbf{drop}: candidate is covered by stronger skills, redundant,
+weakly evidenced, unsafe, too local, or too task-specific.\\
+4. No resulting skill may include repo names, file paths, or one-off
+literals.
+\end{promptbox}
+
+\section{Hyperparameters}
+
+Default configuration for the SkillOpt loop. Values from Table 4 of the
+paper, with AgentIA-specific adaptations noted.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+Parameter & Value & Notes \\
+\midrule
+Edit budget \(L_t\) & 4 & cosine decay, floor 2 \\
+Rollout batch size & 40 & scale to session volume \\
+Reflection minibatch & 8 & fixed \\
+Epochs & 4 & fixed \\
+Slow-update samples/epoch & 20 & fixed \\
+Optimizer model & frontier & different provider than target \\
+Gate criterion & strict \(>\) & ties rejected \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{AgentIA adaptations}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Verifier.} \texttt{mvn test -o} exit code \(+\) constitutional
+  validators. The paper assumes a scalar verifier; the composite score
+  is AgentIA-specific.
+  \item \textbf{Selection split.} 20\% of recent sessions, never used
+  for training or authoring. Minimum 10 sessions; prefer 15.
+  \item \textbf{Reflection batch.} Scale the paper's 40 down to session
+  volume (30 is realistic for the pilot).
+  \item \textbf{Optimizer model.} A different provider via
+  \texttt{LLMFactory} to avoid correlated generate-and-critique failure.
+\end{itemize}
+
+\section{Implementation checklist}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item Copy all prompt templates from \S\ref{sec:prompts} into
+  \texttt{backend/app/resources/prompts/skillopt/} as separate
+  \texttt{.md} files.
+  \item Author seed skills using the format in \S\ref{sec:format} and the
+  examples in \S\ref{sec:examples}. Save to\newline
+  \texttt{backend/app/resources/skills/}.
+  \item Implement the edit applier with the four atomic operations
+  (append, insert\_after, replace, delete). Enforce the protected
+  section guard.
+  \item Implement the hierarchical merge in the order: failure merge,
+  success merge, cross-priority merge.
+  \item Implement the ranker that clips to \(L_t\).
+  \item Implement the gate: score the candidate on the selection split,
+  accept only if strictly greater than current.
+  \item Persist rejected edits with score drops to the buffer.
+  \item Implement the epoch-boundary slow update; write to the
+  protected section.
+  \item Implement the meta-skill capture; keep optimizer-side only.
+  \item Wire the loop: forward pass on the training split, reflection
+  minibatches, merge, rank, apply, gate, repeat.
+\end{enumerate}
+
+\begin{keybox}
+\textbf{The one thing not to skip.} The epoch-wise slow/meta update
+(\S\ref{sec:slow}). SkillOpt's ablation shows removing both the meta
+skill and the slow update costs \(22.5\) points on SpreadsheetBench ---
+the largest single degradation in the paper. Per-step reflection cannot
+substitute for it.
+\end{keybox}
+
+\section{Sources}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item Li et al. \emph{SkillOpt: A controllable text-space optimizer
+  for agent skills.} arXiv:2605.23904 (2026). Appendix~C.2 is the
+  source for all prompts in \S\ref{sec:prompts}; Table~4 for
+  hyperparameters.
+  \item Li et al. \emph{CODESKILL: Learning self-evolving skills for
+  coding agents.} arXiv:2605.25430 (2026). Figures~4--14 for skill
+  format, examples, and extraction/evolution/maintenance prompts.
+  \item Hu et al. \emph{SkillBrew: Multi-objective curation of skill
+  banks.} arXiv:2605.29440 (2026). Referenced for deferred bank-level
+  curation.
+\end{itemize}
+
+\end{document}
