@@ -421,7 +421,7 @@ def _execute_pipeline_steps(
                 f"artifacts={generated_count}, "
                 f"requests={(agent_state.get('generation_journal') or {}).get('total_requests', 0)}"
             )
-            if agent_state.get("status") == "BLOCKED":
+            if agent_state.get("status") == SessionStatus.BLOCKED.value:
                 _emit_event(
                     session_id,
                     LifecyclePhase.CODE_TESTS,

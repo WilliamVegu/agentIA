@@ -773,3 +773,486 @@ def test_partial_candidate_set_is_rejected(monkeypatch, tmp_path):
     assert result.get("status") == "BLOCKED"
     verdict = journal_mod.stage_entry(result["generation_journal"], "DOMAIN")["initial_verdict"]
     assert "PARTIAL_CANDIDATE_SET" in json.dumps(verdict)
+
+
+# =========================================================================
+# T030-T035 — User Story 2: no non-compliant artifact is ever persisted
+#
+# Injection happens AT THE MODEL BOUNDARY (via the T017 fake client), never by
+# observing session outcomes. That distinction is load-bearing: the platform's
+# sandbox verifier can report synthetic success without executing a build, so a
+# session reaching a "success" state proves nothing about compliance. Every
+# adversarial assertion below therefore reads the WORKSPACE, not the status.
+#
+# Imports for this section are added here rather than in the header block so the
+# T014/T049 and T029 sections above stay exactly as they were.
+# =========================================================================
+from app.models.session import SessionPhase, SessionStatus  # noqa: E402
+from app.orchestrator.stages.runner import run_stages  # noqa: E402
+from app.services.security_service import (  # noqa: E402
+    audit_workspace,
+    scan_architecture_compliance,
+)
+
+MINIMAL = "minimal"          # one entity: keeps the per-entity partial-set rule quiet
+
+
+def _leaked_key_literal() -> str:
+    """A credential-shaped value assembled at runtime.
+
+    Built by concatenation so this file contains no literal that a secret scanner
+    (TruffleHog / GitGuardian, named in the constitution's audit section) would
+    flag, while still matching the credential pattern the rule must catch.
+    """
+    return "AIza" + "Sy" + "x" * 33
+
+
+def _stage_state(blueprint: dict, workspace: Path, **extra) -> dict:
+    state = _model_state(blueprint, workspace)
+    state.update(extra)
+    return state
+
+
+def _no_artifact_reached_the_workspace(workspace: Path, result: dict) -> None:
+    """Guardrail: assert on the FILESYSTEM, not on session status.
+
+    A session terminal status is produced by the sandbox verifier, which can
+    report synthetic success; the workspace is the only trustworthy witness of
+    what was actually persisted.
+    """
+    files = sorted(p.relative_to(workspace).as_posix() for p in workspace.rglob("*") if p.is_file())
+    assert files == [], f"artifacts from the violating response reached the workspace: {files}"
+    assert result["generated_files"] == {}, "the violating response was merged into generated_files"
+
+
+# ---------------------------------------------------------------------------
+# T033 — adversarial fault injection, one scripted case per constitutional rule
+# ---------------------------------------------------------------------------
+def test_adversarial_layer_isolation_persists_nothing(monkeypatch, tmp_path):
+    """Principle I: a controller reaching directly into the repository layer.
+
+    The scripted response is a controller that imports the repository and an
+    advice class (so the *whole-project* rule cannot also fire and mask the
+    result). The violation is LOCAL to the CONTROLLER stage, so it must reject
+    the candidate set and consume a correction attempt.
+    """
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    violating = fm.violating_artifacts("LAYER_ISOLATION", blueprint)
+    _script(monkeypatch, *[fm.canonical_json_response(violating)] * 3)
+
+    result = run_stage(_stage_state(blueprint, workspace), "CONTROLLER")
+
+    _no_artifact_reached_the_workspace(workspace, result)
+
+    entry = journal_mod.stage_entry(result["generation_journal"], "CONTROLLER")
+    assert entry["outcome"] == journal_mod.OUTCOME_EXHAUSTED
+    assert entry["request_count"] == 3, "one initial request plus two corrections"
+    rule_ids = {
+        v["rule_id"]
+        for v in (entry["initial_verdict"] or {}).get("violations", [])
+    }
+    assert "PRINCIPLE_I_LAYER_ISOLATION" in rule_ids, (
+        f"the layer-isolation rule did not fire; verdict carried {sorted(rule_ids)}"
+    )
+
+
+def test_adversarial_contract_immutability_persists_nothing(monkeypatch, tmp_path):
+    """Principle II: a request contract declared as a class instead of a record."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    violating = fm.violating_artifacts("CONTRACT_IMMUTABILITY", blueprint)
+    _script(monkeypatch, *[fm.canonical_json_response(violating)] * 3)
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+
+    _no_artifact_reached_the_workspace(workspace, result)
+    rule_ids = {
+        v["rule_id"]
+        for v in (journal_mod.stage_entry(result["generation_journal"], "DOMAIN")["initial_verdict"] or {}).get("violations", [])
+    }
+    assert "PRINCIPLE_II_IMMUTABLE_DTOS" in rule_ids, f"expected the DTO rule; got {sorted(rule_ids)}"
+
+
+def test_adversarial_prohibited_annotation_persists_nothing(monkeypatch, tmp_path):
+    """Stack rule: a prohibited Lombok annotation on a JPA entity.
+
+    Family A rates this MEDIUM and family B rates it HIGH; the adapter keeps the
+    strictest, which is what makes it blocking.
+    """
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    violating = fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint)
+    _script(monkeypatch, *[fm.canonical_json_response(violating)] * 3)
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+
+    _no_artifact_reached_the_workspace(workspace, result)
+    entry = journal_mod.stage_entry(result["generation_journal"], "DOMAIN")
+    lombok = [
+        v for v in (entry["initial_verdict"] or {}).get("violations", [])
+        if v["rule_id"] == "STACK_LOMBOK_RESTRICTION"
+    ]
+    assert lombok, "the prohibited-annotation rule did not fire"
+    assert lombok[0]["severity"] == "HIGH", "the strictest severity was not kept"
+    assert lombok[0]["blocking"] is True
+
+
+def test_adversarial_embedded_credential_persists_nothing(monkeypatch, tmp_path):
+    """FR-018: a leaked API key inside generated source.
+
+    The secret is placed *inside the stage's artifact scope* so the credential
+    rule is what fires, rather than the out-of-scope rule masking it.
+    """
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    leaked = {
+        "src/main/java/com/corp/notes/controller/NoteController.java": (
+            "package com.corp.notes.controller;\n\n"
+            "public class NoteController {\n"
+            f'    private static final String API_KEY = "{_leaked_key_literal()}";\n'
+            "}\n"
+        ),
+        "src/main/java/com/corp/notes/controller/GlobalExceptionHandler.java": (
+            "package com.corp.notes.controller;\n\n"
+            "@RestControllerAdvice\npublic class GlobalExceptionHandler {}\n"
+        ),
+    }
+    _script(monkeypatch, *[fm.canonical_json_response(leaked)] * 3)
+
+    result = run_stage(_stage_state(blueprint, workspace), "CONTROLLER")
+
+    _no_artifact_reached_the_workspace(workspace, result)
+    entry = journal_mod.stage_entry(result["generation_journal"], "CONTROLLER")
+    credentials = [
+        v for v in (entry["initial_verdict"] or {}).get("violations", [])
+        if v["rule_id"] == "CREDENTIAL_IN_ARTIFACT"
+    ]
+    assert credentials, "the credential rule did not fire"
+    assert credentials[0]["severity"] == "CRITICAL"
+    assert credentials[0]["blocking"] is True
+
+
+def test_adversarial_unlisted_dependency_persists_nothing(monkeypatch, tmp_path):
+    """FR-017: build configuration declaring a dependency outside the allowlist.
+
+    The scaffolder is the only stage that emits build configuration, and its
+    failure mode is a hermetic-build violation rather than a code-quality one.
+    """
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    violating = fm.violating_artifacts("DEPENDENCY_ALLOWLIST", blueprint)
+    _script(monkeypatch, *[fm.canonical_json_response(violating)] * 3)
+
+    result = run_stage(_stage_state(blueprint, workspace), "SCAFFOLDER")
+
+    _no_artifact_reached_the_workspace(workspace, result)
+    assert not (workspace / "pom.xml").exists(), "an unlisted pom.xml reached the workspace"
+    rule_ids = {
+        v["rule_id"]
+        for v in (journal_mod.stage_entry(result["generation_journal"], "SCAFFOLDER")["initial_verdict"] or {}).get("violations", [])
+    }
+    assert "DEPENDENCY_NOT_ALLOWED" in rule_ids, f"expected the allowlist rule; got {sorted(rule_ids)}"
+
+
+def test_adversarial_missing_error_handler_is_accumulated_not_charged(monkeypatch, tmp_path):
+    """Principle III whole-project rule — the deliberate exception to T033's set.
+
+    T033 lists "missing centralized error handler" among the adversarial cases,
+    and T030 (with guardrail 4) makes it the canonical ACCUMULATED case: a stage
+    running before the controller stage cannot satisfy the rule, so it is NOT
+    rejected and its artifacts DO persist. The two instructions are
+    irreconcilable for this one rule; T030/FR-006 is the more specific rule and
+    is followed here.
+
+    What is asserted instead is that the omission is not lost: it is recorded as
+    ACCUMULATED and is still surfaced by the project-level audit.
+    """
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    in_scope_no_advice = fm.compliant_artifacts("DOMAIN", blueprint)   # entity + DTO, no advice
+    _script(monkeypatch, fm.canonical_json_response(in_scope_no_advice))
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+
+    entry = journal_mod.stage_entry(result["generation_journal"], "DOMAIN")
+    assert entry["outcome"] == journal_mod.OUTCOME_SUCCEEDED, "an accumulated rule rejected the stage"
+    assert entry["request_count"] == 1, "an accumulated rule consumed a correction attempt"
+
+    violations = (entry["final_verdict"] or {}).get("violations", [])
+    recorded = [v for v in violations if v["rule_id"] == "PRINCIPLE_III_CENTRALIZED_ERRORS"]
+    assert recorded, "the whole-project omission was not recorded at all"
+    assert all(v["attribution"] == "ACCUMULATED" for v in recorded)
+    assert (entry["final_verdict"] or {}).get("accumulated_count") == len(recorded)
+
+    # Not lost: the existing project-level audit still surfaces the omission.
+    persisted = {
+        path: (workspace / path).read_text(encoding="utf-8")
+        for path in result["generated_files"]
+    }
+    audited = scan_architecture_compliance(persisted)
+    assert any(
+        v.principle.value == "PRINCIPLE_III_CENTRALIZED_ERRORS" for v in audited
+    ), "the omission was silently dropped: the project-level audit did not find it"
+
+    # And it must reach the SESSION-level quality gate that the pipeline actually
+    # consults, which is the surface an operator sees.
+    report = audit_workspace(str(workspace), "accumulated-case", blueprint["serviceName"])
+    assert report.qualityGate.status == "BLOCKED", (
+        "the session quality gate did not block despite the missing error handler"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T034 — the whole-project rule specifically
+# ---------------------------------------------------------------------------
+def test_stage_that_cannot_satisfy_the_whole_project_rule_is_not_rejected(monkeypatch, tmp_path):
+    """A DOMAIN stage runs before CONTROLLER, so it cannot emit the advice class."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+
+    assert result.get("status") != SessionStatus.BLOCKED.value, (
+        "the stage was rejected for a rule only the accumulated set can satisfy"
+    )
+    assert result["generated_files"], "the stage's own artifacts should have persisted"
+
+
+def test_whole_project_rule_does_not_fire_without_java_files(monkeypatch, tmp_path):
+    """The rule is about Java sources; a stage emitting none cannot breach it."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    yaml_only = {"src/main/resources/application.yml": "spring:\n  application:\n    name: x\n"}
+    _script(monkeypatch, fm.canonical_json_response(yaml_only))
+
+    result = run_stage(_stage_state(blueprint, workspace), "SCAFFOLDER")
+
+    entry = journal_mod.stage_entry(result["generation_journal"], "SCAFFOLDER")
+    violations = (entry["final_verdict"] or {}).get("violations", [])
+    assert not [v for v in violations if v["rule_id"] == "PRINCIPLE_III_CENTRALIZED_ERRORS"], (
+        "the whole-project rule fired with no Java sources in the set"
+    )
+
+
+def test_absent_project_wide_artifact_is_surfaced_at_session_level(monkeypatch, tmp_path):
+    """ACCUMULATED violations are recorded, not discarded (FR-006 both directions)."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+
+    journal = result["generation_journal"]
+    entry = journal_mod.stage_entry(journal, "DOMAIN")
+    assert (entry["final_verdict"] or {}).get("accumulated_count", 0) >= 1, (
+        "an accumulated violation must remain visible at session level"
+    )
+    # And the journal as a whole still carries it, so an operator can see why the
+    # project as a whole is not compliant.
+    assert "PRINCIPLE_III_CENTRALIZED_ERRORS" in json.dumps(journal)
+
+
+# ---------------------------------------------------------------------------
+# T035 — budget exhaustion, terminal-state parity, counter independence
+# ---------------------------------------------------------------------------
+def test_exhaustion_uses_exactly_two_correction_attempts(monkeypatch, tmp_path):
+    """T031: one initial request plus at most two corrections, then stop."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    model = _script(
+        monkeypatch,
+        *[fm.canonical_json_response(fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint))] * 5,
+    )
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+
+    entry = journal_mod.stage_entry(result["generation_journal"], "DOMAIN")
+    assert entry["request_count"] == 1 + journal_mod.MAX_CORRECTION_ATTEMPTS == 3
+    assert entry["corrections_used"] == journal_mod.MAX_CORRECTION_ATTEMPTS
+    assert len(entry["correction_attempts"]) == journal_mod.MAX_CORRECTION_ATTEMPTS
+    assert model.call_count == 3, "the stage made more model calls than its budget allows"
+    _no_artifact_reached_the_workspace(workspace, result)
+
+
+def test_exhaustion_reaches_the_same_terminal_state_as_the_repair_loop(monkeypatch, tmp_path):
+    """FR-010: no new state name — the repair loop's own terminal state is reused."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script(
+        monkeypatch,
+        *[fm.canonical_json_response(fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint))] * 3,
+    )
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+
+    # Drive the sandbox repair loop to ITS exhaustion and read the terminal state
+    # it actually writes, rather than restating the expected values. Comparing
+    # against a constant would pass even if repair_node changed; this fails.
+    from app.orchestrator.nodes.repair_node import repair_node
+
+    repair_terminal = repair_node({
+        "session_id": "fr010-parity",
+        "workspace_path": str(tmp_path),
+        "generated_files": {},
+        "logs": [],
+        "repair_attempts": 3,          # increments to 4, past the cap of 3
+        "max_repair_attempts": 3,
+        "last_diagnostic": {"failed_file": "X.java", "summary": "boom", "line_number": 1},
+    })
+    assert repair_terminal["status"] == SessionStatus.BLOCKED.value, (
+        "the repair loop did not reach its own exhaustion, so parity was not tested"
+    )
+
+    # FR-010: the generation loop reuses that exact terminal state. No new name.
+    assert result["status"] == repair_terminal["status"]
+    assert result["current_phase"] == repair_terminal["current_phase"]
+
+
+def test_generation_exhaustion_does_not_touch_the_sandbox_repair_budget(monkeypatch, tmp_path):
+    """FR-009 / SC-009: the two budgets are independent."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script(
+        monkeypatch,
+        *[fm.canonical_json_response(fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint))] * 3,
+    )
+
+    result = run_stage(
+        _stage_state(blueprint, workspace, repair_attempts=0, max_repair_attempts=3),
+        "DOMAIN",
+    )
+
+    assert result["generation_journal"]["total_requests"] == 3, (
+        "the generation budget should have been spent independently of the repair budget"
+    )
+
+    # Drive the sandbox repair loop on the state the generation loop left behind.
+    # This is what makes the independence check falsifiable: asserting only that
+    # the injected counter is unchanged would pass even if the runner never read
+    # it. If generation exhaustion had consumed repair budget, the repair loop
+    # would block immediately instead of proceeding to its first attempt.
+    from app.orchestrator.nodes.repair_node import repair_node
+
+    repair_after = repair_node({
+        "session_id": "fr009-independence",
+        "workspace_path": str(workspace),
+        "generated_files": dict(result.get("generated_files") or {}),
+        "logs": [],
+        "repair_attempts": result.get("repair_attempts", 0),
+        "max_repair_attempts": result.get("max_repair_attempts", 3),
+        "last_diagnostic": {"failed_file": "X.java", "summary": "boom", "line_number": 1},
+    })
+    assert repair_after.get("status") != SessionStatus.BLOCKED.value, (
+        "the generation loop consumed the sandbox repair budget: the repair loop "
+        "blocked on its first attempt"
+    )
+    assert result.get("repair_attempts") == 0, "the generation loop wrote the repair counter"
+    assert repair_after["repair_attempts"] == 1, (
+        "the repair loop should have taken its first of three attempts on a full budget"
+    )
+
+
+def test_session_never_exceeds_the_request_budget(monkeypatch, tmp_path):
+    """SC-005/SC-007: five stages, each forced through one correction, stay in budget."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    attempts: dict = {}
+
+    def responder(request: str) -> str:
+        payload = _payload_from_request(request)
+        stage = payload["stage"]
+        attempts[stage] = attempts.get(stage, 0) + 1
+        if attempts[stage] == 1:
+            # First attempt is rejected (the entity path is out of scope for four
+            # of the five stages and forbidden within DOMAIN) so a correction is
+            # issued; the second attempt is compliant.
+            return fm.canonical_json_response(
+                fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint)
+            )
+        return fm.canonical_json_response(fm.compliant_artifacts(stage, blueprint))
+
+    _script_responder(monkeypatch, responder)
+    result = run_stages(_stage_state(blueprint, workspace))
+
+    total = result["generation_journal"]["total_requests"]
+    assert total <= journal_mod.MAX_REQUESTS_PER_SESSION == 15, f"budget exceeded: {total}"
+    assert len(result["generation_journal"]["entries"]) == len(STAGE_ORDER), (
+        "not every stage ran, so the budget bound was not exercised"
+    )
+    assert total == 2 * len(STAGE_ORDER), f"expected one correction per stage, got {total} requests"
+    journal_mod.assert_within_budget(result["generation_journal"])
+
+
+def test_budget_guard_refuses_a_request_beyond_the_documented_maximum():
+    """The cap is enforced, not merely documented."""
+    journal = journal_mod.new_journal("budget", journal_mod.GENERATION_MODE_MODEL, provider="p", model="m")
+    for index in range(len(STAGE_ORDER)):
+        journal_mod.record_stage_entry(
+            journal,
+            stage=STAGE_ORDER[index],
+            outcome=journal_mod.OUTCOME_CORRECTED,
+            request_count=3,     # 1 initial + 2 corrections: the worst case per stage
+            corrections_used=journal_mod.MAX_CORRECTION_ATTEMPTS,
+        )
+    assert journal["total_requests"] == journal_mod.MAX_REQUESTS_PER_SESSION == 15
+
+    with pytest.raises(journal_mod.JournalBudgetError):
+        journal_mod.record_stage_entry(
+            journal, stage="DOMAIN", outcome=journal_mod.OUTCOME_SUCCEEDED, request_count=1
+        )
+
+
+def test_no_unbounded_retries_on_a_permanently_non_compliant_response(monkeypatch, tmp_path):
+    """SC-007: the loop terminates; it does not retry indefinitely."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    model = _script_responder(
+        monkeypatch,
+        lambda request: fm.canonical_json_response(
+            fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint)
+        ),
+    )
+
+    result = run_stages(_stage_state(blueprint, workspace))
+
+    assert result["status"] == SessionStatus.BLOCKED.value
+    assert result["generation_journal"]["total_requests"] <= journal_mod.MAX_REQUESTS_PER_SESSION
+    assert model.calls, "no request was issued at all"
+    _no_artifact_reached_the_workspace(workspace, result)
+
+
+def test_five_exhausting_stages_reach_exactly_the_session_ceiling(monkeypatch, tmp_path):
+    """SC-005/SC-007 at session level: the 15-request ceiling is actually reached.
+
+    A single always-non-compliant session blocks after its first stage (3
+    requests), so it never approaches the ceiling - asserting "3 <= 15" witnesses
+    nothing. Here the same journal is threaded through all five stages, each
+    exhausting its own budget, which lands on exactly 15 and proves the cap is
+    the binding constraint rather than an incidental headroom.
+    """
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script_responder(
+        monkeypatch,
+        lambda request: fm.canonical_json_response(
+            fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint)
+        ),
+    )
+
+    state = _stage_state(blueprint, workspace)
+    for stage in STAGE_ORDER:                 # one session, five stages
+        state = run_stage(state, stage)
+
+    journal = state["generation_journal"]
+    assert len(journal["entries"]) == len(STAGE_ORDER), "not every stage ran"
+    assert all(e["request_count"] == 3 for e in journal["entries"])
+    assert journal["total_requests"] == journal_mod.MAX_REQUESTS_PER_SESSION == 15
+    journal_mod.assert_within_budget(journal)
+
+    # The very next request is refused: 15 is the cap, not a coincidence.
+    with pytest.raises(journal_mod.JournalBudgetError):
+        journal_mod.record_stage_entry(
+            journal, stage="DOMAIN", outcome=journal_mod.OUTCOME_SUCCEEDED, request_count=1
+        )

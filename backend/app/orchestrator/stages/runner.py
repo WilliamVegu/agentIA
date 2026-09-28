@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
+from app.models.session import SessionPhase, SessionStatus
 from app.orchestrator.stages import instructions as instructions_mod
 from app.orchestrator.stages import journal as journal_mod
 from app.orchestrator.stages.compliance import (
@@ -378,6 +379,19 @@ def _ensure_journal(state: Dict[str, Any]) -> Dict[str, Any]:
     )
     state["generation_journal"] = created
     return created
+
+
+def _mark_human_intervention_required(state: Dict[str, Any]) -> None:
+    """Move the session to the human-intervention terminal state.
+
+    The status and phase are taken from the **same** ``SessionStatus`` /
+    ``SessionPhase`` members the sandbox repair loop uses on exhaustion
+    (``repair_node``), so FR-010's "same terminal state" is structural rather
+    than a string that happens to match. The existing human-intervention path and
+    unlock console therefore handle both exhaustions uniformly.
+    """
+    state["status"] = SessionStatus.BLOCKED.value
+    state["current_phase"] = SessionPhase.FAILED.value
 
 
 def _append_log(state: Dict[str, Any], line: str) -> None:
@@ -835,7 +849,7 @@ def _run_model_stage(
                 entry["payload_error"] = str(exc)
                 entry["attempt_consumed"] = True   # an attempt, not a model call
             state["generation_journal"] = journal
-            state["status"] = "BLOCKED"
+            _mark_human_intervention_required(state)
             state["error"] = f"[{stage}] {exc}"
             _append_log(state, f"[STAGE:{stage}] payload too large; session blocked, nothing persisted")
             return state
@@ -972,7 +986,7 @@ def _run_model_stage(
         entry["initial_response"] = initial_response
         entry["final_verdict"] = last_verdict_dict
     state["generation_journal"] = journal
-    state["status"] = "BLOCKED"
+    _mark_human_intervention_required(state)
     state["error"] = (
         f"[{stage}] correction budget exhausted after "
         f"{journal_mod.MAX_CORRECTION_ATTEMPTS} correction attempts; human intervention required"
@@ -1019,6 +1033,6 @@ def run_stages(
     current = dict(state)
     for stage in stages:
         current = run_stage(current, stage, api_key=api_key)
-        if current.get("status") == "BLOCKED":
+        if current.get("status") == SessionStatus.BLOCKED.value:
             break
     return current
