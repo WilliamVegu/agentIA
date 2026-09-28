@@ -83,10 +83,10 @@ Without this distinction, a whole-project rule would fire against every stage th
 
 The conservative severity merge **tightens** the gate relative to Family A alone. A Lombok `@Data` violation is MEDIUM in Family A and HIGH in Family B, so under rule 3 it becomes blocking.
 
-This is intended — a prohibited annotation should not pass a gate — but it is a real behavior change: sessions that previously completed with such a violation present may now block, which moves the intervention rate in the wrong direction for SC-011.
+This is intended — a prohibited annotation should not pass a gate — but it is a real behavior change: sessions that previously completed with such a violation present may now block, which counts directly against SC-011's absolute 15% intervention ceiling.
 
 **Consequences to carry into tasks and measurement**:
-- This is a plausible partial explanation for any SC-011 regression and must be checked before attributing a regression to the model-driven stages.
+- This is a plausible partial explanation for an SC-011 rate above 15% and must be checked before attributing it to the model-driven stages. The substitute mitigation in [research.md](../research.md) D13 — running this adapter post hoc over the baseline's retained comparison-subset content — is the primary attribution tool.
 - The tightening is recorded in the migration notes, not discovered in Phase 4.
 
 ---

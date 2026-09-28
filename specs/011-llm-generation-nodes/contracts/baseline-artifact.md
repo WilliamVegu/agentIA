@@ -7,7 +7,7 @@
 
 ## 1. Why this artifact exists
 
-SC-001, SC-010, and SC-011 are all defined relative to a pre-migration baseline. Without a captured baseline they are unmeasurable, and the window in which the baseline can be captured closes the moment the first stage is migrated — because the deterministic implementation stops being the only implementation.
+SC-001 and SC-002 are defined relative to a pre-migration baseline. Without a captured baseline they are unmeasurable, and the window in which it can be captured closes the moment the first stage is migrated — because the deterministic implementation stops being the only implementation. SC-010 was retired and SC-011 reframed as an absolute threshold, so neither is baseline-dependent any longer (see [research.md](../research.md) D14); the gate stands for SC-001 and SC-002.
 
 **Sequencing is therefore a hard gate**: the baseline is captured before any stage migration begins.
 
@@ -45,15 +45,15 @@ SC-001, SC-010, and SC-011 are all defined relative to a pre-migration baseline.
 | Generated artifact path set | Detection of path-contract drift; supports FR-021. |
 | Content digest per artifact | Fast difference detection across the whole set. |
 | **Full content** of a designated comparison subset | SC-001 requires *behavior-level traceability*, which digests cannot show. Hashes prove two outputs differ; they cannot show that an output reflects a declared constraint. |
-| Wall-clock generation duration | SC-010's baseline median. |
-| Terminal status | Distinguishes completed from blocked, for SC-011. |
+| Wall-clock generation duration | Retained as **diagnostic context** only. It no longer backs a success criterion: SC-010 was retired as unmeasurable ([research.md](../research.md) D14). |
+| Terminal status | Distinguishes completed from failed generation *for this capture*. It is **not** a session-level intervention signal, because this capture never runs the verifier or the repair loop. |
 
 ### Aggregate
 
 | Field | Why |
 |---|---|
-| Completed vs. human-intervention counts | SC-011's baseline rate. |
-| Median and spread of durations | SC-010's comparison target. |
+| Completed vs. failed counts | Sample integrity for this capture. **Not** SC-011's baseline — the intervention count is structurally zero here ([research.md](../research.md) D14). |
+| Median and spread of durations | Diagnostic context only; SC-010 was retired, so this backs no criterion. |
 | Session count | Records the sample size the baseline claims rest on. |
 | Environment fingerprint (platform, provider configuration, container image identity) | A baseline measured under a different environment is not comparable; this makes the comparison auditable. |
 
@@ -76,7 +76,7 @@ The corpus is committed and is **not modified during the migration**. Adding blu
 
 Once captured, the baseline is frozen for the duration of the migration.
 
-If the capture script is found defective, the baseline is **re-captured before any stage migration begins** — never after. A post-migration re-capture would measure the migrated implementation and silently destroy the comparison the three success criteria depend on.
+If the capture script is found defective, the baseline is **re-captured before any stage migration begins** — never after. A post-migration re-capture would measure the migrated implementation and silently destroy the SC-001 and SC-002 comparison it exists to support.
 
 Any re-capture must be recorded in this feature's documentation with its reason, so a reviewer can tell which baseline the eventual measurements were taken against.
 
@@ -88,8 +88,8 @@ Any re-capture must be recorded in this feature's documentation with its reason,
 |---|---|
 | **SC-001** | Compare content of the comparison subset: for the constrained blueprint, the migrated output must exhibit behavior traceable to the declared constraints, which the baseline output cannot. |
 | **SC-002** | Compare paired blueprints against the baseline pairing to confirm the migrated implementation's *differences* now track the declared differences. |
-| **SC-010** | Median duration ratio, measured over at least 20 sessions each side. |
-| **SC-011** | Intervention-rate non-regression bound, at most a 10 percentage-point increase, over at least 30 sessions each side. |
+| ~~**SC-010**~~ | **Retired.** The duration bound was withdrawn as unmeasurable once this capture showed the pre-migration median at 1.134 ms of in-process string assembly ([research.md](../research.md) D14). Duration is retained here as diagnostic context only. |
+| ~~**SC-011**~~ | **Reframed and no longer baseline-relative.** Now an absolute post-migration ceiling of ≤ 15% over at least 30 sessions. This artifact cannot supply that rate, because it records no session-level interventions ([research.md](../research.md) D14). |
 
 ---
 

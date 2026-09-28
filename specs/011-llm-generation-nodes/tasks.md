@@ -61,7 +61,7 @@ Web application layout, per [plan.md](plan.md): backend at `backend/`, tests at 
 
 - [X] T010 [GATE] Run `backend/scripts/capture_generation_baseline.py` and commit both `reports/baselines/011-pre-migration-generation-baseline.json` and `reports/baselines/011-pre-migration-generation-baseline.md`. Verify the constrained blueprint's output leaves **no trace** of the declared constraints — this is the pre-migration signature SC-001 measures against. Depends on T008, T009.
 
-> **🚫 GATE — do not start Phase 3 until T010 is complete and reviewed.** The baseline is capturable only while the deterministic implementation is the only implementation. Re-capture after any migration invalidates SC-001, SC-010, and SC-011.
+> **🚫 GATE — do not start Phase 3 until T010 is complete and reviewed.** The baseline is capturable only while the deterministic implementation is the only implementation. Re-capture after any migration invalidates SC-001 and SC-002. (SC-010 was retired and SC-011 reframed as absolute and baseline-independent — [research.md](research.md) D14 — so neither is affected by a re-capture.)
 
 ### Seam infrastructure
 
@@ -163,7 +163,7 @@ Web application layout, per [plan.md](plan.md): backend at `backend/`, tests at 
 
 - [ ] T040 [P] [US3] Add journal-retention tests in `backend/tests/test_generation_stages_model.py` asserting that 100% of sessions terminating in the human-intervention state retain the complete correction history for every exhausted stage — the violation set and model response for each rejected attempt (SC-008) — including the oscillation case where a later attempt introduces a different violation.
 
-- [ ] T041 [US3] Create the measurement harness in `backend/tests/test_generation_stage_measurement.py` driving the corpus through the model path and producing the SC-001, SC-002, SC-005, SC-010, and SC-011 comparisons against the frozen baseline, with output written alongside `reports/baselines/`. Depends on T010, T029.
+- [ ] T041 [US3] Create the measurement harness in `backend/tests/test_generation_stage_measurement.py` driving the corpus through the model path and producing the SC-001 and SC-002 comparisons against the frozen baseline, plus verification of the SC-005 request budget, with output written alongside `reports/baselines/`. SC-010 is retired and SC-011 is absolute and baseline-independent, so neither is produced here (see [research.md](research.md) D14). Depends on T010, T029.
 
 **Checkpoint**: All three user stories functional and independently verifiable.
 
@@ -173,7 +173,7 @@ Web application layout, per [plan.md](plan.md): backend at `backend/`, tests at 
 
 **Purpose**: Documentation, governance, and end-to-end validation.
 
-- [ ] T042 [P] Write `specs/011-llm-generation-nodes/migration-notes.md` recording the deliberate behavior change from the conservative severity merge in [contracts/compliance-verdict.md](contracts/compliance-verdict.md) §5: a Lombok-prohibition violation becomes blocking where one validator family alone rated it non-blocking. Note that this can convert previously-completing sessions into blocked ones and is the most likely source of a false SC-011 regression attribution.
+- [ ] T042 [P] Write `specs/011-llm-generation-nodes/migration-notes.md` recording the deliberate behavior change from the conservative severity merge in [contracts/compliance-verdict.md](contracts/compliance-verdict.md) §5: a Lombok-prohibition violation becomes blocking where one validator family alone rated it non-blocking. Note that this can convert previously-completing sessions into blocked ones, counts directly against SC-011's absolute 15% ceiling, and is the most likely source of a false attribution. Also record the substitute mitigation from [research.md](research.md) D13: the adapter can be run post hoc over the baseline's retained comparison-subset content to isolate the lenient-to-strict delta.
 
 - [ ] T043 [P] Document the deliberate gate asymmetry in `backend/app/orchestrator/stages/runner.py` — the compliance gate applies to the `MODEL` path only — with the FR-013 rationale, so it is not later "fixed" as an oversight.
 

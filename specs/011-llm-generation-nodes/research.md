@@ -69,7 +69,7 @@ The seam must therefore treat two conditions as categorically different:
 
 The adapter must resolve the severity disagreement, because the same violation would otherwise be blocking via one path and non-blocking via the other. **Decision: deduplicate by (artifact path, rule identifier), keep the most severe classification, and record every contributing source.** This is deliberately conservative — it errs toward blocking.
 
-**Consequence to carry into tasks and testing**: this conservative merge *tightens* the gate relative to Family A alone. A Lombok `@Data` violation is MEDIUM in Family A but HIGH in Family B, so it becomes blocking under the merged verdict where it previously might not have been. That is a deliberate behavior change and must be called out in the migration notes, because it can convert previously-completing sessions into blocked ones and therefore move SC-011 in the wrong direction. It is the correct trade — a prohibited annotation should not pass a gate — but it must be measured, not discovered.
+**Consequence to carry into tasks and testing**: this conservative merge *tightens* the gate relative to Family A alone. A Lombok `@Data` violation is MEDIUM in Family A but HIGH in Family B, so it becomes blocking under the merged verdict where it previously might not have been. That is a deliberate behavior change and must be called out in the migration notes, because it can convert previously-completing sessions into blocked ones and therefore count against SC-011's absolute 15% intervention ceiling (see D14). It is the correct trade — a prohibited annotation should not pass a gate — but it must be measured, not discovered.
 
 **Alternatives considered**:
 - *Use only Family B.* Rejected: discards Family A's BLOCKING classification for layer violations.
@@ -117,7 +117,7 @@ Volume is not a concern at the stated scale: at most 5 stages × 2 rejected atte
 Design points that follow from how the criteria are written:
 - SC-001 requires content-level traceability ("exhibit at least one behavior traceable to the blueprint"), so the artifact must retain artifact *content* for a comparison subset, not just hashes. Hashes alone can prove difference but not traceability.
 - SC-002 compares paired blueprints, so the corpus must be frozen and committed; an ad-hoc blueprint set would make the comparison irreproducible.
-- SC-010 and SC-011 need durations and intervention counts, so the capture must record per-session timing and terminal status, not just artifacts.
+- Duration and terminal status are recorded as diagnostic context. The SC-010 and SC-011 formulations that originally motivated them have been retired and reframed (see D14); what genuinely constrains this capture now is SC-001's and SC-002's need for retained artifact *content* for the comparison subset.
 
 **Capture conditions**: no model credentials, which is today's default. The capture is therefore purely additive and cannot destabilize the running platform.
 
@@ -232,15 +232,121 @@ correct behavior — the lenient severity was under-reporting a real
 violation. The behavior change is not caused by the migration but by the
 gate becoming honest.
 
-Consequence for measurement: SC-011 compares post-migration intervention
-rate against the pre-migration baseline. Without correction, the severity
-merge alone will appear as an SC-011 regression. Mitigation: the Phase 0
-baseline script records BOTH the lenient verdict (pre-merge) and the strict
-verdict (post-merge) for each captured session. Post-migration analysis
-subtracts the lenient-to-strict delta to isolate the model-caused change.
+Consequence for measurement: the severity merge increases the number of
+blocking verdicts relative to the lenient family alone. Under the original
+SC-011 (a +10pp relative bound) this would have appeared as a regression
+attributable to the migration. Under the reframed SC-011 (an absolute 15%
+ceiling — see D14) the effect is *more* dangerous, because there is no
+baseline slack to absorb it.
+
+**Correction to an earlier draft of this entry.** An earlier version stated
+that the Phase 0 baseline script records both the lenient (pre-merge) and
+strict (post-merge) verdicts per captured session, and that subtracting the
+delta isolates the model-caused change. That is not what the baseline does
+and cannot be what it does. The captured baseline
+(`reports/baselines/011-pre-migration-generation-baseline.{json,md}`) is a
+deterministic *generation* capture: it runs only the five generation stages,
+never invokes the compliance validators, and records no verdicts at all. This
+is by design — under the stage-execution contract the compliance gate applies
+to the MODEL path only, so a pre-migration deterministic capture has no
+verdicts to record.
+
+Substitute mitigation, which is genuinely available: the baseline retains
+**full artifact content** for the designated comparison subset (entity,
+request-contract, and service-test artifacts) in
+`per_blueprint[*].comparison_subset_content`. The compliance adapter can
+therefore be run *post hoc* over that retained content to compute the
+lenient-vs-strict verdict delta for those artifacts, and that delta can be
+subtracted when interpreting the observed intervention rate.
+
+Limits of the substitute, which must be stated wherever it is used: it covers
+only the retained comparison subset, only generation-stage artifacts, and
+produces a *violation* delta rather than a *session* delta — it cannot by
+itself convert into an intervention-rate correction. It is a diagnostic aid
+for attribution, not a calibrated adjustment. The blocked-session counts that
+SC-011 is measured against must still come from real session runs, with the
+merge's contribution identified by inspecting which rule fired and how each
+family rated it.
 
 Rejected alternative: defer the merge to a separate consolidation feature.
 This leaves the two validators producing contradictory verdicts during the
 migration, which makes FR-004 and FR-007 ("no non-compliant artifact is
 persisted") unreliable — "compliant" would depend on which validator is
 consulted. Merging now is the correct sequencing.
+## D14 — SC-010 retired; SC-011 reframed as an absolute threshold
+
+**Context.** Task T010 captured and froze the pre-migration baseline at
+`reports/baselines/011-pre-migration-generation-baseline.{json,md}`. Its
+limitations section (§7 in the markdown; the `limitations` array and
+`aggregate.human_intervention_note` in the JSON) records two facts that
+invalidate the original SC-010 and SC-011 as written.
+
+### SC-010 — duration bound: retired, deliberately not replaced
+
+The baseline's duration figures cover the five generation stages only. That is
+pure in-process f-string assembly: median **1.134 ms**, no I/O, no model call,
+no network. The migrated `MODEL` path performs network-bound model requests per
+stage, so the post-migration figure will be seconds.
+
+A ratio between a sub-millisecond in-process measurement and a network-bound
+one differs by roughly four orders of magnitude. It would be trivially
+satisfied, would measure nothing about the feature, and would give false
+assurance. The comparison is withdrawn.
+
+The underlying concern — that the migration must not make sessions absurdly
+slow — is already covered: **SC-005** bounds session model consumption at 15
+requests, which is the quantity that actually drives the new latency. SC-010 is
+therefore retired with a pointer to SC-005, and its identifier is retained in
+`spec.md` so that the frozen baseline's SC-010 references stay resolvable.
+
+*Rejected alternative:* repoint SC-010 at the SC-005 bound verbatim. Rejected
+because two success criteria asserting one measurement is a defect rather than
+useful redundancy: a future reader would treat them as independent evidence and
+over-count. Consolidation with an explicit pointer preserves traceability
+without duplicating the claim.
+
+### SC-011 — intervention rate: reframed as an absolute ceiling
+
+The baseline cannot supply a session-level intervention rate. It never runs the
+sandbox verifier or the repair loop, which are the stages that produce
+interventions, and its recorded count is therefore **structurally zero** by
+construction rather than by success.
+
+A relative bound against a structurally-zero baseline degrades to "at most 10
+percentage points", which is both arbitrary and disconnected from the value it
+was meant to track. Reframed as:
+
+> The rate at which sessions require human intervention does not exceed **15%**,
+> measured over at least 30 sessions.
+
+This is an absolute post-migration threshold and is deliberately
+baseline-independent, which also removes SC-011's dependency on the baseline
+artifact entirely.
+
+### Consequences to carry forward
+
+1. **The severity-merge effect (D13) is now more dangerous, not less.** Against
+   an absolute ceiling there is no baseline slack to absorb the tightening
+   introduced by keeping the strictest severity. The substitute mitigation
+   described in the D13 correction — running the adapter post hoc over the
+   baseline's retained comparison-subset content — is now the primary
+   attribution tool rather than a nicety.
+2. **No empirical pre-migration session-level rate exists.** The only available
+   historical figure is the ~41.7% intervention share reported in
+   `reports/009-historical-baseline.md`, and that figure derives from synthetic
+   fixture rows in `studio.db` rather than observed telemetry (established in
+   `reports/agentia-state-map.md` §6.1). It is therefore **not** evidence that a
+   15% ceiling is easy or hard. The threshold is a target, not a calibrated
+   bound, and should be treated as such when it is evaluated.
+3. **SC-004 gains relative importance.** With SC-010 retired and SC-011 no
+   longer baseline-relative, offline parity is one of the few criteria that
+   does not depend on a live model, a network, or the unreliable verifier.
+4. **No change to the baseline artifact.** It is frozen and remains valid. Its
+   duration and intervention figures are retained as diagnostic context, and its
+   limitations section becomes the authoritative record of why these two
+   criteria were reformulated — which is precisely what it warned about.
+
+**Cross-reference**: `reports/baselines/011-pre-migration-generation-baseline.md`
+§7 "Limitations — read before using this artifact", in particular the bullet
+"The blocked/intervention count is structurally zero here and must not be used
+as SC-011's baseline" and the closing note "Specifically on SC-011".

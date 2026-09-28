@@ -30,7 +30,7 @@ Five constraints from the user shape the sequencing. In particular, **the pre-mi
 
 **Project Type**: Web service (backend orchestrator for a code-generation platform).
 
-**Performance Goals**: Median end-to-end session duration with a live model within 3× the pre-migration median (SC-010). Session model consumption bounded at 5 stage requests plus at most 2 corrections per stage (SC-005).
+**Performance Goals**: Session model consumption bounded at 5 stage requests plus at most 2 corrections per stage (SC-005). **No latency target is asserted.** The original duration bound (SC-010) was retired as unmeasurable once the baseline showed the pre-migration median at 1.134 ms of in-process string assembly with no I/O — a quantity not comparable to network-bound generation. See [research.md](research.md) D14.
 
 **Constraints**: Offline operation must remain complete and intact (FR-013). Both execution paths must exhibit the migrated behavior (FR-022). Generated build configuration is constrained to the pre-cached dependency set (FR-017). Generated artifacts must contain no secrets (FR-018). The sandbox verifier is explicitly out of scope.
 
@@ -111,7 +111,7 @@ reports/
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
 | Network-dependent, non-deterministic generation step in an offline-first platform (Principle IV) | FR-001 requires model-driven synthesis; the feature's entire value is that blueprint semantics survive into code, which fixed templates cannot do. | Making generation deterministic by pinning model output was rejected: it would require caching every blueprint→source mapping, which reintroduces templates under a different name. Retaining the deterministic path as an automatic fallback for credential-free deployments (FR-013) preserves the offline guarantee where it actually matters. |
-| A second autonomous-correction budget (Principle V), capped at 2, separate from the repair loop's cap | FR-008 requires bounded recovery from a rejected generation response. Without a correction attempt, every non-compliant model response blocks the session, which SC-011 (intervention rate) cannot tolerate. | Reusing the repair loop's counter was rejected and is explicitly forbidden by FR-009: the two loops have different triggers (compliance verdict vs. Maven stack trace), different units of work (a stage's artifact set vs. a surgical patch), and different failure semantics. Sharing a counter would let a stage's validation churn consume the budget that exists to recover from real build failures. **Open governance question**: whether Principle V's cap is a *global* autonomy budget (requiring a constitution amendment) or the build-repair loop's cap (making this compliant). Surfaced to the user; not resolved here. |
+| A second autonomous-correction budget (Principle V), capped at 2, separate from the repair loop's cap | FR-008 requires bounded recovery from a rejected generation response. Without a correction attempt, every non-compliant model response blocks the session, which SC-011's absolute 15% intervention ceiling cannot tolerate. | Reusing the repair loop's counter was rejected and is explicitly forbidden by FR-009: the two loops have different triggers (compliance verdict vs. Maven stack trace), different units of work (a stage's artifact set vs. a surgical patch), and different failure semantics. Sharing a counter would let a stage's validation churn consume the budget that exists to recover from real build failures. **Open governance question**: whether Principle V's cap is a *global* autonomy budget (requiring a constitution amendment) or the build-repair loop's cap (making this compliant). Surfaced to the user; not resolved here. |
 
 ## Migration Strategy
 
@@ -137,12 +137,12 @@ Because both paths converge on one seam, FR-022 is satisfied by construction rat
 
 ### Constraint 2 — Baseline before migration
 
-**Sequencing is a hard gate: no stage is migrated until the baseline artifact exists.** SC-001, SC-010, and SC-011 are all defined relative to a pre-migration baseline, and the baseline can only be captured while the deterministic implementation is the only implementation.
+**Sequencing is a hard gate: no stage is migrated until the baseline artifact exists.** SC-001 and SC-002 are defined relative to a pre-migration baseline, and it can only be captured while the deterministic implementation is the only implementation. SC-010 was retired and SC-011 reframed as absolute and baseline-independent (see [research.md](research.md) D14) — the gate stands for SC-001 and SC-002.
 
 - **Script**: `backend/scripts/capture_generation_baseline.py` — its own script, runnable standalone, following the existing `backend/scripts/` convention.
 - **Artifacts**: `reports/baselines/011-pre-migration-generation-baseline.json` (machine-readable, the one SC-001 diffs against) and a sibling `.md` summary for reviewers.
 - **Frozen input corpus**: `backend/tests/fixtures/baseline_blueprints/` — a fixed set of blueprint documents, committed, so before/after runs are comparable. Without a frozen corpus, SC-002's paired-blueprint comparison is not reproducible.
-- **What it records**: per blueprint — the generated artifact path set, a content hash per artifact, and the full content of a designated comparison subset (SC-001 needs behavior-level traceability, which hashes alone cannot show); per session — wall-clock duration; in aggregate — completed vs. human-intervention counts (SC-011).
+- **What it records**: per blueprint — the generated artifact path set, a content hash per artifact, and the full content of a designated comparison subset (SC-001 needs behavior-level traceability, which hashes alone cannot show); per blueprint — wall-clock duration; in aggregate — completed vs. failed counts. Duration and terminal status are retained as **diagnostic context only**: they no longer back a success criterion (SC-010 retired), and the aggregate intervention count is structurally zero in a generation-only capture, so it is not SC-011's baseline.
 - **Capture conditions**: the deterministic path with no model credentials, which is today's default behavior. Capture is therefore purely additive and cannot destabilize the running system.
 - **Re-capture rule**: the baseline is immutable for the duration of the migration. If a defect is found in the capture script, the baseline is re-captured *before* any stage migration begins, never after.
 
@@ -150,7 +150,7 @@ Because both paths converge on one seam, FR-022 is satisfied by construction rat
 
 The deterministic implementations are **not deleted**. Each stage becomes a pair of interchangeable implementations behind the seam: the retained deterministic emitter, and the new model-driven emitter.
 
-**The switch is decided once per session, at session start, never per stage.** Per-stage switching would produce hybrid output — some artifacts template-shaped, some model-shaped — which would make SC-001, SC-002, and SC-010 uninterpretable. The decided mode is recorded in session state and in the provenance record, so every session is auditable as wholly one or wholly the other.
+**The switch is decided once per session, at session start, never per stage.** Per-stage switching would produce hybrid output — some artifacts template-shaped, some model-shaped — which would make SC-001 and SC-002 uninterpretable. The decided mode is recorded in session state and in the provenance record, so every session is auditable as wholly one or wholly the other.
 
 Decision order at session start:
 
@@ -194,8 +194,8 @@ The sandbox verifier's synthetic-success fallback (documented in `reports/agenti
 Its status in this plan is a **measurement dependency**, recorded here so the measurement design does not silently assume a working verifier:
 
 - **It invalidates end-to-end pass/fail as a primary signal.** Because the verifier can report success without running a real build, "the session reached VERIFIED" cannot be used to judge whether model-generated code is correct. SC-003's fault injection must be performed **at the model boundary** (feed a known non-compliant response, assert nothing is persisted), not by observing session outcomes.
-- **It weakens SC-011.** Intervention rate is still observable, but a *reduction* in interventions could come from the verifier's leniency rather than from better generation. SC-011 is therefore stated as a non-regression bound (must not worsen by more than 10 percentage points) rather than as an improvement target — a bound is robust to a lenient verifier in a way a target is not.
-- **SC-010 remains measurable**, since duration is measured end-to-end regardless of what the verifier concludes.
+- **It biases SC-011 in the permissive direction.** A lenient verifier under-reports blocked sessions, and because SC-011 is now an absolute ceiling (≤ 15%) rather than a relative bound, leniency makes it *easier* to pass. Meeting SC-011 therefore does not by itself demonstrate generation quality; it must be read alongside SC-003 and the direct-build checks. Note this is the opposite failure mode from the original relative bound, which leniency would have made harder to satisfy.
+- **SC-010 is withdrawn**, so no latency claim depends on the verifier. Its retirement also removes the last criterion that would have required an end-to-end timing instrument.
 - **Consequence for the plan**: for any claim about generated code being *correct*, verification must be performed by building the generated workspace directly, outside the platform's sandbox wrapper. The quickstart's validation guide specifies this explicitly.
 
 ## Phases & Deliverables
@@ -204,7 +204,7 @@ Its status in this plan is a **measurement dependency**, recorded here so the me
 
 - [ ] Author the baseline capture script and the frozen blueprint corpus.
 - [ ] Capture the pre-migration baseline and commit both artifacts.
-- [ ] Confirm the captured baseline adequately supports SC-001 (content-level comparison available, not hashes alone), SC-010 (durations), and SC-011 (intervention counts).
+- [x] Confirm the captured baseline adequately supports SC-001 and SC-002 (content-level comparison available for the designated subset, not hashes alone). SC-010 and SC-011 no longer depend on it — the former retired, the latter reframed as an absolute threshold ([research.md](research.md) D14). *Completed at T010.*
 - [ ] **Gate**: no stage migration may begin until this is complete and reviewed.
 
 ### Phase 1 — Design *(this command's output)*
@@ -236,14 +236,14 @@ Its status in this plan is a **measurement dependency**, recorded here so the me
 
 - [ ] Evaluate SC-001 and SC-002 against the frozen baseline.
 - [ ] Evaluate SC-005 through SC-009 by fault injection at the model boundary.
-- [ ] Evaluate SC-010 and SC-011 over the stated session counts, using direct workspace builds (not the sandbox wrapper) for any correctness claim.
+- [ ] Evaluate SC-005 (request budget) and SC-011 (≤ 15% intervention over at least 30 sessions), using direct workspace builds (not the sandbox wrapper) for any correctness claim. SC-010 is retired and needs no evaluation.
 - [ ] Re-evaluate the Constitution Check post-implementation, with particular attention to Principle V's open governance question.
 
 ## Dependencies & Measurement Risks
 
 | Item | Nature | Effect on this plan |
 |---|---|---|
-| Sandbox verifier synthetic-success fallback | **Separate bug, not a deliverable** | Forces model-boundary fault injection and direct-build verification; SC-011 demoted from target to non-regression bound |
+| Sandbox verifier synthetic-success fallback | **Separate bug, not a deliverable** | Forces model-boundary fault injection and direct-build verification; biases SC-011 (absolute ≤ 15% ceiling) in the permissive direction |
 | Constitution Principle V cap ambiguity (3 documented vs. 5 configured) | **Open governance question** | The generation correction budget of 2 is compliant under the build-repair reading; the global-budget reading requires an amendment. Flagged, not resolved |
 | Two overlapping constitutional validator implementations | Pre-existing, explicitly out of scope (spec assumption) | A normalization adapter is required at the seam; the validators' internal inconsistency is not repaired here |
 | The existing node callables are covered by tests asserting template-specific strings | Pre-existing test contract | Those tests become the offline-path suite and must keep passing unchanged; they must not be rewritten to accommodate model output |
@@ -259,7 +259,7 @@ The gate verdict is **unchanged: all six principles satisfied**, with the same t
 | Design decision | Constitutional bearing | Assessment |
 |---|---|---|
 | **The compliance gate is not applied to the deterministic path** (`stage-execution.md` §2.2) | Principle IV — offline behavior must not change | Correct and required. The gate exists to constrain a non-deterministic generator; deterministic output is compliant by construction. Applying the gate offline would alter pre-migration behavior and break FR-013. The asymmetry is intentional and must be documented in code, since it will otherwise read as an oversight. |
-| **Conservative severity merge tightens the gate** (`compliance-verdict.md` §5) | Principle V — quality gates | Strictly more protective. No violation. But it is a behavior change that can block previously-completing sessions, so it interacts with SC-011 and is the most likely source of a false regression attribution. Recorded in the measurement guidance. |
+| **Conservative severity merge tightens the gate** (`compliance-verdict.md` §5) | Principle V — quality gates | Strictly more protective. No violation. But it is a behavior change that can block previously-completing sessions, so it counts directly against SC-011's absolute 15% ceiling ([research.md](research.md) D14) and is the most likely source of a false regression attribution. Recorded in the measurement guidance. |
 | **Generation journal and provenance records are persisted additively** (`data-model.md` §4) | Principle VI — zero hardcoded secrets | Compliant provided the journal never records credentials — an explicit invariant (data-model §7.6) and an explicit load-bearing absence: provider and model identifiers are recorded, API keys are not. Tasks must treat this as a requirement, not a default. |
 | **The seam lives under `backend/app/orchestrator/`** (`plan.md` Project Structure) | Principle VI — LangGraph boundary | Compliant. The seam is control-plane logic and must not become a dependency of the generated artifact. Placement in the orchestrator keeps it on the correct side; a placement under `services/` would have invited leakage into the generated dependency surface. |
 

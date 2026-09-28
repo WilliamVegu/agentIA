@@ -142,7 +142,7 @@ Validation rules:
 - Deduplicated by `(artifact_path, rule_id)`, retaining the **most severe** severity and unioning `contributing_sources` (research D4).
 - A violation with `attribution = ACCUMULATED` MUST NOT cause the current stage's artifacts to be rejected (FR-006); it is recorded and surfaces at session level.
 
-**Behavior-change note**: because of the conservative severity merge, a Lombok-prohibition violation is blocking under the merged verdict where the test-analysis validator alone would have rated it MEDIUM. This tightens the gate and can convert previously-completing sessions into blocked ones. It is intended, and it is the reason SC-011 is measured as a non-regression bound.
+**Behavior-change note**: because of the conservative severity merge, a Lombok-prohibition violation is blocking under the merged verdict where the test-analysis validator alone would have rated it MEDIUM. This tightens the gate and can convert previously-completing sessions into blocked ones. It is intended, and it is why SC-011 must be read as an absolute ≤ 15% ceiling against which this merge counts directly ([research.md](research.md) D14).
 
 ### 3.7 `CorrectionAttemptRecord`
 

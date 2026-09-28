@@ -153,14 +153,34 @@ Scripted responses, never session outcomes. Because the verifier is unreliable, 
 - [ ] No session exceeds 15 requests.
 - [ ] A session that exhausts the generation correction budget still has its full sandbox repair budget available. Inspect both counters.
 
-### 6.5 SC-010, SC-011 — duration and intervention rate
+### 6.5 SC-011 — absolute intervention ceiling
 
-Record over at least 20 sessions (duration) and 30 sessions (intervention rate), each side.
+Measure over at least 30 sessions with a live model. SC-011 is an **absolute** threshold,
+not a comparison against the frozen baseline, which cannot supply a session-level
+intervention rate — its count is structurally zero by construction. See §7 of
+[`reports/baselines/011-pre-migration-generation-baseline.md`](../../reports/baselines/011-pre-migration-generation-baseline.md).
 
-- [ ] SC-010: median duration ratio ≤ 3×.
-- [ ] SC-011: intervention rate increase ≤ 10 percentage points.
+- [ ] SC-011: human-intervention rate ≤ **15%**.
 
-**Interpretation caution**: a modest SC-011 regression is expected from the compliance-verdict severity merge alone (research D4 / `compliance-verdict.md` §5), independent of model quality. Before attributing a regression to the migrated stages, check how many sessions blocked on a violation that Family A alone would have rated non-blocking. This is the single most likely false attribution in the measurement phase.
+**SC-010 is retired** and needs no evaluation. It bounded session duration at 3× the
+pre-migration median; that median is 1.134 ms of in-process string assembly with no I/O,
+so the ratio compared two quantities four orders of magnitude apart and measured nothing
+about this feature. The request budget is owned by SC-005 (§6.4). See
+[research.md](research.md) D14.
+
+**Interpretation caution — severity merge**: the compliance-verdict severity merge
+(research D4/D13, `compliance-verdict.md` §5) increases blocking verdicts independently of
+model quality, and against an absolute ceiling there is no baseline slack to absorb it.
+Before attributing a rate above 15% to the migrated stages, check how many sessions
+blocked on a violation that Family A alone would have rated non-blocking. The baseline
+retains full content for its comparison subset precisely so this delta can be computed
+post hoc. This is the single most likely false attribution in the measurement phase.
+
+**Interpretation caution — verifier bias, now in the permissive direction**: the sandbox
+verifier can report synthetic success without running a build (plan Constraint 5). A
+lenient verifier under-reports blocked sessions, which makes an absolute ceiling *easier*
+to pass. Meeting SC-011 therefore does not by itself demonstrate generation quality; read
+it alongside SC-003 and the direct-build checks in §5.
 
 ---
 
@@ -172,5 +192,5 @@ Record over at least 20 sessions (duration) and 30 sessions (intervention rate),
 - [ ] Both execution paths exhibit the migrated behavior, and the aliasing hazard is removed.
 - [ ] Provenance is complete for 99%+ of artifacts and contains no credentials.
 - [ ] Budget independence verified.
-- [ ] SC-001, SC-002, SC-010, SC-011 evaluated against the frozen baseline.
+- [ ] SC-001 and SC-002 evaluated against the frozen baseline; SC-005 budget verified; SC-011 absolute ceiling measured over ≥ 30 sessions. (SC-010 retired — no evaluation required.)
 - [ ] Constitution Check re-evaluated, with a recorded decision on the Principle V governance question.
