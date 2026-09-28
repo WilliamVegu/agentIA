@@ -34,7 +34,10 @@ attempt". Nothing is discarded on exhaustion.
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
+import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
@@ -42,6 +45,8 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 from app.orchestrator.stages import instructions as instructions_mod
 from app.orchestrator.stages import journal as journal_mod
 from app.orchestrator.stages.compliance import (
+    ATTRIBUTION_LOCAL,
+    SEVERITY_BLOCKING,
     ComplianceViolation,
     blocking_local_violations,
     check_dependency_allowlist,
@@ -112,20 +117,24 @@ class StageImplementationMissing(RuntimeError):
 
 @dataclass(frozen=True)
 class ModelStageImplementation:
-    """Protocol a Phase 3 model-driven stage must satisfy.
+    """Protocol a model-driven stage must satisfy.
 
     ``build_request`` renders the instruction plus the blueprint-derived payload.
     ``extract`` maps a raw response onto workspace-relative artifacts and reports
-    whether extraction succeeded.
+    whether extraction succeeded. ``build_client`` constructs the chat model and
+    is supplied by the stage itself, so each stage carries its own direct
+    ``LLMFactory.get_chat_model`` call in its request-construction path rather
+    than delegating that to the seam.
     """
 
     stage: str
     build_request: Callable[[Mapping[str, Any], str], str]
     extract: Callable[[str, Mapping[str, Any], str], Tuple[Dict[str, str], bool]]
+    build_client: Optional[Callable[[Mapping[str, Any], Optional[str]], Any]] = None
 
 
 def register_model_stage(implementation: ModelStageImplementation) -> None:
-    """Register a model-driven stage implementation (used by T024-T028 and tests)."""
+    """Register a model-driven stage implementation."""
     if implementation.stage not in STAGE_ORDER:
         raise ValueError(f"unknown stage {implementation.stage!r}")
     MODEL_STAGE_IMPLEMENTATIONS[implementation.stage] = implementation
@@ -133,6 +142,28 @@ def register_model_stage(implementation: ModelStageImplementation) -> None:
 
 def unregister_model_stage(stage: str) -> None:
     MODEL_STAGE_IMPLEMENTATIONS.pop(stage, None)
+
+
+_MODEL_STAGES_LOADED = False
+
+
+def ensure_model_stages_registered() -> None:
+    """Import and register the five model stages on first use.
+
+    The import is deferred to break an import cycle: the model stage modules
+    import ``ModelStageImplementation`` and the payload/extraction helpers from
+    this module, so this module must not import them at module load time.
+
+    Registration uses set-if-absent semantics, so an implementation a test
+    registered explicitly is never clobbered by the built-in ones.
+    """
+    global _MODEL_STAGES_LOADED
+    if _MODEL_STAGES_LOADED:
+        return
+    from app.orchestrator.stages.model import register_all_model_stages  # noqa: PLC0415
+
+    register_all_model_stages()
+    _MODEL_STAGES_LOADED = True
 
 
 # ---------------------------------------------------------------------------
@@ -368,6 +399,295 @@ def _isolate_state(state: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# T022 — task payload construction
+# ---------------------------------------------------------------------------
+#: Which earlier stages' artifacts a stage may see. A stage sees only the union
+#: of its declared dependencies' scopes, never the whole workspace: exposing
+#: artifacts a stage does not own would let it reason about, and silently
+#: depend on, code outside its responsibility.
+STAGE_PRIOR_STAGES: Mapping[str, Tuple[str, ...]] = {
+    "SCAFFOLDER": (),
+    "DOMAIN": ("SCAFFOLDER",),
+    "SERVICE": ("SCAFFOLDER", "DOMAIN"),
+    "CONTROLLER": ("SCAFFOLDER", "DOMAIN", "SERVICE"),
+    "TEST": ("SCAFFOLDER", "DOMAIN", "SERVICE", "CONTROLLER"),
+}
+
+#: Upper bound on a rendered request. Exceeding it is NEVER resolved by trimming:
+#: a trimmed payload would silently drop blueprint content the model is required
+#: to honour, which is worse than failing loudly.
+MAX_PAYLOAD_CHARS = 200_000
+
+#: Rule identifier for an artifact emitted outside its stage's artifact scope.
+RULE_OUT_OF_SCOPE_ARTIFACT = "OUT_OF_SCOPE_ARTIFACT"
+
+#: Rule identifier for a candidate set too small to cover the declared entities.
+RULE_PARTIAL_CANDIDATE_SET = "PARTIAL_CANDIDATE_SET"
+
+#: Stages whose artifact contract scales with the number of declared domain
+#: entities. A response covering fewer entities than the blueprint declares is a
+#: partial set, which T023 forbids persisting silently.
+PER_ENTITY_STAGES: Tuple[str, ...] = ("DOMAIN", "SERVICE", "CONTROLLER", "TEST")
+
+
+class PayloadTooLargeError(RuntimeError):
+    """Raised when a rendered stage request would exceed ``MAX_PAYLOAD_CHARS``."""
+
+
+def _in_scope(path: str, scope: Sequence[str]) -> bool:
+    return any(fnmatch.fnmatch(path, pattern) for pattern in scope)
+
+
+def _scope_patterns(stages: Sequence[str]) -> Tuple[str, ...]:
+    return tuple(pattern for stage in stages for pattern in STAGE_ARTIFACT_SCOPES[stage])
+
+
+def paths_in_scope(paths: Sequence[str], stages: Sequence[str]) -> Tuple[str, ...]:
+    patterns = _scope_patterns(stages)
+    return tuple(p for p in paths if _in_scope(p, patterns))
+
+
+def prior_artifact_paths(stage: str, generated_files: Mapping[str, str]) -> Tuple[str, ...]:
+    """Paths the stage may see: prior stages' scopes ∩ already-persisted files.
+
+    ``generated_files`` contains only *persisted* artifacts by construction — the
+    seam adds to it exclusively after a candidate set passed validation — so a
+    rejected response can never reach a later stage through this path.
+    """
+    return tuple(sorted(paths_in_scope(sorted(generated_files), STAGE_PRIOR_STAGES[stage])))
+
+
+def build_stage_payload(state: Mapping[str, Any], stage: str) -> Dict[str, Any]:
+    """Project the blueprint into the payload a stage's request carries.
+
+    Carries service identity, package, entities with their attributes and
+    declared constraints, user stories, and acceptance scenarios — the content
+    the deterministic emitters discarded, and precisely what SC-001 measures.
+    """
+    blueprint = dict(state.get("blueprint") or {})
+
+    entities = [
+        {
+            "name": entity.get("name"),
+            "tableName": entity.get("tableName") or entity.get("table_name"),
+            "attributes": [
+                {
+                    "name": attribute.get("name"),
+                    "type": attribute.get("type"),
+                    "nullable": attribute.get("nullable"),
+                    "isPrimaryKey": bool(
+                        attribute.get("isPrimaryKey") or attribute.get("is_identifier")
+                    ),
+                    "validationRules": list(attribute.get("validationRules") or []),
+                }
+                for attribute in (entity.get("attributes") or [])
+            ],
+        }
+        for entity in (blueprint.get("entities") or [])
+    ]
+
+    user_stories = [
+        {
+            "id": story.get("id"),
+            "priority": story.get("priority"),
+            "role": story.get("role"),
+            "intent": story.get("intent"),
+            "benefit": story.get("benefit"),
+            "scenarios": [
+                {
+                    "scenarioId": scenario.get("scenarioId") or scenario.get("scenario_id"),
+                    "given": scenario.get("given"),
+                    "when": scenario.get("when"),
+                    "then": scenario.get("then"),
+                }
+                for scenario in (story.get("scenarios") or [])
+            ],
+        }
+        for story in (blueprint.get("userStories") or blueprint.get("user_stories") or [])
+    ]
+
+    generated = dict(state.get("generated_files") or {})
+    visible = prior_artifact_paths(stage, generated)
+
+    return {
+        "stage": stage,
+        "instruction_set_revision": state.get("instruction_set_revision", ""),
+        "service_name": blueprint.get("serviceName") or blueprint.get("service_name"),
+        "package_name": blueprint.get("packageName") or blueprint.get("package_name"),
+        "base_port": blueprint.get("basePort") or blueprint.get("base_port"),
+        "entities": entities,
+        "user_stories": user_stories,
+        "prior_artifacts": {path: generated[path] for path in visible},
+    }
+
+
+def render_stage_request(state: Mapping[str, Any], stage: str, instruction: str) -> str:
+    """Render the full request text: instruction, payload, and owned paths.
+
+    :raises PayloadTooLargeError: when the rendered request exceeds the bound.
+        The caller records this as an unusable attempt rather than sending a
+        truncated payload.
+    """
+    payload = build_stage_payload(state, stage)
+    request = (
+        f"{instruction}\n\n"
+        f"## Task payload\n"
+        f"{json.dumps(payload, indent=2, sort_keys=True)}\n\n"
+        f"## Output paths you own\n"
+        f"{json.dumps(list(STAGE_ARTIFACT_SCOPES[stage]), indent=2)}\n"
+    )
+    if len(request) > MAX_PAYLOAD_CHARS:
+        raise PayloadTooLargeError(
+            f"rendered request for stage {stage!r} is {len(request)} characters, above the "
+            f"bound of {MAX_PAYLOAD_CHARS}. The payload is never trimmed: dropping blueprint "
+            f"content would silently change what the model is asked to honour."
+        )
+    return request
+
+
+# ---------------------------------------------------------------------------
+# T023 — model response extraction
+# ---------------------------------------------------------------------------
+#: One fenced block. The fence info string may carry a language tag followed by
+#: the workspace-relative path the block belongs to.
+_FENCED_BLOCK_RE = re.compile(r"```[ \t]*(?P<info>[^\n`]*)\n(?P<body>.*?)```", re.DOTALL)
+
+
+def _is_safe_relative_path(path: str) -> bool:
+    normalized = path.replace("\\", "/").strip()
+    if not normalized or normalized.startswith("/"):
+        return False
+    if re.match(r"^[A-Za-z]:", normalized):     # windows drive letter
+        return False
+    return ".." not in normalized.split("/")
+
+
+def _block_path(info: str) -> str:
+    """Extract the artifact path from a fence info string.
+
+    Accepts ``path`` or ``<language> path``; returns "" when no path-like token
+    is present.
+    """
+    tokens = [token for token in info.replace("\t", " ").split(" ") if token]
+    if not tokens:
+        return ""
+    candidate = tokens[-1]
+    return candidate if ("/" in candidate or candidate.endswith((".java", ".xml", ".yml", ".yaml", ".sql"))) else ""
+
+
+def extract_artifacts(response_text: str) -> Tuple[Dict[str, str], bool]:
+    """Map a raw model response onto workspace-relative artifacts.
+
+    Accepts two transports:
+
+    1. a JSON object ``{"artifacts": {path: content}}``;
+    2. one or more fenced blocks, each with its path on the fence line.
+
+    Returns ``({}, False)`` — never a partial set — for an absent, truncated, or
+    unmappable response, and for an ambiguous one (a fenced block without a path
+    when more than one artifact is implied). Silence is deliberately not an
+    option: a partial candidate set must never reach persistence.
+    """
+    if not response_text or not response_text.strip():
+        return {}, False
+
+    # --- Transport 1: JSON artifact map -------------------------------------
+    try:
+        payload = json.loads(response_text)
+    except (json.JSONDecodeError, TypeError):
+        payload = None
+    if isinstance(payload, dict):
+        artifacts = payload.get("artifacts")
+        if not isinstance(artifacts, dict) or not artifacts:
+            return {}, False
+        if not all(isinstance(k, str) and isinstance(v, str) for k, v in artifacts.items()):
+            return {}, False
+        if not all(_is_safe_relative_path(path) for path in artifacts):
+            return {}, False
+        return dict(artifacts), True
+
+    # --- Transport 2: fenced blocks -----------------------------------------
+    if response_text.count("```") % 2 != 0:
+        return {}, False                        # an opening fence was never closed
+    blocks = _FENCED_BLOCK_RE.findall(response_text)
+    if not blocks:
+        return {}, False
+
+    artifacts: Dict[str, str] = {}
+    for info, body in blocks:
+        path = _block_path(info)
+        if not path or not _is_safe_relative_path(path):
+            # Ambiguous: several artifacts cannot be told apart without paths.
+            return {}, False
+        artifacts[path] = body
+
+    return (artifacts, True) if artifacts else ({}, False)
+
+
+def out_of_scope_violations(
+    candidate: Mapping[str, str], stage: str
+) -> Tuple[ComplianceViolation, ...]:
+    """Flag paths a stage emitted outside its own artifact scope.
+
+    Attributed LOCAL by construction, not resolved by pattern matching: a path
+    outside the scope is by definition outside every scope pattern, so the
+    generic resolver would call it ACCUMULATED and let it through. It is the
+    stage's own fault and must reject the candidate set (FR-021: a stage
+    inventing paths would break the index contract).
+    """
+    scope = STAGE_ARTIFACT_SCOPES[stage]
+    return tuple(
+        ComplianceViolation(
+            artifact_path=path,
+            rule_id=RULE_OUT_OF_SCOPE_ARTIFACT,
+            severity=SEVERITY_BLOCKING,
+            message=(
+                f"{path!r} is outside the {stage} stage's artifact scope. A stage must emit "
+                f"only the paths it owns, because downstream verification, artifact listing "
+                f"and export all depend on the path contract."
+            ),
+            suggested_fix=f"Emit only these paths: {list(scope)}",
+            attribution=ATTRIBUTION_LOCAL,
+            contributing_sources=("runner.out_of_scope_violations",),
+        )
+        for path in sorted(candidate)
+        if not _in_scope(path, scope)
+    )
+
+
+def partial_candidate_violations(
+    candidate: Mapping[str, str], stage: str, state: Mapping[str, Any]
+) -> Tuple[ComplianceViolation, ...]:
+    """Flag a response that covers fewer entities than the blueprint declares.
+
+    This is the "the reverse" half of T023's ambiguity rule: one artifact where
+    several were requested. It is checked against the blueprint's own entity
+    count, which is the independent source of truth, and only for stages whose
+    output scales per entity — a blanket expected-count check would need the
+    instructions' Output contract to be machine-readable, which it is not yet.
+    """
+    if stage not in PER_ENTITY_STAGES:
+        return ()
+    entity_count = len((state.get("blueprint") or {}).get("entities") or [])
+    if entity_count <= 1 or len(candidate) >= entity_count:
+        return ()
+    return (
+        ComplianceViolation(
+            artifact_path=f"<{stage}>",
+            rule_id=RULE_PARTIAL_CANDIDATE_SET,
+            severity=SEVERITY_BLOCKING,
+            message=(
+                f"response carries {len(candidate)} artifact(s) for {entity_count} declared "
+                f"domain entities. A partial set must not be persisted silently."
+            ),
+            suggested_fix="Emit artifacts for every declared entity in the payload.",
+            attribution=ATTRIBUTION_LOCAL,
+            contributing_sources=("runner.partial_candidate_violations",),
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Deterministic path — no gate, request_count = 0
 # ---------------------------------------------------------------------------
 def _run_deterministic_stage(
@@ -442,23 +762,34 @@ def _run_model_stage(
     journal: Dict[str, Any],
     api_key: Optional[str] = None,
 ) -> Dict[str, Any]:
+    ensure_model_stages_registered()
     implementation = MODEL_STAGE_IMPLEMENTATIONS.get(stage)
 
-    # Guardrail 1: always construct the client before deciding anything else.
-    client = _build_model_client(state, api_key=api_key)
-
     if implementation is None:
-        if client is None:
+        # Guardrail 1: even this failure path constructs the client, so the model
+        # branch can never silently degenerate into the deterministic one.
+        if _build_model_client(state, api_key=api_key) is None:
             raise GenerationModeError(
                 f"session is in MODEL mode but LLMFactory.get_chat_model returned no client for "
                 f"stage {stage!r}. Mode selection should have chosen DETERMINISTIC; this is an "
                 f"inconsistent session state, not a reason to fall back."
             )
         raise StageImplementationMissing(
-            f"no model-driven implementation registered for stage {stage!r}. The five model "
-            f"stages are tasks T024-T028 (Phase 3); until they land, MODEL sessions cannot "
-            f"complete. The boundary refuses to substitute deterministic generation."
+            f"no model-driven implementation registered for stage {stage!r}. The boundary "
+            f"refuses to substitute deterministic generation."
         )
+
+    # The stage owns its own LLMFactory.get_chat_model call. There is deliberately
+    # no shared fallback: routing construction through the seam is exactly what
+    # would let the model path silently degrade into a single implementation
+    # again, which the per-stage ownership exists to prevent.
+    if implementation.build_client is None:
+        raise StageImplementationMissing(
+            f"stage {stage!r} supplies no build_client. Every model stage must construct its "
+            f"own client with a direct LLMFactory.get_chat_model call in its request-"
+            f"construction path."
+        )
+    client = implementation.build_client(state, api_key)
 
     if client is None:
         raise GenerationModeError(
@@ -482,7 +813,33 @@ def _run_model_stage(
 
     # attempt 0 = the initial request; 1..MAX = corrections.
     for attempt in range(0, journal_mod.MAX_CORRECTION_ATTEMPTS + 1):
-        request = implementation.build_request(state, instruction)
+        try:
+            request = implementation.build_request(state, instruction)
+        except PayloadTooLargeError as exc:
+            # The attempt is consumed and the session blocks: the payload is a pure
+            # function of the blueprint, so a retry would build the identical
+            # oversized request. Nothing is persisted and the reason is journalled.
+            #
+            # request_count is deliberately 0: no model request was issued, and the
+            # session budget counts model calls (SC-005), not attempts. Recording a
+            # request that never left the process would inflate that accounting.
+            journal_mod.record_stage_entry(
+                journal,
+                stage=stage,
+                outcome=journal_mod.OUTCOME_UNUSABLE_RESPONSE,
+                request_count=0,
+                persisted_artifact_paths=[],
+            )
+            entry = journal_mod.stage_entry(journal, stage)
+            if entry is not None:
+                entry["payload_error"] = str(exc)
+                entry["attempt_consumed"] = True   # an attempt, not a model call
+            state["generation_journal"] = journal
+            state["status"] = "BLOCKED"
+            state["error"] = f"[{stage}] {exc}"
+            _append_log(state, f"[STAGE:{stage}] payload too large; session blocked, nothing persisted")
+            return state
+
         if feedback:
             request = f"{request}\n\n{feedback}"
 
@@ -520,10 +877,13 @@ def _run_model_stage(
         accumulated = dict(state.get("generated_files", {}) or {})
         accumulated.update(candidate)
 
-        extra: list = []
+        extra: list = list(out_of_scope_violations(candidate, stage))
+        extra.extend(partial_candidate_violations(candidate, stage, state))
         if stage == "SCAFFOLDER" and "pom.xml" in candidate:
-            extra = check_dependency_allowlist(
-                candidate["pom.xml"], artifact_path="pom.xml", stage_scope=scope
+            extra.extend(
+                check_dependency_allowlist(
+                    candidate["pom.xml"], artifact_path="pom.xml", stage_scope=scope
+                )
             )
 
         verdict = normalize_verdict(accumulated, stage_scope=scope, extra_violations=extra)
