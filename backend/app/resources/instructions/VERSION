@@ -1,0 +1,26 @@
+label: 1.0.0
+created: 2026-09-28
+feature: 011-llm-generation-nodes
+
+scheme: content-addressed
+scheme_doc: specs/011-llm-generation-nodes/contracts/instruction-document.md
+
+note: >
+  This label is for human reporting and release notes only. It is NOT the
+  identifier recorded in artifact provenance. The authoritative
+  instruction-set revision is a digest computed over the canonicalized map of
+  stage name to instruction content, so it changes automatically whenever any
+  of the five stage documents changes and cannot drift from the content it
+  names.
+
+documents:
+  - scaffolder.md
+  - domain.md
+  - service.md
+  - controller.md
+  - test.md
+
+changelog:
+  1.0.0: Initial seed instruction set for the five generation stages. Authored
+         for the pre-migration baseline window; frozen for the duration of the
+         migration per specs/011-llm-generation-nodes/contracts/baseline-artifact.md.

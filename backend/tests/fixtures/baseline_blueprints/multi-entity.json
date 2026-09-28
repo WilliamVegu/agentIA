@@ -1,0 +1,75 @@
+{
+  "blueprintId": "multi-entity",
+  "corpusRole": "multi-entity-differing-attribute-types",
+  "rationale": "Two entities whose attributes deliberately span the distinct Java type mappings (text, integral, decimal, boolean, temporal, and a differently-named identifier type). Exercises per-entity iteration, type mapping, and identifier handling across more than one entity. A single-entity-only corpus would not reveal a stage that handles the first entity and silently drops the rest.",
+  "serviceName": "catalog-service",
+  "packageName": "com.corp.catalog",
+  "basePort": 8082,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Product",
+      "tableName": "products",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "sku", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "listPrice", "type": "Double", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "inStock", "type": "Boolean", "nullable": true, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    },
+    {
+      "name": "Category",
+      "tableName": "categories",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "title", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "displayOrder", "type": "Integer", "nullable": true, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "catalog manager",
+      "intent": "register a product with its price and availability",
+      "benefit": "the storefront can list it",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique sku and a list price",
+          "when": "the manager registers the product",
+          "then": "the product is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "an existing product identifier",
+          "when": "the manager retrieves the product",
+          "then": "the product is returned with its price and stock flag"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "catalog manager",
+      "intent": "organise products into ordered categories",
+      "benefit": "the storefront navigation reflects business priority",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a category title and a display order",
+          "when": "the manager creates the category",
+          "then": "the category is persisted with its creation timestamp"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a category identifier that does not exist",
+          "when": "the manager retrieves that category",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    }
+  ]
+}

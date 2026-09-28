@@ -25,6 +25,7 @@ wheels/
 !.env.example
 venv/
 .venv/
+.uvcache/
 ENV/
 env.bak/
 venv.bak/

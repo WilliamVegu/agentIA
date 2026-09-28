@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "purpose": "Bounds the dependencies, parent, and build plugins that generated build configuration may declare. Enforced against the scaffolded POM before it is persisted (FR-017). Every entry must be resolvable from a pre-populated local Maven repository, because the hermetic offline build runs with network access disabled (Constitution IV).",
+  "deliberately_outside_instructions_dir": "This file lives in backend/app/resources/, NOT inside backend/app/resources/instructions/. It is a generation constraint, not an instruction document, and is excluded from the instruction-set revision digest so that editing the allowlist does not change the revision recorded against generated artifacts. See specs/011-llm-generation-nodes/contracts/instruction-document.md.",
+  "seeded_from": "The dependency set of the known-good POM template emitted by the pre-migration scaffolder stage, which is verified to resolve in the shipped offline build environment.",
+  "parent": {
+    "groupId": "org.springframework.boot",
+    "artifactId": "spring-boot-starter-parent",
+    "versionLine": "3.2.x",
+    "resolvedVersion": "3.2.3",
+    "note": "Dependency versions are managed by the parent. Individual dependencies must not pin their own versions unless listed below."
+  },
+  "dependencies": [
+    {
+      "groupId": "org.springframework.boot",
+      "artifactId": "spring-boot-starter-web",
+      "scope": "compile",
+      "why": "HTTP surface for the generated controllers."
+    },
+    {
+      "groupId": "org.springframework.boot",
+      "artifactId": "spring-boot-starter-data-jpa",
+      "scope": "compile",
+      "why": "Persistence and repository support for generated entities."
+    },
+    {
+      "groupId": "org.springframework.boot",
+      "artifactId": "spring-boot-starter-validation",
+      "scope": "compile",
+      "why": "Jakarta Validation support for declaratively constrained request contracts."
+    },
+    {
+      "groupId": "com.h2database",
+      "artifactId": "h2",
+      "scope": "runtime",
+      "why": "In-memory datasource so a freshly generated project runs and tests without provisioning."
+    },
+    {
+      "groupId": "org.springframework.boot",
+      "artifactId": "spring-boot-starter-test",
+      "scope": "test",
+      "why": "JUnit 5, Mockito, and AssertJ, which the test instruction mandates."
+    }
+  ],
+  "build_plugins": [
+    {
+      "groupId": "org.apache.maven.plugins",
+      "artifactId": "maven-compiler-plugin",
+      "version": "3.11.0",
+      "why": "Pins the Java 21 release level deterministically."
+    },
+    {
+      "groupId": "org.springframework.boot",
+      "artifactId": "spring-boot-maven-plugin",
+      "version": "managed-by-parent",
+      "why": "Produces the executable artifact."
+    },
+    {
+      "groupId": "org.apache.maven.plugins",
+      "artifactId": "maven-surefire-plugin",
+      "version": "3.1.2",
+      "why": "Runs the JUnit 5 suite."
+    }
+  ],
+  "prohibited": [
+    "Any groupId/artifactId pair not present in the dependencies list above.",
+    "Any build plugin not present in the build_plugins list above.",
+    "Version ranges, SNAPSHOT versions, and the LATEST or RELEASE selectors.",
+    "Any additional <repositories>, <pluginRepositories>, or remote repository declaration.",
+    "Any dependency with a javax.* groupId or artifactId.",
+    "Any build extension, remote script execution, or artifact downloaded at build time.",
+    "Any dependency, plugin, or property carrying a credential or access token."
+  ],
+  "enforcement": {
+    "blocking": true,
+    "stage": "SCAFFOLDER",
+    "rule_id": "FR-017-DEPENDENCY-ALLOWLIST",
+    "on_violation": "Reject the candidate artifact set; the POM must not be persisted with an unlisted declaration. Failure to enforce this is absorbed silently by the verification environment's offline-cache fallback, so it must be caught before persistence, not after the build."
+  }
+}
