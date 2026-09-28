@@ -1491,8 +1491,6 @@ def test_oscillating_violations_are_both_retained(monkeypatch, tmp_path):
 
 def test_journal_is_persisted_on_the_success_path(monkeypatch, tmp_path, persisted_session):
     """T038: every exit path, not only exhaustion."""
-    from app.orchestrator.stages import runner as runner_mod
-
     blueprint = _blueprint(MINIMAL)
     workspace = _ws(tmp_path)
     _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))

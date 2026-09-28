@@ -34,7 +34,13 @@ Verdict: **PASS** — the outputs now track the declared differences.
 
 ## SC-005 — request budget
 
-Single measured session: **5** of
-`15` requests permitted.
+| | |
+| --- | --- |
+| Sessions measured | **3** |
+| **Max requests in any session** | **5** |
+| Ceiling per session | `15` |
+| Per-session counts | `[5, 5, 5]` |
 
-Verdict: **PASS**
+Verdict: **PASS** — taken from the **maximum**
+across the 3 measured sessions, not from one session, so a single
+over-budget session fails this measurement even when the others pass.

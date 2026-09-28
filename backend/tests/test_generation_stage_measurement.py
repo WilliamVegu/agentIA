@@ -37,7 +37,7 @@ sys.path.insert(0, str(REPO_ROOT / "backend"))
 from app.config import settings  # noqa: E402
 from app.models.session import SessionStatus  # noqa: E402
 from app.orchestrator.stages import journal as journal_mod  # noqa: E402
-from app.orchestrator.stages.runner import STAGE_ORDER, run_stage, run_stages  # noqa: E402
+from app.orchestrator.stages.runner import STAGE_ORDER, run_stages  # noqa: E402
 from app.services.llm_factory import LLMFactory  # noqa: E402
 from tests.fixtures import fake_model as fm  # noqa: E402
 
@@ -210,10 +210,15 @@ def test_measure_us1_against_frozen_baseline(monkeypatch, tmp_path):
     ]
 
     # --- SC-002: paired blueprints produce differing artifacts ----------------
+    # SC-005 is a per-session budget, so every session this test runs contributes
+    # a measurement. The verdict is taken from the worst of them, not from one.
+    budgets = [result["generation_journal"]["total_requests"]]
+
     pair_outputs = {}
     for name in ("pair-a", "pair-b"):
         blueprint = _blueprint(name)
         run = _run_session(monkeypatch, tmp_path, blueprint, f"sc002-{name}", _compliant_responder())
+        budgets.append(run["generation_journal"]["total_requests"])
         pair_outputs[name] = {
             path: content
             for path, content in run["generated_files"].items()
@@ -226,9 +231,6 @@ def test_measure_us1_against_frozen_baseline(monkeypatch, tmp_path):
         (t for t in baseline["twin_comparisons"] if t["left"] == "pair-a"), None
     )
 
-    # --- SC-005: budget respected across every session run above -------------
-    budgets = []
-
     report = _render_us1_report(
         traced=traced,
         declared_rules=declared_rules,
@@ -236,7 +238,6 @@ def test_measure_us1_against_frozen_baseline(monkeypatch, tmp_path):
         pair_a_entity=pair_a_entity,
         pair_b_entity=pair_b_entity,
         baseline_pair=baseline_pair,
-        total_requests=result["generation_journal"]["total_requests"],
         budgets=budgets,
     )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -244,6 +245,15 @@ def test_measure_us1_against_frozen_baseline(monkeypatch, tmp_path):
     output.write_text(report, encoding="utf-8")
 
     assert output.is_file()
+    assert len(budgets) >= 3, (
+        f"expected the SC-001 session plus both SC-002 sessions, measured {len(budgets)}"
+    )
+    assert max(budgets) <= journal_mod.MAX_REQUESTS_PER_SESSION, (
+        f"a measured session exceeded the budget: {budgets}"
+    )
+    assert "Sessions measured" in report and "Max requests in any session" in report, (
+        "the SC-005 section no longer summarises across sessions"
+    )
     assert traced, "no declared constraint reached the generated entity"
     assert pair_a_entity != pair_b_entity, "paired blueprints produced identical artifacts"
     if baseline_pair is not None:
@@ -253,7 +263,15 @@ def test_measure_us1_against_frozen_baseline(monkeypatch, tmp_path):
         )
 
 
-def _render_us1_report(**kw) -> str:
+def _render_us1_report(budgets: list, **kw) -> str:
+    """Render the SC-001/SC-002/SC-005 report.
+
+    ``budgets`` is explicit rather than swallowed by ``**kw`` so the SC-005
+    verdict cannot silently fall back to a single session again.
+    """
+    ceiling = journal_mod.MAX_REQUESTS_PER_SESSION
+    measured_sessions = len(budgets)
+    worst_requests = max(budgets) if budgets else 0
     pair_note = "not recorded in the frozen baseline"
     if kw["baseline_pair"]:
         pair_note = f"baseline outputs byte-identical: `{kw['baseline_pair']['outputs_byte_identical']}`"
@@ -293,10 +311,16 @@ Verdict: {"**PASS** — the outputs now track the declared differences." if kw["
 
 ## SC-005 — request budget
 
-Single measured session: **{kw["total_requests"]}** of
-`{journal_mod.MAX_REQUESTS_PER_SESSION}` requests permitted.
+| | |
+| --- | --- |
+| Sessions measured | **{measured_sessions}** |
+| **Max requests in any session** | **{worst_requests}** |
+| Ceiling per session | `{ceiling}` |
+| Per-session counts | `{budgets}` |
 
-Verdict: {"**PASS**" if kw["total_requests"] <= journal_mod.MAX_REQUESTS_PER_SESSION else "**FAIL**"}
+Verdict: {"**PASS**" if worst_requests <= ceiling else "**FAIL**"} — taken from the **maximum**
+across the {measured_sessions} measured sessions, not from one session, so a single
+over-budget session fails this measurement even when the others pass.
 """
 
 
