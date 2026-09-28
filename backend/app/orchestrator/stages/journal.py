@@ -62,7 +62,8 @@ class JournalBudgetError(RuntimeError):
     """Raised when a journal budget invariant would be violated."""
 
 
-def _now_iso() -> str:
+def now_iso() -> str:
+    """UTC timestamp used by journal and provenance records."""
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -140,7 +141,7 @@ def build_correction_attempt(
         "response": response,
         "verdict": verdict,
         "outcome": outcome,
-        "timestamp": _now_iso(),
+        "timestamp": now_iso(),
         # Flagged, not suppressed: an identical request yielding an identical
         # rejection means the correction feedback was not actually incorporated.
         "duplicate_of_previous_request": bool(
@@ -254,3 +255,131 @@ def outcome_for_request_count(request_count: int, corrections_used: int) -> str:
     if corrections_used == 0:
         return OUTCOME_SUCCEEDED
     return OUTCOME_CORRECTED
+
+
+# ---------------------------------------------------------------------------
+# T038 — durable persistence through the additive columns
+# ---------------------------------------------------------------------------
+def _session_store():
+    """Import the session store lazily and tolerantly.
+
+    Imported inside the function so the stages package does not pull the database
+    engine in at module load, and so the dual ``app`` / ``backend.app`` import
+    style used elsewhere in this repository keeps working.
+    """
+    try:
+        from app.models.session import GenerationSessionDB, SessionLocal
+    except ImportError:  # pragma: no cover - repo-root import style
+        from backend.app.models.session import GenerationSessionDB, SessionLocal
+    return GenerationSessionDB, SessionLocal
+
+
+def persist_generation_journal(
+    session_id: Optional[str],
+    journal: Optional[Dict[str, Any]],
+    provenance: Optional[Sequence[Dict[str, Any]]] = None,
+) -> bool:
+    """Write the journal and provenance to the additive columns from T013.
+
+    This is what makes the correction history survive beyond process life: the
+    existing session stores are in-memory dicts that are lost on restart, and
+    SC-008 requires the history to be retained when a session terminates in the
+    human-intervention state.
+
+    Returns True when a session row was updated. A missing row is **not** an
+    error: the stage boundary is also exercised without a persisted session (unit
+    tests, and callers that run the stages standalone), and failing there would
+    make the seam unusable outside the API path.
+
+    Never raises: persistence is a durability concern, and a database problem
+    must not mask the generation outcome the caller is about to receive. The
+    failure is swallowed deliberately and reported through the return value.
+    """
+    if not session_id or not journal:
+        return False
+    try:
+        GenerationSessionDB, SessionLocal = _session_store()
+    except Exception:  # pragma: no cover - database layer unavailable
+        return False
+
+    db = None
+    try:
+        import json as _json
+
+        db = SessionLocal()
+        row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        if row is None:
+            return False
+        row.generation_journal_json = _json.dumps(journal, default=str)
+        if provenance is not None:
+            row.artifact_provenance_json = _json.dumps(list(provenance), default=str)
+        db.commit()
+        return True
+    except Exception:
+        try:
+            if db is not None:
+                db.rollback()
+        except Exception:
+            pass
+        return False
+    finally:
+        try:
+            if db is not None:
+                db.close()
+        except Exception:
+            pass
+
+
+def load_generation_journal(session_id: str) -> Optional[Dict[str, Any]]:
+    """Read a persisted journal back. Returns None when nothing was stored.
+
+    Used by the tests to prove the history survives beyond process life: the
+    value is read through a fresh session rather than from the in-memory object
+    that was written.
+    """
+    try:
+        GenerationSessionDB, SessionLocal = _session_store()
+    except Exception:  # pragma: no cover - database layer unavailable
+        return None
+    import json as _json
+
+    db = None
+    try:
+        db = SessionLocal()
+        row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        if row is None or not row.generation_journal_json:
+            return None
+        return _json.loads(row.generation_journal_json)
+    except Exception:
+        return None
+    finally:
+        try:
+            if db is not None:
+                db.close()
+        except Exception:
+            pass
+
+
+def load_artifact_provenance(session_id: str):
+    """Read persisted provenance back. Returns an empty list when nothing was stored."""
+    try:
+        GenerationSessionDB, SessionLocal = _session_store()
+    except Exception:  # pragma: no cover - database layer unavailable
+        return []
+    import json as _json
+
+    db = None
+    try:
+        db = SessionLocal()
+        row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        if row is None or not row.artifact_provenance_json:
+            return []
+        return _json.loads(row.artifact_provenance_json)
+    except Exception:
+        return []
+    finally:
+        try:
+            if db is not None:
+                db.close()
+        except Exception:
+            pass

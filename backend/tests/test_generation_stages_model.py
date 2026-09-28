@@ -1256,3 +1256,283 @@ def test_five_exhausting_stages_reach_exactly_the_session_ceiling(monkeypatch, t
         journal_mod.record_stage_entry(
             journal, stage="DOMAIN", outcome=journal_mod.OUTCOME_SUCCEEDED, request_count=1
         )
+
+
+# =========================================================================
+# T036-T040 — User Story 3: attribution, boundedness, durable history
+#
+# Imports for this section are added here rather than in the header block so the
+# T014/T049, T029 and T030-T035 sections above stay exactly as they were.
+# =========================================================================
+import uuid  # noqa: E402
+from dataclasses import replace as _dc_replace  # noqa: E402
+
+from app.models.session import GenerationSessionDB, SessionLocal  # noqa: E402
+
+PROVENANCE_FIELDS = {
+    "artifact_path",
+    "stage",
+    "generation_mode",
+    "provider",
+    "model",
+    "instruction_set_revision",
+    "attempt_ordinal",
+    "created_at",
+}
+
+
+@pytest.fixture
+def persisted_session():
+    """A real session row, so journal persistence has something to write to.
+
+    Removed afterwards so the suite leaves no rows behind.
+    """
+    session_id = f"t036-{uuid.uuid4().hex[:10]}"
+    db = SessionLocal()
+    try:
+        db.add(
+            GenerationSessionDB(
+                id=session_id,
+                spec_id="spec-t036",
+                spec_name="t036",
+                status=SessionStatus.RUNNING,
+                phase=SessionPhase.INITIALIZATION,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    yield session_id
+
+    db = SessionLocal()
+    try:
+        db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).delete()
+        db.commit()
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# T039 — provenance completeness, mode stickiness, budget, credentials
+# ---------------------------------------------------------------------------
+def test_provenance_is_complete_for_every_generated_artifact(monkeypatch, tmp_path):
+    """SC-006: at least 99% of generated artifacts carry a complete record."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))
+
+    result = run_stage(
+        _stage_state(blueprint, workspace, instruction_set_revision="test-rev-0001"), "DOMAIN"
+    )
+
+    generated = set(result["generated_files"])
+    records = result["artifact_provenance"]
+    assert generated, "nothing was generated, so coverage is meaningless"
+
+    covered = {r["artifact_path"] for r in records} & generated
+    assert len(covered) / len(generated) >= 0.99, (
+        f"provenance coverage {len(covered)}/{len(generated)} is below the 99% floor"
+    )
+
+    for record in records:
+        assert PROVENANCE_FIELDS <= set(record), (
+            f"provenance record is missing {sorted(PROVENANCE_FIELDS - set(record))}"
+        )
+        assert record["created_at"], "created_at was not stamped"
+        assert record["stage"] == "DOMAIN"
+        if record["generation_mode"] == journal_mod.GENERATION_MODE_MODEL:
+            # In MODEL mode all three identity fields must be present (SC-006).
+            assert record["provider"], "MODEL provenance is missing the provider"
+            assert record["model"], "MODEL provenance is missing the model"
+            assert record["instruction_set_revision"], "MODEL provenance is missing the revision"
+
+
+def test_deterministic_provenance_records_no_model_identity(monkeypatch, tmp_path):
+    """T036: offline artifacts are never miscounted as model-generated.
+
+    The keys are present but None rather than omitted, because the pre-existing
+    offline-parity test asserts ``record["provider"] is None``; the requirement is
+    that no *value* — and in particular no placeholder string such as
+    "deterministic" or "N/A" — is recorded.
+    """
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    state = _stage_state(blueprint, workspace)
+    state["generation_mode"] = journal_mod.GENERATION_MODE_DETERMINISTIC
+    state["llm_provider"] = None
+    state["llm_model"] = None
+
+    result = run_stages(state)
+
+    records = result["artifact_provenance"]
+    assert records, "the offline path recorded no provenance at all"
+    for record in records:
+        assert record["provider"] is None, f"offline provenance carried {record['provider']!r}"
+        assert record["model"] is None, f"offline provenance carried {record['model']!r}"
+        assert record["generation_mode"] == journal_mod.GENERATION_MODE_DETERMINISTIC
+
+    stored = json.dumps(records)
+    for placeholder in ("deterministic", "N/A", "n/a", "none"):
+        assert f'"{placeholder}"' not in stored, f"a placeholder {placeholder!r} was recorded"
+
+
+def test_model_session_never_transitions_to_deterministic(monkeypatch, tmp_path):
+    """T039: the mode is decided once and never downgraded, even on exhaustion."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+
+    # A successful MODEL run.
+    _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))
+    ok = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+    assert ok["generation_mode"] == journal_mod.GENERATION_MODE_MODEL
+    assert ok["generation_journal"]["generation_mode"] == journal_mod.GENERATION_MODE_MODEL
+
+    # An exhausting MODEL run: it blocks, it does not quietly become offline.
+    _script(
+        monkeypatch,
+        *[fm.canonical_json_response(fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint))] * 3,
+    )
+    blocked = run_stage(_stage_state(blueprint, _ws(tmp_path, "blocked")), "DOMAIN")
+    assert blocked["status"] == SessionStatus.BLOCKED.value
+    assert blocked["generation_mode"] == journal_mod.GENERATION_MODE_MODEL, (
+        "a MODEL session fell back to DETERMINISTIC instead of blocking"
+    )
+
+
+def test_credentials_never_reach_the_journal_provenance_or_artifacts(monkeypatch, tmp_path):
+    """FR-018 / Principle VI: the session key must not leak into any record."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    secret = "sk-t039-must-not-leak-000000000000"
+    _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))
+
+    result = run_stage(_stage_state(blueprint, workspace, llm_api_key=secret), "DOMAIN")
+
+    assert secret not in json.dumps(result["generation_journal"]), "the key reached the journal"
+    assert secret not in json.dumps(result["artifact_provenance"]), "the key reached provenance"
+    for path, content in result["generated_files"].items():
+        assert secret not in content, f"the key reached the generated artifact {path}"
+
+    # In state, the key is confined to the one field that carries it to the client.
+    for key, value in result.items():
+        if key == "llm_api_key":
+            continue
+        assert secret not in json.dumps(value, default=str), f"the key leaked into state[{key!r}]"
+
+
+# ---------------------------------------------------------------------------
+# T040 — correction-history retention
+# ---------------------------------------------------------------------------
+def test_exhausted_session_retains_the_full_correction_history(monkeypatch, tmp_path, persisted_session):
+    """SC-008 / T038: history is retained in full AND survives the process."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    responses = [
+        fm.canonical_json_response(fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint))
+    ] * 3
+    _script(monkeypatch, *responses)
+
+    result = run_stage(
+        _stage_state(blueprint, workspace, session_id=persisted_session), "DOMAIN"
+    )
+    assert result["status"] == SessionStatus.BLOCKED.value
+
+    entry = journal_mod.stage_entry(result["generation_journal"], "DOMAIN")
+    assert entry["outcome"] == journal_mod.OUTCOME_EXHAUSTED
+    assert entry["initial_response"] == responses[0], "the first response was discarded on exhaustion"
+    assert entry["initial_verdict"] is not None, "the first violation set was discarded"
+    assert len(entry["correction_attempts"]) == journal_mod.MAX_CORRECTION_ATTEMPTS
+    for attempt in entry["correction_attempts"]:
+        assert attempt["response"], "a rejected response was discarded"
+        assert attempt["verdict"] is not None, "a rejection verdict was discarded"
+
+    # Durability: read back through a FRESH database session, not the in-memory
+    # object that was just written.
+    stored = journal_mod.load_generation_journal(persisted_session)
+    assert stored is not None, "the journal did not survive beyond process life"
+    assert stored["total_requests"] == entry["request_count"]
+    stored_entry = journal_mod.stage_entry(stored, "DOMAIN")
+    assert stored_entry["initial_response"] == responses[0]
+    assert len(stored_entry["correction_attempts"]) == journal_mod.MAX_CORRECTION_ATTEMPTS
+
+
+def test_oscillating_violations_are_both_retained(monkeypatch, tmp_path):
+    """T040: a later attempt introducing a different violation stays visible."""
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    first = fm.violating_artifacts("PROHIBITED_ANNOTATION", blueprint)      # STACK_LOMBOK_RESTRICTION
+    second = fm.violating_artifacts("CONTRACT_IMMUTABILITY", blueprint)     # PRINCIPLE_II_IMMUTABLE_DTOS
+    _script(
+        monkeypatch,
+        fm.canonical_json_response(first),
+        fm.canonical_json_response(second),
+        fm.canonical_json_response(first),
+    )
+
+    result = run_stage(_stage_state(blueprint, workspace), "DOMAIN")
+    assert result["status"] == SessionStatus.BLOCKED.value
+
+    entry = journal_mod.stage_entry(result["generation_journal"], "DOMAIN")
+    initial_rules = {
+        v["rule_id"] for v in (entry["initial_verdict"] or {}).get("violations", [])
+    }
+    attempt_rules = [
+        {v["rule_id"] for v in (a["verdict"] or {}).get("violations", [])}
+        for a in entry["correction_attempts"]
+    ]
+    assert "STACK_LOMBOK_RESTRICTION" in initial_rules
+    assert "PRINCIPLE_II_IMMUTABLE_DTOS" in attempt_rules[0], (
+        "the second attempt's different violation was not recorded"
+    )
+    assert attempt_rules[0] != initial_rules, "the oscillation was flattened"
+    assert len(entry["correction_attempts"]) == journal_mod.MAX_CORRECTION_ATTEMPTS
+
+
+def test_journal_is_persisted_on_the_success_path(monkeypatch, tmp_path, persisted_session):
+    """T038: every exit path, not only exhaustion."""
+    from app.orchestrator.stages import runner as runner_mod
+
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))
+
+    result = run_stage(
+        _stage_state(blueprint, workspace, session_id=persisted_session), "DOMAIN"
+    )
+    assert result.get("status") != SessionStatus.BLOCKED.value
+
+    stored = journal_mod.load_generation_journal(persisted_session)
+    assert stored is not None, "a successful run did not persist its journal"
+    assert journal_mod.stage_entry(stored, "DOMAIN")["outcome"] in (
+        journal_mod.OUTCOME_SUCCEEDED,
+        journal_mod.OUTCOME_CORRECTED,
+    )
+    provenance = journal_mod.load_artifact_provenance(persisted_session)
+    assert provenance, "provenance was not persisted alongside the journal"
+    assert all(PROVENANCE_FIELDS <= set(r) for r in provenance)
+
+
+def test_journal_is_persisted_when_a_stage_raises(monkeypatch, tmp_path, persisted_session):
+    """T038: the exception path, where a naive implementation would lose everything."""
+    from app.orchestrator.stages import runner as runner_mod
+
+    blueprint = _blueprint(MINIMAL)
+    workspace = _ws(tmp_path)
+    _script(monkeypatch, fm.canonical_json_response(fm.compliant_artifacts("DOMAIN", blueprint)))
+
+    def _boom(state, instruction):
+        raise RuntimeError("model transport exploded")
+
+    monkeypatch.setitem(
+        runner_mod.MODEL_STAGE_IMPLEMENTATIONS,
+        "DOMAIN",
+        _dc_replace(runner_mod.MODEL_STAGE_IMPLEMENTATIONS["DOMAIN"], build_request=_boom),
+    )
+
+    with pytest.raises(RuntimeError):
+        run_stage(_stage_state(blueprint, workspace, session_id=persisted_session), "DOMAIN")
+
+    stored = journal_mod.load_generation_journal(persisted_session)
+    assert stored is not None, "the journal was lost when a stage raised"
+    assert stored["session_id"] == persisted_session

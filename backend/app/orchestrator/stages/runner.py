@@ -345,8 +345,13 @@ def _provenance_records(
 ) -> list:
     mode = state.get("generation_mode")
     is_model = mode == journal_mod.GENERATION_MODE_MODEL
-    # DETERMINISTIC sessions record no provider or model rather than placeholders,
-    # so they cannot be miscounted as model-generated.
+    # T036: only MODEL-mode artifacts carry a provider and model. A DETERMINISTIC
+    # session records None for both — never a placeholder string such as
+    # "deterministic" or "N/A" — so offline artifacts cannot be miscounted as
+    # model-generated. The keys stay present (set to None) rather than being
+    # omitted, because the pre-existing offline-parity test asserts
+    # `record["provider"] is None`; dropping the key would break a test this
+    # feature is forbidden from modifying.
     provider = state.get("llm_provider") if is_model else None
     model = state.get("llm_model") if is_model else None
     generated = state.get("generated_files", {}) or {}
@@ -359,6 +364,7 @@ def _provenance_records(
             "model": model,
             "instruction_set_revision": state.get("instruction_set_revision", ""),
             "attempt_ordinal": attempt_ordinal,
+            "created_at": journal_mod.now_iso(),
             "content_digest": artifact_digest(generated.get(rel_path, "")),
         }
         for rel_path in written
@@ -1017,11 +1023,36 @@ def run_stage(
     isolated = _isolate_state(state)
     mode = resolve_generation_mode(isolated)     # fails loudly when absent
     journal = _ensure_journal(isolated)
-    journal_mod.assert_within_budget(journal)
 
-    if mode == journal_mod.GENERATION_MODE_DETERMINISTIC:
-        return _run_deterministic_stage(isolated, stage, journal)
-    return _run_model_stage(isolated, stage, journal, api_key=api_key)
+    result = isolated
+    try:
+        journal_mod.assert_within_budget(journal)
+        if mode == journal_mod.GENERATION_MODE_DETERMINISTIC:
+            result = _run_deterministic_stage(isolated, stage, journal)
+        else:
+            result = _run_model_stage(isolated, stage, journal, api_key=api_key)
+    except journal_mod.JournalBudgetError as exc:
+        # T037: budget exhaustion terminates the session in the human-intervention
+        # state rather than escaping as an unhandled exception. The recorded
+        # history is kept intact.
+        _mark_human_intervention_required(isolated)
+        isolated["error"] = f"[{stage}] {exc}"
+        _append_log(
+            isolated,
+            f"[STAGE:{stage}] session request budget exhausted; human intervention required",
+        )
+        result = isolated
+    finally:
+        # T038: the journal is persisted on EVERY exit path — success, failure,
+        # exhaustion, and an exception propagating out of a stage — so the
+        # correction history survives beyond process life (SC-008). An exception
+        # still propagates; the finally block only guarantees the write happens.
+        journal_mod.persist_generation_journal(
+            session_id=result.get("session_id") or isolated.get("session_id"),
+            journal=journal,
+            provenance=result.get("artifact_provenance") or isolated.get("artifact_provenance"),
+        )
+    return result
 
 
 def run_stages(
