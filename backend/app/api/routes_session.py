@@ -23,6 +23,7 @@ from app.models.session import (
 from app.services.spec_service import get_specification
 from app.services.queue_service import queue_manager
 from app.orchestrator.graph import generation_graph
+from app.orchestrator.stages.runner import select_generation_mode
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
@@ -92,6 +93,23 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
         ws_path = str(Path(settings.WORKSPACE_DIR) / session_id)
         Path(ws_path).mkdir(parents=True, exist_ok=True)
 
+        # 3b. Decide the generation mode ONCE, before the first stage runs, and
+        # record it in the generation state (T018). The graph's node callables
+        # are the retained deterministic implementations in this phase, so the
+        # recorded mode is not yet consumed on this path (T020 is deferred — see
+        # the feature's completion report); recording it here makes the decision
+        # auditable and prepares the graph path for the same seam the sequential
+        # path already uses.
+        mode_selection = select_generation_mode()
+        instruction_revision = ""
+        try:
+            from app.orchestrator.stages.instructions import load_instruction_set
+            instruction_revision = load_instruction_set().revision
+        except Exception:  # noqa: BLE001
+            # Deterministic sessions do not read instructions, so an unloadable
+            # set must not break the offline path.
+            instruction_revision = ""
+
         initial_state = {
             "session_id": session_id,
             "blueprint": blueprint_dict,
@@ -101,7 +119,11 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
             "repair_attempts": 0,
             "max_repair_attempts": settings.MAX_REPAIR_ATTEMPTS,
             "logs": [],
-            "status": "RUNNING"
+            "status": "RUNNING",
+            "generation_mode": mode_selection.mode,
+            "instruction_set_revision": instruction_revision,
+            "llm_provider": mode_selection.provider,
+            "llm_model": mode_selection.model,
         }
 
         def run_graph_with_streaming():

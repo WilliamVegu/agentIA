@@ -46,6 +46,12 @@ class GenerationSessionDB(Base):
     current_lifecycle_phase = Column(String(50), nullable=True, default="INITIAL")
     lifecycle_mode = Column(String(50), nullable=True, default="GUIDED_STEP")
     phase_progress_json = Column(Text, nullable=True)
+    # Feature 011 additive storage (T013). Deliberately NEW columns rather than
+    # reuse of phase_progress_json: the specification does not permit assuming an
+    # existing column changes meaning. Records provider and model identifiers only
+    # — never credentials (FR-018, Constitution VI).
+    generation_journal_json = Column(Text, nullable=True)
+    artifact_provenance_json = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -71,6 +77,31 @@ def _ensure_sqlite_lifecycle_columns():
         pass
 
 _ensure_sqlite_lifecycle_columns()
+
+
+def _ensure_generation_columns():
+    """Additive SQLite migration for the feature-011 generation journal and
+    provenance columns (T013). Mirrors the lifecycle shim above so an existing
+    studio.db picks up the new columns without a migration tool.
+
+    Purely additive: no existing column is dropped, retyped, or repurposed, and
+    phase_progress_json keeps its existing meaning.
+    """
+    try:
+        with engine.connect() as conn:
+            res = conn.execute(text("PRAGMA table_info(generation_sessions)")).fetchall()
+            existing_cols = [r[1] for r in res]
+            if existing_cols:
+                if "generation_journal_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN generation_journal_json TEXT"))
+                if "artifact_provenance_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN artifact_provenance_json TEXT"))
+                conn.commit()
+    except Exception:
+        pass
+
+
+_ensure_generation_columns()
 
 from pydantic import BaseModel, Field, ConfigDict
 

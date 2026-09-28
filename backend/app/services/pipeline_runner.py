@@ -35,11 +35,16 @@ from app.services.requirements_service import (
 )
 from app.services.architecture_service import design_architecture, ArchitectureDesignRequest
 from app.services.model_sql_service import model_sql_service
-from app.orchestrator.nodes.scaffolder_node import scaffolder_node
-from app.orchestrator.nodes.domain_node import domain_node
-from app.orchestrator.nodes.service_node import service_node
-from app.orchestrator.nodes.controller_node import controller_node
-from app.orchestrator.nodes.test_node import test_node
+# Feature 011 (T019): the sequential path now dispatches through the stage
+# execution boundary instead of calling the five node callables directly. The
+# boundary owns mode selection, budgeting, gating and provenance; the retained
+# node implementations are reached through it and remain unmodified.
+from app.orchestrator.stages import journal as generation_journal
+from app.orchestrator.stages.runner import (
+    STAGE_ORDER as GENERATION_STAGE_ORDER,
+    run_stages as run_generation_stages,
+    select_generation_mode,
+)
 
 # Thread-safe in-memory tracking
 _active_threads: Dict[str, threading.Thread] = {}
@@ -258,6 +263,37 @@ def _execute_pipeline_steps(
     active_model = "offline-mock" if is_mock else LLMFactory.resolve_model_name(detected_llm, model_name)
     llm_label = "Modo Mock (Offline)" if is_mock else f"Motor LLM: {detected_llm.upper()} ({active_model})"
 
+    # Feature 011 (T018): the generation mode is decided ONCE, here, before any
+    # stage runs, and recorded in the generation state. Deciding per stage would
+    # produce hybrid output (some artifacts template-shaped, some model-shaped)
+    # and make the SC-001/SC-002 comparisons uninterpretable.
+    mode_selection = select_generation_mode(
+        api_key=api_key,
+        provider=provider,
+        model_name=model_name,
+    )
+    generation_mode = mode_selection.mode
+    if generation_mode == generation_journal.GENERATION_MODE_MODEL:
+        model_provider: Optional[str] = mode_selection.provider
+        model_name_for_state: Optional[str] = mode_selection.model
+    else:
+        # A DETERMINISTIC session must record no provider or model, so it can
+        # never be miscounted as model-generated.
+        model_provider = None
+        model_name_for_state = None
+    instruction_revision = ""
+    try:
+        from app.orchestrator.stages.instructions import load_instruction_set
+        instruction_revision = load_instruction_set().revision
+    except Exception as exc:  # noqa: BLE001
+        # The deterministic path does not read instructions, so a missing or
+        # invalid instruction set must not break offline operation. In MODEL mode
+        # the boundary loads the set itself and fails loudly (invariant 11).
+        if generation_mode == generation_journal.GENERATION_MODE_MODEL:
+            raise
+        instruction_revision = ""
+        print(f"[WARN] instruction set not loaded for deterministic session: {exc}")
+
     db = SessionLocal()
     spec_name = "Microservicio"
     try:
@@ -360,12 +396,43 @@ def _execute_pipeline_steps(
                 "workspace_path": str(ws_path),
                 "generated_files": {},
                 "logs": [],
+                # Recorded once for the whole session (T018).
+                "generation_mode": generation_mode,
+                "instruction_set_revision": instruction_revision,
+                "llm_provider": model_provider,
+                "llm_model": model_name_for_state,
+                "llm_api_key": api_key,
             }
-            scaffolder_node(agent_state)
-            domain_node(agent_state)
-            service_node(agent_state)
-            controller_node(agent_state)
-            test_node(agent_state)
+            # T019 / research D8: consume the RETURNED state. The previous code
+            # called the five node callables and discarded their return values,
+            # which worked only because those nodes mutate the dicts retrieved
+            # from state in place. A model-driven stage that builds a fresh dict
+            # would have silently produced an empty workspace, surfacing as a
+            # downstream security-audit or DevOps anomaly rather than a
+            # generation bug.
+            agent_state = run_generation_stages(
+                agent_state,
+                stages=GENERATION_STAGE_ORDER,
+                api_key=api_key,
+            )
+            generated_count = len(agent_state.get("generated_files", {}) or {})
+            print(
+                f"[INFO] generation stages complete: mode={generation_mode}, "
+                f"artifacts={generated_count}, "
+                f"requests={(agent_state.get('generation_journal') or {}).get('total_requests', 0)}"
+            )
+            if agent_state.get("status") == "BLOCKED":
+                _emit_event(
+                    session_id,
+                    LifecyclePhase.CODE_TESTS,
+                    "Bloqueo por intervención humana requerida",
+                    75.0,
+                    agent_state.get("error") or "Generation stages blocked.",
+                    PhaseStatus.BLOCKED,
+                    error=agent_state.get("error"),
+                )
+                _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
+                return
         transition_phase(session_id, LifecyclePhase.CODE_TESTS, force=True)
         time.sleep(0.2)
 
