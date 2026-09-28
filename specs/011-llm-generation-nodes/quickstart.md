@@ -1,7 +1,7 @@
 # Quickstart: LLM-Driven Generation Stages
 
 **Feature**: LLM-Driven Generation Stages
-**Branch**: `skillopt_implementation`
+**Branch**: `feature/011-llm-generation-nodes`
 **Date**: 2026-09-28
 
 A validation and measurement guide. It documents *how to prove the feature works* and *how to measure the specified outcomes*. Implementation detail belongs in `tasks.md`.

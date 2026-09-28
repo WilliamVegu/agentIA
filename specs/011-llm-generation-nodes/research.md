@@ -1,7 +1,7 @@
 # Research & Technical Decisions: LLM-Driven Generation Stages
 
 **Feature**: LLM-Driven Generation Stages
-**Branch**: `skillopt_implementation`
+**Branch**: `feature/011-llm-generation-nodes`
 **Date**: 2026-09-28
 
 This is the Phase 0 decision log. Every entry resolves an unknown that would otherwise have become an implementation-time guess. Each records what was chosen, why, and what was rejected.

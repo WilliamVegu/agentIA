@@ -1,12 +1,14 @@
 # Feature Specification: LLM-Driven Generation Stages
 
-**Feature Branch**: `011-llm-generation-nodes`
+**Feature Branch**: `feature/011-llm-generation-nodes`
 
 **Created**: 2026-09-28
 
 **Status**: Draft
 
 **Input**: User description: "Migrate the five deterministic generation nodes to LLM-driven generation. The scaffolder, domain, service, controller, and test nodes currently emit Java from hardcoded Python f-strings. Each node SHALL instead invoke LLMFactory.get_chat_model() with a mechanism-explicit system prompt and SHALL pass the LLM response through the existing constitutional validators before writing files to disk."
+
+**Terminology**: this specification calls the five steps **stages**. They are implemented as the graph's `scaffolder`, `domain`, `service`, `controller`, and `test` node callables under `backend/app/orchestrator/nodes/`; the word "node" is used only when naming those callables. The `Input` field above preserves the requester's verbatim wording, which uses "nodes".
 
 ## Context
 
@@ -111,7 +113,7 @@ An operator investigating a quality regression can determine which provider, whi
 
 **Boundedness and cost**
 
-- **FR-015**: The system MUST enforce a documented maximum number of model requests per session — one initial request per generation stage plus at most two correction requests per stage — and MUST terminate the session in a human-intervention state when that budget is exhausted.
+- **FR-015**: The system MUST enforce a documented maximum number of model requests per session — **5 initial requests + 5 stages × 2 correction attempts = 15 requests per session** — and MUST terminate the session in a human-intervention state when that budget is exhausted.
 - **FR-016**: The system MUST NOT retry a stage indefinitely; every generation loop MUST be bounded and MUST surface a terminal state.
 
 **Safety**
@@ -146,17 +148,18 @@ An operator investigating a quality regression can determine which provider, whi
 
 ### Measurable Outcomes
 
+> **Retired criterion — SC-010.** The session-duration bound is withdrawn as unmeasurable. It previously required post-migration duration within 3× the pre-migration median; that median is **1.134 ms** of in-process string assembly with no I/O and no model call, while the migrated path performs network-bound model requests, so the ratio spans roughly four orders of magnitude and carries no information about the feature. The request-budget bound is owned by **SC-005** and is not restated. Duration is retained by the frozen baseline as diagnostic context only. The identifier `SC-010` is kept in this note so that references to it in the frozen baseline artifact remain resolvable. See [research.md](research.md) D14.
+
 - **SC-001**: For a blueprint declaring attribute-level constraints and acceptance scenarios, 100% of the generated entity and test artifacts exhibit at least one behavior traceable to the blueprint that the frozen pre-migration baseline could not produce for the same blueprint. Verified by comparing against the recorded baseline.
 - **SC-002**: Two blueprints that differ in declared constraints and scenarios produce generated sources that differ in the corresponding artifacts, while two blueprints that are identical in those respects produce sources of equivalent semantic content. Verified over a corpus of paired blueprints.
 - **SC-003**: Zero artifacts carrying a blocking compliance violation are written to a session workspace across a corpus of adversarial model responses covering every constitutional rule. Verified by fault injection at the model boundary.
-- **SC-004**: 100% of sessions run without model credentials complete successfully and produce a service that passes the existing offline build and test verification unchanged.
-- **SC-005**: No session observed over a 30-day window exceeds the generation request budget of five stage requests plus at most two correction requests per stage.
+- **SC-004**: 100% of sessions run without model credentials complete successfully and produce a service that passes a **direct workspace build** (`mvn test -o` run outside the platform's sandbox wrapper) **and the platform's own offline pytest suite**. The sandbox wrapper is deliberately not the pass criterion: it can report synthetic success without executing a build, so using it as the instrument would make this criterion unfalsifiable (plan.md Constraint 5, [research.md](research.md) D11).
+- **SC-005**: No session observed over a 30-day window exceeds the generation request budget of **15 requests per session** (5 initial requests + 5 stages × 2 correction attempts = 15).
 - **SC-006**: At least 99% of generated artifacts carry a complete provenance record (provider, model, instruction revision).
 - **SC-007**: For a fault-injection condition in which every model response is non-compliant, 100% of sessions terminate within the budget in a human-intervention state, with zero non-compliant artifacts persisted and zero unbounded retries.
 - **SC-008**: 100% of sessions that terminate in the human-intervention state retain the complete correction history for every stage that exhausted its correction budget — the violation set and model response for each of the two rejected attempts.
 - **SC-009**: A generation-stage correction exhaustion never consumes or reduces the sandbox repair loop's available attempts, verified by a session that reproduces the condition and inspects both counters.
-- **SC-010**: **Retired as a distinct criterion.** It previously bounded post-migration session duration at 3× the pre-migration median. That comparison is unmeasurable: the pre-migration median (1.134 ms) measures in-process string assembly with no I/O and no model call, while the migrated path performs network-bound model requests — the two quantities differ by orders of magnitude, so the ratio carries no information about the feature. The request-budget bound is owned by **SC-005** (no session exceeds 15 model calls) and is not restated here. Duration remains recorded by the baseline as a diagnostic, not as a criterion baseline. See [research.md](research.md) D14.
-- **SC-011**: The rate at which sessions require human intervention does not exceed **15%**, measured over at least 30 sessions. This is an **absolute post-migration threshold**, deliberately not a comparison against a pre-migration baseline — the frozen baseline captures only the generation stages, so it cannot supply a session-level intervention rate (see the limitations section of [`reports/baselines/011-pre-migration-generation-baseline.md`](../../reports/baselines/011-pre-migration-generation-baseline.md)). See [research.md](research.md) D14.
+- **SC-011**: **Blocked terminal sessions divided by all terminal sessions** does not exceed **15%**, measured over at least 30 sessions. Numerator and denominator are stated explicitly so the rate is unambiguous: a session counts in the numerator only if it reaches a terminal state requiring human intervention, and in the denominator if it reaches any terminal state. Sessions that never terminate are excluded from both. This is an **absolute post-migration threshold**, deliberately not a comparison against a pre-migration baseline — the frozen baseline captures only the generation stages, so it cannot supply a session-level intervention rate (see the limitations section of [`reports/baselines/011-pre-migration-generation-baseline.md`](../../reports/baselines/011-pre-migration-generation-baseline.md)). See [research.md](research.md) D14.
 
 ## Assumptions
 

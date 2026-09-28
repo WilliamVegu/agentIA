@@ -1,7 +1,7 @@
 # Data Model: LLM-Driven Generation Stages
 
 **Feature**: LLM-Driven Generation Stages
-**Branch**: `skillopt_implementation`
+**Branch**: `feature/011-llm-generation-nodes`
 **Date**: 2026-09-28
 
 Entities are described at the design level: fields, types, validation rules, and relationships. Physical storage details are deliberately deferred to `/speckit-tasks`. Where an entity extends existing session state, the extension is marked **additive**.

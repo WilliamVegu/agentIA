@@ -1,6 +1,6 @@
 # Implementation Plan: LLM-Driven Generation Stages
 
-**Branch**: `skillopt_implementation` | **Date**: 2026-09-28 | **Spec**: [spec.md](spec.md)
+**Branch**: `feature/011-llm-generation-nodes` | **Date**: 2026-09-28 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/011-llm-generation-nodes/spec.md`
 
@@ -14,7 +14,7 @@ The platform's five generation stages currently produce Java from hardcoded temp
 
 The plan introduces **one new integration seam** — a *stage execution boundary* — that both of the platform's disjoint execution paths call. Each stage becomes a pair of interchangeable implementations behind that seam: a model-driven implementation (new) and the existing deterministic implementation (retained verbatim as the offline fallback). The seam owns the concerns that must not be duplicated per stage: mode selection, request/correction budgeting, validation gating, provenance recording, and correction-journal retention.
 
-Five constraints from the user shape the sequencing. In particular, **the pre-migration baseline is captured before any stage is migrated**, because three of the specification's success criteria are defined relative to it.
+Five constraints from the user shape the sequencing. In particular, **the pre-migration baseline is captured before any stage is migrated**, because two of the specification's success criteria (SC-001 and SC-002) are defined relative to it.
 
 ## Technical Context
 
@@ -46,10 +46,10 @@ Five constraints from the user shape the sequencing. In particular, **the pre-mi
 | **II. Immutable Contracts & Early Validation** | Request/response contracts must remain immutable records with declarative validation. Same mechanism: pre-persistence gate. | **PASS** |
 | **III. Centralized Error Handling** | A global error handler must exist; this is a whole-project rule, which is why validation evaluates the accumulated artifact set (FR-005) and why FR-006 distinguishes local from accumulated violations. | **PASS** |
 | **IV. Offline-First Determinism & Sandbox Isolation** | **Tension.** The feature introduces a network-dependent, non-deterministic generation step into a platform whose constitution mandates determinism. Justified by three mitigations: (a) the *build and verification* remain 100% hermetic — generation precedes them and does not touch the sandbox; (b) offline operation is preserved intact as the fallback path (FR-013), so a credential-free deployment behaves exactly as today; (c) generated build configuration is barred from declaring dependencies outside the pre-cached set (FR-017), which is the specific way a non-deterministic generator could break hermeticity. | **PASS (justified)** |
-| **V. Quality Gates & Bounded Self-Repair** | **Tension — and a governance question, not just a technical one.** The constitution fixes autonomous correction at exactly three iterations. This feature adds a *separate* budget of two generation-stage correction attempts. The intended reading is that Principle V's cap governs the **build/test-driven repair loop** — corrections guided by a Maven stack trace — and that pre-persistence validation retry is a different loop with a different trigger. FR-009/FR-010 enforce that the two never share a counter. **A strict reading of Principle V as a global autonomy budget would make this an amendment, not an implementation.** Flagged in Complexity Tracking. Note also that the codebase already drifts here (the repair cap is configured at 5 while the constitution, README, and baseline report all state 3), so the project has precedent for treating the configured value as authoritative — which is itself an unresolved governance question this plan does not resolve. | **PASS (justified, amendment may be required)** |
+| **V. Quality Gates & Bounded Self-Repair** | **Tension — resolved by construction, per [research.md](research.md) D12.** The constitution fixes autonomous correction at exactly three iterations, but it specifies both the trigger ("fallos de compilación o aserción en pruebas") and the guidance source ("exclusivamente el stack trace emitido por Maven"). Both are specific, and neither matches the generation-stage correction loop, whose trigger is a compliance verdict and whose guidance source is the constitutional violation set. Principle V therefore bounds the **build/test-driven repair loop only**; the generation-stage correction loop sits outside its scope by construction, so **no amendment is required**. FR-009/FR-010 enforce that the two counters remain independent, which follows directly from their having different triggers and guidance sources. (The separate pre-existing drift between the constitution's cap of 3 and the configured 5 is tracked as an SC-011 measurement confound in the risks table below, not as a Principle V conflict.) | **PASS (justified by construction — D12)** |
 | **VI. Secret Safety & Orchestrator Boundary** | Three sub-obligations, all satisfiable. *Zero hardcoded secrets*: provenance records provider and model identifier but never credentials — an explicit requirement to carry into tasks. *LangGraph boundary*: generation stays in the orchestrator, outside the generated artifact. *Zero LLM network calls in tests*: the generated service contains no model client, and the platform's own model-path tests must use a scripted fake client — never a live call. This last point is a hard test-strategy obligation on this feature, not an aspiration. | **PASS** |
 
-**Gate verdict**: All six principles satisfied. Two require recorded justification (IV, V) and one (V) carries an open governance question. No principle is violated outright, so the gate passes and work proceeds; the V question is surfaced to the user rather than silently resolved.
+**Gate verdict**: All six principles satisfied. Principle IV requires recorded justification; Principle V is satisfied **by construction** under the scope established in [research.md](research.md) D12. No principle is violated and no amendment is required, so the gate passes and work proceeds.
 
 ## Project Structure
 
@@ -104,14 +104,14 @@ reports/
     └── 011-pre-migration-generation-baseline.md     # NEW — human-readable
 ```
 
-**Structure Decision**: The stage execution boundary is a new package under `backend/app/orchestrator/` because it orchestrates stages and owns session-scoped policy — it is agent-side control-plane logic, which keeps it on the correct side of the LangGraph boundary (Principle VI). Instruction resources live under `backend/app/resources/instructions/`, following the existing `cve_database.json` loader precedent that `specs/010-skill-injection/plan.md` also cites, and deliberately **separate from** `backend/app/resources/skills/` so this feature does not collide with the skill-injection work. The baseline is captured to `reports/baselines/` in both machine-readable and human-readable form because three success criteria depend on it and one of them (SC-001) requires content-level comparison.
+**Structure Decision**: The stage execution boundary is a new package under `backend/app/orchestrator/` because it orchestrates stages and owns session-scoped policy — it is agent-side control-plane logic, which keeps it on the correct side of the LangGraph boundary (Principle VI). Instruction resources live under `backend/app/resources/instructions/`, following the existing `cve_database.json` loader precedent that `specs/010-skill-injection/plan.md` also cites, and deliberately **separate from** `backend/app/resources/skills/` so this feature does not collide with the skill-injection work. The baseline is captured to `reports/baselines/` in both machine-readable and human-readable form because two success criteria (SC-001 and SC-002) depend on it and one of them (SC-001) requires content-level comparison.
 
 ## Complexity Tracking
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
 | Network-dependent, non-deterministic generation step in an offline-first platform (Principle IV) | FR-001 requires model-driven synthesis; the feature's entire value is that blueprint semantics survive into code, which fixed templates cannot do. | Making generation deterministic by pinning model output was rejected: it would require caching every blueprint→source mapping, which reintroduces templates under a different name. Retaining the deterministic path as an automatic fallback for credential-free deployments (FR-013) preserves the offline guarantee where it actually matters. |
-| A second autonomous-correction budget (Principle V), capped at 2, separate from the repair loop's cap | FR-008 requires bounded recovery from a rejected generation response. Without a correction attempt, every non-compliant model response blocks the session, which SC-011's absolute 15% intervention ceiling cannot tolerate. | Reusing the repair loop's counter was rejected and is explicitly forbidden by FR-009: the two loops have different triggers (compliance verdict vs. Maven stack trace), different units of work (a stage's artifact set vs. a surgical patch), and different failure semantics. Sharing a counter would let a stage's validation churn consume the budget that exists to recover from real build failures. **Open governance question**: whether Principle V's cap is a *global* autonomy budget (requiring a constitution amendment) or the build-repair loop's cap (making this compliant). Surfaced to the user; not resolved here. |
+| A second autonomous-correction budget (Principle V), capped at 2, separate from the repair loop's cap | FR-008 requires bounded recovery from a rejected generation response. Without a correction attempt, every non-compliant model response blocks the session, which SC-011's absolute 15% intervention ceiling cannot tolerate. | Reusing the repair loop's counter was rejected and is explicitly forbidden by FR-009: the two loops have different triggers (compliance verdict vs. Maven stack trace), different units of work (a stage's artifact set vs. a surgical patch), and different failure semantics. Sharing a counter would let a stage's validation churn consume the budget that exists to recover from real build failures. **Principle V's scope is settled, not open**: [research.md](research.md) D12 establishes from the constitution's own trigger and guidance-source wording that the cap bounds the build-repair loop, so this second budget sits outside it by construction and no amendment is required. |
 
 ## Migration Strategy
 
@@ -202,8 +202,8 @@ Its status in this plan is a **measurement dependency**, recorded here so the me
 
 ### Phase 0 — Baseline capture *(blocking gate)*
 
-- [ ] Author the baseline capture script and the frozen blueprint corpus.
-- [ ] Capture the pre-migration baseline and commit both artifacts.
+- [x] Author the baseline capture script and the frozen blueprint corpus. *(T008, T009 — committed in `89a900b`.)*
+- [x] Capture the pre-migration baseline and commit both artifacts. *(T010 — committed in `89a900b`; artifacts at `reports/baselines/011-pre-migration-generation-baseline.{json,md}`.)*
 - [x] Confirm the captured baseline adequately supports SC-001 and SC-002 (content-level comparison available for the designated subset, not hashes alone). SC-010 and SC-011 no longer depend on it — the former retired, the latter reframed as an absolute threshold ([research.md](research.md) D14). *Completed at T010.*
 - [ ] **Gate**: no stage migration may begin until this is complete and reviewed.
 
@@ -235,16 +235,18 @@ Its status in this plan is a **measurement dependency**, recorded here so the me
 ### Phase 4 — Measurement
 
 - [ ] Evaluate SC-001 and SC-002 against the frozen baseline.
-- [ ] Evaluate SC-005 through SC-009 by fault injection at the model boundary.
-- [ ] Evaluate SC-005 (request budget) and SC-011 (≤ 15% intervention over at least 30 sessions), using direct workspace builds (not the sandbox wrapper) for any correctness claim. SC-010 is retired and needs no evaluation.
-- [ ] Re-evaluate the Constitution Check post-implementation, with particular attention to Principle V's open governance question.
+- [ ] Evaluate SC-003, SC-007, and SC-008 by **fault injection at the model boundary**.
+- [ ] Evaluate SC-005, SC-006, and SC-009 by **instrumentation over normal session runs**. These are request-budget, provenance-completeness, and counter-independence criteria; none is a fault-injection property, and grouping them under fault injection would yield checks that cannot fail for the right reason.
+- [ ] Evaluate SC-011 — **blocked terminal sessions ÷ all terminal sessions** ≤ 15%, over at least 30 sessions — using direct workspace builds (not the sandbox wrapper) for any correctness claim. SC-010 is retired and needs no evaluation.
+- [ ] Re-evaluate the Constitution Check post-implementation, confirming that the Principle V scope recorded in [research.md](research.md) D12 still holds and that no new principle is implicated.
 
 ## Dependencies & Measurement Risks
 
 | Item | Nature | Effect on this plan |
 |---|---|---|
 | Sandbox verifier synthetic-success fallback | **Separate bug, not a deliverable** | Forces model-boundary fault injection and direct-build verification; biases SC-011 (absolute ≤ 15% ceiling) in the permissive direction |
-| Constitution Principle V cap ambiguity (3 documented vs. 5 configured) | **Open governance question** | The generation correction budget of 2 is compliant under the build-repair reading; the global-budget reading requires an amendment. Flagged, not resolved |
+| Constitution Principle V scope (generation loop outside the build-repair cap) | **Settled — [research.md](research.md) D12** | The generation correction budget of 2 sits outside Principle V by construction: different trigger, different guidance source. No amendment required |
+| **Repair-cap drift** (constitution says 3, `config.py` says 5) | **Measurement confound for SC-011** | A cap of 5 yields more repair attempts, lowering observed interventions and **flattering an absolute 15% ceiling**. Mitigation: record the effective cap in the measurement artifact; if it is 5, note the lowered floor in the interpretation |
 | Two overlapping constitutional validator implementations | Pre-existing, explicitly out of scope (spec assumption) | A normalization adapter is required at the seam; the validators' internal inconsistency is not repaired here |
 | The existing node callables are covered by tests asserting template-specific strings | Pre-existing test contract | Those tests become the offline-path suite and must keep passing unchanged; they must not be rewritten to accommodate model output |
 | Path B performs no sandbox verification or repair | Pre-existing gap, out of scope | Must not be "fixed" as a side effect; FR-023 keeps it as-is |
@@ -254,7 +256,7 @@ Its status in this plan is a **measurement dependency**, recorded here so the me
 
 *Re-evaluated after Phase 1 design (`research.md`, `data-model.md`, `contracts/`).*
 
-The gate verdict is **unchanged: all six principles satisfied**, with the same two recorded justifications (IV, V) and the same open governance question on V. Design decisions surfaced four items that were not visible at the pre-design gate; none changes the verdict, and all four are recorded here so they are not rediscovered during implementation.
+The gate verdict is **unchanged: all six principles satisfied**, with the Principle IV justification recorded and Principle V satisfied by construction under the scope settled in [research.md](research.md) D12. Design decisions surfaced four items that were not visible at the pre-design gate; none changes the verdict, and all four are recorded here so they are not rediscovered during implementation.
 
 | Design decision | Constitutional bearing | Assessment |
 |---|---|---|
@@ -263,4 +265,4 @@ The gate verdict is **unchanged: all six principles satisfied**, with the same t
 | **Generation journal and provenance records are persisted additively** (`data-model.md` §4) | Principle VI — zero hardcoded secrets | Compliant provided the journal never records credentials — an explicit invariant (data-model §7.6) and an explicit load-bearing absence: provider and model identifiers are recorded, API keys are not. Tasks must treat this as a requirement, not a default. |
 | **The seam lives under `backend/app/orchestrator/`** (`plan.md` Project Structure) | Principle VI — LangGraph boundary | Compliant. The seam is control-plane logic and must not become a dependency of the generated artifact. Placement in the orchestrator keeps it on the correct side; a placement under `services/` would have invited leakage into the generated dependency surface. |
 
-**No new violations. No Complexity Tracking entries added.** The two entries recorded at the pre-design gate remain the only ones, and the Principle V question remains surfaced rather than resolved.
+**No new violations. No Complexity Tracking entries added.** The two entries recorded at the pre-design gate remain the only ones, and the Principle V scope is settled in [research.md](research.md) D12 rather than left open.
