@@ -86,21 +86,39 @@ export ALLOW_HERMETIC_FALLBACK=true
 
 ---
 
-## Scenario 3 — Docker present, warmed cache (SC-003) — **NOT RUNNABLE ON THIS HOST**
+## Scenario 3 — Docker present, warmed cache (SC-003) — **TESTABLE ON THIS HOST**
 
 **Purpose**: prove a real build actually runs when it can, with no substitution.
 
-**Setup requires a host where `docker info` succeeds** and `~/.m2/repository` is warm (measured at 178 MB / 372 artifacts at the time of writing).
+**Setup**: a `podman` backend behind the `docker` CLI shim, with `~/.m2/repository` warm (178 MB / 372 artifacts, including `surefire-junit-platform-3.1.2.jar`).
 
-**Action**: run a session to the sandbox step on such a host.
+**Precondition check — do this first**:
+
+```bash
+docker info >/dev/null 2>&1 && echo "runtime reachable" || echo "runtime NOT reachable from this shell"
+```
+
+If this prints `NOT reachable` while the socket exists, you are in a shell whose sandbox makes the runtime's state directory read-only — see the caveat below. That is **not** the same as the daemon being absent, and it does **not** make the criterion fail.
+
+**Action**: run a session to the sandbox step, twice — once against a workspace whose tests pass and once against one whose tests fail.
 
 **Expected**:
 
 - The real `mvn test -o` path executes inside the container.
-- `fallback_used == False`.
-- No synthetic result is substituted; captured output is the genuine Maven output.
+- `fallback_used == False` on both runs.
+- The passing workspace reports success with the **genuine** Maven output; the failing workspace reports failure. The pass/fail pair is the substance of SC-003: it proves the verifier can still tell a real pass from a real fail once the synthetic path is closed.
+- No synthetic result is substituted.
 
-**On this host**: record this criterion as **deferred/unverified**, per research.md D10. Do not report it as satisfied. An unrecorded gap is indistinguishable from a satisfied criterion — which is the failure mode this whole feature exists to remove.
+### Caveat — the invoking shell, not the host
+
+The runtime writes into its state directory (`/run/user/<uid>/libpod`) before serving any request. Under a restricted file sandbox that path is read-only and **every** `docker` invocation fails, so `check_docker_daemon()` returns `False` and the sandbox step honestly reports a fallback. Observed under such a sandbox:
+
+```
+Error: acquiring runtime init lock: open /run/user/1000/libpod/tmp/alive.lck:
+read-only file system
+```
+
+If you hit this, SC-003 is **not verified by you**. Verify it from a shell that can reach the runtime, or explicitly grant that access. Do **not** mark it satisfied from someone else's report — asserting an unobserved result is exactly the failure this feature exists to remove.
 
 ---
 
@@ -189,7 +207,7 @@ git diff --stat HEAD -- backend/tests/test_docker_runner.py
 
 - [ ] Scenario 1 passes (SC-001)
 - [ ] Scenario 2 passes (SC-002)
-- [ ] Scenario 3 **verified on a host with a working daemon, or explicitly recorded as deferred** (SC-003)
+- [ ] Scenario 3 verified from a shell that can reach the runtime (SC-003); if the shell could not reach it, recorded as **not verified by the implementer** rather than assumed
 - [ ] Scenario 4 passes; offline path unmodified (SC-004)
 - [ ] Scenario 5 passes on all three surfaces (SC-005)
 - [ ] Scenario 6 passes; excluded count recorded (SC-006)

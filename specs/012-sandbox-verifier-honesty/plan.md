@@ -98,7 +98,7 @@ backend/app/orchestrator/graph.py          # UNCHANGED — see research.md D4
 
 **Structure Decision**: The change is confined to the backend verification path. The existing `backend/app/sandbox/` package owns the subprocess/Docker concern, `backend/app/orchestrator/nodes/sandbox_node.py` owns the state transition, and `backend/app/models/` owns the two response contracts. No new package is introduced; no frontend change is required (the detail endpoint's new field is additive and optional).
 
-**Branch Note**: the working branch is still `feature/011-llm-generation-nodes`. Feature 012 is a follow-up fix to work discovered during 011's Phase 6 verification. No `before_specify` hook ran (`.specify/extensions.yml` is absent), so no branch was created. If 012 should live on its own branch, create it before implementation begins.
+**Branch Note — deliberate exception, recorded**: feature 012 stays on `feature/011-llm-generation-nodes`. Both features are a stacked change in one arc and neither has merged to `main`. No `before_specify` hook ran (`.specify/extensions.yml` is absent), so no branch was created. The isolation requirement that motivated per-feature branching — that `main` stays untouched until review — is preserved by the stack never merging partially. See [constitution-recheck.md](constitution-recheck.md) for the recorded exception.
 
 ## Phase 0 — Research
 

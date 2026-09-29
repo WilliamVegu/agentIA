@@ -146,24 +146,29 @@ They cannot "keep passing unchanged" while FR-001 holds. Re-pointing rather than
 
 ---
 
-## D10 — SC-003 cannot be verified on the development host
+## D10 — SC-003 is testable on the development host; the invoking shell is the variable
 
-**Decision**: SC-003 (real runtime present, warmed cache → real build, `fallback_used = False`) is recorded as **deferred/unverified** unless a host with a working container runtime is available. It is never claimed on the strength of the current host.
+**Decision (updated)**: SC-003 (runtime present, warmed cache → real build, `fallback_used = False`) is **testable on this host**. It is **no longer recorded as deferred**.
 
-**Rationale**: Measured during specification. The host has a `podman-docker` CLI shim, but it fails to initialise:
+**Update rationale**: the runtime is now working. Confirmed evidence: the user socket is listening; `docker run` against the build image succeeds; an offline build with a passing test reports `Tests run: 1, Failures: 0` → success, and with a failing test reports `Tests run: 1, Failures: 1` → failure; and the local cache contains `surefire-junit-platform-3.1.2.jar`, the provider the offline build needs. Critically, the passing/failing pair proves the verifier can now distinguish a real pass from a real fail — which is the whole basis of SC-003.
+
+**The remaining variable is the invoking shell, not the host.** The runtime writes into its state directory (`/run/user/<uid>/libpod`) before serving any request. When that path is read-only — as it is under a restricted file sandbox — every `docker` invocation fails with a configuration error, and `check_docker_daemon()` therefore returns `False`. Observed directly:
 
 ```
 Failed to obtain podman configuration: set sticky bit on:
 chmod /run/user/1000/libpod: read-only file system
+Error: acquiring runtime init lock: open /run/user/1000/libpod/tmp/alive.lck:
+read-only file system
 ```
 
-`check_docker_daemon()` runs `docker info` with a 2-second timeout and returns `False` on any non-zero exit, so the platform correctly reports the daemon as unavailable. `~/.m2/repository` is warming as expected (178 MB, 372 artifacts), but a warm cache without a runtime still cannot build.
+This is a property of the sandbox the command runs in, not of the daemon's availability.
 
-**Consequence for planning**: SC-001, SC-002, SC-004, and SC-005 are fully testable on this host (they need the daemon to be *absent*, which it is). SC-003 needs a host where `docker info` succeeds. The quickstart marks it explicitly so the gap cannot be mistaken for a pass.
+**Consequence for planning**: SC-001, SC-002, SC-004, and SC-005 need the daemon to be *absent* and are testable anywhere. **SC-003 needs a shell that can reach the runtime.** An automated implementer running under a restricted sandbox may be unable to execute it; when that happens the criterion must be reported as **not verified by me**, and verified from a capable shell — never inferred from a second-hand report. This is the same standard the feature imposes on the verifier itself, applied to the verification of the feature.
 
 **Alternatives considered**:
-- *Treat the shim as "Docker present" and assert a real build.* Rejected outright: it would fail, and asserting around the failure would be the same dishonesty this feature exists to remove.
-- *Skip SC-003 silently.* Rejected: an unrecorded gap is indistinguishable from a satisfied one.
+- *Keep SC-003 recorded as deferred.* Rejected: it is now achievable, and a stale deferral is its own inaccuracy.
+- *Mark SC-003 satisfied from the reported evidence.* Rejected: the evidence is credible and consistent with what the socket and cache show, but this feature exists precisely to stop results being asserted without being observed.
+- *Treat a read-only runtime directory as "Docker absent".* Rejected: it would conflate an agent-shell permission problem with a genuine daemon outage and produce a misleadingly honest-looking `fallback_used` result.
 
 ---
 
@@ -180,6 +185,6 @@ chmod /run/user/1000/libpod: read-only file system
 | D7 | Additive `verification_metrics_json` column + detail field | FR-005 |
 | D8 | Measurement harness filters on `fallback_used = False` | FR-008 |
 | D9 | `test_docker_runner.py` re-pointed at permissive mode (first task) | FR-001, FR-002 |
-| D10 | SC-003 recorded as deferred on this host | SC-003 |
+| D10 | SC-003 testable on this host; invoking shell is the variable | SC-003 |
 
 No open questions remain. All Technical Context unknowns are resolved.
