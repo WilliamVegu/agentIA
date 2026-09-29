@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1790704548.91306 "agentia_measurement_and_readiness.tex" "agentia_measurement_and_readiness.pdf" "agentia_measurement_and_readiness" 1790704549.43295 0
+["pdflatex"] 1790705045.74402 "agentia_measurement_and_readiness.tex" "agentia_measurement_and_readiness.pdf" "agentia_measurement_and_readiness" 1790705046.298 0
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecbx1095.tfm" 1136768653 3584 21b378cca2e40816b0e6d74a4dc98f04 ""
@@ -175,10 +175,10 @@
   "/usr/share/texlive/texmf-dist/web2c/texmf.cnf" 1733443200 41804 5963566f80e4d8fda58154e8d2446b1b ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1782745587 337438 7f818a43adc016769d464af8ef598666 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1784822999 1937935 1640daf02d0d2e8ea88044c163bbce10 ""
-  "agentia_measurement_and_readiness.aux" 1790704549.33182 1982 d89ddbe5fb684f82817193c0f8d3b204 "pdflatex"
-  "agentia_measurement_and_readiness.out" 1790704549.33282 2746 e111e39f984ad87c4478047cbf07ec49 "pdflatex"
-  "agentia_measurement_and_readiness.tex" 1790704544.87174 17585 f1ab4414fc24798ccef0dc48ca55cfc2 ""
-  "agentia_measurement_and_readiness.toc" 1790704549.33409 1129 b252db26a7fa93db3b90e8ff263f9481 "pdflatex"
+  "agentia_measurement_and_readiness.aux" 1790705046.20341 2020 1d0f1af0d502a61ae245de534d40881f "pdflatex"
+  "agentia_measurement_and_readiness.out" 1790705046.20341 2846 b28a0155f313a80891e2617ae1c623ea "pdflatex"
+  "agentia_measurement_and_readiness.tex" 1790705045.10095 18498 2899981b8e62d40fb76098c621af796a ""
+  "agentia_measurement_and_readiness.toc" 1790705046.20451 1148 86202771114e67709f84e70301776c47 "pdflatex"
   (generated)
   "agentia_measurement_and_readiness.aux"
   "agentia_measurement_and_readiness.log"

@@ -69,10 +69,12 @@ verification attempted. Costs are read from the platform's own store
 (\texttt{backend/cost\_tracking.db}) and independently confirmed in MLflow. Where a
 figure could not be measured, this document says so rather than estimating it.
 
-\textbf{The headline is a null result, and it is the most useful thing here.} A task
-corpus made ten times harder changed nothing: the generator satisfies every
-encodable rule on its first attempt, every time. That closes the optimization line
-structurally, and it redirects the effort to the one thing still unmeasured.
+\textbf{The headline is a null result.} A task corpus made ten times harder changed
+nothing: across 15 sessions and \textbf{75 stage runs the generator violated no
+encoded rule at all} --- not one local rejection, not one accumulated finding. That is
+a measurement about \emph{this model against this rule set}, and this document is
+explicit about how far it generalises: the surviving signal channel is narrow, and
+widening it is the experiment that would actually decide the optimization question.
 \end{notebox}
 
 \tableofcontents
@@ -120,7 +122,7 @@ Findings in the final artifact sets & none & \textbf{none} \\
 A corpus with ten times the structural complexity produced \emph{identical}
 conformance. The hypothesis ``the tasks are too easy'' is falsified.
 
-\subsection{Why the measure cannot vary, at any corpus size}
+\subsection{Why the surviving signal is narrow --- and what that does not mean}
 \label{sec:structural}
 
 This is structural, not statistical, and it is the finding that closes the
@@ -134,35 +136,36 @@ construction. The only findings that can survive into a saved set are
 \texttt{@RestControllerAdvice}), which the generator satisfies by emitting
 \texttt{GlobalExceptionHandler} in the controller stage.
 
-So the final-set conformance measure is pinned at 100 for **any session that
-generates at all**. The feature's own spec anticipated this and could not quantify
-it:
-
-\begin{notebox}
-``because stage-local violations are \textbf{blocked before persistence}, the
-findings that survive into a saved artifact set come from whole-project rules only,
-which is a \textbf{narrow} signal whose real-world variance is unmeasured.''
-\end{notebox}
-
-It is now measured. Variance is \textbf{zero}, at both levels of the signal:
+That channel is real, and it can vary. Removing the advice class from an otherwise
+compliant set:
 
 \begin{center}
-\begin{tabular}{@{}p{0.30\textwidth}p{0.62\textwidth}@{}}
+\begin{tabular}{@{}lrrl@{}}
 \toprule
-\textbf{Signal level} & \textbf{Observed across all 15 sessions} \\
+& \textbf{score} & \textbf{density} & \textbf{findings} \\
 \midrule
-Final artifact set & 100 / density 0.0 / zero findings, in every session \\
-Transient (per-stage introduction) & \emph{identical} in every session:
-\texttt{PRINCIPLE\_III\_CENTRALIZED\_ERRORS} $\times$ 3, the accumulated whole-project
-rule firing during the three stages that precede the controller \\
+advice present & 100 & 0.0 & none \\
+advice absent & \textbf{85} & \textbf{250.0} & \texttt{PRINCIPLE\_III\_CENTRALIZED\_ERRORS} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\textbf{Consequence for optimization.} An objective with no variance has no
-headroom. No corpus growth and no task difficulty can create it, because the gate
-removes the local signal before it is stored. Reflective skill optimization is
-therefore closed \emph{structurally}, not for want of samples.
+So the final-set measure is \emph{not} structurally pinned. What the runs show is that
+this model never omitted the advice class --- and never triggered a local rule either:
+zero rejections and zero accumulated findings across 75 stage runs.
+
+\textbf{The correct reading is narrower than ``the objective is degenerate'', and it has
+two parts.} \emph{Observed:} variance is zero on 15 real sessions across two corpora.
+\emph{Mechanism:} only the accumulated channel can carry variance, and that channel
+currently holds a single, easily satisfied rule. A null result from one rule is a
+\textbf{weak test of the hypothesis, not a refutation of it} --- and an earlier draft of
+this section claimed the stronger, wrong thing.
+
+\textbf{The experiment that would settle it:} widen the accumulated rule set with real
+whole-project invariants, then sweep task difficulty until the model begins to violate
+something. Only then is the variance question answered, and only then could an
+optimiser be evaluated. Note carefully where that change lives: in the \emph{harness}
+--- the counting rules --- which a round must never be able to reach (FR-014).
 
 \section{Result: cost and tokens per task}
 
@@ -348,7 +351,11 @@ P0 & Entry-point consistency & \texttt{POST /sessions} silently runs offline
 templates while quick-start runs the model; a client cannot tell which it received \\
 P1 & \textbf{Build pass rate} & the only remaining measurement. Run the corpus where
 the container works. Until then ``reliable'' is unfalsifiable \\
-P2 & Fix build failures in \emph{code} & if builds fail, the diagnostic channel names
+P2 & \textbf{Widen the accumulated rule set} & the only channel that can carry
+variance holds one easily satisfied rule. More whole-project invariants give the
+measure a range --- and the same sweep of task difficulty locates where the model
+starts to violate anything. This is the decisive experiment for the optimizer \\
+P2b & Fix build failures in \emph{code} & if builds fail, the diagnostic channel names
 the classes; systematic fixes belong in the harness, the instruction set or the
 dependency allowlist --- deterministic, reviewable, testable --- not in prose skills
 edited by a model \\
@@ -367,10 +374,11 @@ author or delete them \\
 \section{Recommendation}
 
 \begin{enumerate}[leftmargin=1.4em]
-  \item \textbf{Stop the skill-optimization line.} Not for cost --- it is
-  \$0.06/session --- but because the objective is structurally degenerate
-  (\S\ref{sec:structural}). Record it as closed on evidence, keep the components on
-  the shelf, and do not grow the corpus for it.
+  \item \textbf{Do not close the optimization line, and do not run it yet.} The null
+  result came from a channel holding one easily satisfied rule, which is a weak test,
+  not a refutation (\S\ref{sec:structural}). Running the optimizer now would be
+  optimising a two-point distribution. The decisive experiment is cheap and is
+  described in P2 below.
   \item \textbf{Make the two entry points agree} (P0). Quick-start reaches the
   model; \texttt{POST /sessions} silently does not. A client should not have to know
   which endpoint yields model output. It is a small wiring fix.
@@ -393,7 +401,8 @@ author or delete them \\
 The generator is reliable on the axis that was measured --- first-attempt
 rule-compliance, at \$0.064 per hard service --- but the axis that matters for
 production, whether the output builds and passes its tests, has not been measured
-once; and one of the application's two generation entry points never invokes the model
-at all.
+once; one of the application's two generation entry points never invokes the model;
+and the optimizer's null result came from a one-rule channel, which is too weak a test
+to close the question.
 
 \end{document}

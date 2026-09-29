@@ -1,6 +1,6 @@
 \contentsline {section}{\numberline {1}What was measured}{1}{section.1}%
 \contentsline {section}{\numberline {2}Result: the corpus was not the problem}{2}{section.2}%
-\contentsline {subsection}{\numberline {2.1}Why the measure cannot vary, at any corpus size}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.1}Why the surviving signal is narrow --- and what that does not mean}{2}{subsection.2.1}%
 \contentsline {section}{\numberline {3}Result: cost and tokens per task}{3}{section.3}%
 \contentsline {subsection}{\numberline {3.1}Hard ten --- per task}{3}{subsection.3.1}%
 \contentsline {subsection}{\numberline {3.2}Per-stage breakdown (one simple service)}{3}{subsection.3.2}%
