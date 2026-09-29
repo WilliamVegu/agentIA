@@ -184,37 +184,44 @@ def _cost_for(records: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Cost aggregate for these sessions, or None when no cost data exists.
 
     None is the honest answer. Returning zero would assert a measurement nobody
-    made — the same distinction feature 013's own report draws.
+    made -- the same distinction feature 013's own report draws.
+
+    Read through the cost store's OWN accessor, not through the session store's
+    engine. `model_calls` lives in the cost database, not the session database, so
+    querying it via SessionLocal fails and the failure was being swallowed into a
+    "no data" verdict while 15 priced calls sat in the store. That is the
+    measured-zero-versus-no-data confusion this feature exists to prevent, made in
+    the opposite direction.
     """
     if not records:
         return None
     try:
-        from app.models.session import SessionLocal
-        from app.services import cost_store  # type: ignore
+        from app.cost import store as store_mod
+
+        calls = store_mod.read_call_records()
     except Exception:
         return None
 
-    db = SessionLocal()
-    try:
-        rows = [
-            row
-            for row in db.execute(
-                # Read the aggregate only if the table exists and carries rows.
-                __import__("sqlalchemy").text(
-                    "SELECT session_id, total_cost_usd FROM session_costs"
-                )
-            )
-            if row[0] in {r["session_id"] for r in records}
-        ]
-    except Exception:
-        return None
-    finally:
-        db.close()
+    def _field(call, name):
+        return call.get(name) if isinstance(call, dict) else getattr(call, name, None)
 
-    if not rows:
+    wanted = {str(r.get("session_id")) for r in records}
+    mine = [c for c in calls if str(_field(c, "session_id")) in wanted]
+    if not mine:
         return None
-    total = sum(float(r[1] or 0.0) for r in rows)
-    return {"sessions_with_cost": len(rows), "total_usd": total}
+
+    priced = [c for c in mine if _field(c, "cost_usd") is not None]
+    if not priced:
+        # Calls exist but none could be priced: report the calls, not a cost.
+        return {"calls": len(mine), "calls_priced": 0, "total_usd": None}
+
+    return {
+        "calls": len(mine),
+        "calls_priced": len(priced),
+        "total_usd": sum(float(_field(c, "cost_usd")) for c in priced),
+        "input_tokens": sum(int(_field(c, "input_tokens") or 0) for c in mine),
+        "output_tokens": sum(int(_field(c, "output_tokens") or 0) for c in mine),
+    }
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

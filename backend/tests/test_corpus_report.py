@@ -312,3 +312,30 @@ def test_the_batch_labels_each_record_with_its_task(clean_batch_records):
         f"the batch did not label its records by task; got {report.distinct_tasks}"
     )
     assert report.untagged == 0
+
+
+# ---------------------------------------------------------------------------
+# Cost: read from the per-call store, and never rendered as zero
+# ---------------------------------------------------------------------------
+def test_a_priced_cost_is_rendered_as_a_figure():
+    records = [record("corpus-minimal")]
+    report = build_report(records, cost={
+        "calls": 15, "calls_priced": 15, "total_usd": 0.085295889,
+        "input_tokens": 26351, "output_tokens": 139679,
+    })
+
+    text = render_report(report)
+
+    assert "$0.0853" in text, "a priced cost was not rendered as a figure"
+    assert "15 priced calls" in text
+    assert "26,351 in" in text
+
+
+def test_calls_that_could_not_be_priced_are_not_reported_as_zero():
+    records = [record("corpus-minimal")]
+    report = build_report(records, cost={"calls": 3, "calls_priced": 0, "total_usd": None})
+
+    text = render_report(report)
+
+    assert "none priced" in text
+    assert "$0.0000" not in text, "unpriced calls were rendered as a cost of zero"

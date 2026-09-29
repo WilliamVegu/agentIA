@@ -29,9 +29,20 @@ def _cmd():
     )
 
 
-def test_the_default_command_carries_no_mount_suffix():
+def test_the_default_command_carries_no_mount_suffix(monkeypatch):
     """The default must be byte-identical to before the setting existed, so no
-    existing host changes behaviour."""
+    existing host changes behaviour.
+
+    Pinned explicitly rather than relying on the ambient value. The setting is
+    read from the environment, so a developer who sets DOCKER_MOUNT_SUFFIX in
+    backend/.env -- which is exactly what a host needing ':Z' must do -- would
+    otherwise make this test fail for a reason that has nothing to do with the
+    code. A test whose result depends on the operator's .env is not testing the
+    default.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "DOCKER_MOUNT_SUFFIX", "", raising=False)
     cmd = _cmd()
     workspace = cmd[cmd.index("-v") + 1]
     cache = cmd[cmd.index("-v", cmd.index("-v") + 1) + 1]

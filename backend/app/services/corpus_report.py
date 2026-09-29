@@ -197,8 +197,22 @@ def render_report(report: CorpusReport) -> str:
     if report.cost is None:
         lines.append("  cost                     : no data")
         lines.append("      No cost was recorded. This is not a cost of zero.")
+    elif report.cost.get("calls_priced", 0) == 0:
+        lines.append(f"  cost                     : {report.cost.get('calls', 0)} calls, "
+                     f"none priced")
+        lines.append("      Calls were recorded but none could be priced. That is not")
+        lines.append("      a cost of zero.")
     else:
-        lines.append(f"  cost                     : {report.cost}")
+        total = report.cost.get("total_usd") or 0.0
+        lines.append(f"  cost                     : ${total:.4f}"
+                     f"  ({report.cost['calls_priced']} priced calls)")
+        if report.cost.get("input_tokens") is not None:
+            lines.append(f"      tokens                 : "
+                         f"{report.cost['input_tokens']:,} in / "
+                         f"{report.cost['output_tokens']:,} out")
+        if report.cost["calls_priced"] != report.cost.get("calls"):
+            lines.append(f"      {report.cost['calls'] - report.cost['calls_priced']} call(s) "
+                         f"could not be priced and are excluded from the total")
 
     lines.append("")
     lines.append("  Note: excluded sessions contribute to no figure above.")
