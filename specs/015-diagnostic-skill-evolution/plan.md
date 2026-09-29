@@ -1,4 +1,13 @@
-# Implementation Plan: Diagnostic-Driven Skill Evolution
+# Implementation Plan: Session Diagnostics and Corpus Baseline
+
+> **Scope note (post-review).** The plan below was written for the original,
+> wider feature. Review split it: the **instrument and the corpus baseline are
+> built now**, and the **optimizer half is deferred** until the baseline exists
+> and shows that the conformance measure varies across real sessions. Everything
+> after "Implementation Posture" that concerns contribution measurement, loop
+> retargeting or pruning is therefore **queued, not scheduled**. The research,
+> data model and contracts remain valid and are retained deliberately, so the
+> deferred decision can be made quickly and against data.
 
 **Branch**: `feature/011-llm-generation-nodes` | **Date**: 2026-09-29 | **Spec**: [spec.md](spec.md)
 
@@ -6,15 +15,21 @@
 
 ## Summary
 
-Record what the platform already computes about a session's conformance, measure
-which individual skill earns its place, and retarget the existing optimization
-loop onto that evidence instead of a whole-corpus build pass rate.
+**In scope now**: make what the platform already computes about a session's
+conformance durable and attributable, then measure the corpus — how often
+generation succeeds, how often it blocks, what conformance its output achieves,
+how much correction effort it spends, and what it costs.
+
+**Deferred**: per-skill contribution measurement, retargeting the optimization
+loop, and skill removal. The deferred half is fully specified here but is not
+built until the baseline exists.
 
 Three things already exist and are reused rather than rebuilt: a deterministic
 conformance channel over both validator families (`conformance_diagnostics.diagnose`,
-shipped ahead of this plan), a complete optimization loop (feature 014), and
-per-stage conformance verdicts already carried on every stage journal entry. What
-is missing is persistence, attribution, and a finer-grained objective.
+shipped ahead of this plan), per-stage conformance verdicts already carried on
+every stage journal entry, and the feature-014 loop (retained, unused for now).
+What is missing for the in-scope half is persistence, attribution, a batch driver,
+and a report.
 
 ## Technical Context
 
@@ -124,9 +139,10 @@ backend/
 │   │   └── skillopt.py                   # existing — extended with the records
 │   └── services/
 │       ├── conformance_diagnostics.py    # EXISTS — the channel, shipped pre-plan
-│       └── skill_contribution.py         # NEW — contribution measurement
+│       └── corpus_report.py              # NEW — the baseline report
 ├── scripts/
 │   ├── measure_conformance_discrimination.py   # EXISTS
+│   ├── run_corpus_baseline.py            # NEW — batch driver (FR-008)
 │   └── skillopt/
 │       ├── collect.py                    # existing — retargeted onto diagnostics
 │       ├── reflect.py                    # existing — unchanged call path
@@ -135,14 +151,15 @@ backend/
 │       └── currency.py                   # NEW — evidence floor and pruning rule
 └── tests/
     ├── test_conformance_diagnostics.py   # EXISTS
-    ├── test_skill_contribution.py        # NEW
-    ├── test_skillopt_evidence.py         # NEW
-    └── test_skillopt_pruning.py          # NEW
+    ├── test_diagnostic_record.py         # NEW — persistence + per-stage attribution
+    └── test_corpus_report.py             # NEW — population, exclusions, no-data
 ```
 
 **Structure Decision**: extends the existing `backend/` web-service tree. The
 channel already exists as `services/conformance_diagnostics.py` and is not
-rebuilt. The contribution measurement belongs in `services/` beside it, since it
+rebuilt. The corpus report sits beside it in `services/`, since it summarises the
+same instrument's output. The batch driver is a script, not an orchestrator
+concern — it drives existing sessions and adds no node. The contribution measurement belongs in `services/` beside it, since it
 is a measurement over the same instrument rather than a stage concern. The
 pruning rule lives in `scripts/skillopt/` with the rest of the loop, because it
 is policy about rounds and not about the platform's runtime behaviour. Nothing is

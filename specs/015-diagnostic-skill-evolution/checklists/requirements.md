@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Diagnostic-Driven Skill Evolution
+# Specification Quality Checklist: Session Diagnostics and Corpus Baseline
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-09-29
@@ -31,52 +31,30 @@
 
 ## Notes
 
-**All items pass.** Two observations recorded rather than silently resolved.
+**All items pass.** The specification was rescoped after review, and the
+rescoping is the most important thing recorded here.
 
-**FR-017 (bounded skill count)** is a constraint rather than a user-facing
-behaviour, so it has no acceptance scenario of its own; it is verified directly
-against the documented limit during implementation. Every other functional
-requirement maps to at least one acceptance scenario or success criterion:
-FR-001–FR-005 and FR-018 to User Story 1 and SC-001–SC-003/SC-006/SC-011,
-FR-006–FR-009 and FR-019 to User Story 2 and SC-004/SC-005/SC-012,
-FR-010–FR-013 and FR-015/FR-016 to User Story 3 and SC-007–SC-009, and FR-014 to
-SC-010.
+**What changed and why.** The original feature bundled an instrument with an
+optimizer. Review separated them for three evidence-based reasons, all recorded in
+the spec's opening section: the optimizer has no baseline to improve on because no
+session has ever been measured; the conformance signal is narrower than assumed
+because stage-local violations are blocked before persistence; and the optimizer
+targets a lever the evidence ranks near the bottom while a cheaper, better-evidenced
+option is untouched.
 
-**FR-018 and FR-019 were added after the first review pass**, both prompted by an
-operator question about measuring per request rather than per session:
+A fourth reason was found by measurement rather than argument. An artifact set
+that the compliance gate **accepts** was shown to score **85 rather than 100** only
+when a whole-project rule is violated — evidence that the graded objective has
+some dynamic range, but from the whole-project rules alone. Whether real sessions
+vary at all on it is unmeasured, and the spec now makes measuring that the
+precondition for building the optimizer rather than an assumption behind it.
 
-- **FR-018 (per-stage attribution)** — the platform already computes a
-  conformance verdict per generation stage and stores it on the stage entry. It
-  was never persisted or surfaced, so the origin of a violation was lost when the
-  session ended. Recording it costs almost nothing and converts a session total
-  into an attributable profile: which stage introduced the defect. Note this does
-  **not** increase the evidence size — re-checking the same tasks repeatedly is
-  still the same number of distinct tasks (FR-009).
-- **FR-019 (comparability across sizes)** — the conformance measure was a raw
-  weighted count, so a larger service would score worse for being larger, and a
-  round pointed at it could improve the measure merely by generating less code.
-  That is a low-distinguishability verifier failure mode, and normalisation is
-  the guard against it.
+**FR coverage.** FR-001–FR-005 and FR-014 to User Story 1 and SC-001–SC-004;
+FR-006 and FR-007 to SC-002 and SC-009; FR-008–FR-013 and FR-015 to User Story 2
+and SC-005–SC-008.
 
-**On the oracle's own limits**, now recorded in the spec's Assumptions: it is a
-fixed, hand-written rule set, so a defect class nobody encoded scores clean; it
-measures conformance rather than correctness, so a well-layered but broken
-service scores full marks; and its use as an optimisation objective has no
-precedent in the reviewed literature, which gates on test execution or a language
-model's judgement instead. Its behaviour as an objective is to be measured.
-
-**The conformance-target decision is documented as a flagged assumption, not a
-clarification marker.** The scope of this feature turns on one question — whether
-the loop optimizes *conformance* or *build success* — and the two lead to
-different features. It was resolved from evidence rather than escalated, because
-the evidence is one-sided: build success is a binary whole-corpus outcome, and at
-the available task count the smallest detectable effect is far larger than any
-improvement a skill edit could plausibly produce, so a loop gated on it cannot
-demonstrate anything. Feature 014's own planning already conceded this. The
-assumption is marked in the spec with an instruction to confirm it before
-planning, so it is easy to overturn.
-
-**Deliberately excluded from scope**: authoring new task fixtures, training any
-model, changing what conformance means, and any UI surface for the records. Each
-is a separate feature; this one is the evidence layer plus the loop that consumes
-it.
+**Deliberately excluded from scope**: per-skill contribution measurement, loop
+retargeting, skill removal, and the round record. All are specified in the plan,
+data model and contracts and are marked deferred in the spec, so the work is not
+lost — it is queued behind data. Also excluded: authoring new task fixtures,
+training any model, and any UI surface for the records.
