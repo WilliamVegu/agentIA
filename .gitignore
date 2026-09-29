@@ -60,6 +60,11 @@ Thumbs.db
 # Generated test & execution workspaces
 backend/workspaces/*
 !backend/workspaces/.gitkeep
+# A workspace written at the repository root (e.g. by a script run from there).
+# Root-anchored deliberately: a bare `workspaces/` would also exclude the
+# backend/workspaces/ directory itself, which the negation above must be able to
+# re-include.
+/workspaces/
 
 # Pytest cache
 .pytest_cache/
@@ -79,3 +84,6 @@ slide_previews_ejempl/
 test_open.pptx
 
 
+
+# Local Maven cache warm-up project (feature 015)
+warmup/
