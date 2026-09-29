@@ -74,6 +74,8 @@ backend/app/resources/ca-bundle.pem
 
 # Node / Frontend
 node_modules/
+# Local npm cache (set explicitly so installs work inside the sandbox)
+frontend/.npm-cache/
 frontend/dist/
 frontend/.vite/
 frontend-legacy/.streamlit/
