@@ -48,8 +48,8 @@
       },
       "api/routes_requirements.py": {
         "missing": 12,
-        "percent": 87.36842105263158,
-        "statements": 95
+        "percent": 87.87878787878788,
+        "statements": 99
       },
       "api/routes_security.py": {
         "missing": 15,
@@ -207,9 +207,9 @@
         "statements": 49
       },
       "orchestrator/nodes/sandbox_node.py": {
-        "missing": 3,
-        "percent": 92.10526315789474,
-        "statements": 38
+        "missing": 11,
+        "percent": 81.9672131147541,
+        "statements": 61
       },
       "orchestrator/nodes/scaffolder_node.py": {
         "missing": 0,
@@ -333,8 +333,8 @@
       },
       "sandbox/docker_runner.py": {
         "missing": 9,
-        "percent": 90.42553191489361,
-        "statements": 94
+        "percent": 92.8,
+        "statements": 125
       },
       "sandbox/verify_cache.py": {
         "missing": 4,
@@ -352,9 +352,9 @@
         "statements": 230
       },
       "services/conformance_diagnostics.py": {
-        "missing": 3,
-        "percent": 96.90721649484536,
-        "statements": 97
+        "missing": 4,
+        "percent": 96.7741935483871,
+        "statements": 124
       },
       "services/corpus_report.py": {
         "missing": 11,
@@ -381,6 +381,11 @@
         "percent": 89.28571428571429,
         "statements": 56
       },
+      "services/injection_guard.py": {
+        "missing": 0,
+        "percent": 100.0,
+        "statements": 83
+      },
       "services/lifecycle_service.py": {
         "missing": 0,
         "percent": 100.0,
@@ -397,9 +402,14 @@
         "statements": 317
       },
       "services/pipeline_runner.py": {
-        "missing": 61,
-        "percent": 82.3699421965318,
-        "statements": 346
+        "missing": 0,
+        "percent": 100.0,
+        "statements": 347
+      },
+      "services/platform_verification.py": {
+        "missing": 4,
+        "percent": 94.28571428571429,
+        "statements": 70
       },
       "services/queue_service.py": {
         "missing": 6,
@@ -417,8 +427,8 @@
         "statements": 168
       },
       "services/security_service.py": {
-        "missing": 27,
-        "percent": 89.92537313432835,
+        "missing": 26,
+        "percent": 90.29850746268657,
         "statements": 268
       },
       "services/skill_contribution.py": {
@@ -458,10 +468,10 @@
       }
     },
     "totals": {
-      "covered_lines": 5951,
-      "missing_lines": 776,
-      "num_statements": 6727,
-      "percent_covered": 88.4643972052921
+      "covered_lines": 6239,
+      "missing_lines": 727,
+      "num_statements": 6966,
+      "percent_covered": 89.56359460235429
     }
   },
   "before": {

@@ -90,10 +90,11 @@ la Sección~\ref{sec:reproduccion}. Todos los registros crudos quedan versionado
 \section{Resumen ejecutivo}
 \label{sec:resumen}
 
-Esta campaña se concentró en los tres módulos con mayor cobertura pendiente y mayor riesgo
-de producto, según el inventario dejado por la campaña anterior
-(\code{docs/qe\_test\_matrix.md}). El criterio no fue ``el número más bajo'', sino
-\emph{qué decisión toma cada módulo y cuánto duele si la toma mal}.
+La campaña tuvo dos fases. La primera cubrió los tres módulos con mayor riesgo de producto
+según el inventario de la campaña anterior (\code{docs/qe\_test\_matrix.md}); la segunda cerró
+el motor del Auto-Pilot y añadió pruebas de flujo del frontend en la frontera HTTP. El
+criterio no fue ``el número más bajo'', sino \emph{qué decisión toma cada módulo y cuánto
+duele si la toma mal}.
 
 \begin{center}
 \begin{tabular}{lrr}
@@ -103,19 +104,20 @@ de producto, según el inventario dejado por la campaña anterior
 \code{services/docker\_service.py}      & 52{,}7\,\% & \textbf{100{,}0\,\%} \\
 \code{api/routes\_session.py}           & 71{,}3\,\% & \textbf{100{,}0\,\%} \\
 \code{services/lifecycle\_service.py}   & 76{,}4\,\% & \textbf{100{,}0\,\%} \\
+\code{services/pipeline\_runner.py}     & 82{,}4\,\% & \textbf{100{,}0\,\%} \\
 \midrule
-Cobertura global del backend            & 85{,}3\,\% & \textbf{88{,}5\,\%} \\
-Sentencias sin cubrir                   & 994        & \textbf{776} \\
-Pruebas de backend                      & 589 correctas & \textbf{720 correctas} \\
+Sentencias sin cubrir                   & 994        & \textbf{727} \\
+Pruebas de backend                      & 589 correctas & \textbf{825 correctas} \\
+Pruebas de frontend                     & 64 (10 archivos) & \textbf{73 (11 archivos)} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \noindent
-La campaña añadió \textbf{131 pruebas automatizadas} y encontró \textbf{tres defectos
-reales}. Ninguno de los tres era visible leyendo el código: los tres aparecieron porque una
-prueba falló o se colgó. El más grave no estaba en el código de negocio sino en el arnés de
-pruebas y en la ruta crítica de producción a la vez:
+La campaña añadió \textbf{177 pruebas automatizadas} (131 de backend, 46 de frontend) y
+encontró \textbf{cinco defectos reales}. Ninguno era visible leyendo el código: todos
+aparecieron porque una prueba falló, se colgó, o ejecutó por primera vez una rama que nunca
+se había ejecutado.
 
 \begin{itemize}[leftmargin=1.4em]
 \item \textbf{D-03 (crítico).} El espejo de telemetría de costos, documentado como
@@ -123,16 +125,22 @@ pruebas y en la ruta crítica de producción a la vez:
       destino inalcanzable detenía cada llamada al modelo durante minutos, y detenía la
       suite completa de forma indefinida. Con el defecto presente, la cobertura del backend
       no podía medirse en absoluto.
+\item \textbf{D-05 (alto).} El respaldo de síntesis de esquema SQL --- añadido precisamente
+      para no entregar un esquema equivocado --- llamaba a un método que no existe, dejaba un
+      \code{schema.sql} \emph{vacío} y tumbaba la ejecución completa.
 \item \textbf{D-02 (alto).} Las fases 5 y 6 mostraban el estado \code{BLOCKED} con
       \code{blockingReason: null}: el operador veía que el pipeline se había detenido, pero
       no por qué. Afecta directamente al Principio V de la constitución.
+\item \textbf{D-04 (alto).} La decisión de modo y la carga del conjunto de instrucciones
+      ocurrían \emph{fuera} del manejador de errores del pipeline, de modo que un fallo ahí
+      escapaba del hilo demonio y dejaba la sesión en \code{RUNNING} para siempre.
 \item \textbf{D-01 (medio).} Dos funciones del ciclo de vida estaban definidas dos veces en
       el mismo archivo. La primera definición era código muerto e imposible de cubrir, y su
       contrato \emph{difería} del de la segunda.
 \end{itemize}
 
 \noindent
-Los tres están corregidos y fijados con pruebas de regresión. La Sección~\ref{sec:defectos}
+Los cinco están corregidos y fijados con pruebas de regresión. La Sección~\ref{sec:defectos}
 documenta causa raíz y evidencia de cada uno.
 
 % ===========================================================================
@@ -164,8 +172,9 @@ La campaña cubre \textbf{tres módulos de backend}, elegidos por riesgo:
 \item Pruebas de aceptación independientes contra un microservicio generado y desplegado
       (la limitación de la Sección~\ref{sec:limitaciones}); requieren Docker y una
       compilación real.
-\item Pruebas de navegador de extremo a extremo (Playwright). El frontend mantiene su
-      cobertura de componentes con Vitest.
+\item Pruebas de navegador de extremo a extremo (Playwright). El frontend \emph{sí} recibió
+      pruebas de flujo, pero en jsdom y contra un backend simulado, no en un navegador real
+      contra servidores vivos.
 \item \code{ssl\_compat.py} y otras rutas de valor bajo.
 \end{itemize}
 
@@ -262,14 +271,27 @@ desconocidos; estado del pipeline; \code{get\_project\_overview}. \\
 \code{test\_cost\_mlflow\_mirror.py} & +2 &
 Cota de transporte del espejo de telemetría (sin reintentos, tiempo de espera acotado) y
 respeto de una configuración explícita del operador. \\
+\addlinespace
+\code{test\_qe\_pipeline\_autopilot.py} & 46 &
+Pausa cooperativa en cada frontera de paso; cancelar frente a pausar; los puntos de entrada
+\code{pause}/\code{resume}/\code{cancel} y la guarda de concurrencia de \code{run\_pipeline};
+\code{stream\_pipeline\_events} completo (conexión, progreso, heartbeats, cierre); el camino
+de agotamiento; el respaldo de esquema y el de arquitectura; y la propagación de errores. \\
+\addlinespace
+\code{workflow\_journeys.test.tsx} (frontend) & 9 &
+Flujos de usuario contra un backend simulado en la frontera HTTP con MSW: inicio rápido y
+lectura de vuelta, ciclo de control del Auto-Pilot, resumen y ciclo de vida, artefactos,
+credencial efímera, propagación de fallos, y el flujo en la interfaz incluido el informe
+honesto del smoke test. \\
 \bottomrule
 \end{longtable}
 \end{center}
 
 \noindent
-Total: \textbf{131 pruebas nuevas}. Las campañas anteriores (\code{test\_qe\_api\_surface.py},
-\code{test\_qe\_environment\_repair.py}, \code{test\_qe\_publish\_git.py},
-\code{test\_qe\_schema\_consistency.py}) permanecen y siguen pasando: 67 pruebas más.
+Total: \textbf{177 pruebas nuevas} (131 de backend, 46 de frontend). Las campañas anteriores
+(\code{test\_qe\_api\_surface.py}, \code{test\_qe\_environment\_repair.py},
+\code{test\_qe\_publish\_git.py}, \code{test\_qe\_schema\_consistency.py}) permanecen y siguen
+pasando: 67 pruebas más.
 
 % ===========================================================================
 \section{Matriz de trazabilidad}
@@ -317,6 +339,11 @@ La suite no realiza ninguna conexión saliente; el token de Git no sobrevive a l
 Principio III --- sobre de error uniforme &
 Los manejadores devuelven \code{status}/\code{message}/\code{details}.
 \newline\code{test\_qe\_api\_surface.py} (campaña anterior) \\
+\addlinespace
+Honestidad de la verificación, de extremo a extremo &
+Cuando el endpoint de salud falla, la interfaz muestra ``Smoke test NO ejecutado''; nunca un
+éxito que nadie observó. Un fallo del backend se propaga en lugar de inventarse.
+\newline\code{workflow\_journeys.test.tsx} \\
 \bottomrule
 \end{longtable}
 \end{center}
@@ -381,6 +408,59 @@ ayudante siga bajo prueba.
 \paragraph{Resultado.} La prueba que colgaba indefinidamente ahora tarda 1{,}45 s. La suite
 completa termina. Se añadieron dos pruebas de regresión que fijan la cota de transporte y el
 respeto de la configuración explícita.
+
+\subsection*{D-05 --- El respaldo del esquema llamaba a un método inexistente}
+
+\begin{finding}
+\textbf{Severidad: alta.} Rompía la ejecución completa y dejaba un artefacto vacío.
+\end{finding}
+
+\paragraph{Evidencia.} La primera prueba que ejecutó la rama de respaldo del esquema falló
+con \code{AttributeError}. El archivo \code{schema.sql} existía, pero estaba \emph{vacío}.
+La ejecución terminaba en \code{FAILED}.
+
+\paragraph{Causa raíz.} \code{schema\_sql\_from\_draft} es una función de módulo, no un
+método del objeto \code{model\_sql\_service}. El respaldo --- introducido por el commit
+\code{37b5853} justamente para no entregar un esquema equivocado --- la invocaba como
+\code{model\_sql\_service.schema\_sql\_from\_draft(draft)}, de modo que lanzaba
+\code{AttributeError}. Y como \code{open(..., "w")} trunca el archivo \emph{antes} de
+evaluar su argumento, el resultado era un \code{schema.sql} vacío además de la caída.
+
+Nadie lo detectó porque la rama nunca se ejecutó: estaba en el conjunto de líneas sin cubrir.
+La función sí estaba probada de forma aislada (en \code{test\_qe\_schema\_consistency.py}),
+que es precisamente por lo que la prueba pasaba mientras el punto de llamada estaba roto.
+
+\paragraph{Corrección.} Se importa la función correcta y el contenido se calcula antes de
+abrir el archivo, de modo que un fallo ya no puede truncar el artefacto.
+
+\paragraph{Pruebas de regresión.} La prueba fuerza el fallo de la síntesis y exige que la
+ejecución \emph{complete}, que el esquema no esté vacío y que describa las entidades de
+\emph{este} blueprint.
+
+\subsection*{D-04 --- El fallo más ruidoso escapaba del manejador y no lo veía nadie}
+
+\begin{finding}
+\textbf{Severidad: alta.} Dejaba la sesión en \code{RUNNING} indefinidamente.
+\end{finding}
+
+\paragraph{Evidencia.} La prueba del modo MODEL con un conjunto de instrucciones ilegible
+esperaba una sesión marcada como bloqueada con la causa registrada. En su lugar, la
+excepción escapó de \code{\_execute\_pipeline\_steps}.
+
+\paragraph{Causa raíz.} El \code{try} del pipeline empezaba \emph{después} de la selección de
+modo y de la carga del conjunto de instrucciones. El código re-lanza deliberadamente en modo
+MODEL para fallar con fuerza (invariante 11) --- y eso es correcto ---, pero al estar fuera
+del manejador la excepción moría con el hilo demonio. La fila de sesión se quedaba en
+\code{RUNNING} y el operador miraba un pipeline que ya se había detenido. Lo mismo aplicaba a
+una clave de API ambigua, que \code{detect\_provider} rechaza a propósito.
+
+\paragraph{Corrección.} El manejador ahora envuelve también la decisión de modo y la carga de
+instrucciones. Fallar con fuerza sigue siendo el comportamiento; fallar \emph{en silencio
+para el operador} no.
+
+\paragraph{Pruebas de regresión.} Dos pruebas: el conjunto de instrucciones ilegible en modo
+MODEL y la clave ambigua. Ambas exigen estado \code{FAILED} y la causa en
+\code{error\_message}.
 
 \subsection*{D-02 --- La razón del bloqueo se calculaba y se descartaba}
 
@@ -448,21 +528,27 @@ HEAD inmediatamente anterior a esta campaña, sin ninguno de sus cambios.
 \toprule
 \textbf{Métrica} & \textbf{Antes} & \textbf{Después} & \textbf{Variación} \\
 \midrule
-Pruebas de backend correctas      & 589 & \textbf{720} & +131 \\
+Pruebas de backend correctas      & 589 & \textbf{825} & +236 \\
 Pruebas de backend omitidas       & 3   & 3            & --- \\
-Pruebas de frontend correctas     & 64 (10 archivos) & 64 (10 archivos) & --- \\
+Pruebas de frontend correctas     & 64 (10 archivos) & \textbf{73 (11 archivos)} & +9 \\
 \midrule
-Cobertura global del backend      & 85{,}3\,\% & \textbf{88{,}5\,\%} & +3{,}2 pp \\
-Sentencias totales                & 6\,752 & 6\,727 & $-25$ \\
-Sentencias sin cubrir             & 994 & \textbf{776} & $-218$ \\
+Cobertura global del backend      & 85{,}3\,\% & \textbf{89{,}6\,\%} & +4{,}3 pp \\
+Sentencias sin cubrir             & 994 & \textbf{727} & $-267$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \noindent
-El total de sentencias baja 25 porque D-01 eliminó 34 sentencias de código muerto
-(\code{lifecycle\_service.py}: de 301 a 267) y D-03 añadió 9 de cota de transporte
-(\code{mlflow\_sink.py}: de 33 a 42, todas cubiertas).
+Dos advertencias de lectura, para no atribuir a esta campaña más de lo que le corresponde:
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item Otra sesión de trabajo entregó cambios en paralelo sobre el mismo árbol (por ejemplo
+      en \code{orchestrator/stages/runner.py}), de modo que el movimiento de la cobertura
+      \emph{global} no es atribuible sólo a estas pruebas. Las cifras por módulo de la tabla
+      siguiente sí lo son: cada una se midió antes y después sobre el mismo módulo.
+\item La cifra de ``antes'' de las pruebas de backend es el mismo punto de partida para las
+      dos fases; el total combina ambas.
+\end{itemize}
 
 \subsection*{Cobertura por módulo priorizado}
 
@@ -474,6 +560,7 @@ El total de sentencias baja 25 porque D-01 eliminó 34 sentencias de código mue
 \code{services/docker\_service.py}    & 52{,}7\,\% & 69 & \textbf{100{,}0\,\%} & 0 \\
 \code{api/routes\_session.py}         & 71{,}3\,\% & 78 & \textbf{100{,}0\,\%} & 0 \\
 \code{services/lifecycle\_service.py} & 76{,}4\,\% & 71 & \textbf{100{,}0\,\%} & 0 \\
+\code{services/pipeline\_runner.py}   & 82{,}4\,\% & 61 & \textbf{100{,}0\,\%} & 0 \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -481,6 +568,26 @@ El total de sentencias baja 25 porque D-01 eliminó 34 sentencias de código mue
 \noindent
 \code{cost/mlflow\_sink.py} ya estaba al 100\,\% antes de la campaña (33 sentencias); la
 corrección de D-03 le añadió 9 sentencias y todas quedan cubiertas (42 de 42).
+
+\subsection*{Frontend: qué se añadió y qué sigue sin cubrirse}
+
+El frontend pasó de 64 a 73 pruebas. Las nuevas no son más pruebas de componente: son
+\emph{flujos} que ejecutan los módulos de servicio reales, el cliente HTTP real y las vistas
+reales contra un backend simulado en la frontera HTTP (MSW). Esto es lo que faltaba: las 64
+pruebas anteriores sustituyen la capa de servicios con \code{vi.mock}, así que ninguna
+construía una petición. Un backend que renombrara un parámetro habría mantenido las 64 en
+verde.
+
+Lo que ahora queda fijado, y que antes no lo estaba: la URL, el método, los parámetros y el
+cuerpo de cada petición del flujo; que la credencial viaja en una cabecera y \emph{no} se
+persiste en ningún almacenamiento (Principio VI); que un fallo del backend se propaga en
+lugar de inventarse; y --- de extremo a extremo en la interfaz --- que el smoke test informa
+``no ejecutado'' cuando el endpoint no responde, en vez de un éxito que nadie observó. Ese
+último caso no tenía \emph{ninguna} prueba pese a estar documentado como corregido en
+\code{docs/frontend\_audit.md}.
+
+\textbf{Sigue sin cubrirse} el navegador real: no hay Playwright ni Cypress. Estas pruebas
+ejercen el flujo con jsdom y un backend simulado, no con un navegador y un backend vivos.
 
 \subsection*{Reproducción}
 \label{sec:reproduccion}
@@ -519,11 +626,11 @@ Tras esta campaña, los módulos con más sentencias sin cubrir son:
 \midrule
 67 & 70{,}9\,\% & 230 & \code{services/architecture\_service.py} \\
 62 & 63{,}1\,\% & 168 & \code{services/requirements\_service.py} \\
-61 & 82{,}4\,\% & 346 & \code{services/pipeline\_runner.py} \\
 53 & 83{,}3\,\% & 317 & \code{services/model\_sql\_service.py} \\
 44 & 70{,}9\,\% & 151 & \code{orchestrator/stages/journal.py} \\
 34 & 91{,}6\,\% & 403 & \code{orchestrator/stages/runner.py} \\
 29 & 25{,}6\,\% & 39  & \code{ssl\_compat.py} \\
+26 & 90{,}3\,\% & 268 & \code{services/security\_service.py} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -532,18 +639,22 @@ Tras esta campaña, los módulos con más sentencias sin cubrir son:
 \textbf{Recomendación de prioridad para la próxima campaña:}
 
 \begin{enumerate}[leftmargin=1.6em]
-\item \code{pipeline\_runner.py} --- es el motor del modo Auto-Pilot: pausa, reanudación y
-      cancelación. Tiene 346 sentencias y 61 sin cubrir; el riesgo es alto porque es el
-      camino desatendido.
 \item \code{architecture\_service.py} y \code{model\_sql\_service.py} --- serialización de
       OpenAPI, Mermaid y DDL/JPA. Son artefactos entregables; un error de serialización se
-      descubre tarde y en el cliente.
+      descubre tarde y en el cliente. Este es el mismo perfil que D-05: código que produce
+      archivos que nadie comprueba hasta el final.
+\item \code{requirements\_service.py} --- descomposición y refinamiento con LLM.
 \item \code{journal.py} --- bordes de presupuesto y serialización del diario de ejecución.
 \end{enumerate}
 
 \noindent
 \code{ssl\_compat.py} se recomienda \textbf{no} perseguir: es compatibilidad TLS en tiempo de
 importación y su cobertura tiene poco valor de producto.
+
+\noindent
+El siguiente salto de valor no es más cobertura de línea, sino cerrar la brecha de la
+Sección~\ref{sec:limitaciones}: pruebas de aceptación HTTP independientes contra el
+microservicio generado y desplegado.
 
 % ===========================================================================
 \section{Limitaciones del informe}
@@ -567,7 +678,9 @@ recomienda como siguiente paso de mayor valor.
 
 \vspace{0.4cm}
 \noindent
-Igualmente, las cifras de frontend (64 pruebas, 10 archivos) corresponden a pruebas de
-componentes con Vitest. No hay todavía cobertura de flujos en navegador real.
+En el frontend, las 73 pruebas ya no son sólo de componente: 9 de ellas recorren flujos
+completos contra un backend simulado en la frontera HTTP. Pero \textbf{no hay navegador
+real}: no se usa Playwright ni Cypress, y el backend es un simulador, no un servidor vivo.
+Un fallo que sólo aparezca en el navegador (CSS, foco, un evento nativo) no lo detectarían.
 
 \end{document}

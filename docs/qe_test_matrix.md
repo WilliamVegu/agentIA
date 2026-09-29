@@ -13,9 +13,59 @@ logs and per-file coverage JSON live in `reports/qe/`.
 
 ---
 
-## Campaign 2 — the three riskiest modules (this one)
+## Campaign 3 — the Auto-Pilot engine and the frontend workflow
 
-Baseline: commit `2bddc0a`, the HEAD immediately before this campaign, run through the same
+### Backend: `services/pipeline_runner.py` 82.4% → 100.0%
+
+The unattended path: pause, resume, cancel, the SSE feed, and every failure branch. 46 tests
+in `test_qe_pipeline_autopilot.py`. The uncovered part was never the happy path (that had a
+test) — it was the *control* surface and the *failure* surface.
+
+Two more defects were found, both by executing a branch for the first time:
+
+**D-05 (high). The schema fallback called a method that does not exist.**
+`schema_sql_from_draft` is a module-level function, not a method on the `model_sql_service`
+singleton, so `model_sql_service.schema_sql_from_draft(draft)` raised `AttributeError`. And
+because `open(..., "w")` truncates before its argument is evaluated, it left an **empty
+`schema.sql`** behind and then took the whole run down. This was the fallback added by
+`37b5853` specifically to stop the platform shipping a wrong schema. It was never executed
+by any test — the function itself is tested in isolation in `test_qe_schema_consistency.py`,
+which is exactly why the suite stayed green while the call site was broken. Fixed: the right
+function is imported, and the content is computed before the file is opened.
+
+**D-04 (high). The loudest failure escaped the handler and nobody saw it.**
+The pipeline's `try` started *after* the mode decision and the instruction-set load. In
+MODEL mode the loader deliberately re-raises (invariant 11) — correct — but from outside the
+handler, so the exception died with the daemon thread: the session row stayed `RUNNING` and
+the operator watched a pipeline that had already stopped. An ambiguous API key had the same
+shape. Fixed: the handler now wraps the preamble too.
+
+### Frontend: 64 → 73 tests, and the first workflow coverage
+
+`workflow_journeys.test.tsx` (9 tests) drives the **real** service modules, the real axios
+client and its interceptors, and the real views against a backend simulated at the HTTP
+boundary with MSW (`src/test/msw/server.ts`).
+
+This was the real gap. All 64 previous tests replaced the service layer with `vi.mock`
+factories, so no test ever built a request: URL, method, params, body and headers were
+unverified, and the response shape was whatever the test author typed. A backend that
+renamed a query parameter would have kept 64 tests green.
+
+Now pinned: the request contract of each workflow step; that the credential travels in a
+header and never reaches `localStorage`/`sessionStorage` (Principle VI); that a backend
+failure rejects instead of being fabricated into a success; and — end to end through the UI
+— that the smoke test reports **"no ejecutado"** when the endpoint fails rather than a green
+success nobody observed. That last one had **no test at all** despite being documented as
+fixed in `docs/frontend_audit.md`.
+
+Still not covered: a real browser. There is no Playwright/Cypress; these run in jsdom against
+a simulated backend.
+
+---
+
+## Campaign 2 — the three riskiest modules
+
+Baseline: commit `2bddc0a`, the HEAD immediately before the campaign, run through the same
 harness. 131 new tests.
 
 | | Before | After |
@@ -93,15 +143,15 @@ given/when/then clause. Those tests remain and still pass (67 tests across
 | --- | --- | --- | --- |
 | `services/architecture_service.py` | 70.9% | 67 | OpenAPI/Mermaid serialisation and refinement. |
 | `services/requirements_service.py` | 63.1% | 62 | The LLM decomposition/refinement paths. |
-| `services/pipeline_runner.py` | 82.4% | 61 | Auto-pilot steps, pause/resume/cancel. |
 | `services/model_sql_service.py` | 83.3% | 53 | JPA/DDL synthesis. |
 | `orchestrator/stages/journal.py` | 70.9% | 44 | Journal serialisation and budget edges. |
 | `orchestrator/stages/runner.py` | 91.6% | 34 | Stage dispatch. |
 | `ssl_compat.py` | 25.6% | 29 | Import-time TLS compatibility — low value to chase. |
+| `services/security_service.py` | 90.3% | 26 | SAST rules and quality gate. |
 
-**Highest value next, in order:** `pipeline_runner.py` (the unattended Auto-Pilot path),
-then `architecture_service.py` and `model_sql_service.py` (both produce deliverables, so a
-serialisation bug is found late and by the client), then `journal.py`.
+**Highest value next, in order:** `architecture_service.py` and `model_sql_service.py` (both
+produce deliverables, so a serialisation bug is found late and by the client — the same
+profile as D-05), then `requirements_service.py`, then `journal.py`.
 
 ## What this coverage does *not* mean
 

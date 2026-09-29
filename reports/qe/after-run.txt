@@ -1,15 +1,16 @@
-........................................................................ [  9%]
-.............................s.......................................... [ 19%]
-........................................................................ [ 29%]
-........................................................................ [ 39%]
-........................................................................ [ 49%]
-........................................................................ [ 59%]
+........................................................................ [  8%]
+.............................s.......................................... [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 34%]
+........................................................................ [ 43%]
+........................................................................ [ 52%]
+........................................................................ [ 60%]
 ........................................................................ [ 69%]
-......................................................................s. [ 79%]
-........................................................................ [ 89%]
-...................................s.................................... [ 99%]
-...[INFO] generation stages complete: mode=DETERMINISTIC, artifacts=15, requests=0
-                                                                      [100%]
+........................................................................ [ 78%]
+...............................s........................................ [ 86%]
+....................................................................s... [ 95%]
+....................................[INFO] generation stages complete: mode=DETERMINISTIC, artifacts=15, requests=0
+                                     [100%]
 ================================ tests coverage ================================
 _______________ coverage: platform linux, python 3.12.14-final-0 _______________
 
@@ -24,7 +25,7 @@ backend/app/api/routes_llm.py                                        47      6  
 backend/app/api/routes_models_sql.py                                 31      9    71%   13-21, 49-50, 85-86
 backend/app/api/routes_orchestrator.py                              105     10    90%   42, 120, 138, 142, 155, 159, 172, 181-182, 199
 backend/app/api/routes_publish.py                                    59      5    92%   43, 71, 79, 98-99
-backend/app/api/routes_requirements.py                               95     12    87%   18-25, 63-64, 67, 100-101, 130-131, 161-162
+backend/app/api/routes_requirements.py                               99     12    88%   19-26, 64-65, 68, 122-123, 152-153, 183-184
 backend/app/api/routes_security.py                                   57     15    74%   65, 83-93, 96, 107-110
 backend/app/api/routes_session.py                                   272      0   100%
 backend/app/api/routes_spec.py                                       31      8    74%   16-21, 29-30
@@ -56,7 +57,7 @@ backend/app/orchestrator/nodes/__init__.py                            0      0  
 backend/app/orchestrator/nodes/controller_node.py                     5      0   100%
 backend/app/orchestrator/nodes/domain_node.py                         5      0   100%
 backend/app/orchestrator/nodes/repair_node.py                        49      5    90%   17-26, 43
-backend/app/orchestrator/nodes/sandbox_node.py                       38      3    92%   25-27
+backend/app/orchestrator/nodes/sandbox_node.py                       61     11    82%   23, 39-40, 53-55, 102-107, 140-141
 backend/app/orchestrator/nodes/scaffolder_node.py                     5      0   100%
 backend/app/orchestrator/nodes/service_node.py                        5      0   100%
 backend/app/orchestrator/nodes/test_node.py                           6      0   100%
@@ -78,27 +79,29 @@ backend/app/orchestrator/stages/model/domain.py                      12      0  
 backend/app/orchestrator/stages/model/scaffolder.py                  16      0   100%
 backend/app/orchestrator/stages/model/service.py                     12      0   100%
 backend/app/orchestrator/stages/model/test.py                        13      0   100%
-backend/app/orchestrator/stages/runner.py                           403     34    92%   141-143, 147, 182, 190, 232, 253-254, 260, 299-302, 312-315, 560-564, 619, 631, 659, 676, 845, 887, 916-922, 932, 940, 1155, 1185-1191
+backend/app/orchestrator/stages/runner.py                           403     34    92%   141-143, 147, 182, 190, 232, 253-254, 260, 299-302, 314-317, 562-566, 640, 652, 680, 697, 866, 908, 937-943, 953, 961, 1184, 1214-1220
 backend/app/orchestrator/state.py                                    23      0   100%
 backend/app/sandbox/__init__.py                                       0      0   100%
-backend/app/sandbox/docker_runner.py                                 94      9    90%   189-190, 238-242, 254, 298
+backend/app/sandbox/docker_runner.py                                125      9    93%   267-268, 316-320, 332, 376
 backend/app/sandbox/verify_cache.py                                  37      4    89%   59-62
 backend/app/services/__init__.py                                      0      0   100%
 backend/app/services/architecture_service.py                        230     67    71%   23-37, 139, 144-145, 221, 428, 432-516, 559-639
-backend/app/services/conformance_diagnostics.py                      97      3    97%   191, 315-316
+backend/app/services/conformance_diagnostics.py                     124      4    97%   132, 276, 400-401
 backend/app/services/corpus_report.py                               122     11    91%   118, 139, 143-144, 153-154, 195, 199-201, 232
 backend/app/services/devops_service.py                               65      3    95%   524, 556, 558
 backend/app/services/docker_service.py                              146      0   100%
 backend/app/services/export_service.py                               22      1    95%   22
 backend/app/services/git_service.py                                  56      6    89%   59-60, 76-77, 83-84
+backend/app/services/injection_guard.py                              83      0   100%
 backend/app/services/lifecycle_service.py                           267      0   100%
 backend/app/services/llm_factory.py                                 113     10    91%   194-199, 244, 302, 316, 336, 341
 backend/app/services/model_sql_service.py                           317     53    83%   18-30, 44-45, 54, 64, 70, 72, 74, 76, 78, 86, 101-104, 216, 218, 220, 321, 510-511, 548-590, 695
-backend/app/services/pipeline_runner.py                             346     61    82%   91-92, 120-125, 156, 174, 222-223, 243, 329-336, 376, 401, 421-433, 439, 501, 522, 527-528, 546-547, 561-584, 607, 646-664
+backend/app/services/pipeline_runner.py                             347      0   100%
+backend/app/services/platform_verification.py                        70      4    94%   63, 91, 118, 220
 backend/app/services/queue_service.py                                41      6    85%   17, 26, 28, 47, 50-51
 backend/app/services/repair_parser.py                                42      9    79%   11-12, 24, 106, 125-135
 backend/app/services/requirements_service.py                        168     62    63%   19-31, 238-280, 288, 308, 326-359, 421-509
-backend/app/services/security_service.py                            268     27    90%   33-35, 96, 102, 149, 214-230, 236-252, 267, 288-290, 351-363, 476, 596, 601, 605-609, 644-645, 671-672
+backend/app/services/security_service.py                            268     26    90%   33-35, 102, 149, 214-230, 236-252, 267, 288-290, 351-363, 476, 596, 601, 605-609, 644-645, 671-672
 backend/app/services/skill_contribution.py                           88     12    86%   116, 132-134, 164-171
 backend/app/services/spec_service.py                                 73     12    84%   28-32, 61, 97-99, 108, 156, 164, 168
 backend/app/services/test_analysis_service.py                       165     19    88%   25-42, 123, 125, 487, 493-496, 541-542, 558-559, 576-586, 618, 623
@@ -107,7 +110,7 @@ backend/app/skills/active.py                                         29      4  
 backend/app/skills/document.py                                       87      5    94%   83, 158-159, 167, 175
 backend/app/ssl_compat.py                                            39     29    26%   15-16, 20-51
 -----------------------------------------------------------------------------------------------
-TOTAL                                                              6727    776    88%
+TOTAL                                                              6966    727    90%
 Coverage JSON written to file reports/qe/coverage-after.json
-720 passed, 3 skipped in 50.20s
+825 passed, 3 skipped in 91.41s (0:01:31)
 EXIT=0
