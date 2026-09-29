@@ -581,7 +581,18 @@ def render_stage_request(state: Mapping[str, Any], stage: str, instruction: str)
         f"## Task payload\n"
         f"{json.dumps(payload, indent=2, sort_keys=True)}\n\n"
         f"## Output paths you own\n"
-        f"{json.dumps(list(STAGE_ARTIFACT_SCOPES[stage]), indent=2)}\n"
+        f"{json.dumps(list(STAGE_ARTIFACT_SCOPES[stage]), indent=2)}\n\n"
+        # The wire format is stated explicitly because leaving it implicit cost an
+        # entire baseline run: the parser accepted only two encodings, the model was
+        # never told which, and every stage exhausted its correction budget without
+        # a single candidate reaching the compliance gate. The parser is now
+        # tolerant as well, but saying the format plainly is what avoids spending
+        # the budget on avoidable rejections in the first place.
+        f"## Response format\n"
+        f"Return ONE JSON object and nothing else -- no prose, no markdown fences.\n"
+        f'{{"artifacts": {{"<workspace-relative path>": "<complete file content>"}}}}\n\n'
+        f"Use exactly the literal paths from the Output contract above, and emit an\n"
+        f"entry for every one of them. Each value is the entire content of that file.\n"
     )
     if len(request) > MAX_PAYLOAD_CHARS:
         raise PayloadTooLargeError(
@@ -622,51 +633,138 @@ def _block_path(info: str) -> str:
     return candidate if ("/" in candidate or candidate.endswith((".java", ".xml", ".yml", ".yaml", ".sql"))) else ""
 
 
+#: An artifact path appearing inside prose or a heading, e.g. "### pom.xml" or
+#: "**src/main/java/com/corp/App.java**". Requiring a known extension is what keeps
+#: an ordinary word from being mistaken for a filename.
+_PATH_HINT_RE = re.compile(
+    r"(?P<path>(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+"
+    r"\.(?:java|xml|yml|yaml|sql|properties|json|gradle|kt|md|txt))"
+)
+
+
+def _path_hint_before(response_text: str, block_start: int) -> str:
+    """The nearest preceding line that names an artifact path, or "".
+
+    Deliberately stops at the first non-empty line. Reaching further back would
+    associate a block with an unrelated earlier heading -- and a mis-associated
+    artifact is worse than a rejected one, because it persists content under the
+    wrong path. Association is therefore local and conservative.
+    """
+    for line in reversed(response_text[:block_start].splitlines()):
+        stripped = line.strip().strip("*#`> -:").strip()
+        if not stripped:
+            continue
+        match = _PATH_HINT_RE.search(stripped)
+        return match.group("path") if match else ""
+    return ""
+
+
+def _json_artifact_map(response_text: str) -> Optional[Dict[str, str]]:
+    """A ``{"artifacts": {path: content}}`` map from bare, fenced or prose-wrapped JSON.
+
+    Returns ``None`` when no candidate parses into a valid map, so the caller can
+    fall through to the fenced-block transport. This exists because the previous
+    implementation required ``json.loads`` to succeed on the **entire** response,
+    which real models rarely produce: a fenced or prose-wrapped JSON object -- the
+    most common shape by far -- failed both transports, so every attempt was spent
+    and every stage exhausted without a single candidate reaching the compliance
+    gate. Measured on the real baseline: 5 sessions, 24 of 25 stage runs with no
+    verdict at all and no rule ever named.
+    """
+    def as_map(payload: Any) -> Optional[Dict[str, str]]:
+        if not isinstance(payload, dict):
+            return None
+        artifacts = payload.get("artifacts")
+        if not isinstance(artifacts, dict) or not artifacts:
+            return None
+        if not all(isinstance(k, str) and isinstance(v, str) for k, v in artifacts.items()):
+            return None
+        if not all(_is_safe_relative_path(path) for path in artifacts):
+            return None
+        return dict(artifacts)
+
+    candidates = [response_text.strip()]
+    fenced = _FENCED_BLOCK_RE.search(response_text)
+    if fenced:
+        candidates.append(fenced.group("body").strip())
+
+    for candidate in candidates:
+        try:
+            payload = json.loads(candidate)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        found = as_map(payload)
+        if found is not None:
+            return found
+
+    # Prose may precede the object and may itself contain braces, so scanning for
+    # the first position that DECODES as a complete object is used rather than a
+    # span between the first and last brace -- the span approach fails on
+    # "{see the notes}" appearing before the real payload.
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(response_text):
+        if character != "{":
+            continue
+        try:
+            payload, _ = decoder.raw_decode(response_text[index:])
+        except ValueError:
+            continue
+        found = as_map(payload)
+        if found is not None:
+            return found
+    return None
+
+
 def extract_artifacts(response_text: str) -> Tuple[Dict[str, str], bool]:
     """Map a raw model response onto workspace-relative artifacts.
 
     Accepts two transports:
 
-    1. a JSON object ``{"artifacts": {path: content}}``;
-    2. one or more fenced blocks, each with its path on the fence line.
+    1. a JSON object ``{"artifacts": {path: content}}`` — bare, inside a fenced
+       block, or surrounded by prose;
+    2. one or more fenced blocks, each with its path on the fence line **or in the
+       nearest preceding heading/line**.
 
     Returns ``({}, False)`` — never a partial set — for an absent, truncated, or
-    unmappable response, and for an ambiguous one (a fenced block without a path
-    when more than one artifact is implied). Silence is deliberately not an
-    option: a partial candidate set must never reach persistence.
+    unmappable response, and for an ambiguous one (a fenced block whose path cannot
+    be resolved). Silence is deliberately not an option: a partial candidate set
+    must never reach persistence.
+
+    **Why the tolerance.** The strict version accepted only the bare-JSON and
+    path-on-the-fence-line shapes, which are the two shapes real models are least
+    likely to produce. Every response in the first real baseline failed to parse,
+    so no stage ever produced a candidate and the compliance gate never judged
+    anything -- which then read as "the agent breaks the house rules", a
+    misdiagnosis that sent a whole feature in the wrong direction.
+
+    Tolerance is bounded by two existing guards, so a mis-associated artifact
+    cannot reach persistence silently: ``out_of_scope_violations`` rejects a path
+    outside the stage's own scope, and the compliance gate judges the content.
     """
     if not response_text or not response_text.strip():
         return {}, False
 
     # --- Transport 1: JSON artifact map -------------------------------------
-    try:
-        payload = json.loads(response_text)
-    except (json.JSONDecodeError, TypeError):
-        payload = None
-    if isinstance(payload, dict):
-        artifacts = payload.get("artifacts")
-        if not isinstance(artifacts, dict) or not artifacts:
-            return {}, False
-        if not all(isinstance(k, str) and isinstance(v, str) for k, v in artifacts.items()):
-            return {}, False
-        if not all(_is_safe_relative_path(path) for path in artifacts):
-            return {}, False
-        return dict(artifacts), True
+    artifacts = _json_artifact_map(response_text)
+    if artifacts is not None:
+        return artifacts, True
 
     # --- Transport 2: fenced blocks -----------------------------------------
     if response_text.count("```") % 2 != 0:
         return {}, False                        # an opening fence was never closed
-    blocks = _FENCED_BLOCK_RE.findall(response_text)
+    blocks = list(_FENCED_BLOCK_RE.finditer(response_text))
     if not blocks:
         return {}, False
 
     artifacts: Dict[str, str] = {}
-    for info, body in blocks:
-        path = _block_path(info)
+    for match in blocks:
+        path = _block_path(match.group("info"))
+        if not path or not _is_safe_relative_path(path):
+            path = _path_hint_before(response_text, match.start())
         if not path or not _is_safe_relative_path(path):
             # Ambiguous: several artifacts cannot be told apart without paths.
             return {}, False
-        artifacts[path] = body
+        artifacts[path] = match.group("body")
 
     return (artifacts, True) if artifacts else ({}, False)
 
