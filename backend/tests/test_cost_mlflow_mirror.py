@@ -1,0 +1,168 @@
+"""The telemetry mirror's absence must be a non-event (feature 013, FR-005).
+
+``cost/mlflow_sink.py`` mirrors each recorded call to a telemetry destination. It
+is deliberately **not** on any critical path: ``backend/cost_tracking.db`` is the
+system of record, and the report reads only that. The property these tests pin
+down is the one that makes the destination optional *by construction* rather than
+by luck:
+
+* a missing library, an unreachable server, or a rejected write must **not**
+  raise into a generation session;
+* the local store must be written **regardless**, so a telemetry outage never
+  costs data;
+* a credential must never be forwarded, because the recording site sits directly
+  beside the API key.
+
+On this host ``mlflow`` is not installed at all, so the absent path is not a
+hypothetical — it is the one that actually runs. The tests simulate absence
+explicitly anyway, so they keep testing it on a host where it *is* installed.
+
+No provider calls, no network.
+"""
+
+from __future__ import annotations
+
+import sys
+import types
+from contextlib import contextmanager
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "backend"))
+
+from app.config import settings  # noqa: E402
+from app.cost import mlflow_sink, recording  # noqa: E402
+from tests.fixtures import fake_model as fm  # noqa: E402
+
+
+@pytest.fixture
+def without_the_library(monkeypatch):
+    """Make ``import mlflow`` fail, whatever this host actually has installed."""
+    # The documented way to simulate an absent module: a None entry in
+    # sys.modules makes the import raise ImportError deterministically.
+    monkeypatch.setitem(sys.modules, "mlflow", None)
+    mlflow_sink._reset_failures()
+    yield
+    mlflow_sink._reset_failures()
+
+
+@pytest.fixture
+def cost_store(tmp_path, monkeypatch):
+    """Point the system of record at a throwaway file for one test."""
+    store_path = tmp_path / "cost_store.db"
+    monkeypatch.setattr(settings, "COST_STORE_PATH", str(store_path), raising=False)
+    return store_path
+
+
+# ---------------------------------------------------------------------------
+# Absence is a non-event
+# ---------------------------------------------------------------------------
+def test_the_absent_library_returns_false_and_does_not_raise(without_the_library):
+    result = mlflow_sink.mirror_call_record(
+        {"call_id": "c1", "session_id": "t013-mirror", "input_tokens": 10}
+    )
+
+    assert result is False, "a skipped mirror must report that it was skipped"
+    reasons = mlflow_sink.mirror_failures()
+    assert reasons, "the skip was silent; a missing destination left no trace"
+    assert "unavailable" in reasons[-1]
+
+
+def test_a_mirror_that_raises_is_a_non_event(monkeypatch):
+    """An unreachable or rejecting destination must not propagate either."""
+
+    class _ExplodingMlflow(types.ModuleType):
+        def set_tracking_uri(self, uri):
+            raise RuntimeError("connection refused")
+
+    monkeypatch.setitem(sys.modules, "mlflow", _ExplodingMlflow("mlflow"))
+    mlflow_sink._reset_failures()
+    try:
+        assert mlflow_sink.mirror_session_cost_record({"session_id": "t013-mirror"}) is False
+        assert any("connection refused" in reason for reason in mlflow_sink.mirror_failures())
+    finally:
+        mlflow_sink._reset_failures()
+
+
+def test_a_session_cost_record_is_mirrored_through_the_same_non_event_path(
+    without_the_library,
+):
+    """Both mirror entry points share the behaviour; neither raises."""
+    assert mlflow_sink.mirror_session_cost_record({"session_id": "t013-mirror"}) is False
+
+
+# ---------------------------------------------------------------------------
+# The system of record is unaffected
+# ---------------------------------------------------------------------------
+def test_the_local_store_is_written_even_when_the_mirror_is_absent(
+    without_the_library, cost_store
+):
+    """A telemetry outage must not cost a record: the mirror runs *after* the write."""
+    from app.cost.store import read_call_records
+
+    response = fm.FakeResponse(
+        content="ok",
+        usage_metadata={"input_tokens": 1200, "output_tokens": 300},
+    )
+
+    with recording.recording_context("t013-mirror", "DOMAIN"):
+        recording._record_call("deepseek", "deepseek-flash", 42.0, response)
+
+    stored = read_call_records("t013-mirror")
+    assert len(stored) == 1, (
+        "the mirror's absence prevented the local store from being written; the "
+        "destination is supposed to be optional, not load-bearing"
+    )
+    assert stored[0]["input_tokens"] == 1200
+    assert stored[0]["output_tokens"] == 300
+    # And the mirror really was consulted: its absence was recorded, not skipped
+    # silently before the attempt.
+    assert mlflow_sink.mirror_failures(), "the mirror was never attempted"
+
+
+# ---------------------------------------------------------------------------
+# A credential never reaches the destination
+# ---------------------------------------------------------------------------
+def test_the_mirror_never_forwards_a_credential(monkeypatch):
+    """Identifiers only. The recording site sits directly beside the API key."""
+    sent_metrics: list = []
+    sent_tags: dict = {}
+
+    class _CapturingMlflow(types.ModuleType):
+        def set_tracking_uri(self, uri):
+            return None
+
+        @contextmanager
+        def start_run(self, run_name=None):
+            yield
+
+        def log_metric(self, key, value):
+            sent_metrics.append((key, value))
+
+        def set_tags(self, tags):
+            sent_tags.update(tags)
+
+    monkeypatch.setitem(sys.modules, "mlflow", _CapturingMlflow("mlflow"))
+
+    forwarded = mlflow_sink.mirror_call_record({
+        "call_id": "c1",
+        "session_id": "t013-mirror",
+        "stage": "DOMAIN",
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "latency_ms": 42,
+        "input_tokens": 1200,
+        # A credential-shaped field, exactly the kind that sits beside this code.
+        "api_key": "sk-probe-must-never-be-forwarded",
+        "llm_api_key": "sk-probe-must-never-be-forwarded",
+    })
+
+    assert forwarded is True, "the capturing destination was not reached"
+    flattened = repr(sent_metrics) + repr(sent_tags)
+    assert "sk-probe" not in flattened, (
+        "a credential was forwarded to the telemetry destination"
+    )
+    assert sent_tags.get("session_id") == "t013-mirror"
+    assert any(key == "input_tokens" for key, _ in sent_metrics)
