@@ -69,6 +69,48 @@ It also corrects a category error about which gate is which, because that error
 would misdirect the optimization design.
 \end{notebox}
 
+\begin{notebox}[colframe=warn]
+\textbf{CORRECTION, 2026-09-29, after re-measurement. The central finding of this
+document is withdrawn.}
+
+It reported \emph{systematic procedural non-compliance}: every stage spending its
+entire correction budget, ``not one passed on the first attempt'', and concluded that
+this was precisely the signal a reflective skill optimiser needs. That observation
+was an artefact of a \textbf{response-parsing bug}, not of model behaviour.
+
+\begin{itemize}[leftmargin=1.4em]
+  \item The extractor accepted only a bare JSON object, or code fences carrying the
+  artifact path on the fence line. The request never stated a wire format. The shapes
+  a real model actually emits --- fenced JSON, prose-wrapped JSON, and code blocks
+  whose path sits in a heading --- failed to parse, so the attempt was consumed and
+  the stage exhausted \emph{without ever producing a candidate for the gate to judge}.
+  \item A second defect recorded \emph{no verdict at all} for a stage that passed on
+  its first attempt, so \texttt{passed = None} covered two opposite realities:
+  ``nothing was judged'' and ``judged and accepted''. That is why the record read as
+  though nothing had been wrong.
+\end{itemize}
+
+\textbf{Re-measured after fixing both} --- five blueprints, one session each:
+\textbf{25 of 25 stage runs succeeded on their FIRST request}, with zero corrections;
+83 artifacts persisted; \textbf{conformance 100 for every session, density 0.0, and
+zero findings in every final artifact set}.
+
+\textbf{Consequences.} (i)~There is no procedural non-compliance to correct: the
+agent produced compliant output first time, on every stage, for every blueprint.
+(ii)~The conformance measure does not vary, so the optimiser's own gate ---
+\emph{the measure must vary before anything is built to exploit it} ---
+\textbf{fails}, and the optimiser is for that reason not built.
+(iii)~The reading in \S\ref{sec:encouraging} and the critical path named in
+\S\ref{sec:lost} are withdrawn.
+
+\textbf{What survives, and it is why this document is kept rather than deleted.}
+The diagnostic channel did what it was built to do: running the real system found
+three defects that a suite of 500+ passing tests could not --- the parser above, a
+``verified'' session whose build never ran, and a diagnostic record silently
+overwritten by test data. \textbf{The instrument was worth building. The loop it was
+built to justify has nothing to optimise.}
+\end{notebox}
+
 \tableofcontents
 \vspace{0.5cm}
 
@@ -120,6 +162,15 @@ CONTROLLER & 3 & 2 & passed & \\
 \textbf{Every stage consumed its entire correction budget. Not one passed on the
 first attempt.} This is a systematic, procedural failure pattern, not random
 noise --- and it is the single most useful thing the run produced.
+
+\begin{notebox}[colframe=warn]
+\textbf{WITHDRAWN.} This claim is false. The stages exhausted because their responses
+could not be parsed, not because they were rejected for non-compliance. Re-measured
+after the parser was fixed: \textbf{25 of 25 stage runs across five blueprints
+succeeded on their first request}, with no corrections at all. There is no
+``systematic, procedural failure pattern''; there was a transport bug. See the
+correction notice at the front of this document.
+\end{notebox}
 
 The terminal error was:
 
@@ -185,6 +236,15 @@ No evolution at all & 42.4 \quad ($-28.7$) \\
 A loop fed only a pass/fail verdict performs no better than no loop.
 
 \subsection{The result is encouraging for the approach}
+\label{sec:encouraging}
+
+\begin{notebox}[colframe=warn]
+\textbf{WITHDRAWN.} The reasoning below treats the observed failures as real
+compliance failures. They were parse failures: no candidate ever reached the gate.
+Measured after the fix, the final artifact sets carry \emph{zero} findings, so there
+is no recurring rule for a loop to target and no variance for it to move. The gate
+fails. This subsection is retained only so the error is not repeated.
+\end{notebox}
 
 The observed failure is \emph{exactly the signal such a loop needs}:
 
@@ -202,6 +262,17 @@ rich diagnostic channel the optimizer requires.} That is the central opportunity
 and it is why the instrument was built before the optimizer.
 
 \subsection{But the evidence is currently lost}
+\label{sec:lost}
+
+\begin{notebox}[colframe=warn]
+\textbf{WITHDRAWN, and the diagnosis was wrong in an instructive way.} The artifacts
+were \emph{never} lost on the path described here; the records that suggested a loss
+were fabricated test output written under the production session key. The real reason
+the evidence was empty is that nothing was ever produced to record: the responses
+could not be parsed. Naming this the critical path was therefore incorrect, and it is
+why the parser bug survived another full baseline. See the correction notice at the
+front.
+\end{notebox}
 
 The diagnostic record for this session came back
 \texttt{artifact\_count = 0}, \texttt{evaluable = false} --- \emph{``nothing to
@@ -340,9 +411,16 @@ tests inject the aggregate directly \\
 
 \textbf{What is now known.} The platform generates real code, records real costs,
 and refuses to claim success it did not verify. One session costs approximately
-\textbf{\$0.085}. The agent does not satisfy its own house standard on the first
-attempt at any stage, and one stage in five did not converge within the correction
-budget.
+\textbf{\$0.085} on the original (broken-parser) run, and \textbf{\$0.025} once the
+parser is fixed, because a stage that passes first time costs one request instead of
+three. \textbf{The agent does satisfy its own house standard on the first attempt at
+every stage} --- the opposite of the claim originally made here.
+
+\begin{notebox}[colframe=warn]
+\textbf{CORRECTED.} The sentence that stood here --- ``The agent does not satisfy its
+own house standard on the first attempt at any stage, and one stage in five did not
+converge'' --- described a parsing failure, not a compliance failure.
+\end{notebox}
 
 \textbf{What is not known.} Whether the generated artifacts were any good ---
 because they were discarded before they could be diagnosed. The conformance
