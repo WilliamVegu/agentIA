@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, status
 from fastapi.responses import JSONResponse
+from app.services.injection_guard import has_blocking_finding, scan_text
 
 try:
     from app.models.requirements import (
@@ -94,6 +95,27 @@ def transform_requirements_endpoint(
     """
     provider = request.provider or x_llm_provider
     api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
+
+    # Guardrail: refuse an instruction-shaped narrative before it reaches a model.
+    # The narrative is free text from the caller and is rendered straight into the
+    # stage request, so it is the widest injection surface in the product. Only
+    # HIGH-confidence findings refuse the request; MEDIUM ones are reported in the
+    # response headers and the request proceeds, because a guardrail that blocks
+    # valid work gets switched off and then guards nothing.
+    findings = scan_text(request.rawText, "rawText")
+    if has_blocking_finding(findings):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": (
+                    "The requirements narrative contains text that tries to instruct "
+                    "the model rather than describe a service. Rewrite it as a "
+                    "description of the business behaviour you want."
+                ),
+                "findings": [f.to_dict() for f in findings],
+            },
+        )
+
     try:
         draft = transform_requirements(request, api_key, provider=provider)
         return draft
