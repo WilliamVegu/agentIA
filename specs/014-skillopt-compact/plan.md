@@ -134,3 +134,72 @@ See [research.md](research.md). Ten decisions, all resolved by inspection plus o
 | **No rejected-edit buffer or epoch state** | Principle V — bounded iteration | Deliberate: this feature has no memory between runs. A rejected edit is logged and lost. Recorded as a known v1 limitation. |
 
 **No new violations. No Complexity Tracking entries added.** Two residuals are recorded above as explicit v1 boundaries rather than silently accepted.
+
+
+---
+
+## Implementation outcomes (T022)
+
+All 22 tasks complete. Suite: **381 passed, 2 skipped** (baseline before this
+feature: 306 passed, 2 skipped — the increase is this feature's tests only).
+
+### Verified
+
+| Criterion | Result |
+| --- | --- |
+| SC-001 | One iteration completes and prints current score, candidate score, decision, edit count |
+| SC-002 | Strictly better accepted; equal and worse rejected. All three demonstrated |
+| SC-003 | Protected-region edits and not-found targets both rejected; the document is unchanged in both cases |
+| SC-004 | The original changes only on acceptance, and then by exactly the applied edit set |
+| SC-005 | With no active skill the rendered request is byte-identical; injection only appends when a skill resolves |
+| SC-006 | Exactly one run row on every exit path, including a failing iteration, which records its error |
+| SC-008 | Overlap between training and held-out evidence raises rather than scoring |
+| SC-009 | Both skills scored on the identical held-out set; 2×M executions |
+| SC-010 | Rotation is deterministic for the same iteration identity |
+
+### Three findings from implementation
+
+**1. `build_exit_code` is derived, not recorded.** The session table has no
+exit-code column. The closest persisted signal is the verification metrics' pass
+flag, so the collector derives it: zero on a reported pass, non-zero on a reported
+failure, and `None` when no metrics were persisted. `None` rather than zero matters
+— an unknown outcome must not be reported as a successful build. Recorded in
+[research.md](research.md) D5 and in the collector's own docstring.
+
+**2. A new table must be created on the engine actually in use.** `Base.metadata.create_all`
+at import binds whichever engine was resolved *then*. The test suite rebinds
+`SessionLocal` to a temporary database, so the first implementation's writes hit a
+missing table and were silently swallowed by the best-effort write path — the
+iteration reported success while logging nothing. The fix ensures the schema on the
+session's own bind before every read and write. This is exactly the class of failure
+the "exactly one row on every exit path" criterion exists to catch, and it was
+caught by it.
+
+**3. Real spend occurred during development, and the opt-in is now stricter.** See
+the note below.
+
+### The SC-007 incident, recorded rather than glossed
+
+While probing the opt-in test's skip behaviour, setting **only** the run flag caused
+the test to **execute a real iteration**, twice. The key check passed because
+`backend/app/config.py` calls `load_dotenv()`, so the key sitting in `backend/.env`
+lands in `os.environ` — meaning a key-presence check is satisfied without the
+operator realising a key exists.
+
+What that cost: each run made **one real reflection call**. Those are deliberately
+**not recorded** by feature 013's cost proxy, because the reflector calls the model
+factory directly (FR-004, no wrapper) — so the cost store has no row for them and
+the spend cannot be bounded from the available evidence. The gate's eight executions
+most likely reached no provider (the run returned `REJECTED` with no scorable
+executions, consistent with `exit_code = None` throughout), but that cannot be
+proven from the artifacts either.
+
+**Fixed**: the test now requires a **second, explicit acknowledgement** —
+`AGENTIA_ALLOW_REAL_SPEND=1` — whose only purpose is to say "I know this costs
+money". Verified that the exact case that tripped now skips. The asymmetry is
+deliberate: a `.env` file can satisfy a key check silently, so a single flag is not
+a sufficient authorisation to spend.
+
+**Not done**: a deliberate real iteration was *not* run afterwards to capture the
+scores, because doing so would spend again without authorisation.
+

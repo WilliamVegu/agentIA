@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
 from app.cost import recording as cost_recording
+from app.skills.active import load_active_skill
 from app.models.session import SessionPhase, SessionStatus
 from app.orchestrator.stages import instructions as instructions_mod
 from app.orchestrator.stages import journal as journal_mod
@@ -542,6 +543,30 @@ def build_stage_payload(state: Mapping[str, Any], stage: str) -> Dict[str, Any]:
     }
 
 
+def _active_skill_prefix() -> str:
+    """The active skill's text, prefixed for injection, or an empty string.
+
+    Feature 014 (FR-002). Returns ``""`` whenever there is no active skill — no
+    pointer, an empty pointer, an unreadable one, a pointer naming a document that
+    does not exist, or a document that fails validation. **Absence is the normal
+    state, not an error**, and this is the first code to read the skills directory
+    on the generation path: raising here would break every existing session, and
+    appending a stray newline would change every request while still "working".
+
+    The empty string is what makes the no-op byte-identical (SC-005).
+    """
+    try:
+        document = load_active_skill()
+    except Exception:
+        # A skill problem must never stop generation. An absent-shaped result and a
+        # broken document are deliberately indistinguishable here: both mean
+        # "inject nothing".
+        return ""
+    if document is None:
+        return ""
+    return f"{document.render().rstrip()}\n\n"
+
+
 def render_stage_request(state: Mapping[str, Any], stage: str, instruction: str) -> str:
     """Render the full request text: instruction, payload, and owned paths.
 
@@ -551,6 +576,7 @@ def render_stage_request(state: Mapping[str, Any], stage: str, instruction: str)
     """
     payload = build_stage_payload(state, stage)
     request = (
+        f"{_active_skill_prefix()}"
         f"{instruction}\n\n"
         f"## Task payload\n"
         f"{json.dumps(payload, indent=2, sort_keys=True)}\n\n"

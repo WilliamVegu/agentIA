@@ -169,7 +169,16 @@ AGENTIA_RUN_REAL_SKILLOPT=1 DEEPSEEK_API_KEY=... \
 - One iteration runs, one `skillopt_runs` row is written, and the summary is printed.
 - The reflector's prompt is the one in `backend/scripts/skillopt/prompts/analyst_error.md`, which records its adaptation source and does not reproduce the paper's text.
 
-**If the key is absent it skips.** Report it as *not verified by me* rather than inferred from the scripted path — the same discipline features 012 and 013 required for their opt-in criteria.
+**Requires two flags, not one.** `AGENTIA_RUN_REAL_SKILLOPT=1` **and**
+`AGENTIA_ALLOW_REAL_SPEND=1`. The second exists because `backend/.env` supplies a
+key through `load_dotenv()`, so a key-presence check passes without the operator
+realising a key exists — and during development, setting the run flag alone was
+enough to execute a real iteration twice. The acknowledgement makes the spend
+deliberate rather than a side effect. Verified: the run flag alone now skips.
+
+**If either flag is absent it skips**, naming which. Report SC-007 as *not verified
+by me* rather than inferred from the scripted path — the same discipline features
+012 and 013 required for their opt-in criteria.
 
 **Note on cost**: a real iteration is 2×M fresh sessions (default 8) plus one reflection call. That is the deliberate price of scoring both skills on the same sample ([contracts/gate.md](contracts/gate.md) §4).
 
