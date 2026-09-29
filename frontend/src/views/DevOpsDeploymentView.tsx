@@ -333,7 +333,12 @@ export const DevOpsDeploymentView: React.FC = () => {
       setFeedback('Contenedores y redes detenidos correctamente.');
       await reloadCurrentOverview();
     } catch (err: any) {
-      setFeedback('Contenedores detenidos.');
+      // Report the real outcome. This used to say "Contenedores detenidos." even
+      // when the stop request failed, so the UI claimed a state the host was not in.
+      setFeedback(
+        `No se pudieron detener los contenedores: ${err?.message || String(err)}. ` +
+        `El estado mostrado puede no reflejar el host.`,
+      );
     } finally {
       setIsStopping(false);
     }
@@ -345,14 +350,21 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       const res = await devopsService.runSmokeTest(activeSessionId, hostPort);
       setSmokeResult(res);
-    } catch {
+    } catch (err) {
+      // SKIPPED, not SUCCESS. This used to fabricate a pass -- status 'SUCCESS',
+      // httpStatusCode 200, latencyMs 14, "Endpoint de salud verificado" -- on any
+      // failure, so pressing "Ejecutar Smoke Test" reported a healthy service that
+      // was never contacted. It is the same three-state discipline the diagnostics
+      // use: *verified*, *verified with findings*, and *not evaluable* must never be
+      // conflated, and "the check could not run" is the third one.
       setSmokeResult({
         sessionId: activeSessionId,
         endpointTested: `http://localhost:${hostPort}/actuator/health`,
-        status: 'SUCCESS',
-        httpStatusCode: 200,
-        latencyMs: 14,
-        message: 'Endpoint de salud verificado: Status UP en 14ms',
+        status: 'SKIPPED',
+        message:
+          `Smoke test NO ejecutado: ${err instanceof Error ? err.message : String(err)}. ` +
+          `No se contactó ningún endpoint, así que esto no dice nada sobre el servicio ` +
+          `(ni bueno ni malo). Comprueba que el contenedor está desplegado.`,
       });
     } finally {
       setIsTesting(false);
@@ -363,8 +375,6 @@ export const DevOpsDeploymentView: React.FC = () => {
     e.preventDefault();
     if (!newCustomerEmail) return;
 
-    let createdId = orders.length + 101;
-    let actualStatus = 'CONFIRMED';
     const payload = {
       customerEmail: newCustomerEmail,
       totalAmount: parseFloat(newTotalAmount) || 99.99,
@@ -373,6 +383,16 @@ export const DevOpsDeploymentView: React.FC = () => {
       updatedAt: new Date().toISOString(),
     };
 
+    // The record is only real if the service accepted it. This used to swallow the
+    // failure, invent an id (`orders.length + 101`), default the status to
+    // 'CONFIRMED' and then append a log line claiming `201 CREATED` -- so the table
+    // showed a record and the log showed a success whether or not anything had been
+    // called. On a workspace whose generated service does not expose /api/v1/orders
+    // the form targeted a non-existent endpoint and the fallback hid the 404.
+    let createdId: number | string | null = null;
+    let actualStatus: string | null = null;
+    let failure: string | null = null;
+
     try {
       const resp = await fetch(`http://localhost:${hostPort}/api/v1/orders`, {
         method: 'POST',
@@ -380,12 +400,27 @@ export const DevOpsDeploymentView: React.FC = () => {
         body: JSON.stringify(payload),
       });
       if (resp.ok) {
-        const data = await resp.json();
+        const data = await resp.json().catch(() => null);
         if (data?.id) createdId = data.id;
         if (data?.status) actualStatus = data.status;
+      } else {
+        failure = `HTTP ${resp.status}`;
       }
-    } catch {
-      // Local fallback if container not reachable
+    } catch (err) {
+      failure = err instanceof Error ? err.message : String(err);
+    }
+
+    if (failure) {
+      setTerminalLogs((prev) => [
+        ...prev,
+        `[http] POST /api/v1/orders FAILED (${failure}) — el servicio no aceptó el registro`,
+      ]);
+      setFeedback(
+        `No se pudo crear el registro: ${failure}. ` +
+        `El servicio se consulta en http://localhost:${hostPort}/api/v1/orders — ` +
+        `verifica que el contenedor está en ejecución y que la entidad existe.`,
+      );
+      return;
     }
 
     const newOrd = {
@@ -431,25 +466,26 @@ export const DevOpsDeploymentView: React.FC = () => {
       } catch {
         setRestResponse(text || '// Respuesta recibida (HTTP ' + resp.status + ')');
       }
-    } catch {
-      // Local simulated response fallback
+    } catch (err) {
+      // A console that invents a response is worse than one that shows nothing: the
+      // operator reads `HTTP 200` and a JSON body and concludes the service answered.
+      // This block used to fabricate 200/201/204 with canned bodies on ANY failure
+      // (container down, wrong port, CORS, DNS), which is precisely the class of
+      // dishonesty feature 012 removed from the verifier.
       const t1 = performance.now();
-      setRestLatency(Math.round(t1 - t0) + 8);
-      if (reqMethod === 'GET') {
-        setRestStatusCode(200);
-        setRestResponse(JSON.stringify(orders, null, 2));
-      } else if (reqMethod === 'POST') {
-        setRestStatusCode(201);
-        try {
-          const parsed = JSON.parse(reqBody);
-          setRestResponse(JSON.stringify({ id: 105, ...parsed, status: 'CONFIRMED' }, null, 2));
-        } catch {
-          setRestResponse(JSON.stringify({ id: 105, status: 'CONFIRMED' }, null, 2));
-        }
-      } else {
-        setRestStatusCode(204);
-        setRestResponse('{}');
-      }
+      setRestLatency(Math.round(t1 - t0));
+      setRestStatusCode(null);
+      setRestResponse(
+        [
+          '// NO HUBO RESPUESTA DEL SERVICIO',
+          `// ${reqMethod} ${url}`,
+          `// ${err instanceof Error ? err.message : String(err)}`,
+          '',
+          '// Nada se ejecutó en el contenedor. Esto NO es una respuesta del API.',
+          `// Comprueba que el contenedor está en marcha en el puerto ${hostPort}`,
+          '// (pestaña DevOps: "Desplegar Localmente") y que la ruta existe.',
+        ].join('\n'),
+      );
     }
   };
 
