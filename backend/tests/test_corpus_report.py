@@ -194,7 +194,11 @@ def test_a_failed_build_is_verified_and_does_count_as_a_failure():
 def clean_batch_records():
     from app.models.diagnostics import SessionDiagnosticRecord, ensure_schema
     from app.models.session import SessionLocal
-    names = [f"corpus-{n}" for n in
+    # A TEST-ONLY prefix. The real driver labels its sessions "corpus-<blueprint>",
+    # so a fixture using the same ids can overwrite or delete a genuine baseline
+    # record -- destroying the only evidence a real run produced. Test data must
+    # never be addressable by the same key as production data.
+    names = [f"test-only-{n}" for n in
              ("minimal", "pair-a", "constrained", "multi-entity", "pair-b")]
 
     def _clean():
@@ -253,6 +257,7 @@ def test_a_batch_records_an_outcome_for_every_blueprint(clean_batch_records):
         runner=runner,
         blueprints=["minimal", "pair-a", "constrained", "multi-entity"],
         output=lambda line: None,
+        session_prefix="test-only",
     )
 
     outcomes = {o["blueprint"]: o for o in summary["outcomes"]}
@@ -305,6 +310,7 @@ def test_the_batch_labels_each_record_with_its_task(clean_batch_records):
         runner=lambda name: _final_state(artifacts=artifacts),
         blueprints=["minimal", "pair-a"],
         output=lambda line: None,
+        session_prefix="test-only",
     )
 
     report = summary["report"]

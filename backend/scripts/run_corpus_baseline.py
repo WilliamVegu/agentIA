@@ -123,6 +123,7 @@ def run_baseline(
     runner: Callable[[str], Dict[str, Any]],
     blueprints: Sequence[str] = DEFAULT_BLUEPRINTS,
     output: Callable[[str], None] = print,
+    session_prefix: str = "corpus",
 ) -> Dict[str, Any]:
     """Run one session per blueprint, record every outcome, and report.
 
@@ -134,7 +135,12 @@ def run_baseline(
 
     total = len(blueprints)
     for index, blueprint_name in enumerate(blueprints, start=1):
-        session_id = f"corpus-{blueprint_name}"
+        # The prefix is a parameter so a TEST can use its own namespace. Deriving
+        # it internally meant tests wrote the same "corpus-<blueprint>" keys as a
+        # real run, so running the suite could overwrite the only baseline record
+        # a genuine session had produced. Test data must not share a key with
+        # production data.
+        session_id = f"{session_prefix}-{blueprint_name}"
         output(f"  [{index}/{total}] {blueprint_name} ...")
 
         try:
@@ -171,7 +177,12 @@ def run_baseline(
 
     # Read back what was written, so the report reflects the store rather than a
     # second in-memory copy that could drift from it.
-    stored = [r for r in read_diagnostic_records() if r.get("task") in set(blueprints)]
+    prefix = f"{session_prefix}-"
+    stored = [
+        r for r in read_diagnostic_records()
+        if r.get("task") in set(blueprints)
+        and str(r.get("session_id", "")).startswith(prefix)
+    ]
     report = build_report(stored, cost=_cost_for(stored))
 
     output("")
