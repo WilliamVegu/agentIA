@@ -1039,6 +1039,15 @@ def _run_model_stage(
             written = persist_artifacts(state["workspace_path"], candidate)
             state["generated_files"] = accumulated
             persisted_paths = written
+            # A first-attempt success must still record a verdict. It previously
+            # recorded NONE, which made `passed = None` ambiguous between "the first
+            # candidate passed" and "no candidate ever parsed" -- the exact
+            # distinction stage_attribution exists to preserve. The first real
+            # baseline after the parser fix shows why that matters: five stages
+            # SUCCEEDED on their first request, and every one of them read as though
+            # nothing had been judged.
+            if initial_verdict is None:
+                initial_verdict = last_verdict_dict
             # A stage that needed at least one correction is CORRECTED, even when
             # no individual correction was itself rejected. Deriving the outcome
             # from len(corrections) instead would report SUCCEEDED for a stage

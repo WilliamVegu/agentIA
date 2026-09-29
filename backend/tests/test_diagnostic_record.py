@@ -654,3 +654,50 @@ def test_a_session_that_blocked_before_the_sandbox_is_not_verified():
         "a session that never reached the sandbox was reported as verified; its "
         "conformance score would then enter the corpus as measured evidence"
     )
+
+
+def test_a_first_attempt_success_records_a_passing_verdict(monkeypatch, tmp_path):
+    """'passed = None' must mean NO VERDICT, not 'passed quietly'.
+
+    Before this, a stage that succeeded on its first request recorded no verdict at
+    all, so `passed=None` covered two opposite realities: a stage whose candidate
+    never parsed, and a stage whose candidate was accepted immediately. The real
+    baseline after the parser fix hit the second case on all five stages, and every
+    one of them read as though nothing had been judged.
+    """
+    from app.orchestrator.stages.runner import STAGE_ORDER, run_stages
+    from app.services.conformance_diagnostics import stage_attribution
+
+    blueprint = _blueprint("minimal")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    responses = [
+        fm.canonical_json_response(fm.compliant_artifacts(stage, blueprint))
+        for stage in ("SCAFFOLDER", "DOMAIN", "SERVICE", "CONTROLLER", "TEST")
+    ]
+    model = _script_responses(monkeypatch, responses)
+
+    result = run_stages(
+        _model_state(blueprint, workspace, "t015-c"), stages=STAGE_ORDER,
+        api_key="sk-fake-key-for-tests",
+    )
+
+    assert model.call_count == 5, "each stage should pass on its first request"
+    assert result.get("status") != "BLOCKED"
+
+    attributed = {entry["stage"]: entry for entry in stage_attribution(result["generation_journal"])}
+    for stage in ("SCAFFOLDER", "DOMAIN", "SERVICE", "CONTROLLER", "TEST"):
+        assert attributed[stage]["outcome"] == "SUCCEEDED"
+        assert attributed[stage]["passed"] is True, (
+            f"{stage} succeeded on its first attempt but recorded no verdict, so a "
+            f"clean stage is indistinguishable from an unjudged one"
+        )
+
+    # A first-attempt success can still carry ACCUMULATED findings: the
+    # whole-project error-handler rule fires while the controller stage has not run
+    # yet, and recording it is the point of attribution (FR-006). It is recorded
+    # WITHOUT blocking, which is why the stages above still succeeded. Before the
+    # verdict fix this signal was lost along with the passing verdict.
+    assert any(
+        entry["rule_histogram"] for entry in attributed.values()
+    ), "accumulated findings were dropped along with the missing verdict"
