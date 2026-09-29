@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1790703259.49815 "agentia_first_baseline.tex" "agentia_first_baseline.pdf" "agentia_first_baseline" 1790703260.04577 0
+["pdflatex"] 1790703248.10673 "agentia_measurement_and_readiness.tex" "agentia_measurement_and_readiness.pdf" "agentia_measurement_and_readiness" 1790703248.61035 0
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecbx1095.tfm" 1136768653 3584 21b378cca2e40816b0e6d74a4dc98f04 ""
@@ -175,14 +175,14 @@
   "/usr/share/texlive/texmf-dist/web2c/texmf.cnf" 1733443200 41804 5963566f80e4d8fda58154e8d2446b1b ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1782745587 337438 7f818a43adc016769d464af8ef598666 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1784822999 1937935 1640daf02d0d2e8ea88044c163bbce10 ""
-  "agentia_first_baseline.aux" 1790703259.94983 1978 3ae1975e14a87a4e6bcab3a832633e71 "pdflatex"
-  "agentia_first_baseline.out" 1790703259.95083 2078 85e9f51b8eca9541136eb64400e804ab "pdflatex"
-  "agentia_first_baseline.tex" 1790703252.86509 19204 f54da94507169d21fa5172e8fe0f3b42 ""
-  "agentia_first_baseline.toc" 1790703259.95179 927 0f0d86f1d33cd99e0092eb87860b416b "pdflatex"
+  "agentia_measurement_and_readiness.aux" 1790703248.51783 1982 fcdaed361d93f48be4bc4e1cce2cd8b8 "pdflatex"
+  "agentia_measurement_and_readiness.out" 1790703248.51883 2746 e111e39f984ad87c4478047cbf07ec49 "pdflatex"
+  "agentia_measurement_and_readiness.tex" 1790703242.72483 16535 dde2f8f5e172dc74d6c62cd29ab1ba2f ""
+  "agentia_measurement_and_readiness.toc" 1790703248.5202 1129 e440b7fcaa8d6b0eedf463976be94a14 "pdflatex"
   (generated)
-  "agentia_first_baseline.aux"
-  "agentia_first_baseline.log"
-  "agentia_first_baseline.out"
-  "agentia_first_baseline.pdf"
-  "agentia_first_baseline.toc"
+  "agentia_measurement_and_readiness.aux"
+  "agentia_measurement_and_readiness.log"
+  "agentia_measurement_and_readiness.out"
+  "agentia_measurement_and_readiness.pdf"
+  "agentia_measurement_and_readiness.toc"
   (rewritten before read)
