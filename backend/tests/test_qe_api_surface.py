@@ -267,3 +267,28 @@ def test_the_offline_decomposition_ignores_the_prompt_and_declares_itself():
         "would again present it as a response to the prompt"
     )
     assert "NOT used" in first.assumptions[0]
+
+
+def test_the_generic_handler_also_logs_the_traceback(caplog):
+    """A 500 with no logged cause is an undiagnosable 500.
+
+    Eight `POST /requirements/transform` 500s appeared in the access log with not one
+    line saying why, so the cause (DeepSeek rejecting `response_format`) had to be
+    reproduced by hand from outside the running server. The handler now logs the stack.
+    """
+    import logging
+
+    with caplog.at_level(logging.ERROR, logger="app.main"):
+        asyncio.run(generic_exception_handler(None, ValueError("deepseek said no")))
+
+    assert any("deepseek said no" in record.getMessage() for record in caplog.records), (
+        "the handler returned an envelope without recording why"
+    )
+
+
+def test_the_handler_still_answers_when_the_request_object_is_unusable():
+    """An error handler must not fail while reporting an error."""
+    response = asyncio.run(generic_exception_handler(None, ValueError("boom")))
+
+    assert response.status_code == 500
+    assert json.loads(response.body)["status"] == 500

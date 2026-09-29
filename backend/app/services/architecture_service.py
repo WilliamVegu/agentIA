@@ -20,6 +20,7 @@ try:
     from app.models.blueprint import DomainEntity, UserStoryRecord
     from app.models.requirements import SpecificationDraft
     from app.services.llm_factory import LLMFactory
+    from app.services.structured_output import invoke_structured
 except ImportError:
     from backend.app.models.architecture import (
         ComponentDefinition,
@@ -35,6 +36,7 @@ except ImportError:
     from backend.app.models.blueprint import DomainEntity, UserStoryRecord
     from backend.app.models.requirements import SpecificationDraft
     from backend.app.services.llm_factory import LLMFactory
+    from backend.app.services.structured_output import invoke_structured
 
 class LLMComponentDecomposition(BaseModel):
     name: str = Field(description="PascalCase component name")
@@ -427,8 +429,6 @@ def design_architecture(
     if llm is None:
         return _generate_mock_architecture(request.draft)
 
-    structured_llm = llm.with_structured_output(LLMArchitecturePayload)
-
     system_prompt = (
         "You are an expert Enterprise Software Architect specialized in Spring Boot 3 and Java 21 LTS.\n"
         "Your task is to analyze user stories, Given/When/Then acceptance criteria, and domain entities "
@@ -455,7 +455,8 @@ def design_architecture(
         HumanMessage(content=content_summary),
     ]
 
-    llm_payload: LLMArchitecturePayload = structured_llm.invoke(messages)
+    llm_payload: LLMArchitecturePayload = invoke_structured(
+        llm, LLMArchitecturePayload, messages)
 
     components: List[ComponentDefinition] = []
     for c in llm_payload.components:
@@ -567,8 +568,6 @@ def refine_architecture(
     if llm is None:
         return request.currentDesign
 
-    structured_llm = llm.with_structured_output(LLMArchitecturePayload)
-
     system_prompt = (
         "You are an Enterprise Software Architect. You are given an existing architecture design and feedback prompt. "
         "Update the component catalog and endpoints incorporating the user's architectural instructions. "
@@ -583,7 +582,8 @@ def refine_architecture(
     )
 
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=current_summary)]
-    llm_payload: LLMArchitecturePayload = structured_llm.invoke(messages)
+    llm_payload: LLMArchitecturePayload = invoke_structured(
+        llm, LLMArchitecturePayload, messages)
 
     components: List[ComponentDefinition] = []
     for c in llm_payload.components:

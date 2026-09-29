@@ -16,6 +16,7 @@ try:
         SpecificationDraft,
     )
     from app.services.injection_guard import assert_no_injection
+    from app.services.structured_output import invoke_structured
     from app.services.llm_factory import LLMFactory
 except ImportError:
     from backend.app.models.blueprint import (
@@ -30,6 +31,7 @@ except ImportError:
         SpecificationDraft,
     )
     from backend.app.services.injection_guard import assert_no_injection
+    from backend.app.services.structured_output import invoke_structured
     from backend.app.services.llm_factory import LLMFactory
 
 class LLMStoryDecomposition(BaseModel):
@@ -254,7 +256,6 @@ def transform_requirements(
         if llm is None:
             decomp = _generate_mock_decomposition(request.rawText, request.serviceName)
         else:
-            structured_llm = llm.with_structured_output(LLMRequirementsDecomposition)
 
             system_prompt = (
                 "You are an expert Enterprise Software Architect and Agile Product Owner. "
@@ -285,7 +286,8 @@ def transform_requirements(
                 HumanMessage(content=user_content),
             ]
 
-            decomp: LLMRequirementsDecomposition = structured_llm.invoke(messages)
+            decomp: LLMRequirementsDecomposition = invoke_structured(
+                llm, LLMRequirementsDecomposition, messages, provider=chosen_provider)
 
     # Convert LLM decomposition into SpecificationDraft
     entities: List[DomainEntity] = []
@@ -439,8 +441,6 @@ def refine_specification(
         draft.markdownSpec = serialize_draft_to_markdown(draft)
         return draft
 
-    structured_llm = llm.with_structured_output(LLMRequirementsDecomposition)
-
     system_prompt = (
         "You are an expert Software Architect and Agile Product Owner. "
         "You are given an existing SpecificationDraft and user feedback/refinement instructions. "
@@ -462,7 +462,8 @@ def refine_specification(
         HumanMessage(content=current_summary),
     ]
 
-    decomp: LLMRequirementsDecomposition = structured_llm.invoke(messages)
+    decomp: LLMRequirementsDecomposition = invoke_structured(
+        llm, LLMRequirementsDecomposition, messages)
 
     # Reconstruct updated draft
     entities: List[DomainEntity] = []

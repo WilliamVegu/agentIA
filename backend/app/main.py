@@ -1,4 +1,5 @@
 import app.ssl_compat  # noqa: F401
+import logging
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -39,6 +42,23 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    # Log the traceback. A handler that returns a tidy envelope while printing nothing
+    # leaves an operator with a 500 and no way to find out why -- which is exactly what
+    # happened when DeepSeek rejected `response_format`: eight 500s in the access log,
+    # not one line saying what failed, so the cause had to be reproduced by hand from
+    # outside the running server. The client gets the summary; the server keeps the stack.
+    #
+    # The logging is itself wrapped: an error handler that raises while reporting an
+    # error replaces a diagnosable 500 with an undiagnosable one.
+    try:
+        logger.exception(
+            "unhandled error on %s %s: %s",
+            getattr(request, "method", "?"),
+            getattr(getattr(request, "url", None), "path", "?"),
+            exc,
+        )
+    except Exception:  # noqa: BLE001 -- never let logging mask the original failure
+        pass
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
