@@ -24,10 +24,12 @@ free.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 from app.orchestrator.stages.compliance import (
+    ATTRIBUTION_ACCUMULATED,
     SEVERITY_BLOCKING,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
@@ -37,6 +39,11 @@ from app.orchestrator.stages.compliance import (
     check_dependency_allowlist,
     normalize_verdict,
 )
+
+#: Rule ids this module owns -- checks that live outside both validator families
+#: because they compare artifacts against each other rather than against a rule set.
+RULE_DEPENDENCY_NOT_ALLOWED = "DEPENDENCY_NOT_ALLOWED"
+RULE_SCHEMA_ENTITY_MISMATCH = "SCHEMA_ENTITY_MISMATCH"
 
 #: Penalty per finding, identical to the weights in
 #: ``security_service.evaluate_quality_gate``. Reusing the established weights
@@ -201,6 +208,63 @@ def stage_attribution(journal: Optional[Mapping[str, Any]]) -> List[Dict[str, An
     return attributed
 
 
+def check_schema_matches_entities(files: Mapping[str, str]) -> list:
+    """Every table the JPA entities declare must exist in the generated ``schema.sql``.
+
+    This is a cross-artifact check, which is why it lives here and not in a validator
+    family: it compares two generated files against each other, not the artifacts
+    against a rule set.
+
+    **Why it exists.** An external review of real generated output found a service
+    whose ``schema.sql`` created a table ``items`` while its JPA entity mapped
+    ``orders``. ``docker-compose.yml`` mounts ``schema.sql`` into
+    ``/docker-entrypoint-initdb.d/``, so under ``ddl-auto: validate`` the application
+    refuses to start against the database its own schema just created. Nothing in the
+    pipeline compared the two files, so nothing noticed.
+
+    Attribution is ACCUMULATED: no single stage owns both files, and a stage must not
+    be rejected for a mismatch it could not have seen. That also makes this rule part
+    of the channel that survives into a saved artifact set -- which is the only
+    channel a conformance measure can vary on.
+    """
+    schema = files.get("schema.sql")
+    if not schema:
+        return []                       # nothing to compare; not a finding
+
+    declared = set(re.findall(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[\"`]?(\w+)",
+                              schema, re.IGNORECASE))
+    if not declared:
+        return []
+
+    violations = []
+    for path, content in files.items():
+        if not path.endswith(".java"):
+            continue
+        for table in re.findall(r'@Table\s*\(\s*name\s*=\s*[\'"]([^\'"]+)[\'"]', content):
+            if table.lower() in {name.lower() for name in declared}:
+                continue
+            violations.append(ComplianceViolation(
+                artifact_path="schema.sql",
+                rule_id=RULE_SCHEMA_ENTITY_MISMATCH,
+                severity=SEVERITY_HIGH,
+                message=(
+                    f"Entity in {path} maps table '{table}', but schema.sql does not "
+                    f"create it (it creates: {', '.join(sorted(declared)) or 'none'}). "
+                    f"The service will fail to start against its own schema under "
+                    f"ddl-auto=validate, and the docker-compose init script will build "
+                    f"the wrong tables."
+                ),
+                suggested_fix=(
+                    f"Emit CREATE TABLE IF NOT EXISTS {table} (...) in schema.sql with "
+                    f"the entity's columns, or remove the @Table name so the default "
+                    f"naming applies to both."
+                ),
+                attribution=ATTRIBUTION_ACCUMULATED,
+                contributing_sources=("conformance_diagnostics.check_schema_matches_entities",),
+            ))
+    return violations
+
+
 def record_session_diagnostics(
     session_id: str,
     final_state: Mapping[str, Any],
@@ -275,6 +339,9 @@ def diagnose(artifacts: Mapping[str, str]) -> ConformanceReport:
     extra_violations: list = []
     if "pom.xml" in files:
         extra_violations.extend(check_dependency_allowlist(files["pom.xml"], artifact_path="pom.xml"))
+    # Cross-artifact consistency, like the allowlist above: outside both validator
+    # families because it compares two generated files rather than applying a rule.
+    extra_violations.extend(check_schema_matches_entities(files))
 
     verdict = normalize_verdict(files, extra_violations=extra_violations)
     violations = verdict.violations
