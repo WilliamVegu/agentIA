@@ -104,10 +104,32 @@ class ConformanceReport:
     #: quality, because sets carrying findings at the same rate measure the same
     #: at any size (FR-007, SC-009).
     density: float = 0.0
+    #: The severity-weighted penalty the baseline already accounts for. Retained so
+    #: a reader can see what was forgiven and by how much.
+    baseline_penalty: int = 0
+    #: **The decision metric.** Absolute severity-weighted penalty of the findings
+    #: the baseline does not account for. No denominator, so it cannot be moved by
+    #: generating less code OR more files -- only by not introducing a finding.
+    new_penalty: int = 0
+    #: The minimum artifact count at which a comparison is considered covered. A set
+    #: below it has too little surface for the measure to mean anything: a single
+    #: file with no findings is not evidence of a clean service.
+    size_floor: Optional[int] = None
+    #: False when ``evaluated_artifact_count`` is below ``size_floor``. Reported
+    #: rather than enforced, so no existing rate silently changes meaning.
+    size_floor_met: bool = True
+    #: The subset of ``violations`` the baseline does not account for. Carried so a
+    #: consumer can name what is new instead of only scoring it.
+    new_violations: Tuple[ComplianceViolation, ...] = ()
 
     @property
     def rule_ids(self) -> Tuple[str, ...]:
         return tuple(sorted(self.rule_histogram))
+
+    @property
+    def new_rule_ids(self) -> Tuple[str, ...]:
+        """Rule ids with at least one finding beyond the baseline."""
+        return tuple(sorted({v.rule_id for v in self.new_violations}))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -119,6 +141,10 @@ class ConformanceReport:
             "evaluable": self.evaluable,
             "raw_penalty": self.raw_penalty,
             "density": self.density,
+            "baseline_penalty": self.baseline_penalty,
+            "new_penalty": self.new_penalty,
+            "size_floor": self.size_floor,
+            "size_floor_met": self.size_floor_met,
             "violations": [v.to_dict() for v in self.violations],
         }
 
@@ -138,8 +164,16 @@ def score_for(violations: Tuple[ComplianceViolation, ...]) -> int:
 def measure_for(violations: Tuple[ComplianceViolation, ...], artifact_count: int) -> float:
     """The size-comparable conformance measure: penalty per 100 artifacts.
 
-    Monotone in the *proportion* of findings rather than their count, so a set
-    carrying findings at the same rate measures the same whatever its size.
+    **Retained for continuity, not for decisions.** Every ratio built from findings
+    is gameable in one direction or the other: a raw count rewards emitting less
+    code, and a per-artifact density -- this function -- rewards emitting *more*,
+    because extra files dilute it. Neither is a safe objective, and this one was
+    adopted precisely to fix the raw count's flaw, which means it moved the
+    exploit rather than removing it.
+
+    The decision metric is :func:`new_penalty`: an absolute penalty over a frozen
+    baseline, with no denominator to game. See the module docstring on
+    :data:`BaselineSnapshot`.
 
     When nothing was evaluated there is no exposure to normalise against, so the
     raw penalty is returned rather than dividing by zero: a set with no artifacts
@@ -149,6 +183,57 @@ def measure_for(violations: Tuple[ComplianceViolation, ...], artifact_count: int
     if artifact_count <= 0:
         return float(penalty)
     return round(penalty * _MEASURE_BASIS / artifact_count, 2)
+
+
+#: A frozen reference set of findings: ``rule_id -> permitted count``.
+#:
+#: **Why the objective is baseline-relative rather than a ratio.** A ratio needs a
+#: denominator, and with findings in the numerator every candidate denominator is
+#: exploitable: count findings and generating less code wins; divide by artifacts
+#: and generating *more* files wins. Removing the denominator removes the exploit.
+#: What remains is the absolute severity-weighted penalty of the violations the
+#: baseline does not already account for -- which cannot be reduced by changing the
+#: size of the artifact set at all, only by not introducing a finding.
+BaselineSnapshot = Mapping[str, int]
+
+
+def baseline_from_histogram(histogram: Mapping[str, int]) -> Dict[str, int]:
+    """Freeze a rule histogram as a baseline. Each count is a permitted allowance."""
+    return {rule: int(count) for rule, count in histogram.items() if int(count) > 0}
+
+
+def violations_beyond_baseline(
+    violations: Tuple[ComplianceViolation, ...],
+    baseline: Optional[BaselineSnapshot],
+) -> Tuple[ComplianceViolation, ...]:
+    """The violations exceeding the baseline's per-rule allowance.
+
+    The allowance is consumed in iteration order, so the result is deterministic for
+    a given violation tuple. An absent or empty baseline permits nothing, which is
+    the conservative direction: an unknown baseline must not silently forgive a
+    finding.
+    """
+    if not baseline:
+        return tuple(violations)
+
+    remaining = dict(baseline)
+    beyond: list = []
+    for violation in violations:
+        allowed = remaining.get(violation.rule_id, 0)
+        if allowed > 0:
+            remaining[violation.rule_id] = allowed - 1
+            continue
+        beyond.append(violation)
+    return tuple(beyond)
+
+
+def new_penalty(
+    violations: Tuple[ComplianceViolation, ...],
+    baseline: Optional[BaselineSnapshot] = None,
+) -> int:
+    """The absolute penalty of findings the baseline does not already account for."""
+    return penalty_for(violations_beyond_baseline(violations, baseline))
+
 
 
 def stage_attribution(journal: Optional[Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -316,11 +401,22 @@ def record_session_diagnostics(
         return False
 
 
-def diagnose(artifacts: Mapping[str, str]) -> ConformanceReport:
+def diagnose(
+    artifacts: Mapping[str, str],
+    *,
+    baseline: Optional[BaselineSnapshot] = None,
+    min_artifacts: Optional[int] = None,
+) -> ConformanceReport:
     """Evaluate an artifact set and describe what is wrong with it.
 
     Both validator families are consulted through the shared merge layer, so this
     reports exactly what the stage gate would have reported.
+
+    ``baseline`` freezes the findings a run is *expected* to carry; only the excess
+    is charged (:func:`new_penalty`). ``min_artifacts`` states the artifact count
+    below which the measure is not considered covered, and is reported as
+    ``size_floor_met`` rather than enforced, so no existing consumer's rate changes
+    meaning without it being visible.
 
     **Outside-family checks are included deliberately.** The dependency-allowlist
     rule is not part of ``normalize_verdict``; the stage runner calls it separately
@@ -352,15 +448,23 @@ def diagnose(artifacts: Mapping[str, str]) -> ConformanceReport:
         counts_by_severity[violation.severity] = counts_by_severity.get(violation.severity, 0) + 1
         rule_histogram[violation.rule_id] = rule_histogram.get(violation.rule_id, 0) + 1
 
+    beyond = violations_beyond_baseline(violations, baseline)
+    artifact_count = verdict.evaluated_artifact_count
+
     return ConformanceReport(
         score=score_for(violations),
-        evaluable=verdict.evaluated_artifact_count > 0,
+        evaluable=artifact_count > 0,
         raw_penalty=penalty_for(violations),
-        density=measure_for(violations, verdict.evaluated_artifact_count),
+        density=measure_for(violations, artifact_count),
+        baseline_penalty=penalty_for(violations) - penalty_for(beyond),
+        new_penalty=penalty_for(beyond),
+        new_violations=beyond,
+        size_floor=min_artifacts,
+        size_floor_met=(min_artifacts is None or artifact_count >= min_artifacts),
         blocking=verdict.local_blocking_count > 0
         or any(v.blocking for v in violations),
         violations=violations,
         counts_by_severity=counts_by_severity,
         rule_histogram=rule_histogram,
-        evaluated_artifact_count=verdict.evaluated_artifact_count,
+        evaluated_artifact_count=artifact_count,
     )
