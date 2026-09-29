@@ -206,6 +206,12 @@ demonstrable improvement reports no improvement.
   evidence cannot support.
 - **FR-017**: The number of skills considered in a single round MUST be bounded by
   a documented limit.
+- **FR-018**: Each recorded finding MUST be attributed to the generation stage that
+  introduced it, so the origin of a violation is identifiable without re-running
+  the session.
+- **FR-019**: The conformance measure MUST be comparable across artifact sets of
+  different sizes, so that a larger service is not penalised for its size and no
+  round can improve the measure merely by generating less.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -246,6 +252,10 @@ demonstrable improvement reports no improvement.
 - **SC-009**: Exactly one record exists per optimization round, on every exit path.
 - **SC-010**: No optimization round can alter the rules by which findings are
   counted, verified by attempting it and confirming the attempt has no effect.
+- **SC-011**: For any recorded session, the stage that introduced each finding is
+  identifiable from the record alone.
+- **SC-012**: Two artifact sets differing only in size, carrying findings in the
+  same proportion, yield the same conformance measure.
 
 ## Assumptions
 
@@ -275,3 +285,15 @@ demonstrable improvement reports no improvement.
 - **This feature does not train any model.** It consumes the existing
   deterministic evaluation and a proposal mechanism; no weights change, and no
   training infrastructure is required or assumed.
+- **The conformance measure is an artifact-level instrument, and that is what
+  makes it reusable beyond this platform.** It reads a set of files and returns
+  findings, so it can score output from this generator or from any other agent,
+  and the same instrument can serve both. Three limits are accepted with it. It
+  is a **fixed, hand-written rule set**, so its coverage is bounded by the rules
+  authored: a defect class nobody encoded scores clean. It measures
+  **conformance, not correctness** — a well-layered service that does not work
+  scores full marks, which is why build success remains a guardrail. And its use
+  as an optimisation objective is, as far as the reviewed literature shows,
+  **without precedent**: comparable work gates on test execution or on a language
+  model's judgement, not on a static rule scan. Its behaviour as an objective is
+  therefore to be measured, not assumed.

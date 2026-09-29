@@ -37,9 +37,33 @@
 behaviour, so it has no acceptance scenario of its own; it is verified directly
 against the documented limit during implementation. Every other functional
 requirement maps to at least one acceptance scenario or success criterion:
-FR-001–FR-005 to User Story 1 and SC-001–SC-003/SC-006, FR-006–FR-009 to User
-Story 2 and SC-004/SC-005, FR-010–FR-013 and FR-015/FR-016 to User Story 3 and
-SC-007–SC-009, and FR-014 to SC-010.
+FR-001–FR-005 and FR-018 to User Story 1 and SC-001–SC-003/SC-006/SC-011,
+FR-006–FR-009 and FR-019 to User Story 2 and SC-004/SC-005/SC-012,
+FR-010–FR-013 and FR-015/FR-016 to User Story 3 and SC-007–SC-009, and FR-014 to
+SC-010.
+
+**FR-018 and FR-019 were added after the first review pass**, both prompted by an
+operator question about measuring per request rather than per session:
+
+- **FR-018 (per-stage attribution)** — the platform already computes a
+  conformance verdict per generation stage and stores it on the stage entry. It
+  was never persisted or surfaced, so the origin of a violation was lost when the
+  session ended. Recording it costs almost nothing and converts a session total
+  into an attributable profile: which stage introduced the defect. Note this does
+  **not** increase the evidence size — re-checking the same tasks repeatedly is
+  still the same number of distinct tasks (FR-009).
+- **FR-019 (comparability across sizes)** — the conformance measure was a raw
+  weighted count, so a larger service would score worse for being larger, and a
+  round pointed at it could improve the measure merely by generating less code.
+  That is a low-distinguishability verifier failure mode, and normalisation is
+  the guard against it.
+
+**On the oracle's own limits**, now recorded in the spec's Assumptions: it is a
+fixed, hand-written rule set, so a defect class nobody encoded scores clean; it
+measures conformance rather than correctness, so a well-layered but broken
+service scores full marks; and its use as an optimisation objective has no
+precedent in the reviewed literature, which gates on test execution or a language
+model's judgement instead. Its behaviour as an objective is to be measured.
 
 **The conformance-target decision is documented as a flagged assumption, not a
 clarification marker.** The scope of this feature turns on one question — whether
