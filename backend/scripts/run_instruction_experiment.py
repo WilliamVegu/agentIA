@@ -39,8 +39,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import queue
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -149,6 +151,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--model", default=None)
     parser.add_argument("--api-key", default=None)
     parser.add_argument("--cap-usd", type=float, default=10.0)
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help=(
+            "concurrent sessions. Sessions are independent (own workspace, own "
+            "session id), and workers pull from the interleaved plan in order, so "
+            "concurrency cuts wall-clock without unbalancing the arms."
+        ),
+    )
     parser.add_argument("--pilot", action="store_true",
                         help="1 run, 2 tasks: validate the harness cheaply first")
     parser.add_argument("--out", default="reports/measurements/instruction-polarity.json")
@@ -233,41 +243,89 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
 
     aborted = ""
-    try:
-        # Interleaved by run, then task, then arm: a provider degradation or a rate
-        # limit then hits all three arms at once rather than one arm entirely, which
-        # is the difference between noise and a fake effect.
-        for run_index in range(1, runs + 1):
-            for task in tasks:
-                for arm in arms:
-                    spent = _spend_usd() - baseline_spend
-                    if spent >= args.cap_usd:
-                        aborted = f"cost cap reached (${spent:.2f} >= ${args.cap_usd:.2f})"
-                        raise StopIteration
+    lock = threading.Lock()
 
-                    record = _run_session(
-                        arm=arm,
-                        task=task,
-                        run_index=run_index,
-                        arm_dir=arms_root / arm,
-                        provider=provider,
-                        api_key=api_key,
-                        model_name=args.model,
-                        workspace_root=workspace_root,
-                        tag=args.tag,
-                    )
-                    records.append(record)
-                    print(
-                        f"  r{run_index} {task:10} {arm:12} "
-                        f"build={'PASS' if record['build_success'] else 'FAIL'} "
-                        f"tests={record['tests_passed']}/{record['tests_total']} "
-                        f"new_penalty={record['new_penalty']} ({record['duration_seconds']}s)"
-                    )
+    # Interleaved by run, then task, then arm, so a provider degradation or a rate
+    # limit hits all three arms at once rather than one arm entirely -- which is the
+    # difference between noise and a fake effect. Workers pull from this queue in
+    # that order, so concurrency preserves the interleaving rather than destroying
+    # it.
+    plan = [
+        (run_index, task, arm)
+        for run_index in range(1, runs + 1)
+        for task in tasks
+        for arm in arms
+    ]
+    work: "queue.Queue" = queue.Queue()
+    for item in plan:
+        work.put(item)
+    stop = threading.Event()
+
+    def worker() -> None:
+        nonlocal aborted
+        while not stop.is_set():
+            try:
+                run_index, task, arm = work.get_nowait()
+            except queue.Empty:
+                return
+            try:
+                # Checked per session, immediately before spending, because the
+                # store only reflects COMPLETED sessions: checking once up front
+                # would let an entire queue run past the cap.
+                spent = _spend_usd() - baseline_spend
+                if spent >= args.cap_usd:
+                    with lock:
+                        aborted = aborted or (
+                            f"cost cap reached (${spent:.2f} >= ${args.cap_usd:.2f})"
+                        )
+                    stop.set()
+                    return
+
+                record = _run_session(
+                    arm=arm,
+                    task=task,
+                    run_index=run_index,
+                    arm_dir=arms_root / arm,
+                    provider=provider,
+                    api_key=api_key,
+                    model_name=args.model,
+                    workspace_root=workspace_root,
+                    tag=args.tag,
+                )
+            except Exception as exc:  # noqa: BLE001
+                # One failed session must not abandon the experiment: the sessions
+                # either side of it are still evidence, and the failure is recorded.
+                with lock:
+                    records.append({
+                        "arm": arm, "task": task, "run": run_index,
+                        "error": f"{type(exc).__name__}: {exc}", "build_success": None,
+                    })
                     flush("running")
-    except StopIteration:
-        pass
+                continue
+            finally:
+                work.task_done()
+
+            with lock:
+                records.append(record)
+                print(
+                    f"  r{run_index} {task:10} {arm:12} "
+                    f"build={'PASS' if record['build_success'] else 'FAIL'} "
+                    f"tests={record['tests_passed']}/{record['tests_total']} "
+                    f"new_penalty={record['new_penalty']} ({record['duration_seconds']}s)"
+                    f"   [{len(records)}/{total_sessions}, ${_spend_usd() - baseline_spend:.3f}]"
+                )
+                flush("running")
+
+    threads = [threading.Thread(target=worker, daemon=True) for _ in range(max(1, args.workers))]
+    try:
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            while thread.is_alive():
+                thread.join(timeout=1.0)
     except KeyboardInterrupt:
-        aborted = "interrupted"
+        aborted = aborted or "interrupted"
+        stop.set()
 
     flush("aborted: " + aborted if aborted else "complete")
 

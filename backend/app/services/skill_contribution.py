@@ -52,18 +52,36 @@ class TaskOutcome:
     """One arm's result for one task.
 
     ``measure`` is the conformance measure on a **higher-is-better** scale. The
-    platform records ``density`` (penalty per 100 artifacts, lower is better), so the
-    wiring negates it with :func:`quality_from_density`. Doing the inversion in one
-    named place is what stops a sign error from turning "the skill helps" into "the
-    skill hurts" in a removal decision.
+    platform records penalties (lower is better), so the wiring negates them. Doing
+    the inversion in one named place is what stops a sign error from turning "the
+    skill helps" into "the skill hurts" in a removal decision.
+
+    **Which penalty.** ``new_penalty`` (absolute, baseline-relative) is preferred.
+    ``density`` (penalty per 100 artifacts) is retained only as a fallback for
+    records written before the baseline measure existed, because it is a ratio and
+    a ratio is lowered by emitting more files just as well as by fixing anything --
+    so scoring on it lets a candidate improve by padding the artifact set.
     """
 
     evaluable: bool
     measure: float = 0.0
 
 
+def quality_from_new_penalty(new_penalty: float) -> float:
+    """The baseline-relative absolute penalty, as a higher-is-better measure.
+
+    No denominator, so neither shrinking nor padding the artifact set moves it.
+    """
+    return -float(new_penalty)
+
+
 def quality_from_density(density: float) -> float:
-    """The platform's size-comparable density, as a higher-is-better measure."""
+    """The size-comparable density, as a higher-is-better measure.
+
+    Deprecated as a decision metric: it is gameable by padding. Kept because old
+    records carry only this number, and refusing to score them at all would discard
+    real measurements.
+    """
     return -float(density)
 
 
@@ -164,7 +182,15 @@ def _as_outcome(value: Any) -> TaskOutcome:
     if isinstance(value, Mapping):
         measure = value.get("measure")
         if measure is None:
-            measure = value.get("density", value.get("score", 0.0))
+            # Prefer the absolute baseline-relative penalty. Fall back to density
+            # only for records that predate it, and only because discarding a real
+            # measurement is worse than scoring it on the older instrument.
+            if value.get("new_penalty") is not None:
+                measure = quality_from_new_penalty(value["new_penalty"])
+            elif value.get("density") is not None:
+                measure = quality_from_density(value["density"])
+            else:
+                measure = float(value.get("score", 0.0))
         return TaskOutcome(evaluable=bool(value.get("evaluable", True)), measure=float(measure or 0.0))
     if isinstance(value, (int, float)):
         return TaskOutcome(evaluable=True, measure=float(value))

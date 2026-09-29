@@ -69,6 +69,11 @@ class CorpusReport:
     densities: List[float] = field(default_factory=list)
     #: Raw conformance scores of verified sessions.
     scores: List[int] = field(default_factory=list)
+    #: Absolute baseline-relative penalties of verified sessions -- **the decision
+    #: metric**. ``None`` entries are records written before the column existed, and
+    #: are reported as ``new_penalty_measured`` rather than as zero: an unmeasured
+    #: penalty of 0 would read as a clean session.
+    new_penalties: List[Optional[int]] = field(default_factory=list)
     #: Model requests spent across the verified sessions.
     total_requests: int = 0
     #: Stages that needed at least one correction attempt.
@@ -102,6 +107,27 @@ class CorpusReport:
     @property
     def median_density(self) -> Optional[float]:
         return median(self.densities) if self.densities else None
+
+    @property
+    def new_penalty_measured(self) -> int:
+        """How many verified sessions carry a measured baseline-relative penalty."""
+        return sum(1 for value in self.new_penalties if value is not None)
+
+    @property
+    def median_new_penalty(self) -> Optional[float]:
+        """Median over the sessions that actually measured it, or None."""
+        measured = [float(v) for v in self.new_penalties if v is not None]
+        return median(measured) if measured else None
+
+
+def _optional_int(value: Any) -> Optional[int]:
+    """``None`` stays ``None``: an unmeasured penalty must not become a clean zero."""
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def build_report(
@@ -162,6 +188,7 @@ def build_report(
         untagged=untagged,
         densities=[float(r.get("density") or 0.0) for r in verified],
         scores=[int(r.get("score") or 0) for r in verified],
+        new_penalties=[_optional_int(r.get("new_penalty")) for r in verified],
         total_requests=total_requests,
         corrected_stages=corrected_stages,
         cost=dict(cost) if cost else None,
@@ -207,6 +234,19 @@ def render_report(report: CorpusReport) -> str:
         if report.median_density is not None:
             lines.append(f"  median density           : {report.median_density:.2f}"
                          f"  (penalty per 100 artifacts; lower is better)")
+        # The decision metric, printed next to the deprecated ratio so the two
+        # cannot be confused for one another. Its coverage is stated because a
+        # record predating the column has no value, and an absent value is not 0.
+        measured = [v for v in report.new_penalties if v is not None]
+        if measured:
+            lines.append(
+                f"  new penalty (absolute)    : {sorted(measured)}"
+                f"   [{report.new_penalty_measured} of {report.verified} verified measured]"
+            )
+        elif report.verified:
+            lines.append(
+                "  new penalty (absolute)    : not measured for any verified session"
+            )
         lines.append("")
         lines.append(f"  model requests           : {report.total_requests}")
         lines.append(f"  stages needing correction: {report.corrected_stages}")

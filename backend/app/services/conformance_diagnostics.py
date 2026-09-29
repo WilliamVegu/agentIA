@@ -506,6 +506,10 @@ def record_session_diagnostics(
             score=report.score,
             raw_penalty=report.raw_penalty,
             density=report.density,
+            # The decision metric, persisted so the round and the corpus report can
+            # score on it. Without this the optimiser keeps measuring the ratio it
+            # was supposed to stop using.
+            new_penalty=report.new_penalty,
             artifact_count=report.evaluated_artifact_count,
             evaluable=report.evaluable,
             # FR-005: excluded from evidence whatever the terminal status says.
