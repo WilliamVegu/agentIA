@@ -109,3 +109,48 @@ Scenarios 4–6 depend on the task-set size. At the current five blueprints the
 smallest detectable effect is large, so **Scenario 5 is the expected outcome of a
 real round** and Scenario 6 requires a deliberately large effect to exercise. The
 feature's honesty about that is part of its correctness, not a gap in it.
+
+
+---
+
+## Recorded output — the no-data contract (T023)
+
+Run against the real store while it is still empty. This is a **deliverable**, not
+a placeholder: it demonstrates that the report refuses to state a rate or a cost it
+cannot support.
+
+```text
+Corpus baseline report
+==============================================================
+
+No sessions have been recorded.
+
+This is not a measurement of zero: there is no data. A rate of 0% and a cost
+of $0.00 would both be claims this report cannot support.
+
+Run `backend/scripts/run_corpus_baseline.py` to record a baseline, then
+re-run this report.
+```
+
+## Running the baseline (T020)
+
+**Run this where the container runtime is reachable.** If the runtime is not
+available the honest verifier refuses to substitute a synthetic success, every
+session terminates BLOCKED, and the records are marked *unverified* — correct
+behaviour, but useless as a baseline, because unverified sessions are excluded from
+every figure by design. The driver says so at the end rather than reporting a rate.
+
+```bash
+PYTHONPATH=backend .venv/bin/python backend/scripts/run_corpus_baseline.py
+PYTHONPATH=backend .venv/bin/python backend/scripts/run_corpus_baseline.py --blueprints minimal,pair-a
+```
+
+The batch records one diagnostic per blueprint, labelled with the blueprint name so
+the report can state distinct **tasks** separately from **sessions**. Cost is
+reported only when cost data exists.
+
+## What must be true before the deferred optimizer is built
+
+The report must show that the conformance measure **varies** across real sessions.
+If every recorded session measures identically there is nothing for an optimizer to
+move, and the effort belongs on a different lever.

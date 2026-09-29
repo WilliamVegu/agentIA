@@ -35,6 +35,14 @@ class SessionDiagnosticRecord(Base):
     #: The session this describes. Natural key: exactly one record per session.
     session_id = Column(Text, primary_key=True)
 
+    #: Which task the session ran, so the report can state distinct TASKS
+    #: separately from sessions (FR-013). A session row itself carries no
+    #: blueprint identity, and without this label repeated runs of one task would
+    #: be indistinguishable from a larger sample -- which is exactly how
+    #: pseudo-replication manufactures significance. NULL when the caller did not
+    #: know it; such records are reported as untagged rather than guessed at.
+    task = Column(Text, nullable=True)
+
     #: Raw weighted score. Size-dependent; not comparable across set sizes.
     score = Column(Integer, nullable=False)
     #: Unnormalised weighted penalty behind ``score``.
@@ -59,13 +67,64 @@ class SessionDiagnosticRecord(Base):
 
 
 def ensure_schema(bind=None) -> None:
-    """Create the table on the engine actually in use. Idempotent."""
-    Base.metadata.create_all(bind=bind if bind is not None else engine)
+    """Create the table on the engine actually in use, and add any missing column.
+
+    **``create_all`` creates missing *tables*; it never adds missing *columns*.**
+    A table written by an earlier version of this module therefore keeps its old
+    shape forever, and the first query naming a new column fails at runtime.
+
+    That is not hypothetical: the ``task`` label was added to this model after the
+    table had already been created, and the report crashed against the existing
+    database with ``no such column``. The test suite could not catch it, because
+    the test database is built fresh from the model every run — only running the
+    real thing against a real database exposed it.
+
+    So missing columns are added explicitly. The pattern mirrors the idempotent
+    column shim features 011-013 used for the session table, for the same reason:
+    an existing database must keep working without a manual migration.
+    """
+    target = bind if bind is not None else engine
+    Base.metadata.create_all(bind=target)
+    _add_missing_columns(target)
+
+
+def _add_missing_columns(bind) -> None:
+    """Add any column the model declares that the live table lacks."""
+    from sqlalchemy import text
+
+    table = SessionDiagnosticRecord.__table__
+    try:
+        connection = bind.connect() if hasattr(bind, "connect") else bind
+    except Exception:
+        return
+    try:
+        rows = list(connection.execute(text(f"PRAGMA table_info({table.name})")))
+        if not rows:
+            return  # not SQLite, or the table did not appear — nothing to repair
+        existing = {row[1] for row in rows}
+        for column in table.columns:
+            if column.name in existing:
+                continue
+            if column.primary_key:
+                continue  # cannot be added by ALTER; it is part of the original
+            column_type = column.type.compile(dialect=connection.dialect)
+            connection.execute(text(
+                f"ALTER TABLE {table.name} ADD COLUMN {column.name} {column_type}"
+            ))
+        connection.commit()
+    except Exception:
+        # Never fatal: a schema repair that fails must not stop a session being
+        # recorded. The write path reports its own failure separately.
+        pass
+    finally:
+        if connection is not bind and hasattr(connection, "close"):
+            connection.close()
 
 
 def write_diagnostic_record(
     session_id: str,
     *,
+    task: Optional[str] = None,
     score: int,
     raw_penalty: int,
     density: float,
@@ -94,6 +153,7 @@ def write_diagnostic_record(
             row = SessionDiagnosticRecord(session_id=session_id)
             db.add(row)
 
+        row.task = task
         row.score = int(score)
         row.raw_penalty = int(raw_penalty)
         row.density = float(density)
@@ -157,6 +217,7 @@ def _row_to_dict(row: SessionDiagnosticRecord) -> Dict[str, Any]:
 
     return {
         "session_id": row.session_id,
+        "task": row.task,
         "score": row.score,
         "raw_penalty": row.raw_penalty,
         "density": row.density,

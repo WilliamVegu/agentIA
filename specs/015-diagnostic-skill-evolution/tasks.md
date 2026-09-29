@@ -77,19 +77,19 @@ effort and cost — with absent data reported as absent.
 **Independent test**: run a batch; the report states population and exclusions;
 with an empty store it reports no data rather than zero.
 
-- [ ] T015 [P] [US2] Test the corpus report in `backend/tests/test_corpus_report.py`: the report states session count, verified count, and excluded count **with reasons** (FR-009, SC-007).
+- [X] T015 [P] [US2] Test the corpus report in `backend/tests/test_corpus_report.py`: the report states session count, verified count, and excluded count **with reasons** (FR-009, SC-007).
 
-- [ ] T016 [P] [US2] Test the no-data contract in `backend/tests/test_corpus_report.py`: with an empty store the report states that no data exists and reports **neither a zero rate nor a zero cost** (FR-011, SC-005). "No data" and "measured zero" are different findings and must not render the same.
+- [X] T016 [P] [US2] Test the no-data contract in `backend/tests/test_corpus_report.py`: with an empty store the report states that no data exists and reports **neither a zero rate nor a zero cost** (FR-011, SC-005). "No data" and "measured zero" are different findings and must not render the same.
 
-- [ ] T017 [P] [US2] Test the sample contract in `backend/tests/test_corpus_report.py`: the report states the number of **distinct tasks** separately from the number of **sessions**, so repeated runs of one task are never presented as a larger sample (FR-013, SC-008).
+- [X] T017 [P] [US2] Test the sample contract in `backend/tests/test_corpus_report.py`: the report states the number of **distinct tasks** separately from the number of **sessions**, so repeated runs of one task are never presented as a larger sample (FR-013, SC-008).
 
-- [ ] T018 [P] [US2] Test exclusion arithmetic in `backend/tests/test_corpus_report.py`: unverified sessions contribute to **no** reported rate or distribution, and their exclusion is stated (FR-012, SC-004).
+- [X] T018 [P] [US2] Test exclusion arithmetic in `backend/tests/test_corpus_report.py`: unverified sessions contribute to **no** reported rate or distribution, and their exclusion is stated (FR-012, SC-004).
 
-- [ ] T019 [US2] Implement the corpus report in `backend/app/services/corpus_report.py` to pass T015–T018. Include the conformance distribution and correction effort alongside the success rate (FR-010), and report the distinct-task count beside every derived figure (FR-015).
+- [X] T019 [US2] Implement the corpus report in `backend/app/services/corpus_report.py` to pass T015–T018. Include the conformance distribution and correction effort alongside the success rate (FR-010), and report the distinct-task count beside every derived figure (FR-015).
 
-- [ ] T020 [US2] Implement the batch driver in `backend/scripts/run_corpus_baseline.py`: run sessions over the held-out blueprints and record every outcome (FR-008, SC-006). Cost must be reported only where the cost store has data.
+- [X] T020 [US2] Implement the batch driver in `backend/scripts/run_corpus_baseline.py`: run sessions over the held-out blueprints and record every outcome (FR-008, SC-006). Cost must be reported only where the cost store has data.
 
-- [ ] T021 [US2] Test in `backend/tests/test_corpus_report.py` that a batch records every outcome **including sessions that fail**, and that a batch interrupted partway leaves completed sessions fully recorded without reporting the batch as complete (SC-006, edge case).
+- [X] T021 [US2] Test in `backend/tests/test_corpus_report.py` that a batch records every outcome **including sessions that fail**, and that a batch interrupted partway leaves completed sessions fully recorded without reporting the batch as complete (SC-006, edge case).
 
 ---
 
@@ -97,7 +97,7 @@ with an empty store it reports no data rather than zero.
 
 - [X] T022 Run the full suite (`timeout 900 .venv/bin/python -m pytest -q`) and record before/after counts. Confirm the pre-existing validator families, the conformance gate, `runner.py` and every test file from features 011–014 are byte-identical.
 
-- [ ] T023 [P] Run the report against an empty store and against any real sessions recorded, and record both outputs verbatim in `specs/015-diagnostic-skill-evolution/quickstart.md`. The empty-store output is a deliverable: it demonstrates the no-data contract.
+- [X] T023 [P] Run the report against an empty store and against any real sessions recorded, and record both outputs verbatim in `specs/015-diagnostic-skill-evolution/quickstart.md`. The empty-store output is a deliverable: it demonstrates the no-data contract.
 
 - [ ] T024 [P] Update `docs/agentia_current_state.tex` with the measured baseline, and mark all tasks complete in this file.
 

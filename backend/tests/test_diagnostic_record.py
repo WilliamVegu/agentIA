@@ -285,3 +285,50 @@ def test_a_session_with_no_artifacts_records_as_not_evaluable_not_as_clean():
     record = read_diagnostic_record("t015-c")
     assert record["evaluable"] is False, "nothing to evaluate was recorded as clean"
     assert record["unverified"] is True, "a synthetic verification was not marked"
+
+
+# ---------------------------------------------------------------------------
+# Schema evolution: an existing table must keep working
+# ---------------------------------------------------------------------------
+def test_a_table_created_before_a_column_existed_is_repaired(tmp_path):
+    """create_all creates missing TABLES, never missing COLUMNS.
+
+    This was found by running the report against a real database that already had
+    the table from before the `task` label existed -- the report crashed with
+    `no such column`. The suite could not catch it because the test database is
+    built fresh from the model every run, so no test ever saw an older table.
+    """
+    from sqlalchemy import create_engine, text
+    from app.models import diagnostics as diag
+
+    stale = create_engine(f"sqlite:///{(tmp_path / 'stale.db').as_posix()}")
+
+    # A table shaped the way an earlier version of the model left it: the
+    # session_id key and a score, but none of the columns added since.
+    with stale.connect() as conn:
+        conn.execute(text(
+            "CREATE TABLE session_diagnostic_records ("
+            " session_id TEXT PRIMARY KEY, score INTEGER NOT NULL)"
+        ))
+        conn.commit()
+
+    diag.ensure_schema(stale)
+
+    with stale.connect() as conn:
+        columns = {row[1] for row in conn.execute(
+            text("PRAGMA table_info(session_diagnostic_records)"))}
+
+    for expected in ("task", "density", "evaluable", "unverified", "stages_json"):
+        assert expected in columns, (
+            f"the column {expected!r} was not added to the existing table; a real "
+            f"database would keep failing at query time"
+        )
+
+
+def test_ensure_schema_is_idempotent(tmp_path):
+    from sqlalchemy import create_engine
+    from app.models import diagnostics as diag
+
+    fresh = create_engine(f"sqlite:///{(tmp_path / 'fresh.db').as_posix()}")
+    diag.ensure_schema(fresh)
+    diag.ensure_schema(fresh)   # must not raise on a second call
