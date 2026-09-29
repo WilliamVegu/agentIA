@@ -625,3 +625,32 @@ def test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion(
             db.commit()
         finally:
             db.close()
+
+
+def test_a_session_that_blocked_before_the_sandbox_is_not_verified():
+    """No metrics means verification never ran, and that is not a pass.
+
+    The first real baseline's report counted one "verified" session whose build
+    never ran: it blocked during generation, so no verification metrics were ever
+    persisted, and deriving `unverified` from `fallback_used` alone left it False.
+    The report then quoted that session's score as the corpus's only conformance
+    number -- a number from a workspace nobody compiled.
+    """
+    from app.api.routes_session import _persist_diagnostics
+
+    final_state = {
+        "status": "BLOCKED",
+        "error": "[TEST] correction budget exhausted after 2 correction attempts",
+        "generated_files": fm.compliant_artifacts("CONTROLLER", _blueprint()),
+        "generation_journal": {"entries": []},
+        # No "test_metrics" key at all: the sandbox was never reached.
+    }
+
+    assert _persist_diagnostics("t015-d", final_state) is True
+
+    record = read_diagnostic_record("t015-d")
+    assert record["evaluable"] is True, "the artifacts were produced and are evaluable"
+    assert record["unverified"] is True, (
+        "a session that never reached the sandbox was reported as verified; its "
+        "conformance score would then enter the corpus as measured evidence"
+    )

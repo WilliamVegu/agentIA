@@ -225,6 +225,14 @@ def record_session_diagnostics(
     try:
         report = diagnose(dict(final_state.get("generated_files") or {}))
         metrics = final_state.get("test_metrics") or {}
+        # `unverified` means verification DID NOT HAPPEN, not merely "it fell back".
+        # A session that blocks during generation never reaches the sandbox, so it
+        # carries no metrics at all -- and deriving the flag from `fallback_used`
+        # alone left it False, reporting such a session as VERIFIED. The first real
+        # baseline's report counted exactly one "verified" session whose build never
+        # ran, and quoted its score as the corpus's only conformance number.
+        verification_ran = bool(metrics)
+        unverified = (not verification_ran) or bool(metrics.get("fallback_used", False))
         return write_diagnostic_record(
             session_id,
             task=task,
@@ -233,9 +241,8 @@ def record_session_diagnostics(
             density=report.density,
             artifact_count=report.evaluated_artifact_count,
             evaluable=report.evaluable,
-            # FR-005: a synthetic verification is marked so the session can be
-            # excluded from evidence, whatever its terminal status says.
-            unverified=bool(metrics.get("fallback_used", False)),
+            # FR-005: excluded from evidence whatever the terminal status says.
+            unverified=unverified,
             counts_by_severity=report.counts_by_severity,
             rule_histogram=report.rule_histogram,
             findings=[v.to_dict() for v in report.violations],
