@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,8 +31,7 @@
 
 ## Notes
 
-- **One item open.** Two `[NEEDS CLARIFICATION]` markers are present, on **FR-006** and **FR-007**. Both concern the gate, which is the part of the loop that decides whether anything is learned. All other 15 items pass.
-- Neither is a missing detail: each has two defensible readings that produce materially different implementations, and the first determines whether the gate is meaningful at all.
+- **All 16 items pass.** Two clarifications were raised and resolved on 2026-09-28; both are folded into the requirements. Zero markers remain.
 
 ## Validation Detail
 
@@ -68,3 +67,32 @@ The collector reads **existing** sessions; the gate is specified to **run** sess
 ### Marker 2 — FR-007: is the current skill scored too?
 
 FR-006 compares a candidate against "the current score", but nothing else in the loop produces that number.
+
+## Resolved Clarifications
+
+### Q1 — Held-out evidence → **Option C: hybrid, with an injectable runner**
+
+FR-006 now separates the two evidence sources **by construction**:
+
+| | Source | Disjointness |
+| --- | --- | --- |
+| **Training** | Recorded sessions read from the database | Already happened, produced under the **previous** skill, so it cannot encode the candidate |
+| **Held-out** | **Fresh execution** with the skill under test active | Exists only after the candidate does |
+
+The held-out task set is the **five existing baseline blueprints** (`pair-a`, `pair-b`, `minimal`, `multi-entity`, `constrained`) — **no new fixtures**, because a task set authored alongside the thing it evaluates measures the author. **M defaults to 4**, leaving one blueprint as a rotation buffer so successive iterations are not scored on an identical exam. Rotation is deterministic (FR-006a, SC-010).
+
+Fresh execution goes through an **injectable runner** so the unit test substitutes a scripted client and makes no real model call (SC-001, Principle VI). Disjointness is **asserted in code**, not assumed (SC-008).
+
+**Also resolved while folding this in**: "pass" needed defining, and it interacts with feature 012. A pass is a zero build/test exit code, but an execution whose verification used the **hermetic fallback does not count as a pass even when its exit code is zero** — otherwise the gate would reward a skill for making the verifier give up, since permissive mode returns success without compiling anything. Executions that could not be scored at all are reported separately rather than folded into failures.
+
+### Q2 — Is the current skill scored too? → **Option A: score both**
+
+FR-007 now computes both scores in the same iteration, on the identical held-out set, with the same scoring function:
+
+```
+current_score   = score(current skill,   held_out_blueprints)
+candidate_score = score(candidate skill, held_out_blueprints)
+accept iff candidate_score > current_score          # strict
+```
+
+**Cost: 2×M fresh executions per iteration** (default 8), accepted deliberately. Carrying the previous run's score forward would be cheaper but compares a number measured on one sample against a number measured on another, is absent on the first iteration, and silently breaks whenever the held-out set rotates. Scoring both on the same sample needs no persisted prior state and is never stale.
