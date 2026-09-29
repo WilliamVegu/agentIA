@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -232,14 +233,32 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"Unknown blueprints: {unknown}. Available: {known}", file=sys.stderr)
         return 2
 
+    # Resolve the provider key, falling back to the environment. Without this the
+    # pipeline runs in MOCK mode -- `detect_provider` returns "mock" for an empty
+    # key and does NOT consult the environment itself -- so every session would
+    # block and the batch would report "no data" without saying why. Failing
+    # loudly is the only honest option: a mock run produces a baseline that
+    # measures nothing while looking like it measured something.
+    api_key = args.api_key or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    provider = args.provider or ("deepseek" if os.environ.get("DEEPSEEK_API_KEY") else None)
+
+    if not api_key:
+        print("No API key found.", file=sys.stderr)
+        print()
+        print("Set DEEPSEEK_API_KEY in the environment (backend/.env is loaded), or pass", file=sys.stderr)
+        print("--api-key. Refusing to run: with no key the pipeline silently uses MOCK,", file=sys.stderr)
+        print("every session blocks, and the resulting 'baseline' measures nothing.", file=sys.stderr)
+        return 2
+
     print("Generation baseline")
     print("=" * 62)
     print(f"  blueprints : {', '.join(names)}")
+    print(f"  provider   : {provider or 'default'}  (key present: {bool(api_key)})")
     print()
 
     summary = run_baseline(
         runner=lambda name: graph_runner(
-            name, provider=args.provider, api_key=args.api_key, model_name=args.model
+            name, provider=provider, api_key=api_key, model_name=args.model
         ),
         blueprints=names,
     )

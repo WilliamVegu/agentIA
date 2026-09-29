@@ -33,3 +33,23 @@ class GenerationAgentState(TypedDict, total=False):
     # --- whether verification actually ran, without re-reading test_metrics.
     # --- True means the sandbox could not build and substituted a result.
     verification_fallback_used: Optional[bool]
+
+    # --- Feature 015 additive fields. These were MISSING, and their absence was
+    # --- not cosmetic: LangGraph filters a node's state to the keys declared
+    # --- here, so anything undeclared is silently dropped between the entry
+    # --- point and the first node.
+    # ---
+    # --- The consequence was that MODEL mode could not run through the graph at
+    # --- all. ``_ModeInjectingGraph`` selects the mode from the RAW state, so a
+    # --- caller supplying a key got MODEL; LangGraph then stripped the key; the
+    # --- stage found no client and raised GenerationModeError. The unit tests
+    # --- never caught it because they call run_stage with a hand-built state and
+    # --- bypass the graph entirely, so the model stages were only ever exercised
+    # --- in isolation.
+    # ---
+    # --- Declared here rather than passed around the graph, and additive so that
+    # --- states built by existing callers keep working unchanged. A caller that
+    # --- supplies no key still resolves to DETERMINISTIC exactly as before.
+    llm_api_key: Optional[str]                  # provider credential for MODEL mode
+    llm_provider: Optional[str]                 # resolved provider for MODEL mode
+    llm_model: Optional[str]                    # resolved model name for MODEL mode
