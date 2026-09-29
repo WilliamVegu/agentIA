@@ -164,7 +164,7 @@ export interface DevOpsData {
   orders: OrderPlaygroundItem[];
 }
 
-export type LlmProviderType = 'gemini' | 'groq' | 'openai' | 'mock';
+export type LlmProviderType = 'gemini' | 'groq' | 'openai' | 'deepseek' | 'mock';
 
 export interface LlmConfig {
   provider: LlmProviderType;

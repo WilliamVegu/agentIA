@@ -40,6 +40,16 @@ export const RECOMMENDED_MODELS: Record<LlmProviderType, ModelOption[]> = {
     { id: 'gpt-4o-mini', label: 'GPT-4o Mini', badge: 'Recomendado', isDefault: true },
     { id: 'gpt-4o', label: 'GPT-4o', badge: 'Avanzado' },
   ],
+  // The backend has supported DeepSeek since feature 011 (LLMProvider.DEEPSEEK,
+  // default model "deepseek-flash") and every measured run in this repo uses it, but
+  // it was absent from this map AND from LlmProviderType -- so the UI could not
+  // select the provider the measurements were taken with. Model ids mirror
+  // llm_factory.SUPPORTED_MODELS[LLMProvider.DEEPSEEK]; inventing a name the backend
+  // rejects would produce a provider that verifies and then fails at generation.
+  deepseek: [
+    { id: 'deepseek-flash', label: 'DeepSeek Flash', badge: 'Recomendado', isDefault: true },
+    { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro', badge: 'Avanzado' },
+  ],
   mock: [
     { id: 'offline-mock', label: 'Mock Engine', badge: 'Offline', isDefault: true },
   ],
@@ -49,6 +59,8 @@ export const DEFAULT_MODELS: Record<LlmProviderType, string> = {
   gemini: 'gemini-3.6-flash',
   groq: 'qwen/qwen3.8-27b',
   openai: 'gpt-4o-mini',
+  // Mirrors llm_factory.DEFAULT_MODELS[LLMProvider.DEEPSEEK].
+  deepseek: 'deepseek-flash',
   mock: 'offline-mock',
 };
 

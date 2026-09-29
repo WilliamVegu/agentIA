@@ -67,6 +67,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
             <option value="gemini">Google Gemini (Gemini 3.6 Flash / 3.5 Lite)</option>
             <option value="groq">Groq Cloud (Qwen 3.8 27B / GPT-OSS)</option>
             <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
+            <option value="deepseek">DeepSeek (deepseek-flash / v4-pro)</option>
           </select>
         </div>
 
