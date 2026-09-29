@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, status
 from fastapi.responses import JSONResponse
-from app.services.injection_guard import has_blocking_finding, scan_text
+from app.services.injection_guard import PromptInjectionError, has_blocking_finding, scan_text
 
 try:
     from app.models.requirements import (
@@ -119,6 +119,10 @@ def transform_requirements_endpoint(
     try:
         draft = transform_requirements(request, api_key, provider=provider)
         return draft
+    except PromptInjectionError as injected:
+        # The service raises it, so the pipeline path is covered too; here it becomes
+        # the documented 400 envelope instead of a 500.
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=injected.to_dict())
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

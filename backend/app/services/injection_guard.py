@@ -252,3 +252,45 @@ def scan_document(document: Any, *, only_free_text: bool = False) -> List[Inject
 def has_blocking_finding(findings: Iterable[InjectionFinding]) -> bool:
     """Whether any finding is severe enough to refuse the request."""
     return any(finding.severity == SEVERITY_HIGH for finding in findings)
+
+
+class PromptInjectionError(ValueError):
+    """A submitted document contains instruction-shaped text aimed at the model.
+
+    Raised by :func:`assert_no_injection` so the refusal travels with the *service*
+    call rather than with one route. Guarding a route protects that route: the
+    quick-start and auto-pilot paths call ``transform_requirements`` directly, so a
+    route-level check would leave the product's main entry point unguarded -- which
+    is exactly what a first version of this wiring did.
+    """
+
+    def __init__(self, findings: List[InjectionFinding]):
+        self.findings = findings
+        super().__init__(
+            "The submitted text contains instruction-shaped content: "
+            + ", ".join(sorted({f.rule_id for f in findings}))
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "message": (
+                "The submitted text contains content that tries to instruct the model "
+                "rather than describe a service. Rewrite it as a description of the "
+                "business behaviour you want."
+            ),
+            "findings": [finding.to_dict() for finding in self.findings],
+        }
+
+
+def assert_no_injection(document: Any, *, field: str = "document") -> None:
+    """Raise :class:`PromptInjectionError` if the document carries a blocking finding.
+
+    Call this in the SERVICE that builds a prompt, not in the route that receives the
+    request: a guard placed at one entry point guards only that entry point.
+    """
+    findings = (
+        scan_text(document, field) if isinstance(document, str) else scan_document(document)
+    )
+    blocking = [f for f in findings if f.severity == SEVERITY_HIGH]
+    if blocking:
+        raise PromptInjectionError(blocking)

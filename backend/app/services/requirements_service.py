@@ -15,6 +15,7 @@ try:
         RefinementRequest,
         SpecificationDraft,
     )
+    from app.services.injection_guard import assert_no_injection
     from app.services.llm_factory import LLMFactory
 except ImportError:
     from backend.app.models.blueprint import (
@@ -28,6 +29,7 @@ except ImportError:
         RefinementRequest,
         SpecificationDraft,
     )
+    from backend.app.services.injection_guard import assert_no_injection
     from backend.app.services.llm_factory import LLMFactory
 
 class LLMStoryDecomposition(BaseModel):
@@ -229,6 +231,12 @@ def transform_requirements(
     BDD Acceptance Criteria (Given/When/Then), and Domain Entities.
     Supports free providers (Gemini, Groq), OpenAI, and offline mock mode.
     """
+    # Guard the SERVICE, not only the route. The quick-start and auto-pilot paths
+    # call this function directly (pipeline_runner step 2), so a check placed in
+    # `/requirements/transform` alone would leave the product's main entry point
+    # unguarded -- and the refusal must travel with the call, not with one caller.
+    assert_no_injection(getattr(request, "rawText", "") or "", field="rawText")
+
     chosen_provider = provider or getattr(request, "provider", None)
     chosen_model = getattr(request, "modelName", None)
 
