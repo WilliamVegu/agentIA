@@ -238,3 +238,32 @@ def test_a_scenario_shorter_than_the_contract_allows_is_rejected(session):
     assert response.status_code == 400
     assert response.json()["status"] == 400
     assert not (session / "user_stories.json").exists(), "an invalid draft was persisted"
+
+
+# ---------------------------------------------------------------------------
+# Offline mode does not use the prompt -- pinned as a contract, not a surprise
+# ---------------------------------------------------------------------------
+def test_the_offline_decomposition_ignores_the_prompt_and_declares_itself():
+    """Two unrelated prompts produce byte-identical output, and it says so.
+
+    Reported from a real session: a "cafe" service and a "cevichez0" service showed
+    the same three user stories, because `_generate_mock_decomposition` never reads
+    `raw_text`. That read as hardcoded output -- correctly, since it is one.
+
+    Pinned here so the behaviour is a stated contract rather than a discovery: if the
+    offline path is ever made prompt-aware, this test fails and whoever changes it
+    must also drop the OFFLINE SAMPLE marker.
+    """
+    from app.services.requirements_service import _generate_mock_decomposition
+
+    first = _generate_mock_decomposition(raw_text="cafe", service_name="cafe")
+    second = _generate_mock_decomposition(raw_text="un ceviche con leche de tigre", service_name="cevichez0")
+
+    assert [s.intent for s in first.userStories] == [s.intent for s in second.userStories]
+    assert [e.name for e in first.entities] == [e.name for e in second.entities] == ["Order"]
+
+    assert "OFFLINE SAMPLE" in first.assumptions[0], (
+        "the offline decomposition no longer declares itself a fixed template; the UI "
+        "would again present it as a response to the prompt"
+    )
+    assert "NOT used" in first.assumptions[0]

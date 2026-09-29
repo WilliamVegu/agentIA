@@ -562,8 +562,20 @@ export const RequirementsView: React.FC = () => {
                 subtitle={`Rol: ${story.role}`}
                 badge={
                   <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
-                      BDD Verified
+                    {/* Was the literal text "BDD Verified" on every card, whether or
+                        not anything had been verified. It now states the format and
+                        the count, which is checkable from the data in the card --
+                        and says so when a story carries no scenarios at all. */}
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                        story.scenarios?.length
+                          ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/60'
+                          : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'
+                      }`}
+                    >
+                      {story.scenarios?.length
+                        ? `BDD · ${story.scenarios.length} escenario(s)`
+                        : 'Sin escenarios — no verificable'}
                     </span>
                     <button
                       onClick={() => handleDeleteStory(story.id)}

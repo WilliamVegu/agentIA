@@ -130,6 +130,14 @@ def _generate_mock_decomposition(raw_text: str, service_name: Optional[str] = No
         serviceName=clean_service,
         packageName=package,
         assumptions=[
+            # Stated first, because it is the most important thing about this
+            # decomposition and the UI was presenting it as an answer to the prompt.
+            # `raw_text` is never read here: any prompt -- "cafe", "a ceviche", empty,
+            # gibberish -- yields the identical Order entity and these identical three
+            # stories. Two sessions run from unrelated prompts therefore come back
+            # byte-identical, which reads as hardcoded output because it is one.
+            "OFFLINE SAMPLE: this decomposition is a fixed template. The submitted "
+            "prompt was NOT used to derive these entities or stories.",
             "Data retention adheres to standard 90-day retention policies.",
             "All monetary transactions require validation against active accounts.",
         ],
