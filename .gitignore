@@ -87,3 +87,4 @@ test_open.pptx
 
 # Local Maven cache warm-up project (feature 015)
 warmup/
+mlruns/
