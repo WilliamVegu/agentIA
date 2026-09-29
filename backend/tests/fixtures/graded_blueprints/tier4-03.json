@@ -1,0 +1,278 @@
+{
+  "blueprintId": "tier4-03",
+  "tier": 4,
+  "corpusRole": "graded-tier4-hard",
+  "difficultyAxis": "Layering trap through cross-aggregate invariants: a booking is only valid relative to a rate plan, the hotel behind that rate plan and the cancellation policy attached to that hotel, so the rule cannot be expressed as bean validation on one entity. The tempting mistakes are to evaluate the invariant in the controller, to give the booking service an HTTP client back into its own endpoints, or to skip the intermediate lookups and trust the identifiers the client sent.",
+  "rationale": "Ceiling of the graded set: six entities in a three-hop reference path (Booking -> RatePlan -> Hotel -> Destination) plus two sibling children of Hotel, eighteen scenarios of which most assert a refusal, and one entity with twelve attributes. Every invariant here needs at least two loaded aggregates, so a generator that promotes validation into transport objects or that resolves references lazily produces a service that accepts bookings it must refuse.",
+
+  "serviceName": "travel-service",
+  "packageName": "com.corp.travel",
+  "basePort": 8312,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Traveller",
+      "tableName": "travellers",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "passportNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "dateOfBirth", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Past"] },
+        { "name": "loyaltyTier", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "trusted", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Destination",
+      "tableName": "destinations",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "countryCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "visaRequired", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    },
+    {
+      "name": "Hotel",
+      "tableName": "hotels",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "destinationId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "starRating", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "nightlyRate", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "maxGuestsPerBooking", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "RatePlan",
+      "tableName": "rate_plans",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "hotelId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "planCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "minimumNights", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "discountPercent", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@DecimalMax", "@Digits"] },
+        { "name": "refundable", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "CancellationPolicy",
+      "tableName": "cancellation_policies",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "hotelId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "policyCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "freeCancellationHours", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "penaltyPercent", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@DecimalMax", "@Digits"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Booking",
+      "tableName": "bookings",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "reference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "travellerId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "hotelId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "ratePlanId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "cancellationPolicyId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "startsOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "endsOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "guestCount", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "totalAmount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "currencyCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "travel agent",
+      "intent": "register a traveller with a passport and a date of birth",
+      "benefit": "bookings can be attributed to a documented person",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a well-formed passport number and a date of birth in the past",
+          "when": "the agent registers the traveller",
+          "then": "the traveller is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a date of birth in the future",
+          "when": "the agent attempts to register the traveller",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "travel agent",
+      "intent": "register a destination with a country and a visa flag",
+      "benefit": "hotels can be grouped by where they are",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a unique destination code and a two-letter country code",
+          "when": "the agent registers the destination",
+          "then": "the destination is persisted with its visa flag"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a destination code that does not match the permitted pattern",
+          "when": "the agent attempts to register the destination",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "contracting manager",
+      "intent": "register a hotel inside an existing destination",
+      "benefit": "the property can be sold under that destination",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing destination, a star rating within the permitted range and a positive nightly rate",
+          "when": "the manager registers the hotel",
+          "then": "the hotel is persisted with its destination reference intact"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a destination identifier that does not exist",
+          "when": "the manager attempts to register the hotel",
+          "then": "the service reports the destination as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "contracting manager",
+      "intent": "attach a rate plan to a hotel",
+      "benefit": "the property can be sold under different conditions",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing hotel and a discount within the permitted range",
+          "when": "the manager creates the rate plan",
+          "then": "the rate plan is persisted with its hotel reference and minimum stay"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "a discount above the permitted maximum",
+          "when": "the manager attempts to create the rate plan",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "a hotel identifier that does not exist",
+          "when": "the manager attempts to create the rate plan",
+          "then": "the service reports the hotel as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "contracting manager",
+      "intent": "attach a cancellation policy to a hotel and later amend it",
+      "benefit": "cancellation terms are explicit before the booking is taken",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing hotel and a non-negative free cancellation window",
+          "when": "the manager creates the policy",
+          "then": "the policy is persisted with its hotel reference intact"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a penalty percentage above the permitted maximum",
+          "when": "the manager attempts to create the policy",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "an existing policy and a longer free cancellation window",
+          "when": "the manager updates the policy",
+          "then": "the policy is persisted with the new window and the previous value is replaced"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P1",
+      "role": "travel agent",
+      "intent": "book a hotel for a traveller under a rate plan and a cancellation policy",
+      "benefit": "the stay is contracted with all of its conditions",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an existing traveller, an existing hotel, a rate plan belonging to that hotel, a policy belonging to that hotel and a stay at least as long as the plan minimum",
+          "when": "the agent creates the booking",
+          "then": "the booking is persisted with all four references intact and a confirmed status"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "a rate plan that belongs to a different hotel than the one being booked",
+          "when": "the agent attempts to create the booking",
+          "then": "the service rejects the booking and reports the rate plan as inconsistent with the hotel"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "a guest count above the maximum permitted for the hotel",
+          "when": "the agent attempts to create the booking",
+          "then": "the service rejects the booking rather than accepting an over-capacity stay"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P2",
+      "role": "travel agent",
+      "intent": "cancel a booking and record the penalty that follows from its policy",
+      "benefit": "the cancellation is priced against the contracted terms",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "an existing booking whose cancellation window has already passed",
+          "when": "the agent updates the booking to cancelled",
+          "then": "the booking is persisted with the cancelled status and a penalty above zero on its total"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "a stay shorter than the minimum stay of the chosen rate plan",
+          "when": "the agent attempts to create the booking",
+          "then": "the service rejects the booking as not meeting the plan conditions"
+        }
+      ]
+    },
+    {
+      "id": "US-8",
+      "priority": "P3",
+      "role": "travel agent",
+      "intent": "read the bookings taken for one hotel",
+      "benefit": "the property occupancy can be reviewed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-8.1",
+          "given": "a hotel with no bookings",
+          "when": "the agent reads the bookings for that hotel",
+          "then": "the service returns an empty collection rather than reporting an error"
+        }
+      ]
+    }
+  ]
+}

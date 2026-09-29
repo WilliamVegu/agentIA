@@ -1,0 +1,181 @@
+{
+  "blueprintId": "tier3-02",
+  "tier": 3,
+  "corpusRole": "graded-tier3-moderate",
+  "difficultyAxis": "Four entities with a hub-and-spoke shape around ExpenseClaim, ten scenarios, and a validation-heavy ten-attribute entity that mixes temporal, decimal and boolean rules. Full CRUD, with the update concentrated on the mutable aggregate root.",
+  "rationale": "Adds a fourth entity and a second foreign key on the same child over tier3-01, so the claim must resolve both an employee and a category. The claim also carries a status transition that only update can express, which forces the update path to be more than an echo of create.",
+
+  "serviceName": "expense-service",
+  "packageName": "com.corp.expense",
+  "basePort": 8308,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Employee",
+      "tableName": "employees",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "employeeNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "department", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "costCentre", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "hiredOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "ExpenseCategory",
+      "tableName": "expense_categories",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "annualBudget", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "requiresReceipt", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    },
+    {
+      "name": "ExpenseClaim",
+      "tableName": "expense_claims",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "claimReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "employeeId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "categoryId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "incurredOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "submittedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "amount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "currencyCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "reimbursable", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "ClaimAttachment",
+      "tableName": "claim_attachments",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "claimId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "fileName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "contentType", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "sizeBytes", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "uploadedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "finance administrator",
+      "intent": "register an employee and a budgeted expense category",
+      "benefit": "claims can be attributed and budgeted",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique employee number, a well-formed email and a past hire date",
+          "when": "the administrator registers the employee",
+          "then": "the employee is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "an annual budget below the permitted minimum",
+          "when": "the administrator attempts to create the category",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "employee",
+      "intent": "submit an expense claim against an employee and a category",
+      "benefit": "the cost is reimbursed through the correct budget",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing employee, an existing category and a positive amount",
+          "when": "the employee submits the claim",
+          "then": "the claim is persisted with both references intact and a submitted status"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "an employee identifier that does not exist",
+          "when": "the employee attempts to submit the claim",
+          "then": "the service reports the employee as not found"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "an amount below the permitted minimum",
+          "when": "the employee attempts to submit the claim",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "employee",
+      "intent": "attach a receipt document to a submitted claim",
+      "benefit": "the claim can be audited",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing claim and a file with a supported content type",
+          "when": "the employee attaches the receipt",
+          "then": "the attachment is persisted against the claim with its size and upload time"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "an existing claim and an unsupported content type",
+          "when": "the employee attempts to attach the receipt",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "finance administrator",
+      "intent": "decide a submitted claim by changing its status",
+      "benefit": "the reimbursement decision is recorded",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing claim whose status is submitted",
+          "when": "the administrator updates the claim status to approved",
+          "then": "the claim is persisted with the new status and the previous status is replaced"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "a claim identifier that does not exist",
+          "when": "the administrator attempts to update that claim",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P3",
+      "role": "finance administrator",
+      "intent": "withdraw a claim and review the attachments of one claim",
+      "benefit": "the ledger holds no duplicate or orphaned evidence",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing claim identifier",
+          "when": "the administrator deletes the claim",
+          "then": "the claim is removed and the read that follows reports it as not found"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a claim with no attachments",
+          "when": "the administrator reads the attachments for that claim",
+          "then": "the service returns an empty collection rather than reporting an error"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "blueprintId": "tier1-01",
+  "tier": 1,
+  "corpusRole": "graded-tier1-trivial",
+  "difficultyAxis": "Floor of the scale: a single entity with three attributes, one story and two scenarios, no relationships and no validation rules. Anything that fails here fails at the simplest possible shape.",
+  "rationale": "Establishes the lower bound of the graded sweep. One entity, no foreign keys, no declared validation, one CRUD verb (create) plus one read. If the generator cannot emit a compiling service for this shape, every higher tier is uninterpretable.",
+
+  "serviceName": "todo-service",
+  "packageName": "com.corp.todo",
+  "basePort": 8301,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Task",
+      "tableName": "tasks",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "title", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "completed", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "end user",
+      "intent": "record a task with a title and a completion flag",
+      "benefit": "the work item is tracked",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a non-empty task title",
+          "when": "the user creates the task",
+          "then": "the task is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "an existing task identifier",
+          "when": "the user retrieves the task",
+          "then": "the task is returned with its title and completion flag"
+        }
+      ]
+    }
+  ]
+}
