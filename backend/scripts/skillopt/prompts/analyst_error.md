@@ -22,9 +22,17 @@ WHY THE INPUTS ARE WHAT THEY ARE
 The failure evidence is what AgentIA actually records, and each field earns its
 place:
 
+  * `rule_histogram` — **the signal this prompt exists for (feature 015).** The
+    compliance gate reports which rule fired, on which artifact, at which severity.
+    A rule that recurs across sessions is a habit the skill can address; a build
+    verdict is not. This is the difference between a loop that works and one that
+    does not: CoEvoSkills ablates to 41.1 with an opaque pass/fail oracle against
+    71.1 with a diagnostic verifier, and 42.4 with no loop at all.
+  * `stages_with_findings` — which stage first introduced each rule. "The controller
+    keeps reaching into the repository" is targetable; "the build failed" is not.
   * `build_exit_code` — derived from the persisted verification metrics, not a
     stored column. Non-zero means the generated workspace did not build or test
-    successfully. It is the primary signal of a real defect.
+    successfully. It is the coarser signal, and the rules above explain it.
   * `terminal_status` — COMPLETED / BLOCKED / other. BLOCKED means the session
     required human intervention.
   * `verification_fallback_used` — true when the sandbox could not actually build
@@ -33,6 +41,10 @@ place:
     fix an environment fault, and the reflector must not be asked to try.
   * `artifact_paths` — what the session produced, which is where a layering
     violation or a missing artifact is visible.
+
+A session whose `rule_histogram` is empty is reported as carrying **no
+attribution**, not as clean: it means the candidate never produced a parseable
+verdict. Do not invent a rule for it.
 
 THE OUTPUT CONTRACT
 -------------------
@@ -50,6 +62,10 @@ recorded failures, without breaking what already works.
 CURRENT SKILL
 -------------
 {{SKILL}}
+
+DIAGNOSTIC EVIDENCE
+-------------------
+{{DIAGNOSTICS}}
 
 FAILED SESSIONS
 ---------------
@@ -74,14 +90,19 @@ Rules you must follow:
    not found is discarded, so a paraphrase wastes your budget.
 2. Do not target anything between the `SLOW_UPDATE` markers. Those edits are
    discarded.
-3. Prefer a rule that generalises. "Never import a repository type into a
+3. **Target the recurring rules in the DIAGNOSTIC EVIDENCE section.** A rule that
+   fired in every failed session is the one worth a rule; a one-off is not.
+4. Prefer a rule that generalises. "Never import a repository type into a
    controller" is worth keeping; "the NoteController should not call NoteRepository"
    is not.
-4. If a failure was caused by the environment rather than the generated code —
+5. If a failure was caused by the environment rather than the generated code —
    `verification_fallback_used` is true, or the build never ran — do not propose a
    rule for it. No skill can fix a missing build environment, and a rule written
    for one will mislead on every later session.
-5. Do not restate a rule the skill already contains. If an existing rule was
+6. If a session carries no rule attribution, that means its response was
+   unparseable. Do not invent a rule for it; propose a rule about *response shape*
+   only if every session shows the same problem.
+7. Do not restate a rule the skill already contains. If an existing rule was
    ignored, the answer is usually to make it more specific, not to add a second
    one beside it.
-6. Return ONLY the JSON array. No prose, no markdown fences, no commentary.
+8. Return ONLY the JSON array. No prose, no markdown fences, no commentary.
