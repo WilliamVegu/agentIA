@@ -1,0 +1,233 @@
+{
+  "blueprintId": "hard-02",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Attribute width and constraint variety: four entities carrying up to fourteen attributes each and spanning the whole declarative-validation vocabulary, including a collection-typed attribute.",
+  "rationale": "An insurance policy service. Policy alone carries fourteen attributes covering text, integral, decimal, temporal, boolean and collection types, and the validation rules span required, length, pattern, email, numeric-range, decimal-range, temporal and collection constraints. Every declared constraint must be honoured and no undeclared one invented, so a generator that falls back to a small fixed annotation set is visibly wrong here while a two-attribute fixture hides it.",
+
+  "serviceName": "policy-service",
+  "packageName": "com.corp.policy",
+  "basePort": 8182,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "PolicyHolder",
+      "tableName": "policy_holders",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "phoneNumber", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "dateOfBirth", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Past"] },
+        { "name": "nationalIdentifier", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "postalCode", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern", "@Size"] },
+        { "name": "verified", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Policy",
+      "tableName": "policies",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "policyNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "holderId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "productCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "coverageCodes", "type": "List<String>", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotEmpty", "@Size"] },
+        { "name": "sumInsured", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@DecimalMax", "@Digits"] },
+        { "name": "annualPremium", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "deductible", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PositiveOrZero", "@Digits"] },
+        { "name": "effectiveFrom", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "effectiveTo", "type": "LocalDate", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Future"] },
+        { "name": "renewalCount", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "riskScore", "type": "Double", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@DecimalMax"] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "PremiumSchedule",
+      "tableName": "premium_schedules",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "policyId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "instalmentNumber", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "amountDue", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "dueOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "paid", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "paidAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "Claim",
+      "tableName": "claims",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "claimReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "policyId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "incidentOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Past"] },
+        { "name": "reportedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "claimedAmount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "approvedAmount", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PositiveOrZero", "@Digits"] },
+        { "name": "description", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] },
+        { "name": "settled", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "policy administrator",
+      "intent": "register a policy holder with contact and identity details",
+      "benefit": "the holder can be underwritten and contacted",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a full name, an email address, a national identifier and a date of birth in the past",
+          "when": "the administrator registers the holder",
+          "then": "the holder is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed email address",
+          "when": "the administrator attempts to register the holder",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "a date of birth in the future",
+          "when": "the administrator attempts to register the holder",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "underwriter",
+      "intent": "issue a policy with a sum insured, a premium and a coverage set",
+      "benefit": "the holder is covered from a known effective date",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a policy number matching the permitted pattern, at least one coverage code and a sum insured within the permitted band",
+          "when": "the underwriter issues the policy",
+          "then": "the policy is persisted with every declared attribute and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "an empty coverage code collection",
+          "when": "the underwriter attempts to issue the policy",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "a sum insured above the permitted maximum",
+          "when": "the underwriter attempts to issue the policy",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-2.4",
+          "given": "an annual premium that is zero or negative",
+          "when": "the underwriter attempts to issue the policy",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "underwriter",
+      "intent": "attach an instalment schedule to a policy",
+      "benefit": "premium collection is planned in advance",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing policy and a positive instalment amount",
+          "when": "the underwriter records the instalment",
+          "then": "the instalment is persisted against the policy"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "an instalment number below the permitted minimum",
+          "when": "the underwriter attempts to record the instalment",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "claims assessor",
+      "intent": "register a claim against an existing policy",
+      "benefit": "the loss is recorded and can be assessed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing policy, an incident date in the past and a positive claimed amount",
+          "when": "the assessor registers the claim",
+          "then": "the claim is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "an incident date in the future",
+          "when": "the assessor attempts to register the claim",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "a claimed amount that is zero or negative",
+          "when": "the assessor attempts to register the claim",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "claims assessor",
+      "intent": "record the approved amount and settle a claim",
+      "benefit": "the payout is agreed and closed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing unsettled claim and an approved amount not exceeding the claimed amount",
+          "when": "the assessor settles the claim",
+          "then": "the claim is persisted with its approved amount and settled state"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "an approved amount greater than the claimed amount",
+          "when": "the assessor attempts to settle the claim",
+          "then": "the service rejects the settlement as inconsistent"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "a claim identifier that does not exist",
+          "when": "the assessor settles the claim",
+          "then": "the service reports the claim as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P3",
+      "role": "policy administrator",
+      "intent": "retrieve the instalment schedule for a policy",
+      "benefit": "collection status can be reviewed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "a policy with no recorded instalments",
+          "when": "the administrator reads the schedule",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "a policy identifier that does not exist",
+          "when": "the administrator reads the schedule",
+          "then": "the service reports the policy as not found"
+        }
+      ]
+    }
+  ]
+}

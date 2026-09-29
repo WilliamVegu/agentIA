@@ -1,0 +1,269 @@
+{
+  "blueprintId": "hard-06",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Full mutation lifecycle: update and delete operations with state-transition rules, an optimistic-locking version attribute and conflict semantics, not only create and read.",
+  "rationale": "A subscription service where the scenarios require replacing a plan, cancelling a subscription, deleting a payment method and rejecting a mutation of an already-cancelled subscription. Update and delete force the request contract to exclude the identifier and the version, force not-found and conflict outcomes through the centralized handler, and make it tempting to push a state check into the controller or encode it in a repository method name.",
+
+  "serviceName": "subscription-service",
+  "packageName": "com.corp.subscription",
+  "basePort": 8186,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Plan",
+      "tableName": "plans",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "planCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "monthlyPrice", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "billingPeriodMonths", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "PaymentMethod",
+      "tableName": "payment_methods",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "accountReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "cardHolder", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "lastFourDigits", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "expiresOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "defaultMethod", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Subscription",
+      "tableName": "subscriptions",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "subscriptionNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "planId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "paymentMethodId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "startedOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "cancelledOn", "type": "LocalDate", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "version", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "SubscriptionChange",
+      "tableName": "subscription_changes",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "subscriptionId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "fromPlanId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "toPlanId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "changedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "changedBy", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "product manager",
+      "intent": "publish a plan with a monthly price and a billing period",
+      "benefit": "subscribers can be placed on a defined commercial plan",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique plan code and a positive monthly price",
+          "when": "the manager publishes the plan",
+          "then": "the plan is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a billing period above the permitted maximum",
+          "when": "the manager attempts to publish the plan",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "billing administrator",
+      "intent": "store a payment method for an account",
+      "benefit": "recurring charges have a funding source",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an account reference, four card digits and an expiry date in the future",
+          "when": "the administrator stores the payment method",
+          "then": "the payment method is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "an expiry date in the past",
+          "when": "the administrator attempts to store the payment method",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "a card digit string that does not match the permitted pattern",
+          "when": "the administrator attempts to store the payment method",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "billing administrator",
+      "intent": "create a subscription for a plan and a payment method",
+      "benefit": "the account is billed on the agreed terms",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing active plan, an existing valid payment method and a start date not in the future",
+          "when": "the administrator creates the subscription",
+          "then": "the subscription is persisted in an active state with its initial version"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a plan identifier that does not exist",
+          "when": "the administrator attempts to create the subscription",
+          "then": "the service reports the plan as not found"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "an existing plan that is not active",
+          "when": "the administrator attempts to create the subscription",
+          "then": "the service rejects the subscription as referencing an unusable plan"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "billing administrator",
+      "intent": "move an active subscription to a different plan",
+      "benefit": "the customer can change tier without losing their history",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an active subscription and a different existing active plan",
+          "when": "the administrator changes the plan",
+          "then": "the subscription stores the new plan, increments its version and a change record is persisted with the previous and new plan identifiers"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "a subscription identifier that does not exist",
+          "when": "the administrator changes the plan",
+          "then": "the service reports the subscription as not found"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "a subscription that has already been cancelled",
+          "when": "the administrator attempts to change the plan",
+          "then": "the service rejects the change as conflicting with the current state"
+        },
+        {
+          "scenarioId": "AC-4.4",
+          "given": "a change request carrying a version older than the stored version",
+          "when": "the administrator attempts to change the plan",
+          "then": "the service rejects the change as a stale write"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P1",
+      "role": "billing administrator",
+      "intent": "cancel an active subscription as of a date",
+      "benefit": "billing stops when the customer asks",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an active subscription and a cancellation date not earlier than the start date",
+          "when": "the administrator cancels the subscription",
+          "then": "the subscription stores the cancellation date and enters a cancelled state"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a cancellation date earlier than the subscription start date",
+          "when": "the administrator attempts to cancel the subscription",
+          "then": "the service rejects the cancellation as inconsistent"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "a subscription that is already cancelled",
+          "when": "the administrator attempts to cancel it again",
+          "then": "the service rejects the cancellation as conflicting with the current state"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P2",
+      "role": "billing administrator",
+      "intent": "remove a payment method that is no longer used",
+      "benefit": "stale funding sources are not retained",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "a payment method that no active subscription references",
+          "when": "the administrator deletes the payment method",
+          "then": "the payment method is no longer retrievable"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "a payment method referenced by an active subscription",
+          "when": "the administrator attempts to delete the payment method",
+          "then": "the service rejects the deletion as conflicting with an active subscription"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "a payment method identifier that does not exist",
+          "when": "the administrator deletes the payment method",
+          "then": "the service reports the payment method as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P2",
+      "role": "product manager",
+      "intent": "retire a plan that no active subscription uses",
+      "benefit": "the catalogue stays honest",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "an active plan with no active subscriptions",
+          "when": "the manager retires the plan",
+          "then": "the plan is stored as inactive and is no longer offered for new subscriptions"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "an active plan referenced by an active subscription",
+          "when": "the manager attempts to retire the plan",
+          "then": "the service rejects the retirement as conflicting with an active subscription"
+        }
+      ]
+    },
+    {
+      "id": "US-8",
+      "priority": "P3",
+      "role": "billing administrator",
+      "intent": "read the change history of a subscription",
+      "benefit": "plan moves can be audited",
+      "scenarios": [
+        {
+          "scenarioId": "AC-8.1",
+          "given": "a subscription that has never changed plan",
+          "when": "the administrator reads the change history",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-8.2",
+          "given": "a subscription identifier that does not exist",
+          "when": "the administrator reads the change history",
+          "then": "the service reports the subscription as not found"
+        }
+      ]
+    }
+  ]
+}

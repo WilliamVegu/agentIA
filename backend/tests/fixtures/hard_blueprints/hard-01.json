@@ -1,0 +1,300 @@
+{
+  "blueprintId": "hard-01",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Entity count and referential depth: seven entities wired by explicit foreign keys, so every stage must iterate the whole graph instead of handling the first entity.",
+  "rationale": "A logistics service whose entities reference each other by identifier: Shipment points at Warehouse, Carrier and Address; ShipmentItem, RouteLeg and TrackingEvent all point back at Shipment; RouteLeg points at two Addresses. A stage that resolves only one entity, or that assumes every entity is independent, produces a partial service here while the two-entity fixtures still pass.",
+
+  "serviceName": "logistics-service",
+  "packageName": "com.corp.logistics",
+  "basePort": 8181,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Warehouse",
+      "tableName": "warehouses",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "region", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "capacityUnits", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "openedOn", "type": "LocalDate", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Past"] }
+      ]
+    },
+    {
+      "name": "Carrier",
+      "tableName": "carriers",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "contactEmail", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Email"] },
+        { "name": "serviceLevel", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Address",
+      "tableName": "addresses",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "line1", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "line2", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] },
+        { "name": "city", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "postalCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "countryCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "latitude", "type": "Double", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@DecimalMax"] },
+        { "name": "longitude", "type": "Double", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@DecimalMax"] }
+      ]
+    },
+    {
+      "name": "Shipment",
+      "tableName": "shipments",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "reference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "warehouseId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "carrierId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "destinationAddressId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "dispatchedAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "expectedDeliveryAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Future"] },
+        { "name": "totalWeightKg", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] }
+      ]
+    },
+    {
+      "name": "ShipmentItem",
+      "tableName": "shipment_items",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "shipmentId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "sku", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "quantity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "unitWeightKg", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin"] },
+        { "name": "declaredValue", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@Digits"] }
+      ]
+    },
+    {
+      "name": "RouteLeg",
+      "tableName": "route_legs",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "shipmentId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "sequenceNumber", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "originAddressId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "destinationAddressId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "plannedDepartureAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "plannedArrivalAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "distanceKm", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] }
+      ]
+    },
+    {
+      "name": "TrackingEvent",
+      "tableName": "tracking_events",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "shipmentId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "routeLegId", "type": "Long", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "eventType", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "occurredAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "recordedBy", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "note", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "warehouse operator",
+      "intent": "register a warehouse with its region and capacity",
+      "benefit": "shipments can be routed from a known facility",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique warehouse code and a positive capacity",
+          "when": "the operator registers the warehouse",
+          "then": "the warehouse is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a capacity of zero or less",
+          "when": "the operator attempts to register the warehouse",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "no warehouse exists with the requested identifier",
+          "when": "the operator retrieves that warehouse",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "logistics planner",
+      "intent": "register a carrier with a service level and a contact address",
+      "benefit": "shipments are assigned to a compliant transport provider",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a carrier code matching the permitted pattern and a service level",
+          "when": "the planner registers the carrier",
+          "then": "the carrier is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a carrier code that does not match the permitted pattern",
+          "when": "the planner attempts to register the carrier",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "logistics planner",
+      "intent": "record a destination address with a postal code and country",
+      "benefit": "deliveries can be geocoded and routed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "a complete address with a well-formed postal code",
+          "when": "the planner records the address",
+          "then": "the address is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a latitude outside the permitted range",
+          "when": "the planner attempts to record the address",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "dispatcher",
+      "intent": "dispatch a shipment from a warehouse through a carrier to an address",
+      "benefit": "goods leave the facility under a tracked reference",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing warehouse, an existing carrier, an existing destination address and a positive total weight",
+          "when": "the dispatcher creates the shipment",
+          "then": "the shipment is persisted with its warehouse, carrier and destination references intact"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "a shipment referencing a carrier identifier that does not exist",
+          "when": "the dispatcher attempts to create the shipment",
+          "then": "the service rejects the shipment and reports the missing carrier reference"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "a total weight below the permitted minimum",
+          "when": "the dispatcher attempts to create the shipment",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "dispatcher",
+      "intent": "add packing items to a dispatched shipment",
+      "benefit": "the shipment contents and declared value are auditable",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing shipment and an item quantity within the permitted range",
+          "when": "the dispatcher adds the item",
+          "then": "the item is persisted against the shipment and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "an item quantity above the permitted maximum",
+          "when": "the dispatcher attempts to add the item",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "a shipment identifier that does not exist",
+          "when": "the dispatcher attempts to add an item to it",
+          "then": "the service reports the shipment as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P2",
+      "role": "route planner",
+      "intent": "plan the ordered legs of a shipment route",
+      "benefit": "each leg can be tracked and measured independently",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an existing shipment, two existing addresses and an arrival later than the departure",
+          "when": "the planner records the leg",
+          "then": "the leg is persisted with its sequence number and both address references"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "a planned arrival earlier than the planned departure",
+          "when": "the planner attempts to record the leg",
+          "then": "the service rejects the leg as inconsistent"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "a sequence number below the permitted minimum",
+          "when": "the planner attempts to record the leg",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P2",
+      "role": "warehouse operator",
+      "intent": "record tracking events against a shipment in occurrence order",
+      "benefit": "the customer-facing timeline reflects what actually happened",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "an existing shipment and an occurrence time in the past",
+          "when": "the operator records the tracking event",
+          "then": "the event is persisted against the shipment with its occurrence time"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "an occurrence time in the future",
+          "when": "the operator attempts to record the event",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-8",
+      "priority": "P3",
+      "role": "logistics planner",
+      "intent": "read the shipments dispatched from a warehouse",
+      "benefit": "facility load can be reviewed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-8.1",
+          "given": "a warehouse with no dispatched shipments",
+          "when": "the planner reads the shipments for that warehouse",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-8.2",
+          "given": "a warehouse identifier that does not exist",
+          "when": "the planner reads the shipments for that warehouse",
+          "then": "the service reports the warehouse as not found"
+        }
+      ]
+    }
+  ]
+}

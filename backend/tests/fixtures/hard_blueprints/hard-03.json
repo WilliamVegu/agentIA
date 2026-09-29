@@ -1,0 +1,245 @@
+{
+  "blueprintId": "hard-03",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Colliding and nesting entity names: Order, OrderItem, OrderItemAdjustment, Return, ReturnLine and Product, where one name prefixes another and two names are Java-keyword-adjacent or SQL-reserved.",
+  "rationale": "A retail order service whose entity names deliberately nest and collide. A prefix-matching generator that emits one file per name stem, or that truncates at the first match of Order, will lose OrderItemAdjustment or overwrite OrderItem. Return is a Java keyword in lower case and returns is a reserved word in the SQL standard, so identifier derivation cannot be naive. OrderItem also has two foreign keys (orderId, productId), so the pairing between an entity and its references is many-to-one rather than one-to-one.",
+
+  "serviceName": "order-service",
+  "packageName": "com.corp.order",
+  "basePort": 8183,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Product",
+      "tableName": "products",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "sku", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "title", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "listPrice", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "taxRate", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero", "@Digits"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Order",
+      "tableName": "orders",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "orderNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "customerReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "placedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "currencyCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] }
+      ]
+    },
+    {
+      "name": "OrderItem",
+      "tableName": "order_items",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "orderId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "productId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "quantity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "unitPrice", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "lineDiscount", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PositiveOrZero", "@Digits"] }
+      ]
+    },
+    {
+      "name": "OrderItemAdjustment",
+      "tableName": "order_item_adjustments",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "orderItemId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "reasonCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "adjustmentAmount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Digits"] },
+        { "name": "appliedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "appliedBy", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] }
+      ]
+    },
+    {
+      "name": "Return",
+      "tableName": "returns",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "orderId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "returnReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "reasonCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "requestedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "approved", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "ReturnLine",
+      "tableName": "return_lines",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "returnId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "orderItemId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "quantity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "restockRequested", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "catalogue manager",
+      "intent": "register a product with a price and a tax rate",
+      "benefit": "orders can reference a priced catalogue entry",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique sku, a positive list price and a non-negative tax rate",
+          "when": "the manager registers the product",
+          "then": "the product is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a list price that is zero or negative",
+          "when": "the manager attempts to register the product",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "sales operator",
+      "intent": "place an order with a currency and an order number",
+      "benefit": "the sale is recorded against a customer reference",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an order number matching the permitted pattern and a supported currency code",
+          "when": "the operator places the order",
+          "then": "the order is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a currency code that does not match the permitted pattern",
+          "when": "the operator attempts to place the order",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "sales operator",
+      "intent": "add a line to an existing order for an existing product",
+      "benefit": "the order total reflects what the customer bought",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing order, an existing product and a quantity within the permitted range",
+          "when": "the operator adds the line",
+          "then": "the line is persisted with both its order and product references intact"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "an order identifier that does not exist",
+          "when": "the operator attempts to add the line",
+          "then": "the service reports the order as not found"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "a quantity above the permitted maximum",
+          "when": "the operator attempts to add the line",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "finance operator",
+      "intent": "apply a priced adjustment to a single order line",
+      "benefit": "promotional and correction amounts are attributed to the right line",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing order line and an adjustment reason code",
+          "when": "the operator applies the adjustment",
+          "then": "the adjustment is persisted against that line and not against the order"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "an order line identifier that does not exist",
+          "when": "the operator applies the adjustment",
+          "then": "the service reports the order line as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "customer service agent",
+      "intent": "raise a return against a delivered order",
+      "benefit": "the customer can send goods back under a tracked reference",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing order and a return reference matching the permitted pattern",
+          "when": "the agent raises the return",
+          "then": "the return is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "an order identifier that does not exist",
+          "when": "the agent attempts to raise the return",
+          "then": "the service reports the order as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P2",
+      "role": "customer service agent",
+      "intent": "add returned lines to a return, referencing the original order lines",
+      "benefit": "the refund is computed from what was actually sent back",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an existing return and an existing order line with a positive quantity",
+          "when": "the agent adds the return line",
+          "then": "the return line is persisted with its return and order line references intact"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "a returned quantity of zero",
+          "when": "the agent attempts to add the return line",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "a return identifier that does not exist",
+          "when": "the agent attempts to add the return line",
+          "then": "the service reports the return as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P3",
+      "role": "sales operator",
+      "intent": "read the lines of an existing order",
+      "benefit": "the order contents can be reviewed before fulfilment",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "an order with no lines",
+          "when": "the operator reads the lines",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "an order identifier that does not exist",
+          "when": "the operator reads the lines",
+          "then": "the service reports the order as not found"
+        }
+      ]
+    }
+  ]
+}
