@@ -1,0 +1,539 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{warn}{RGB}{160,60,40}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  pdftitle={AgentIA --- Current State},
+  pdfauthor={AgentIA Engineering}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}AgentIA --- Current State}
+\fancyhead[R]{\small\color{accent}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{softgray},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  xleftmargin=0.5em,
+  xrightmargin=0.5em,
+}
+
+\newtcolorbox{notebox}[1][]{colback=softgray,colframe=accent,boxrule=0.4pt,
+  arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,breakable,#1}
+
+\title{\vspace{-1.4cm}\textbf{AgentIA --- Current State}\\[0.25cm]
+\large Bare bones: how it functions, what ships, and what is honestly not verified}
+\author{AgentIA Engineering}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{notebox}
+\textbf{Scope of this document.} The other three documents in \texttt{docs/} are
+SkillOpt-focused and were written \emph{before} implementation:
+\texttt{notes.tex} is a proposal brief, \texttt{resume\_skillopt.tex} is a method
+reference with prompt templates, and \texttt{slides.tex} is a 13-frame deck. None
+of them describes what is actually built. This document is that description, and it
+is deliberately blunt about the gaps.
+\end{notebox}
+
+\tableofcontents
+\vspace{0.6cm}
+
+\section{What AgentIA is}
+
+AgentIA --- \emph{Microservice Code Studio} --- ingests a formal specification of a
+microservice and produces a compiled, tested, exportable Spring Boot project. It is
+two layers that talk over REST and Server-Sent Events:
+
+\begin{center}
+\begin{tabular}{@{}p{0.44\textwidth}p{0.5\textwidth}@{}}
+\toprule
+\textbf{React / Vite Studio (port 3000)} & \textbf{FastAPI Orchestrator (port 8000)} \\
+\midrule
+Spec ingestion (BDD, architecture, relational models) &
+FIFO concurrency queue (max 2 simultaneous builds) \\
+Live generation monitor over SSE &
+LangGraph autonomous agent (8 nodes) \\
+Code explorer, security audit, DevOps, export &
+Hermetic Docker sandbox (\texttt{mvn test -o --network none}) \\
+ZIP download and atomic Git publish &
+Bounded self-repair loop \\
+& SQLite session store \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The property that makes it more than a code generator is that \textbf{it refuses to
+claim success it did not verify}. That constraint was not present at the start; it
+was built in specs 012 and 013, and it is the most important thing to understand
+about the current state.
+
+\section{How it functions}
+
+\subsection{The LangGraph harness}
+
+The agent is an eight-node graph. Topology as it exists in
+\texttt{backend/app/orchestrator/graph.py}:
+
+\begin{lstlisting}
+START -> validator
+validator  --(FAILED)--> END
+           --(else)----> scaffolder
+scaffolder -> domain -> service -> controller -> test -> sandbox
+sandbox    --(build_success)--> END
+           --(status BLOCKED)--> END
+           --(else)-----------> repair
+repair     --(status BLOCKED)--> END
+           --(else)-----------> sandbox
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Node} & \textbf{Responsibility} \\
+\midrule
+\texttt{validator} & Reject an unusable blueprint before any model call \\
+\texttt{scaffolder} & \texttt{pom.xml}, \texttt{application.yml}, \texttt{@SpringBootApplication} \\
+\texttt{domain} & JPA entities and DTO records \\
+\texttt{service} & Service interfaces and implementations, repositories, exceptions \\
+\texttt{controller} & REST controllers; error handling delegated to one advice class \\
+\texttt{test} & One test per declared acceptance scenario \\
+\texttt{sandbox} & Hermetic offline build and test, then the honesty check \\
+\texttt{repair} & Bounded self-repair from parsed Maven output \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two routing details matter and are easy to miss:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \texttt{sandbox -> END} on \texttt{BLOCKED}. An unverifiable workspace does
+  \textbf{not} enter the repair loop: no code patch fixes a missing container
+  runtime. This is what makes spec 012's honest failure terminate cleanly rather
+  than burning the repair budget on an environment fault.
+  \item \texttt{repair -> sandbox} is the loop, and it is bounded by the configured
+  repair cap.
+\end{itemize}
+
+\subsection{The stage execution seam}
+
+Every generation stage --- in both execution paths --- is invoked through one
+function, \texttt{stages/runner.py::run\_stage}. It is the only place that owns mode
+selection, request and correction budgeting, compliance gating, provenance
+recording, cost recording, and journal accumulation. That the two paths share it is
+what makes behavioural parity structural rather than a matter of discipline.
+
+\begin{center}
+\begin{tabular}{@{}p{0.16\textwidth}p{0.78\textwidth}@{}}
+\toprule
+\textbf{Path} & \textbf{Entry} \\
+\midrule
+A --- graph & \texttt{generation\_graph.stream} via
+\texttt{routes\_session.execute\_generation\_pipeline}; nodes are thin delegations
+into the seam \\
+B --- sequential & \texttt{pipeline\_runner.\_execute\_pipeline\_steps} (auto-pilot),
+calling the same seam directly \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The two generation modes}
+
+A session is decided to be \texttt{MODEL} or \texttt{DETERMINISTIC} once, at start,
+and never changes. \texttt{MODEL} never falls back to deterministic.
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+& \textbf{DETERMINISTIC} & \textbf{MODEL} \\
+\midrule
+Implementation & \texttt{stages/deterministic/*.emit} & \texttt{stages/model/*} \\
+Compliance gate & none & applied before persistence \\
+Model requests & 0 & 1 initial $+$ up to 2 corrections per stage \\
+Provenance & no provider or model recorded & provider, model, revision, ordinal \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The gate asymmetry is deliberate (FR-013): deterministic output is compliant by
+construction, and gating it would change offline behaviour. It is documented at the
+point of use so it is not later ``fixed'' as an oversight.
+
+\subsection{The compliance gate}
+
+Two independently-written validator families evaluate every candidate artifact set.
+They overlap and \textbf{disagree on severity} for the same violation --- Lombok
+\texttt{@Data} on a JPA entity is MEDIUM in one and HIGH in the other. The adapter
+keeps the strictest, and that tightening is a real behaviour change: it can convert
+previously-completing sessions into blocked ones. It is recorded in
+\texttt{specs/011-llm-generation-nodes/migration-notes.md} because it is the single
+most likely source of a false regression attribution.
+
+Violations are attributed one of two ways, and the distinction is load-bearing:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Attribution} & \textbf{Effect} & \textbf{Canonical case} \\
+\midrule
+LOCAL & Rejects the candidate set; consumes a correction attempt &
+DTO declared as a class \\
+ACCUMULATED & Recorded, never rejects, never consumes an attempt &
+No \texttt{@RestControllerAdvice} anywhere in the project \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The accumulated case is why a scaffolder running \emph{before} the controller stage
+is not rejected for a missing global error handler it could not have written.
+
+\subsection{The honest verifier (spec 012)}
+
+The sandbox originally substituted a synthetic \texttt{BUILD SUCCESS} with
+fabricated 5/5 test counts whenever it could not build. Sessions therefore reached
+\texttt{VERIFIED} for workspaces that were never compiled, and every downstream
+figure inherited that. It is now:
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Outcome} & \texttt{exit\_code} & \texttt{fallback\_used} \\
+\midrule
+Verified and passed & 0 & false \\
+Verified and failed & non-zero & false \\
+\textbf{Could not verify} & non-zero & \textbf{true} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+There are \textbf{four} substitution triggers, not the three originally identified:
+runtime unavailable, runtime executable missing, runtime communication failure, and
+--- the most severe --- a build failure whose output matches an environment-looking
+pattern, which used to be converted into a \emph{pass}.
+
+An unverifiable session terminates in \texttt{BLOCKED}, bypassing repair, with the
+reason recorded. \texttt{ALLOW\_HERMETIC\_FALLBACK} (default \textbf{false})
+restores the old behaviour for local development; the marking is recorded in
+\textbf{both} modes, because permissive mode changes what is permitted, not what is
+recorded.
+
+\subsection{Cost tracing (spec 013)}
+
+Every model call is recorded through a proxy applied by the model factory --- but
+only while a recording context is active, which is true inside the stage boundary
+and false for a direct factory call. That condition keys on \emph{is recording
+active}, never on \emph{is this a test}; a test-shaped bypass would leave production
+unrecorded while the suite stayed green.
+
+The local SQLite store is the \textbf{system of record}. The telemetry destination is
+a mirror whose absence is a non-event, so the report is deterministic and offline.
+Pricing is per call, not per model, because the provider's published rates vary by
+peak/off-peak (2$\times$) and by cache hit/miss (up to 100$\times$ on input).
+
+\subsection{The SkillOpt loop (spec 014)}
+
+One iteration, one skill, no memory between runs:
+
+\begin{lstlisting}
+collect recorded outcomes -> reflect into <=4 edits -> apply to a COPY
+  -> gate BOTH skills on the SAME fresh executions
+  -> accept iff candidate_score > current_score   (strict; ties rejected)
+  -> log exactly one run record
+\end{lstlisting}
+
+Every stability mechanism the source method uses is deliberately absent: no
+rejected-edit buffer, no learning-rate schedule, no epoch-wise slow/meta update, no
+multi-skill bank, no significance test. The protected
+\texttt{SLOW\_UPDATE} region is already honoured so that adding the slow update later
+needs no change to the edit contract.
+
+\section{Features shipped}
+
+\begin{longtable}{@{}p{0.06\textwidth}p{0.30\textwidth}p{0.56\textwidth}@{}}
+\toprule
+\textbf{Spec} & \textbf{Feature} & \textbf{State} \\
+\midrule
+\endhead
+001 & Microservice Code Studio & Core platform: ingestion, queue, session store, SSE \\
+002 & Requirements to stories & BDD ingestion to Given/When/Then \\
+003 & Architecture component design & Component and Mermaid rendering \\
+004 & Domain models / SQL & Relational model generation \\
+005 & Automated tests analysis & Test suite analysis and repair histories \\
+006 & Security \& quality audit & SAST, quality gate, export blocking \\
+007 & Docker CI/CD orchestration & Deployment and pipeline surfaces \\
+008 & Unified workflow orchestration & Lifecycle, phases, auto-pilot \\
+009 & Historical baseline analysis & Synthetic incident baseline \\
+010 & Skill injection & \textbf{Domain triage only} --- the skill documents were never authored \\
+011 & LLM generation nodes & \textbf{Built.} Seam, 5 model stages, gate, correction loop, provenance, journal, measurement harness \\
+012 & Sandbox verifier honesty & \textbf{Built.} Four triggers, permissive opt-in, terminal-state parity \\
+013 & Cost tracing & \textbf{Built.} Per-call telemetry, aggregation, report, pricing table \\
+014 & SkillOpt compact & \textbf{Built.} One-iteration loop, strict gate, disjoint evidence \\
+\bottomrule
+\end{longtable}
+
+\begin{notebox}
+\textbf{Spec 010 is the notable gap.} It classified the failure domains and created
+three skill files, but all three are \textbf{zero bytes} --- placeholders. Only
+\texttt{layer\_architecture.md} has content today, authored as feature 014's seed.
+\texttt{exception\_handling.md} and \texttt{mockito\_tests.md} remain empty.
+\end{notebox}
+
+\section{The agent scripts}
+
+Everything under \texttt{backend/scripts/} is run directly; none is wired into the
+API.
+
+\subsection{Generation and measurement}
+
+\begin{longtable}{@{}p{0.36\textwidth}p{0.60\textwidth}@{}}
+\toprule
+\textbf{Script} & \textbf{Purpose} \\
+\midrule
+\endhead
+\texttt{capture\_generation\_baseline.py} & Freezes the pre-migration deterministic
+output (spec 011 T008). Must run \emph{before} any stage is migrated. \\
+\texttt{analyze\_historical\_baseline.py} & Analyses the synthetic incident baseline
+(spec 009) \\
+\texttt{seed\_historical\_baseline.py} & Seeds it \\
+\texttt{report\_session\_costs.py} & \textbf{The cost report.} Prints the headline
+average cost per completed session with its population, exclusions and pricing basis \\
+\texttt{validate\_seed\_skills.py} & Validates skill documents \\
+\bottomrule
+\end{longtable}
+
+\subsection{SkillOpt}
+
+\begin{longtable}{@{}p{0.30\textwidth}p{0.66\textwidth}@{}}
+\toprule
+\textbf{Module} & \textbf{Role} \\
+\midrule
+\endhead
+\texttt{run\_skillopt.py} & The orchestrator: one iteration, one run record \\
+\texttt{skillopt/collect.py} & Recorded sessions to outcome records. ``No failures''
+$\neq$ ``no sessions''; a fallback-marked session counts as a failure \\
+\texttt{skillopt/reflect.py} & One direct factory call to a bounded edit set \\
+\texttt{skillopt/apply.py} & Four operations, cap $L_t = 4$, applied to a
+\textbf{copy}; protected-region and not-found targets rejected individually \\
+\texttt{skillopt/gate.py} & Both skills on the same fresh executions; strict
+acceptance; disjointness asserted in code \\
+\texttt{skillopt/real\_runner.py} & The production session runner, used only by
+\texttt{--real} \\
+\texttt{skillopt/prompts/analyst\_error.md} & The reflector prompt, adapted from
+SkillOpt Appendix C.2.1 \\
+\bottomrule
+\end{longtable}
+
+\section{Economics: where the numbers live}
+
+\begin{longtable}{@{}p{0.42\textwidth}p{0.54\textwidth}@{}}
+\toprule
+\textbf{What} & \textbf{Where} \\
+\midrule
+\endhead
+The headline report & \texttt{backend/scripts/report\_session\_costs.py} \\
+System of record & \texttt{backend/cost\_tracking.db} --- tables
+\texttt{model\_calls} and \texttt{session\_costs} \\
+Published rate table & \texttt{backend/app/resources/model\_pricing.json} (cites its
+source URL in-file) \\
+Intervention rate & \texttt{reports/measurements/011-sc011-intervention-rate.md} \\
+Excluded-session count & \texttt{reports/measurements/012-fallback-excluded-sessions.md} \\
+Frozen pre-migration baseline & \texttt{reports/baselines/} --- immutable \\
+\bottomrule
+\end{longtable}
+
+Producing the number:
+
+\begin{lstlisting}
+PYTHONPATH=backend .venv/bin/python backend/scripts/report_session_costs.py
+\end{lstlisting}
+
+\begin{notebox}[colframe=warn]
+\textbf{There is no cost figure yet, and reporting one would be the failure this
+platform was built to prevent.} The cost store is currently \textbf{empty}: no
+session has run with recording active. The report says so explicitly ---
+\emph{``No sessions found\ldots This is not a measurement of zero cost''} --- and
+that refusal is the correct behaviour, not a missing feature.
+
+The only quantified figure that exists is the SC-011 intervention rate:
+\textbf{12.5\% over 32 sessions}, and it is labelled \textbf{synthetic} in the
+artifact itself, because those sessions were driven by a fake client with a
+scripted compliant/non-compliant mix. It measures the mechanism, not a real model.
+\end{notebox}
+
+\section{How to test it}
+
+\subsection{Start both halves}
+
+The \texttt{.bat} and \texttt{.ps1} launchers assume Windows and a bare
+\texttt{python}. On Linux:
+
+\begin{lstlisting}
+# backend  -> http://localhost:8000   (Swagger UI at /docs)
+cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
+
+# frontend -> http://localhost:3000
+cd frontend && npm run dev
+\end{lstlisting}
+
+\texttt{frontend/src/services/apiClient.ts} uses \texttt{baseURL: '/api/v1'}, so
+the Vite dev server needs a proxy to port 8000.
+
+\subsection{One run that exercises the newest machinery}
+
+A single \texttt{MODEL}-mode session on the \texttt{minimal} blueprint touches the
+stage seam (011), the honest verifier (012) and cost recording (013).
+
+\begin{center}
+\begin{tabular}{@{}clp{0.52\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{View} & \textbf{What to observe} \\
+\midrule
+1 & \texttt{SpecIngestionView} & Paste
+\texttt{backend/tests/fixtures/baseline\_blueprints/minimal.json}; provider
+\texttt{deepseek} $+$ key \\
+2 & \texttt{GenerationMonitorView} & Live SSE: phase transitions, build logs, and
+the \texttt{verification\_result} event carrying \texttt{verificationFallbackUsed} \\
+3 & \texttt{CodeExplorerView} & Generated artifacts and their provenance \\
+4 & \texttt{ExportPublishView} & The ZIP. A \textbf{403} means the quality gate
+blocked the export --- correct, not a bug \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+API equivalent (request shape verified against
+\texttt{QuickStartSessionRequest}):
+
+\begin{lstlisting}
+curl -X POST http://localhost:8000/api/v1/sessions/quick-start \
+  -H 'Content-Type: application/json' \
+  -d '{"serviceName":"notes-service","rawText":"<minimal.json>",
+       "autoRun":true,"llmProvider":"deepseek","apiKey":"sk-..."}'
+
+# then:
+#   GET /api/v1/sessions/{id}/stream      SSE
+#   GET /api/v1/sessions/{id}             detail (+ verificationFallbackUsed)
+#   GET /api/v1/sessions/{id}/artifacts   listing
+\end{lstlisting}
+
+\subsection{Two host-dependent behaviours to expect}
+
+\textbf{The sandbox result depends on container-runtime reachability.} If the
+runtime is unreachable and \texttt{ALLOW\_HERMETIC\_FALLBACK} is unset, the session
+\textbf{blocks}. That is spec 012 working. To run the loop end to end on such a host,
+either enable the permissive flag deliberately or make the runtime reachable.
+
+\textbf{The SkillOpt real iteration needs two flags, not one.} A key in
+\texttt{backend/.env} reaches \texttt{os.environ} through \texttt{load\_dotenv()},
+so a key-presence check passes without the operator realising a key exists. It
+therefore requires \texttt{AGENTIA\_RUN\_REAL\_SKILLOPT=1} \emph{and}
+\texttt{AGENTIA\_ALLOW\_REAL\_SPEND=1}, and it spends real money.
+
+\section{Honest current limits}
+
+Recorded here rather than left to be discovered.
+
+\begin{center}
+\begin{tabular}{@{}p{0.30\textwidth}p{0.64\textwidth}@{}}
+\toprule
+\textbf{Limit} & \textbf{Detail} \\
+\midrule
+No cost figure exists & The store is empty. Running the report is the correct first
+step; reporting a number before that is the failure mode 012/013 close. \\
+SC-003 not verified by the implementer & The real-build criterion was verified by
+the operator from a capable shell; the implementer's shell cannot reach the
+container runtime. Recorded as such, never inferred. \\
+SC-007 partially observed & A real SkillOpt iteration ran twice unintentionally and
+reached a decision, but its scores were suppressed by the test and were not
+re-run, to avoid spending again without authorisation. \\
+The gate is coarse & Five blueprints, $M = 4$: one task moves the pass rate by
+\textbf{25 points}. Noise can decide an acceptance. \\
+No memory between runs & A rejected edit is logged and dropped, so v1 can repeat a
+failed edit indefinitely and nothing notices. \\
+Repair-cap drift & The constitution specifies 3; \texttt{config.py} sets
+\textbf{5}. This flatters any absolute intervention-rate ceiling and is disclosed in
+the measurement artifact. \\
+Three skill files empty & \texttt{exception\_handling.md} and
+\texttt{mockito\_tests.md} are zero bytes; only the seed has content. \\
+No frontend surface for cost & The report is a CLI artifact. There is no view for
+it. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Next steps}
+
+\subsection{Before anything else}
+
+\textbf{Widen the held-out exam.} Adding optimizer machinery to a five-task gate
+optimises against noise. This is the highest-value change and it is cheap.
+
+\textbf{Run sessions with recording on.} The economics are unmeasurable until the
+store has data, and every other cost question is downstream of that.
+
+\subsection{SkillOpt design improvements}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Filter environment failures in code, not in the prompt.} The
+  collector currently classifies fallback-marked sessions as failures, sends them to
+  the reflector, and the prompt then asks the model to ignore them. Keeping them for
+  context is defensible, but the ignore-instruction should not be the only guard.
+  \item \textbf{Cache the current score} keyed by (skill hash, held-out set). The
+  gate is $2 \times M$ real sessions per iteration; caching makes an epoch loop
+  affordable at all.
+  \item \textbf{Record a real build exit code.} It is currently \emph{derived} from
+  the verification metrics' pass flag because the session table has no such column.
+  \item \textbf{Pass provider and key into the session state} in
+  \texttt{real\_runner}; a real run currently depends on ambient environment
+  detection.
+  \item \textbf{Then, in the source method's order:} rejected-edit buffer $\to$
+  textual learning-rate schedule $\to$ epoch/slow-meta update $\to$ multi-skill
+  bank. The protected region already exists for the slow update.
+  \item \textbf{Statistical validation} --- the deferred item that makes any of the
+  above trustworthy at this sample size.
+\end{enumerate}
+
+\subsection{Documentation}
+
+\texttt{README.md} predates specs 011--014 entirely: it still describes the agent as
+blocks that no longer exist, and states a repair cap of 3 when the code sets 5. It
+should either point here or be brought current.
+
+\end{document}
