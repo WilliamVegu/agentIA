@@ -235,8 +235,38 @@ def test_attribution_reads_a_missing_or_empty_journal_without_raising():
     # A malformed entry must not abort attribution of the well-formed ones.
     assert stage_attribution({"entries": ["not a mapping", {"stage": "DOMAIN"}]}) == [
         {"stage": "DOMAIN", "outcome": None, "request_count": None,
-         "rule_histogram": {}, "counts_by_severity": {}, "passed": True}
+         "rule_histogram": {}, "counts_by_severity": {}, "passed": None}
     ]
+
+
+def test_a_stage_with_no_verdict_is_not_reported_as_passed():
+    """No verdict is a third state, not a pass.
+
+    The store actually held this shape: five EXHAUSTED stages, every one reported
+    ``passed``, every rule histogram empty. Rendering "no verdict was produced" as
+    "the first candidate passed" makes a session in which every stage was rejected
+    read as a clean one -- the conflation FR-004 forbids, one level down, and the
+    exact input an optimizer would otherwise learn nothing from.
+    """
+    from app.services.conformance_diagnostics import stage_attribution
+
+    attributed = stage_attribution({"entries": [
+        # A stage whose candidate never parsed: no initial_verdict at all.
+        {"stage": "SCAFFOLDER", "outcome": "EXHAUSTED", "request_count": 3},
+        # An explicit verdict, for contrast: these two ARE passes and failings.
+        {"stage": "DOMAIN", "outcome": "CLEAN", "request_count": 1,
+         "initial_verdict": {"passed": True, "violations": []}},
+        {"stage": "TEST", "outcome": "CORRECTED", "request_count": 2,
+         "initial_verdict": {"passed": False, "violations": [
+             {"rule_id": "R", "severity": "HIGH", "artifact_path": "a.java"}]}},
+    ]})
+
+    by_stage = {entry["stage"]: entry for entry in attributed}
+    assert by_stage["SCAFFOLDER"]["passed"] is None, (
+        "a stage that produced no verdict was reported as if it had passed"
+    )
+    assert by_stage["DOMAIN"]["passed"] is True
+    assert by_stage["TEST"]["passed"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -332,3 +362,176 @@ def test_ensure_schema_is_idempotent(tmp_path):
     fresh = create_engine(f"sqlite:///{(tmp_path / 'fresh.db').as_posix()}")
     diag.ensure_schema(fresh)
     diag.ensure_schema(fresh)   # must not raise on a second call
+
+
+# ---------------------------------------------------------------------------
+# The stage-runner exhaustion path: evidence must survive it
+# ---------------------------------------------------------------------------
+# The first real generation run (docs/agentia_first_baseline.tex) followed this
+# exact shape: every stage spent its whole correction budget, the first four were
+# accepted on their third attempt, and TEST never converged. The session then
+# terminated BLOCKED -- and a blocked session is the one most worth diagnosing.
+#
+# The concern was that the artifacts from the four accepted stages were lost on
+# that path, leaving the diagnostic record with artifact_count=0. These tests
+# reproduce the shape deterministically (scripted model, no provider, no cost) and
+# assert that the evidence reaches the record.
+VIOLATION = "PROHIBITED_ANNOTATION"
+
+
+def _script_responses(monkeypatch, responses):
+    """Point the factory at a scripted fake; no network, no provider."""
+    from app.services.llm_factory import LLMFactory
+
+    model = fm.make_scripted_model(*responses)
+    monkeypatch.setattr(LLMFactory, "get_chat_model", staticmethod(lambda **kwargs: model))
+    return model
+
+
+def _real_baseline_pattern(blueprint):
+    """SCAFFOLDER/DOMAIN/SERVICE/CONTROLLER pass on attempt 3; TEST exhausts.
+
+    Two rejecting responses then an accepted one is what "passed on the third
+    attempt" means: the initial candidate and the first correction were both
+    rejected, and the second correction was the one that satisfied the gate.
+    """
+    responses = []
+    for stage in ("SCAFFOLDER", "DOMAIN", "SERVICE", "CONTROLLER"):
+        responses.append(fm.canonical_json_response(fm.violating_artifacts(VIOLATION, blueprint)))
+        responses.append(fm.canonical_json_response(fm.violating_artifacts(VIOLATION, blueprint)))
+        responses.append(fm.canonical_json_response(fm.compliant_artifacts(stage, blueprint)))
+    responses.extend(
+        [fm.canonical_json_response(fm.violating_artifacts(VIOLATION, blueprint))] * 3
+    )
+    return responses
+
+
+def _model_state(blueprint, workspace, session_id):
+    return {
+        "session_id": session_id,
+        "blueprint": blueprint,
+        "workspace_path": str(workspace),
+        "generated_files": {},
+        "logs": [],
+        "generation_mode": "MODEL",
+        "llm_provider": "deepseek",
+        "llm_model": "deepseek-flash",
+        "llm_api_key": "sk-fake-key-for-tests",
+    }
+
+
+def test_stage_exhaustion_preserves_the_artifacts_earlier_stages_persisted(
+    monkeypatch, tmp_path
+):
+    """The stage boundary's exhaustion path must not discard prior artifacts."""
+    from app.orchestrator.stages.runner import STAGE_ORDER, run_stages
+
+    blueprint = _blueprint("minimal")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    model = _script_responses(monkeypatch, _real_baseline_pattern(blueprint))
+
+    result = run_stages(
+        _model_state(blueprint, workspace, "t015-a"), stages=STAGE_ORDER,
+        api_key="sk-fake-key-for-tests",
+    )
+
+    assert model.call_count == 15, "the scripted pattern no longer matches the real run"
+    assert result["status"] == "BLOCKED"
+    persisted = result["generated_files"]
+    assert len(persisted) == 7, (
+        f"the artifacts the four accepted stages persisted were lost on the "
+        f"exhaustion path; got {sorted(persisted)}"
+    )
+    # TEST never had a candidate accepted, so nothing of its own may appear.
+    assert not any(path.startswith("src/test/") for path in persisted)
+
+    journal = result["generation_journal"]
+    outcomes = {e["stage"]: e["outcome"] for e in journal["entries"]}
+    assert outcomes["TEST"] == "EXHAUSTED"
+    assert all(
+        outcomes[stage] == "CORRECTED"
+        for stage in ("SCAFFOLDER", "DOMAIN", "SERVICE", "CONTROLLER")
+    ), f"the pattern did not reproduce: {outcomes}"
+
+
+def test_a_test_stage_exhaustion_records_the_prior_artifacts_and_their_rules(
+    monkeypatch, tmp_path
+):
+    """A blocked session must carry evidence, not artifact_count=0."""
+    from app.api.routes_session import _persist_diagnostics
+    from app.orchestrator.stages.runner import STAGE_ORDER, run_stages
+
+    blueprint = _blueprint("minimal")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    _script_responses(monkeypatch, _real_baseline_pattern(blueprint))
+
+    result = run_stages(
+        _model_state(blueprint, workspace, "t015-b"), stages=STAGE_ORDER,
+        api_key="sk-fake-key-for-tests",
+    )
+    assert _persist_diagnostics("t015-b", result) is True
+
+    record = read_diagnostic_record("t015-b")
+    assert record is not None
+    assert record["artifact_count"] == 7, (
+        "the blocked session recorded no artifacts even though four stages persisted"
+    )
+    assert record["evaluable"] is True, "nothing to evaluate, on a session that produced artifacts"
+
+    by_stage = {entry["stage"]: entry for entry in record["stages"]}
+    assert by_stage["TEST"]["outcome"] == "EXHAUSTED"
+    corrected = [e for e in record["stages"] if e["outcome"] == "CORRECTED"]
+    assert len(corrected) == 4
+    assert any(entry["rule_histogram"] for entry in corrected), (
+        "the rules that rejected each stage's first candidate were not attributed; "
+        "the record would show a session that failed with no reason for the failure"
+    )
+
+
+def test_the_graph_accumulator_preserves_artifacts_when_a_stage_exhausts(
+    monkeypatch, tmp_path
+):
+    """The production accumulator (`stream` + update) must preserve them too.
+
+    routes_session does not read the graph's returned state directly: it folds
+    each node's output into its own accumulator. That accumulator is the state the
+    diagnostic record is finally written from, so it is the one that matters.
+    """
+    from app.orchestrator.graph import generation_graph
+
+    blueprint = _blueprint("minimal")
+    workspace = tmp_path / "ws_graph"
+    workspace.mkdir()
+    model = _script_responses(monkeypatch, _real_baseline_pattern(blueprint))
+
+    class _Unverifiable:
+        fallback_used = True
+        is_success = False
+        fallback_reason = "test: the container runtime is not consulted"
+        duration_ms = 0
+
+    async def _fake_sandbox(*args, **kwargs):
+        return _Unverifiable()
+
+    monkeypatch.setattr(
+        "app.orchestrator.nodes.sandbox_node.run_docker_sandbox", _fake_sandbox
+    )
+
+    initial = _model_state(blueprint, workspace, "t015-c")
+    initial["repair_attempts"] = 0
+    initial["max_repair_attempts"] = 3
+
+    accumulated = dict(initial)
+    nodes = []
+    for step in generation_graph.stream(initial):
+        node_name = list(step.keys())[0]
+        nodes.append(node_name)
+        accumulated.update(step[node_name])
+
+    assert model.call_count == 15
+    assert nodes[-1] == "sandbox", f"the graph did not reach the sandbox: {nodes}"
+    assert len(accumulated["generated_files"]) == 7, (
+        "the production accumulator lost the artifacts of the four accepted stages"
+    )

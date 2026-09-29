@@ -25,7 +25,7 @@ free.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from app.orchestrator.stages.compliance import (
     SEVERITY_BLOCKING,
@@ -166,8 +166,17 @@ def stage_attribution(journal: Optional[Mapping[str, Any]]) -> List[Dict[str, An
     for entry in journal.get("entries", []) or []:
         if not isinstance(entry, Mapping):
             continue
-        verdict = entry.get("initial_verdict") or {}
-        violations = verdict.get("violations") or []
+        # A stage whose first candidate never parsed carries NO verdict at all.
+        # That is a third state, not a pass: rendering it as ``passed`` turned a
+        # session in which every stage was rejected into one that reads as clean
+        # -- the conflation FR-004 forbids, one level down. It is also the
+        # fabricated-looking shape the store actually held: five EXHAUSTED stages,
+        # every one reported ``passed``, every rule histogram empty.
+        raw_verdict = entry.get("initial_verdict")
+        verdict: Optional[Mapping[str, Any]] = (
+            raw_verdict if isinstance(raw_verdict, Mapping) else None
+        )
+        violations = (verdict or {}).get("violations") or []
         histogram: Dict[str, int] = {}
         severities: Dict[str, int] = {}
         for violation in violations:
@@ -177,13 +186,17 @@ def stage_attribution(journal: Optional[Mapping[str, Any]]) -> List[Dict[str, An
             histogram[rule_id] = histogram.get(rule_id, 0) + 1
             severity = str(violation.get("severity") or "UNKNOWN")
             severities[severity] = severities.get(severity, 0) + 1
+        # ``None`` means "no verdict was produced"; it is neither True nor False.
+        passed: Optional[bool] = (
+            None if verdict is None else bool(verdict.get("passed", not violations))
+        )
         attributed.append({
             "stage": str(entry.get("stage") or "UNKNOWN"),
             "outcome": entry.get("outcome"),
             "request_count": entry.get("request_count"),
             "rule_histogram": histogram,
             "counts_by_severity": severities,
-            "passed": bool(verdict.get("passed", not violations)),
+            "passed": passed,
         })
     return attributed
 
