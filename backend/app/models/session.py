@@ -52,6 +52,10 @@ class GenerationSessionDB(Base):
     # — never credentials (FR-018, Constitution VI).
     generation_journal_json = Column(Text, nullable=True)
     artifact_provenance_json = Column(Text, nullable=True)
+    # Feature 012 additive storage. Holds the serialized VerificationMetrics so
+    # the session detail endpoint can report whether verification actually ran,
+    # including after a process restart (the in-process state does not survive).
+    verification_metrics_json = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -96,6 +100,8 @@ def _ensure_generation_columns():
                     conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN generation_journal_json TEXT"))
                 if "artifact_provenance_json" not in existing_cols:
                     conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN artifact_provenance_json TEXT"))
+                if "verification_metrics_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN verification_metrics_json TEXT"))
                 conn.commit()
     except Exception:
         pass
@@ -165,4 +171,8 @@ class GenerationSessionDetail(BaseModel):
     started_at: Optional[datetime] = Field(None, alias="startedAt")
     completed_at: Optional[datetime] = Field(None, alias="completedAt")
     error_message: Optional[str] = Field(None, alias="errorMessage")
+    # Feature 012 (FR-005): whether verification actually ran. Defaults to False
+    # so a session with no persisted metrics -- or an older row -- degrades to
+    # "no known fallback" rather than raising.
+    verification_fallback_used: bool = Field(False, alias="verificationFallbackUsed")
 

@@ -61,6 +61,17 @@ class Settings(BaseSettings):
     
     # Allow offline mock fallback without requiring external API keys
     ALLOW_OFFLINE_MOCK: bool = Field(default=False, description="Allow falling back to offline-mock when no API key is supplied")
+
+    # Hermetic sandbox fallback policy (feature 012).
+    # When false (default), a sandbox run that cannot actually build reports a
+    # non-success result marked fallback_used=True, so a workspace that was never
+    # compiled is never reported as verified. When true, the pre-change synthetic
+    # success is restored for local development -- the marking is still recorded,
+    # so permissive mode changes what is permitted, not what is recorded.
+    ALLOW_HERMETIC_FALLBACK: bool = Field(
+        default=False,
+        description="Permit the synthetic sandbox result when a real build cannot run. Default false (honest failure).",
+    )
     
     # Database (anchored to backend/studio.db by default; future migration target is PostgreSQL)
     DATABASE_URL: str = Field(

@@ -427,7 +427,15 @@ def test_test_node_generates_mockito_and_web_tests(clean_workspace):
 # =========================================================================
 # 6. Complete LangGraph State Graph Workflow Execution
 # =========================================================================
-def test_complete_langgraph_generation_graph(clean_workspace):
+def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
+    # Feature 012: this test exercises the graph's plumbing end to end, not
+    # verifier honesty. Its build_success/VERIFIED assertions were only ever true
+    # because the sandbox substituted a synthetic success when no container
+    # runtime was reachable. The honest default now blocks instead, so the test
+    # opts into permissive mode explicitly. Verifier honesty itself is asserted in
+    # backend/tests/test_sandbox_verifier_honesty.py.
+    monkeypatch.setattr(settings, "ALLOW_HERMETIC_FALLBACK", True)
+
     session_ws = clean_workspace / "sess_graph_full"
     session_ws.mkdir()
 

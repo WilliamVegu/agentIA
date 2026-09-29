@@ -1,5 +1,28 @@
+"""Sandbox runner tests.
+
+Feature 012 split this file's original expectations in two. The three fallback
+tests below exercise the **permissive** path and therefore opt in explicitly via
+``ALLOW_HERMETIC_FALLBACK``; under the default configuration that behavior is
+forbidden and the result must be a non-success marked ``fallback_used``. Their
+honest-default counterparts live in ``test_sandbox_verifier_honesty.py``.
+
+Before feature 012 these three tests asserted synthetic success with no opt-in,
+which encoded the bug as required behavior.
+"""
+
 import pytest
+from app.config import settings
 from app.sandbox.docker_runner import build_docker_cmd, DockerExecutionResult
+
+
+@pytest.fixture
+def permissive_sandbox(monkeypatch):
+    """Opt into the synthetic sandbox result for the duration of one test.
+
+    Feature 012: this is the only way to reach the legacy behavior. Without the
+    flag, a sandbox run that cannot build returns a non-success result.
+    """
+    monkeypatch.setattr(settings, "ALLOW_HERMETIC_FALLBACK", True)
 
 def test_build_docker_cmd_structure():
     cmd = build_docker_cmd(
@@ -27,7 +50,7 @@ def test_docker_execution_result_model():
     assert result.exit_code == 0
 
 @pytest.mark.anyio
-async def test_run_docker_sandbox_daemon_offline_fallback(monkeypatch, tmp_path):
+async def test_run_docker_sandbox_daemon_offline_fallback(monkeypatch, tmp_path, permissive_sandbox):
     from app.sandbox.docker_runner import run_docker_sandbox
     import app.services.docker_service as ds_mod
 
@@ -45,9 +68,12 @@ async def test_run_docker_sandbox_daemon_offline_fallback(monkeypatch, tmp_path)
     assert "COMPILING & RUNNING TESTS (HERMETIC OFFLINE SANDBOX)" in res.stdout
     assert len(logs) > 0
     assert any("BUILD SUCCESS" in l for l in logs)
+    # FR-007: permissive mode changes what is permitted, not what is recorded.
+    assert res.fallback_used is True
+    assert res.fallback_reason
 
 @pytest.mark.anyio
-async def test_run_docker_sandbox_daemon_pipe_error_fallback(monkeypatch, tmp_path):
+async def test_run_docker_sandbox_daemon_pipe_error_fallback(monkeypatch, tmp_path, permissive_sandbox):
     import asyncio
     from app.sandbox.docker_runner import run_docker_sandbox
     import app.services.docker_service as ds_mod
@@ -82,9 +108,11 @@ async def test_run_docker_sandbox_daemon_pipe_error_fallback(monkeypatch, tmp_pa
     res = await run_docker_sandbox(workspace_path=str(tmp_path))
     assert res.exit_code == 0
     assert "HERMETIC OFFLINE SANDBOX" in res.stdout
+    assert res.fallback_used is True
+    assert res.fallback_reason
 
 @pytest.mark.anyio
-async def test_run_docker_sandbox_image_missing_fallback(monkeypatch, tmp_path):
+async def test_run_docker_sandbox_image_missing_fallback(monkeypatch, tmp_path, permissive_sandbox):
     import asyncio
     from app.sandbox.docker_runner import run_docker_sandbox
     import app.services.docker_service as ds_mod
@@ -119,4 +147,5 @@ async def test_run_docker_sandbox_image_missing_fallback(monkeypatch, tmp_path):
     res = await run_docker_sandbox(workspace_path=str(tmp_path))
     assert res.exit_code == 0
     assert "HERMETIC OFFLINE SANDBOX" in res.stdout
-
+    assert res.fallback_used is True
+    assert res.fallback_reason

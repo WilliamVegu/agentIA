@@ -8,10 +8,30 @@ from pydantic import BaseModel, Field
 from app.config import settings
 
 class DockerExecutionResult(BaseModel):
+    """Outcome of one verification attempt.
+
+    The three outcomes the platform must distinguish are:
+
+    * **verified and passed**  -- ``exit_code == 0``, ``fallback_used is False``
+    * **verified and failed**  -- ``exit_code != 0``, ``fallback_used is False``
+    * **could not verify**     -- ``exit_code != 0``, ``fallback_used is True``
+
+    ``exit_code == 0`` with ``fallback_used is True`` is legal **only** when
+    ``ALLOW_HERMETIC_FALLBACK`` is enabled; it means "reported as passing without
+    verification". Every consumer that computes a figure MUST exclude it.
+    """
+
     exit_code: int
     stdout: str = ""
     stderr: str = ""
     duration_ms: int = 0
+
+    # Feature 012 (FR-001, FR-009). Defaulted so every pre-existing construction
+    # remains valid.
+    fallback_used: bool = False
+    fallback_reason: Optional[str] = None
+    matched_pattern: Optional[str] = None
+    attribution_ambiguous: bool = False
 
     @property
     def is_success(self) -> bool:
@@ -56,18 +76,80 @@ OFFLINE_SANDBOX_STDOUT = (
     "[INFO] -------------------------------------------------------\n"
 )
 
+# Reasons are written to be self-describing and to avoid implying that the
+# generated code was at fault. A substitution is an environment/verification
+# problem, never a test or compilation failure (FR-003).
+REASON_RUNTIME_UNREACHABLE = (
+    "the container runtime is not reachable, so verification could not be performed"
+)
+REASON_RUNTIME_MISSING = (
+    "the container runtime executable is not available, so verification could not be performed"
+)
+REASON_RUNTIME_COMMUNICATION = (
+    "the container runtime could not be reached during execution, "
+    "so verification could not be performed"
+)
+
+
+def _environment_pattern_reason(matched_pattern: str) -> str:
+    return (
+        f"the build did not complete verifiably: the output matches the environment "
+        f"pattern {matched_pattern!r}. This may indicate an environment fault or a "
+        f"project configuration error; the attribution is ambiguous and is not "
+        f"resolved automatically."
+    )
+
+
 def _build_hermetic_fallback_result(
     start_time: float,
-    log_callback: Optional[Callable[[str], None]] = None
+    log_callback: Optional[Callable[[str], None]] = None,
+    reason: str = REASON_RUNTIME_UNREACHABLE,
+    matched_pattern: Optional[str] = None,
+    attribution_ambiguous: bool = False,
 ) -> DockerExecutionResult:
+    """Build the result for an attempt that could not actually run a build.
+
+    The single policy point for all four substitution triggers, so none of them
+    can remain a silent success (FR-006).
+
+    * **Permissive** (``ALLOW_HERMETIC_FALLBACK`` true): the pre-change synthetic
+      success is restored for local development -- ``exit_code = 0`` with the
+      synthetic stdout. The marking is still set, because permissive mode changes
+      what is permitted, not what is recorded (FR-007).
+    * **Default**: ``exit_code = 1`` and no synthetic output, so the caller cannot
+      mistake an unverified workspace for a verified one (FR-001). The caller
+      must NOT reach the verified terminal state.
+    """
+    duration_ms = int((time.time() - start_time) * 1000)
+    permitted = bool(getattr(settings, "ALLOW_HERMETIC_FALLBACK", False))
+
+    if permitted:
+        if log_callback:
+            for line in OFFLINE_SANDBOX_STDOUT.splitlines(keepends=True):
+                log_callback(line)
+        return DockerExecutionResult(
+            exit_code=0,
+            stdout=OFFLINE_SANDBOX_STDOUT,
+            stderr="",
+            duration_ms=duration_ms,
+            fallback_used=True,
+            fallback_reason=reason,
+            matched_pattern=matched_pattern,
+            attribution_ambiguous=attribution_ambiguous,
+        )
+
+    notice = f"[SANDBOX] Verification could not be performed: {reason}\n"
     if log_callback:
-        for line in OFFLINE_SANDBOX_STDOUT.splitlines(keepends=True):
-            log_callback(line)
+        log_callback(notice)
     return DockerExecutionResult(
-        exit_code=0,
-        stdout=OFFLINE_SANDBOX_STDOUT,
-        stderr="",
-        duration_ms=int((time.time() - start_time) * 1000)
+        exit_code=1,
+        stdout="",
+        stderr=notice,
+        duration_ms=duration_ms,
+        fallback_used=True,
+        fallback_reason=reason,
+        matched_pattern=matched_pattern,
+        attribution_ambiguous=attribution_ambiguous,
     )
 
 async def run_docker_sandbox(
@@ -80,7 +162,11 @@ async def run_docker_sandbox(
     """
     Executes Maven test within an isolated, offline Docker sandbox container.
     Streams output line by line to log_callback if provided.
-    Falls back seamlessly to hermetic offline sandbox when Docker daemon is not active.
+
+    When a build cannot actually run, the outcome depends on
+    ``ALLOW_HERMETIC_FALLBACK`` (see ``_build_hermetic_fallback_result``): the
+    default reports a marked non-success, and permissive mode restores the legacy
+    synthetic success for local development.
     """
     start_time = time.time()
 
@@ -92,7 +178,9 @@ async def run_docker_sandbox(
         daemon_available = False
 
     if not daemon_available:
-        return _build_hermetic_fallback_result(start_time, log_callback)
+        return _build_hermetic_fallback_result(
+            start_time, log_callback, reason=REASON_RUNTIME_UNREACHABLE
+        )
 
     m2_cache = maven_cache_path or settings.MAVEN_CACHE_DIR
     image = docker_image or settings.DOCKER_IMAGE
@@ -130,8 +218,10 @@ async def run_docker_sandbox(
         exit_code = process.returncode if process.returncode is not None else -1
 
     except FileNotFoundError:
-        # Fallback when docker is not installed on the local host (e.g. CI or lightweight environment)
-        return _build_hermetic_fallback_result(start_time, log_callback)
+        # The runtime executable is not installed on this host.
+        return _build_hermetic_fallback_result(
+            start_time, log_callback, reason=REASON_RUNTIME_MISSING
+        )
     except asyncio.TimeoutError:
         try:
             process.kill()
@@ -146,7 +236,9 @@ async def run_docker_sandbox(
     except Exception as e:
         err_msg = str(e).lower()
         if any(pat in err_msg for pat in ["docker", "daemon", "pipe", "connect", "not found"]):
-            return _build_hermetic_fallback_result(start_time, log_callback)
+            return _build_hermetic_fallback_result(
+                start_time, log_callback, reason=REASON_RUNTIME_COMMUNICATION
+            )
         return DockerExecutionResult(
             exit_code=1,
             stdout="".join(stdout_chunks),
@@ -182,10 +274,26 @@ async def run_docker_sandbox(
         "unresolvablemodelexception",
         "projectbuildingexception",
     ]
-    if exit_code != 0 and any(pat in combined for pat in ENVIRONMENT_FALLBACK_PATTERNS):
+    # The pattern set is deliberately NOT narrowed (FR-009 / Q2): it also matches
+    # signatures Maven emits for genuinely broken build files, and misclassifying a
+    # real environment fault as a project error would produce a false FAILURE --
+    # worse than a false "could not verify". The ambiguity is recorded instead.
+    matched_pattern = next(
+        (pat for pat in ENVIRONMENT_FALLBACK_PATTERNS if pat in combined), None
+    )
+    if exit_code != 0 and matched_pattern is not None:
         if log_callback:
-            log_callback("[SANDBOX] Docker offline cache cold or container environment error. Executing hermetic fallback verification.")
-        return _build_hermetic_fallback_result(start_time, log_callback)
+            log_callback(
+                "[SANDBOX] Docker offline cache cold or container environment error. "
+                "Verification could not be performed."
+            )
+        return _build_hermetic_fallback_result(
+            start_time,
+            log_callback,
+            reason=_environment_pattern_reason(matched_pattern),
+            matched_pattern=matched_pattern,
+            attribution_ambiguous=True,
+        )
 
     duration_ms = int((time.time() - start_time) * 1000)
     return DockerExecutionResult(

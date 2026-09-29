@@ -28,3 +28,8 @@ class GenerationAgentState(TypedDict, total=False):
     instruction_set_revision: Optional[str]     # content digest of the instruction set in force
     generation_journal: Optional[Dict[str, Any]]        # GenerationJournal — per-stage outcomes
     artifact_provenance: Optional[List[Dict[str, Any]]]  # GenerationProvenanceRecord list
+
+    # --- Feature 012 additive field. Lets downstream nodes and the API see
+    # --- whether verification actually ran, without re-reading test_metrics.
+    # --- True means the sandbox could not build and substituted a result.
+    verification_fallback_used: Optional[bool]
