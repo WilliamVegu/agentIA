@@ -301,24 +301,40 @@ stage, recorded, and it stops rather than looping \\
   session terminated at the sandbox with an honest ``could not verify''. Whether the
   generated code compiles and passes its tests is therefore \emph{unknown}, and it is
   the single most important unknown in this document.
-  \item \textbf{The product surface does not use the model.} See
-  \S\ref{sec:blocker}: the API runs in deterministic mode. The reliability properties
-  above describe the batch driver, not the application.
+  \item \textbf{One product entry point does not use the model.}
+  \texttt{POST /sessions} runs deterministic templates while quick-start and the
+  orchestrator routes run the model (\S\ref{sec:blocker}). The measurements above
+  describe the model path.
 \end{itemize}
 
 \section{Readiness: what stands between this and production}
 \label{sec:blocker}
 
 \begin{notebox}[colframe=warn]
-\textbf{P0 --- the API cannot run the model at all.}
-\texttt{routes\_session.py} calls \texttt{select\_generation\_mode()} \emph{with no
-arguments}, and puts no \texttt{llm\_api\_key} into the graph state. With no key and
-no provider that function returns \textbf{DETERMINISTIC}, so the product's generation
-path emits the offline templates and never calls the model. Every reliability and
-cost number in this document comes from the batch driver, which bypasses the API by
-injecting the credentials directly. \textbf{The measurements describe a path the
-application cannot use.} This is a prerequisite for production readiness and it is
-independent of any reliability question.
+\textbf{One of the two generation entry points silently does not use the model.}
+The platform has two ways to start a session, and they disagree:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Sequential path.} \texttt{POST /sessions/quick-start} with
+  \texttt{autoRun: true}, and \texttt{/orchestrator/pipeline/run}, thread the caller's
+  credentials into \texttt{pipeline\_runner}, which calls
+  \texttt{select\_generation\_mode(api\_key, provider, model\_name)} and selects
+  \textbf{MODEL}. \textbf{These routes can use the model}, and they are the ones a
+  client should use today.
+  \item \textbf{Graph path.} \texttt{POST /sessions} builds its state by calling
+  \texttt{select\_generation\_mode()} \emph{with no arguments} and passes no
+  \texttt{llm\_api\_key}. With no key and no provider that returns
+  \textbf{DETERMINISTIC}, so this route emits offline templates and never calls the
+  model --- although the graph itself supports MODEL mode, as the batch driver proves
+  by invoking the same graph with credentials in the state.
+\end{itemize}
+
+The consequence is a product surface that behaves differently depending on which
+endpoint a client picks: one returns model-generated code, the other templates, and
+nothing in the response distinguishes them. It is a one-line wiring fix, not a
+blocker --- and it is a correction to an earlier draft of this document, which claimed
+the application could not reach the model at all. That was wrong: the quick-start and
+orchestrator routes do.
 \end{notebox}
 
 Ranked by what unblocks the most:
@@ -328,8 +344,8 @@ Ranked by what unblocks the most:
 \toprule
 \textbf{Priority} & \textbf{Item} & \textbf{Why it is where it is} \\
 \midrule
-P0 & API model path & nothing else matters until the product can use the generator
-that was measured \\
+P0 & Entry-point consistency & \texttt{POST /sessions} silently runs offline
+templates while quick-start runs the model; a client cannot tell which it received \\
 P1 & \textbf{Build pass rate} & the only remaining measurement. Run the corpus where
 the container works. Until then ``reliable'' is unfalsifiable \\
 P2 & Fix build failures in \emph{code} & if builds fail, the diagnostic channel names
@@ -355,8 +371,9 @@ author or delete them \\
   \$0.06/session --- but because the objective is structurally degenerate
   (\S\ref{sec:structural}). Record it as closed on evidence, keep the components on
   the shelf, and do not grow the corpus for it.
-  \item \textbf{Make the API use the model} (P0). It is the largest gap between what
-  was measured and what is shipped.
+  \item \textbf{Make the two entry points agree} (P0). Quick-start reaches the
+  model; \texttt{POST /sessions} silently does not. A client should not have to know
+  which endpoint yields model output. It is a small wiring fix.
   \item \textbf{Measure the build pass rate} (P1). One run in a shell where the
   container runtime initialises. No further reliability work is defensible before it:
   everything else is optimising a pipeline whose output has never been proven to
@@ -376,6 +393,7 @@ author or delete them \\
 The generator is reliable on the axis that was measured --- first-attempt
 rule-compliance, at \$0.064 per hard service --- but the axis that matters for
 production, whether the output builds and passes its tests, has not been measured
-once; and the application cannot yet invoke the model that produced these numbers.
+once; and one of the application's two generation entry points never invokes the model
+at all.
 
 \end{document}

@@ -9,4 +9,4 @@
 \contentsline {section}{\numberline {4}How this differs from a developer using generative AI}{4}{section.4}%
 \contentsline {subsection}{\numberline {4.1}And the honest counterpoints}{4}{subsection.4.1}%
 \contentsline {section}{\numberline {5}Readiness: what stands between this and production}{5}{section.5}%
-\contentsline {section}{\numberline {6}Recommendation}{5}{section.6}%
+\contentsline {section}{\numberline {6}Recommendation}{6}{section.6}%
