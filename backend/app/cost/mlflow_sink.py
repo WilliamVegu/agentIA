@@ -66,6 +66,19 @@ def _tracking_uri() -> str:
     return getattr(settings, "MLFLOW_TRACKING_URI", "http://localhost:5000")
 
 
+def _run_name(payload: Dict[str, Any]) -> str:
+    """A name that distinguishes this run from its siblings.
+
+    A session produces one record per stage, so naming every run after the session id
+    made five runs identical in the MLflow table. The stage is what tells them apart,
+    and for per-call records the call id is already unique -- so the stage is appended
+    only when there is one, keeping call records readable.
+    """
+    base = payload.get("session_id") or payload.get("call_id") or "agentia"
+    stage = payload.get("stage")
+    return f"{base}-{stage}" if stage else str(base)
+
+
 def _record(kind: str, payload: Dict[str, Any]) -> bool:
     """Send one record to the destination. Returns True only on a real write."""
     try:
@@ -77,7 +90,15 @@ def _record(kind: str, payload: Dict[str, Any]) -> bool:
     try:
         _bound_the_transport()
         mlflow.set_tracking_uri(_tracking_uri())
-        with mlflow.start_run(run_name=payload.get("session_id") or payload.get("call_id")):
+        # Group this project's runs instead of dropping all 535 into `Default`.
+        # Reported from the UI: "mlflow shows no input from project, only default is
+        # available" -- the data was all there (535 runs, $2.31), but with no named
+        # experiment the sidebar showed one entry and looked empty of project content.
+        mlflow.set_experiment(settings.MLFLOW_EXPERIMENT)
+        # Distinguish the runs. This used to be the bare session id, so a session's
+        # five stage runs shared one identical name and could only be told apart by
+        # opening each and reading its `stage` tag.
+        with mlflow.start_run(run_name=_run_name(payload)):
             scalars = {
                 key: value
                 for key, value in payload.items()

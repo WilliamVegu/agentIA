@@ -75,6 +75,9 @@ def test_a_mirror_that_raises_is_a_non_event(monkeypatch):
     """An unreachable or rejecting destination must not propagate either."""
 
     class _ExplodingMlflow(types.ModuleType):
+        def set_experiment(self, name):
+            self.experiment = name      # the mirror groups runs; the double records it
+
         def set_tracking_uri(self, uri):
             raise RuntimeError("connection refused")
 
@@ -113,6 +116,9 @@ def test_an_unreachable_destination_is_bounded_rather_than_left_at_the_library_d
     sent = {}
 
     class _RecordingMlflow(types.ModuleType):
+        def set_experiment(self, name):
+            self.experiment = name      # the mirror groups runs; the double records it
+
         def set_tracking_uri(self, uri):
             sent["uri"] = uri
 
@@ -192,6 +198,9 @@ def test_the_mirror_never_forwards_a_credential(monkeypatch):
     sent_tags: dict = {}
 
     class _CapturingMlflow(types.ModuleType):
+        def set_experiment(self, name):
+            self.experiment = name      # the mirror groups runs; the double records it
+
         def set_tracking_uri(self, uri):
             return None
 
@@ -227,3 +236,79 @@ def test_the_mirror_never_forwards_a_credential(monkeypatch):
     )
     assert sent_tags.get("session_id") == "t013-mirror"
     assert any(key == "input_tokens" for key, _ in sent_metrics)
+
+
+class _RunHandle:
+    """Minimal context manager for `with mlflow.start_run():`."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_the_mirror_groups_runs_in_a_named_experiment(monkeypatch):
+    """Reported from the UI: "mlflow shows no input from project, only default".
+
+    The data was all present (535 runs, $2.31) but every run landed in `Default`, so
+    the experiment list showed one entry that looked empty of project content. The
+    mirror now names its experiment, and `MLFLOW_EXPERIMENT` overrides it.
+    """
+    import sys
+    import types
+
+    from app.cost import mlflow_sink
+
+    seen = {}
+
+    class _Fake(types.ModuleType):
+        def set_tracking_uri(self, uri):
+            seen["uri"] = uri
+
+        def set_experiment(self, name):
+            seen["experiment"] = name
+
+        def start_run(self, run_name=None):
+            seen["run_name"] = run_name
+            return _RunHandle()
+
+        def log_metric(self, key, value):
+            pass
+
+        def set_tags(self, tags):
+            seen.setdefault("tags", {}).update(tags)
+
+    monkeypatch.setitem(sys.modules, "mlflow", _Fake("mlflow"))
+    mlflow_sink._reset_failures()
+
+    assert mlflow_sink.mirror_call_record({"session_id": "sess-1", "stage": "DOMAIN"}) is True
+    assert seen["experiment"] == "agentia"
+    assert seen["run_name"] == "sess-1-DOMAIN", (
+        "a session's per-stage runs must be distinguishable by name"
+    )
+
+
+def test_the_experiment_name_is_configurable(monkeypatch):
+    import sys
+    import types
+
+    from app.config import settings
+    from app.cost import mlflow_sink
+
+    seen = {}
+    monkeypatch.setattr(settings, "MLFLOW_EXPERIMENT", "custom-exp")
+
+    class _Fake(types.ModuleType):
+        def set_tracking_uri(self, uri): pass
+        def set_experiment(self, name): seen["experiment"] = name
+        def start_run(self, run_name=None):
+            return _RunHandle()
+        def log_metric(self, key, value): pass
+        def set_tags(self, tags): pass
+
+    monkeypatch.setitem(sys.modules, "mlflow", _Fake("mlflow"))
+    mlflow_sink._reset_failures()
+
+    mlflow_sink.mirror_call_record({"session_id": "s"})
+    assert seen["experiment"] == "custom-exp"

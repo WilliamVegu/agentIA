@@ -94,6 +94,14 @@ class Settings(BaseSettings):
         default="http://localhost:5000",
         description="Telemetry destination for mirrored cost records. Unreachable is a non-event.",
     )
+    MLFLOW_EXPERIMENT: str = Field(
+        default="agentia",
+        description=(
+            "MLflow experiment that mirrored runs are grouped under. Without a named "
+            "experiment every run lands in `Default`, which is why the tracking UI "
+            "looked like it held nothing from this project while holding 535 runs."
+        ),
+    )
     # The durable local store that IS the system of record. The report reads only
     # this, which is what makes the figures deterministic and offline (FR-005, FR-006).
     COST_STORE_PATH: str = Field(
