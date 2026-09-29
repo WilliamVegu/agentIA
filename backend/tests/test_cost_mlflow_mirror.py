@@ -22,6 +22,7 @@ No provider calls, no network.
 
 from __future__ import annotations
 
+import os
 import sys
 import types
 from contextlib import contextmanager
@@ -91,6 +92,66 @@ def test_a_session_cost_record_is_mirrored_through_the_same_non_event_path(
 ):
     """Both mirror entry points share the behaviour; neither raises."""
     assert mlflow_sink.mirror_session_cost_record({"session_id": "t013-mirror"}) is False
+
+
+# ---------------------------------------------------------------------------
+# An unreachable destination must fail fast, not block the caller
+# ---------------------------------------------------------------------------
+def test_an_unreachable_destination_is_bounded_rather_than_left_at_the_library_default(
+    monkeypatch,
+):
+    """The defect this pins: "best-effort" that blocks for minutes is not best-effort.
+
+    MLflow's defaults are a 120-second HTTP timeout with up to 5 retries, and the mirror
+    is called from ``RecordingChatClient.invoke`` -- the critical path of every LLM call.
+    A dead tracking server therefore stalled generation sessions, which is the opposite of
+    the module's stated contract. With no operator override, the send must be bounded.
+    """
+    monkeypatch.delenv("MLFLOW_HTTP_REQUEST_TIMEOUT", raising=False)
+    monkeypatch.delenv("MLFLOW_HTTP_REQUEST_MAX_RETRIES", raising=False)
+
+    sent = {}
+
+    class _RecordingMlflow(types.ModuleType):
+        def set_tracking_uri(self, uri):
+            sent["uri"] = uri
+
+        @contextmanager
+        def start_run(self, run_name=None):
+            # Read at the moment of the call, which is when MLflow itself reads them.
+            sent["timeout"] = os.environ.get("MLFLOW_HTTP_REQUEST_TIMEOUT")
+            sent["retries"] = os.environ.get("MLFLOW_HTTP_REQUEST_MAX_RETRIES")
+            yield
+
+        def log_metric(self, key, value):
+            return None
+
+        def set_tags(self, tags):
+            return None
+
+    monkeypatch.setitem(sys.modules, "mlflow", _RecordingMlflow("mlflow"))
+    mlflow_sink._reset_failures()
+    try:
+        assert mlflow_sink.mirror_call_record({"session_id": "t013-bounded"}) is True
+    finally:
+        mlflow_sink._reset_failures()
+
+    assert sent["retries"] == "0", "a dead destination must not be retried"
+    assert int(sent["timeout"]) <= 10, "a dead destination must not hold the caller for long"
+
+
+def test_an_operator_override_of_the_transport_bound_is_respected(monkeypatch):
+    """``setdefault``, not assignment: a real deployment with a healthy server may want
+    long retries, and the mirror must not silently overrule an explicit setting."""
+    monkeypatch.setenv("MLFLOW_HTTP_REQUEST_TIMEOUT", "45")
+    monkeypatch.setenv("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "3")
+
+    from app.cost import mlflow_sink as sink
+
+    sink._bound_the_transport()
+
+    assert os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] == "45"
+    assert os.environ["MLFLOW_HTTP_REQUEST_MAX_RETRIES"] == "3"
 
 
 # ---------------------------------------------------------------------------
