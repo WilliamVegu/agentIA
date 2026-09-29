@@ -201,6 +201,50 @@ def stage_attribution(journal: Optional[Mapping[str, Any]]) -> List[Dict[str, An
     return attributed
 
 
+def record_session_diagnostics(
+    session_id: str,
+    final_state: Mapping[str, Any],
+    *,
+    task: Optional[str] = None,
+) -> bool:
+    """Persist one session's diagnostic record from its final state (FR-001).
+
+    **The single writer.** Every terminal path must call it, including the blocked
+    ones -- a blocked session is the one most worth diagnosing. It exists as one
+    function rather than a copy per path because the copies are how a path silently
+    ends up recording nothing: the sequential pipeline's stage-exhaustion branch set
+    an in-memory status, returned, and wrote neither a terminal session state nor a
+    record, while the graph path wrote both.
+
+    Never raises: a diagnostics failure must not prevent a session's own terminal
+    record from being written. The boolean return keeps the failure visible instead
+    of silent, which is the mistake feature 014's write path made.
+    """
+    from app.models.diagnostics import write_diagnostic_record
+
+    try:
+        report = diagnose(dict(final_state.get("generated_files") or {}))
+        metrics = final_state.get("test_metrics") or {}
+        return write_diagnostic_record(
+            session_id,
+            task=task,
+            score=report.score,
+            raw_penalty=report.raw_penalty,
+            density=report.density,
+            artifact_count=report.evaluated_artifact_count,
+            evaluable=report.evaluable,
+            # FR-005: a synthetic verification is marked so the session can be
+            # excluded from evidence, whatever its terminal status says.
+            unverified=bool(metrics.get("fallback_used", False)),
+            counts_by_severity=report.counts_by_severity,
+            rule_histogram=report.rule_histogram,
+            findings=[v.to_dict() for v in report.violations],
+            stages=stage_attribution(final_state.get("generation_journal")),
+        )
+    except Exception:
+        return False
+
+
 def diagnose(artifacts: Mapping[str, str]) -> ConformanceReport:
     """Evaluate an artifact set and describe what is wrong with it.
 

@@ -24,6 +24,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
+from app.config import settings  # noqa: E402
 from app.models.diagnostics import (  # noqa: E402
     read_diagnostic_record,
     read_diagnostic_records,
@@ -34,7 +35,7 @@ from app.services.conformance_diagnostics import diagnose  # noqa: E402
 from tests.fixtures import fake_model as fm  # noqa: E402
 
 CORPUS_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "baseline_blueprints"
-SESSION_IDS = ["t015-a", "t015-b", "t015-c", "t015-d"]
+SESSION_IDS = ["t015-a", "t015-b", "t015-c", "t015-d", "t015-e"]
 
 
 def _blueprint(name: str = "minimal") -> dict:
@@ -535,3 +536,92 @@ def test_the_graph_accumulator_preserves_artifacts_when_a_stage_exhausts(
     assert len(accumulated["generated_files"]) == 7, (
         "the production accumulator lost the artifacts of the four accepted stages"
     )
+
+
+def test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion(
+    monkeypatch, tmp_path
+):
+    """The Auto-Pilot path must not leave a blocked session non-terminal.
+
+    This is the exhaustion-path defect. `pipeline_runner._execute_pipeline_steps`
+    returned early when the generation stages blocked, setting only an in-memory
+    status. The session row stayed in its pre-run state forever and **no
+    diagnostic record was written at all** -- so the one session most worth
+    diagnosing left no evidence, and SC-001 ("every session reaching a terminal
+    state carries a record") was false for this whole execution path.
+
+    The artifacts were never the thing that was lost: the four accepted stages'
+    artifacts were in the returned state and on disk. Nothing recorded them.
+    """
+    import threading
+
+    import app.services.pipeline_runner as pipeline_runner
+    from app.models.orchestrator import LifecyclePhase
+    from app.models.session import GenerationSessionDB, SessionPhase, SessionStatus
+
+    session_id = "t015-e"
+    blueprint = _blueprint("minimal")
+    monkeypatch.setattr(settings, "WORKSPACE_DIR", str(tmp_path))
+    # Keep the cost recorder off the real store; this test is not about cost.
+    monkeypatch.setattr(settings, "COST_STORE_PATH", str(tmp_path / "cost.db"), raising=False)
+    _script_responses(monkeypatch, _real_baseline_pattern(blueprint))
+
+    db = SessionLocal()
+    try:
+        db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).delete()
+        db.add(GenerationSessionDB(
+            id=session_id, spec_id="spec-t015-e", spec_name="notes-service",
+            status=SessionStatus.QUEUED, phase=SessionPhase.INITIALIZATION,
+            current_lifecycle_phase="INITIAL", lifecycle_mode="GUIDED_STEP",
+            repair_attempts=0,
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    pipeline_runner._pause_events[session_id] = threading.Event()
+    pipeline_runner._stop_events[session_id] = threading.Event()
+
+    try:
+        pipeline_runner._execute_pipeline_steps(
+            session_id, LifecyclePhase.DEVOPS_DEPLOY,
+            stop_on_gate=True, auto_deploy=False,
+            api_key="sk-fake-key-for-tests", provider="deepseek",
+        )
+
+        db = SessionLocal()
+        try:
+            row = db.query(GenerationSessionDB).filter(
+                GenerationSessionDB.id == session_id
+            ).first()
+            assert row.status == SessionStatus.BLOCKED, (
+                "a stage-exhausted session was left non-terminal; it will read as "
+                "still running forever"
+            )
+            assert row.phase == SessionPhase.FAILED
+            assert "budget exhausted" in (row.error_message or "")
+        finally:
+            db.close()
+
+        record = read_diagnostic_record(session_id)
+        assert record is not None, (
+            "the sequential pipeline blocked a session and recorded no diagnostic "
+            "at all; the evidence vanished on exactly the path that needed it"
+        )
+        assert record["artifact_count"] == 7, (
+            "the four accepted stages persisted artifacts, and the record does not "
+            "carry them"
+        )
+        assert record["evaluable"] is True
+    finally:
+        for store in (pipeline_runner._pause_events, pipeline_runner._stop_events,
+                      pipeline_runner._pipeline_statuses, pipeline_runner._session_credentials):
+            store.pop(session_id, None)
+        db = SessionLocal()
+        try:
+            db.query(GenerationSessionDB).filter(
+                GenerationSessionDB.id == session_id
+            ).delete()
+            db.commit()
+        finally:
+            db.close()

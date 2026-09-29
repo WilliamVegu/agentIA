@@ -4,7 +4,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Generator, Optional
+from typing import Any, Dict, Generator, Optional
 
 from app.config import settings
 from app.models.orchestrator import (
@@ -22,6 +22,7 @@ from app.services.lifecycle_service import (
     transition_phase,
 )
 from app.services.security_service import audit_workspace
+from app.services.conformance_diagnostics import record_session_diagnostics
 from app.services.devops_service import generate_all_devops_assets
 from app.services.docker_service import deploy_local
 from app.models.blueprint import DomainEntity, EntityAttribute, UserStoryRecord, AcceptanceScenarioRecord
@@ -89,6 +90,46 @@ def _emit_event(session_id: str, phase: LifecyclePhase, step: str, percent: floa
         })
     except Exception:
         pass
+
+
+def _finalise_blocked_session(session_id: str, state: Dict[str, Any]) -> None:
+    """Move a stage-exhausted session to its terminal state and record the evidence.
+
+    **This is the exhaustion-path fix.** The branch this replaces set an in-memory
+    pipeline status and returned: the session row stayed in its pre-run state
+    forever, and no diagnostic record was written. The artifacts themselves were
+    never lost -- which is exactly why it mattered, because nothing recorded them.
+    A blocked session is the one most worth diagnosing, so it was the worst path to
+    leave undiagnosed, and it also broke the "every session reaching a terminal
+    state carries a record" guarantee (FR-001, SC-001).
+
+    State, terminal status and evidence are written together because they are one
+    fact: the session ended, here is why, and here is what was found wrong.
+    """
+    reason = state.get("error") or "Generation stages blocked; human intervention required"
+
+    db = SessionLocal()
+    try:
+        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        if sess:
+            sess.status = SessionStatus.BLOCKED
+            sess.phase = SessionPhase.FAILED
+            sess.error_message = reason
+            sess.completed_at = datetime.now(timezone.utc)
+            db.commit()
+    except Exception:
+        # Never fatal: a session that cannot be marked must still be diagnosed.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+    # The one writer, shared with the graph path. It never raises; the return value
+    # is deliberately ignored here because the pipeline has no caller to report to,
+    # and the record's absence is visible in the corpus report regardless.
+    record_session_diagnostics(session_id, state)
 
 
 def get_pipeline_status(session_id: str) -> PipelineRunStatus:
@@ -432,6 +473,7 @@ def _execute_pipeline_steps(
                     error=agent_state.get("error"),
                 )
                 _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
+                _finalise_blocked_session(session_id, agent_state)
                 return
         transition_phase(session_id, LifecyclePhase.CODE_TESTS, force=True)
         time.sleep(0.2)

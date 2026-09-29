@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from app.config import settings
-from app.models.diagnostics import write_diagnostic_record
 from app.models.session import (
     SessionLocal,
     GenerationSessionDB,
@@ -25,7 +24,7 @@ from app.services.spec_service import get_specification
 from app.services.queue_service import queue_manager
 from app.orchestrator.graph import generation_graph
 from app.orchestrator.stages.runner import select_generation_mode
-from app.services.conformance_diagnostics import diagnose, stage_attribution
+from app.services.conformance_diagnostics import record_session_diagnostics
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
@@ -83,28 +82,12 @@ def _persist_diagnostics(session_id: str, final_state: dict) -> bool:
 
     Runs on BOTH terminal paths. A blocked session is exactly the one worth
     diagnosing, so it must not be the path that skips recording.
+
+    Delegates to the one writer so every terminal path, on every execution path,
+    records identically. The sequential pipeline's stage-exhaustion branch is the
+    case that proved the need: it wrote nothing at all.
     """
-    try:
-        artifacts = dict(final_state.get("generated_files") or {})
-        report = diagnose(artifacts)
-        metrics = final_state.get("test_metrics") or {}
-        return write_diagnostic_record(
-            session_id,
-            score=report.score,
-            raw_penalty=report.raw_penalty,
-            density=report.density,
-            artifact_count=report.evaluated_artifact_count,
-            evaluable=report.evaluable,
-            # FR-005: a synthetic verification is marked so the session can be
-            # excluded from evidence, whatever its terminal status says.
-            unverified=bool(metrics.get("fallback_used", False)),
-            counts_by_severity=report.counts_by_severity,
-            rule_histogram=report.rule_histogram,
-            findings=[v.to_dict() for v in report.violations],
-            stages=stage_attribution(final_state.get("generation_journal")),
-        )
-    except Exception:
-        return False
+    return record_session_diagnostics(session_id, final_state)
 
 
 def broadcast_session_event(session_id: str, event_type: str, data: dict):
