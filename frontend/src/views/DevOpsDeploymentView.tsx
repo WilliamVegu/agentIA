@@ -608,8 +608,23 @@ export const DevOpsDeploymentView: React.FC = () => {
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
-            <span className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-              PostgreSQL + Spring Boot 3 Conectados
+            {/* Was unconditional literal text: "PostgreSQL + Spring Boot 3 Conectados"
+                rendered green no matter what, including while the page simultaneously
+                showed `Estado Actuator: NO INICIADO`. It happened to be true on the run
+                that exposed it, which is exactly what makes a static claim dangerous --
+                it is right often enough to be believed. It now reports the state the
+                rest of the page is reporting, so the two cannot disagree on screen. */}
+            <span
+              className={`text-xs px-2.5 py-1 rounded-lg font-semibold border ${
+                isRunning
+                  ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+              }`}
+              title="Derivado del estado de despliegue, no de una comprobación propia"
+            >
+              {isRunning
+                ? `PostgreSQL + Spring Boot 3 conectados (${currentStatus})`
+                : `Sin conexión verificada — estado: ${currentStatus}`}
             </span>
           </div>
         </div>
