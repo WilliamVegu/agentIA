@@ -35,7 +35,7 @@ from app.services.requirements_service import (
     RequirementsTransformRequest,
 )
 from app.services.architecture_service import design_architecture, ArchitectureDesignRequest
-from app.services.model_sql_service import model_sql_service
+from app.services.model_sql_service import model_sql_service, schema_sql_from_draft
 # Feature 011 (T019): the sequential path now dispatches through the stage
 # execution boundary instead of calling the five node callables directly. The
 # boundary owns mode selection, budgeting, gating and provenance; the retained
@@ -299,52 +299,59 @@ def _execute_pipeline_steps(
     pause_event = _pause_events[session_id]
     stop_event = _stop_events[session_id]
 
-    detected_llm = LLMFactory.detect_provider(api_key, provider)
-    is_mock = LLMFactory.is_mock(api_key, provider)
-    active_model = "offline-mock" if is_mock else LLMFactory.resolve_model_name(detected_llm, model_name)
-    llm_label = "Modo Mock (Offline)" if is_mock else f"Motor LLM: {detected_llm.upper()} ({active_model})"
-
-    # Feature 011 (T018): the generation mode is decided ONCE, here, before any
-    # stage runs, and recorded in the generation state. Deciding per stage would
-    # produce hybrid output (some artifacts template-shaped, some model-shaped)
-    # and make the SC-001/SC-002 comparisons uninterpretable.
-    mode_selection = select_generation_mode(
-        api_key=api_key,
-        provider=provider,
-        model_name=model_name,
-    )
-    generation_mode = mode_selection.mode
-    if generation_mode == generation_journal.GENERATION_MODE_MODEL:
-        model_provider: Optional[str] = mode_selection.provider
-        model_name_for_state: Optional[str] = mode_selection.model
-    else:
-        # A DETERMINISTIC session must record no provider or model, so it can
-        # never be miscounted as model-generated.
-        model_provider = None
-        model_name_for_state = None
-    instruction_revision = ""
     try:
-        from app.orchestrator.stages.instructions import load_instruction_set
-        instruction_revision = load_instruction_set().revision
-    except Exception as exc:  # noqa: BLE001
-        # The deterministic path does not read instructions, so a missing or
-        # invalid instruction set must not break offline operation. In MODEL mode
-        # the boundary loads the set itself and fails loudly (invariant 11).
+        # Everything below sits inside the handler, including the mode decision and the
+        # instruction-set load. It used to start after them, so a failure there -- an
+        # ambiguous API key, an unloadable instruction set on the MODEL path -- escaped
+        # the function entirely. The caller is a daemon thread, so the exception died
+        # with it: the session row stayed RUNNING and the operator watched a pipeline
+        # that had already stopped. Failing loudly (invariant 11) is the intent; failing
+        # silently *to the operator* was not.
+        detected_llm = LLMFactory.detect_provider(api_key, provider)
+        is_mock = LLMFactory.is_mock(api_key, provider)
+        active_model = "offline-mock" if is_mock else LLMFactory.resolve_model_name(detected_llm, model_name)
+        llm_label = "Modo Mock (Offline)" if is_mock else f"Motor LLM: {detected_llm.upper()} ({active_model})"
+
+        # Feature 011 (T018): the generation mode is decided ONCE, here, before any
+        # stage runs, and recorded in the generation state. Deciding per stage would
+        # produce hybrid output (some artifacts template-shaped, some model-shaped)
+        # and make the SC-001/SC-002 comparisons uninterpretable.
+        mode_selection = select_generation_mode(
+            api_key=api_key,
+            provider=provider,
+            model_name=model_name,
+        )
+        generation_mode = mode_selection.mode
         if generation_mode == generation_journal.GENERATION_MODE_MODEL:
-            raise
+            model_provider: Optional[str] = mode_selection.provider
+            model_name_for_state: Optional[str] = mode_selection.model
+        else:
+            # A DETERMINISTIC session must record no provider or model, so it can
+            # never be miscounted as model-generated.
+            model_provider = None
+            model_name_for_state = None
         instruction_revision = ""
-        print(f"[WARN] instruction set not loaded for deterministic session: {exc}")
+        try:
+            from app.orchestrator.stages.instructions import load_instruction_set
+            instruction_revision = load_instruction_set().revision
+        except Exception as exc:  # noqa: BLE001
+            # The deterministic path does not read instructions, so a missing or
+            # invalid instruction set must not break offline operation. In MODEL mode
+            # the boundary loads the set itself and fails loudly (invariant 11).
+            if generation_mode == generation_journal.GENERATION_MODE_MODEL:
+                raise
+            instruction_revision = ""
+            print(f"[WARN] instruction set not loaded for deterministic session: {exc}")
 
-    db = SessionLocal()
-    spec_name = "Microservicio"
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess and sess.spec_name:
-            spec_name = sess.spec_name
-    finally:
-        db.close()
+        db = SessionLocal()
+        spec_name = "Microservicio"
+        try:
+            sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+            if sess and sess.spec_name:
+                spec_name = sess.spec_name
+        finally:
+            db.close()
 
-    try:
         _emit_event(session_id, LifecyclePhase.INITIAL, "Inicio", 5.0, f"Iniciando pipeline autónomo Auto-Pilot [{llm_label}]...", PhaseStatus.IN_PROGRESS)
 
         # Step 1: Requirements Check / Spec
@@ -429,8 +436,18 @@ def _execute_pipeline_steps(
                 # external review of generated output; reproduced by the rule added
                 # to conformance_diagnostics (SCHEMA_ENTITY_MISMATCH).
                 print(f"[WARN] schema synthesis failed ({exc}); deriving DDL from the blueprint")
+                # `schema_sql_from_draft` is a module-level function, not a method on the
+                # `model_sql_service` singleton. The call used to read
+                # `model_sql_service.schema_sql_from_draft(draft)`, so the fallback raised
+                # AttributeError -- and because `open(..., "w")` truncates before its
+                # argument is evaluated, it left an EMPTY schema.sql behind and then took
+                # the whole run down. The fallback that exists to prevent shipping a wrong
+                # schema was itself the thing that broke the run, and no test executed the
+                # branch, so it survived. Derive the content first, then write: a failure
+                # here can no longer truncate the artifact.
+                fallback_ddl = schema_sql_from_draft(draft)
                 with open(sql_file, "w", encoding="utf-8") as f:
-                    f.write(model_sql_service.schema_sql_from_draft(draft))
+                    f.write(fallback_ddl)
         transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
         time.sleep(0.2)
 
