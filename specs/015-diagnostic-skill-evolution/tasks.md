@@ -21,9 +21,9 @@ ahead of this plan) and is not rebuilt. It is extended, not replaced.
 
 ## Phase 1: Setup
 
-- [ ] T001 Run the existing instrument baseline and record the result: `PYTHONPATH=backend .venv/bin/python backend/scripts/measure_conformance_discrimination.py`. Confirm clean sets score 100 on every blueprint, all six rule kinds are detected, and **blind to nothing**. If a rule is blind, stop — everything below depends on the instrument.
+- [X] T001 Run the existing instrument baseline and record the result: `PYTHONPATH=backend .venv/bin/python backend/scripts/measure_conformance_discrimination.py`. Confirm clean sets score 100 on every blueprint, all six rule kinds are detected, and **blind to nothing**. If a rule is blind, stop — everything below depends on the instrument.
 
-- [ ] T002 [P] Establish the normalization rule in `backend/app/services/conformance_diagnostics.py`: the reported `score` must be comparable across artifact sets of different sizes (FR-007), while `raw_penalty` is retained unchanged so no existing consumer's meaning shifts.
+- [X] T002 [P] Establish the normalization rule in `backend/app/services/conformance_diagnostics.py`: the reported `score` must be comparable across artifact sets of different sizes (FR-007), while `raw_penalty` is retained unchanged so no existing consumer's meaning shifts.
 
 ---
 
@@ -31,13 +31,13 @@ ahead of this plan) and is not rebuilt. It is extended, not replaced.
 
 *Blocking. Both user stories report the normalized measure and persist a record.*
 
-- [ ] T003 Test the normalization property in `backend/tests/test_conformance_diagnostics.py`: two artifact sets differing **only in size**, carrying findings in the same proportion, MUST yield the same score (SC-009). Include the degenerate case of an empty set.
+- [X] T003 Test the normalization property in `backend/tests/test_conformance_diagnostics.py`: two artifact sets differing **only in size**, carrying findings in the same proportion, MUST yield the same score (SC-009). Include the degenerate case of an empty set.
 
-- [ ] T004 Implement normalization in `backend/app/services/conformance_diagnostics.py` to pass T003. Keep `raw_penalty` on the report alongside the normalized `score`.
+- [X] T004 Implement normalization in `backend/app/services/conformance_diagnostics.py` to pass T003. Keep `raw_penalty` on the report alongside the normalized `score`.
 
-- [ ] T005 Add the session diagnostic record to `backend/app/models/skillopt.py`: `session_id`, `score`, `raw_penalty`, `evaluable`, `unverified`, `artifact_count`, `counts_by_severity_json`, `rule_histogram_json`, `findings_json`, `stages_json`, `recorded_at`. Follow the existing `ensure_schema(bind)` pattern so the table is created on the engine actually in use, not the one resolved at import.
+- [X] T005 Add the session diagnostic record to `backend/app/models/skillopt.py`: `session_id`, `score`, `raw_penalty`, `evaluable`, `unverified`, `artifact_count`, `counts_by_severity_json`, `rule_histogram_json`, `findings_json`, `stages_json`, `recorded_at`. Follow the existing `ensure_schema(bind)` pattern so the table is created on the engine actually in use, not the one resolved at import.
 
-- [ ] T006 Test the schema binding in `backend/tests/test_diagnostic_record.py`: a write must succeed after `SessionLocal` is rebound to a different engine. This is the failure that silently swallowed feature 014's writes — the best-effort write path reported success while logging nothing.
+- [X] T006 Test the schema binding in `backend/tests/test_diagnostic_record.py`: a write must succeed after `SessionLocal` is rebound to a different engine. This is the failure that silently swallowed feature 014's writes — the best-effort write path reported success while logging nothing.
 
 ---
 
@@ -50,21 +50,21 @@ the stage that introduced each finding.
 **Independent test**: run a session with a known defect; the record names rule,
 artifact, stage and severity; a repeat run produces an identical record.
 
-- [ ] T007 [P] [US1] Test in `backend/tests/test_diagnostic_record.py` that a terminal session persists a record naming the rule, artifact path and severity (FR-001, FR-002, SC-001, SC-002).
+- [X] T007 [P] [US1] Test in `backend/tests/test_diagnostic_record.py` that a terminal session persists a record naming the rule, artifact path and severity (FR-001, FR-002, SC-001, SC-002).
 
-- [ ] T008 [P] [US1] Test determinism in `backend/tests/test_diagnostic_record.py`: two evaluations of byte-identical artifacts produce equal records, with no dependence on time, dict ordering or randomness (FR-003, SC-003).
+- [X] T008 [P] [US1] Test determinism in `backend/tests/test_diagnostic_record.py`: two evaluations of byte-identical artifacts produce equal records, with no dependence on time, dict ordering or randomness (FR-003, SC-003).
 
-- [ ] T009 [P] [US1] Test the three states in `backend/tests/test_diagnostic_record.py`: *evaluated and clean*, *evaluated with findings*, and *not evaluable* are all distinguishable, and **none is conflated with another** (FR-004). A session with no artifacts must record `evaluable=false` and must NOT read as clean.
+- [X] T009 [P] [US1] Test the three states in `backend/tests/test_diagnostic_record.py`: *evaluated and clean*, *evaluated with findings*, and *not evaluable* are all distinguishable, and **none is conflated with another** (FR-004). A session with no artifacts must record `evaluable=false` and must NOT read as clean.
 
-- [ ] T010 [P] [US1] Test exclusion of unverified sessions in `backend/tests/test_diagnostic_record.py`: a session whose build fell back to a synthetic result records `unverified=true` regardless of terminal status (FR-005, SC-004).
+- [X] T010 [P] [US1] Test exclusion of unverified sessions in `backend/tests/test_diagnostic_record.py`: a session whose build fell back to a synthetic result records `unverified=true` regardless of terminal status (FR-005, SC-004).
 
-- [ ] T011 [US1] Implement the record writer in `backend/app/services/conformance_diagnostics.py` to pass T007–T010. Must never raise into the caller: a diagnostics failure must not prevent the session's own terminal-state record from being written.
+- [X] T011 [US1] Implement the record writer in `backend/app/services/conformance_diagnostics.py` to pass T007–T010. Must never raise into the caller: a diagnostics failure must not prevent the session's own terminal-state record from being written.
 
-- [ ] T012 [US1] Implement per-stage attribution in `backend/app/services/conformance_diagnostics.py`, reading `initial_verdict` from the existing stage journal entries (FR-006, SC-002). Do **not** recompute the verdict; it is already there.
+- [X] T012 [US1] Implement per-stage attribution in `backend/app/services/conformance_diagnostics.py`, reading `initial_verdict` from the existing stage journal entries (FR-006, SC-002). Do **not** recompute the verdict; it is already there.
 
-- [ ] T013 [US1] Wire the writer into the session terminal path in `backend/app/api/routes_session.py`, on **both** completion paths, alongside the existing `_persist_verification_metrics` calls at lines 253 and 277.
+- [X] T013 [US1] Wire the writer into the session terminal path in `backend/app/api/routes_session.py`, on **both** completion paths, alongside the existing `_persist_verification_metrics` calls at lines 253 and 277.
 
-- [ ] T014 [US1] Test in `backend/tests/test_diagnostic_record.py` that a session which fails *after* producing artifacts still records the findings produced before the failure (FR-014, edge case).
+- [X] T014 [US1] Test in `backend/tests/test_diagnostic_record.py` that a session which fails *after* producing artifacts still records the findings produced before the failure (FR-014, edge case).
 
 ---
 
@@ -95,7 +95,7 @@ with an empty store it reports no data rather than zero.
 
 ## Phase 5: Polish & Cross-Cutting
 
-- [ ] T022 Run the full suite (`timeout 900 .venv/bin/python -m pytest -q`) and record before/after counts. Confirm the pre-existing validator families, the conformance gate, `runner.py` and every test file from features 011–014 are byte-identical.
+- [X] T022 Run the full suite (`timeout 900 .venv/bin/python -m pytest -q`) and record before/after counts. Confirm the pre-existing validator families, the conformance gate, `runner.py` and every test file from features 011–014 are byte-identical.
 
 - [ ] T023 [P] Run the report against an empty store and against any real sessions recorded, and record both outputs verbatim in `specs/015-diagnostic-skill-evolution/quickstart.md`. The empty-store output is a deliverable: it demonstrates the no-data contract.
 

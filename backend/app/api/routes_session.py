@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from app.config import settings
+from app.models.diagnostics import write_diagnostic_record
 from app.models.session import (
     SessionLocal,
     GenerationSessionDB,
@@ -24,6 +25,7 @@ from app.services.spec_service import get_specification
 from app.services.queue_service import queue_manager
 from app.orchestrator.graph import generation_graph
 from app.orchestrator.stages.runner import select_generation_mode
+from app.services.conformance_diagnostics import diagnose, stage_attribution
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
@@ -68,6 +70,41 @@ def _persist_verification_metrics(db_sess, final_state: dict) -> None:
         db_sess.verification_metrics_json = json.dumps(metrics)
     except Exception:
         pass
+
+
+def _persist_diagnostics(session_id: str, final_state: dict) -> bool:
+    """Record what was found wrong with this session's artifacts (feature 015, FR-001).
+
+    Best-effort by design: a diagnostics failure must never stop a session from
+    reaching its terminal state. Unlike feature 014's write path, however, the
+    outcome is *returned* rather than swallowed -- a missing table there produced
+    silent data loss while the caller reported success, and the same mistake here
+    would leave sessions unmeasurable without anyone noticing.
+
+    Runs on BOTH terminal paths. A blocked session is exactly the one worth
+    diagnosing, so it must not be the path that skips recording.
+    """
+    try:
+        artifacts = dict(final_state.get("generated_files") or {})
+        report = diagnose(artifacts)
+        metrics = final_state.get("test_metrics") or {}
+        return write_diagnostic_record(
+            session_id,
+            score=report.score,
+            raw_penalty=report.raw_penalty,
+            density=report.density,
+            artifact_count=report.evaluated_artifact_count,
+            evaluable=report.evaluable,
+            # FR-005: a synthetic verification is marked so the session can be
+            # excluded from evidence, whatever its terminal status says.
+            unverified=bool(metrics.get("fallback_used", False)),
+            counts_by_severity=report.counts_by_severity,
+            rule_histogram=report.rule_histogram,
+            findings=[v.to_dict() for v in report.violations],
+            stages=stage_attribution(final_state.get("generation_journal")),
+        )
+    except Exception:
+        return False
 
 
 def broadcast_session_event(session_id: str, event_type: str, data: dict):
@@ -253,6 +290,10 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
                 _persist_verification_metrics(db_sess, final_state)
                 db.commit()
 
+            # Recorded outside the db_sess guard: the diagnostic is worth keeping
+            # even when the session row could not be loaded.
+            _persist_diagnostics(session_id, final_state)
+
             broadcast_session_event(session_id, "session_completed", {
                 "sessionId": session_id,
                 "status": "COMPLETED",
@@ -276,6 +317,8 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
                 db_sess.completed_at = datetime.now(timezone.utc)
                 _persist_verification_metrics(db_sess, final_state)
                 db.commit()
+
+            _persist_diagnostics(session_id, final_state)
 
             blocked_metrics = final_state.get("test_metrics") or {}
             broadcast_session_event(session_id, "session_blocked", {

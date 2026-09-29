@@ -139,3 +139,53 @@ def test_a_clean_set_is_not_blocking_and_scores_full():
     assert report.score == 100, f"a compliant set scored {report.score}: {report.to_dict()}"
     assert report.blocking is False
     assert report.rule_histogram == {}
+
+
+# ---------------------------------------------------------------------------
+# T003 — size comparability (FR-007, SC-009)
+# ---------------------------------------------------------------------------
+def test_equal_finding_proportions_yield_the_same_measure_at_different_sizes():
+    """One medium finding in six artifacts must read the same as two in twelve.
+
+    Without this, a larger service reads as worse for being larger, and a round
+    could improve the measure merely by generating less code.
+    """
+    from app.orchestrator.stages.compliance import (
+        SEVERITY_MEDIUM,
+        ComplianceViolation,
+    )
+    from app.services.conformance_diagnostics import measure_for
+
+    def finding(name):
+        return ComplianceViolation(
+            artifact_path=name, rule_id="PRINCIPLE_III_CENTRALIZED_ERRORS",
+            severity=SEVERITY_MEDIUM, message="x",
+        )
+
+    small = tuple(finding(f"a{i}.java") for i in range(1))     # 1 finding / 6 artifacts
+    large = tuple(finding(f"b{i}.java") for i in range(2))     # 2 findings / 12 artifacts
+
+    assert measure_for(small, 6) == measure_for(large, 12), (
+        "the measure tracked size instead of proportion; a larger service would "
+        "read as worse for being larger"
+    )
+
+
+def test_a_clean_set_measures_zero_regardless_of_size():
+    from app.services.conformance_diagnostics import measure_for
+
+    assert measure_for((), 1) == 0
+    assert measure_for((), 500) == 0
+
+
+def test_the_raw_score_is_unchanged_for_the_cases_that_already_existed():
+    """The comparable measure is added alongside; it must not silently redefine
+    the score that the existing quality gate and its consumers already read."""
+    blueprint = _blueprint()
+    dirty = diagnose(fm.violating_artifacts("LAYER_ISOLATION", blueprint))
+    clean = diagnose(fm.compliant_artifacts("CONTROLLER", blueprint))
+
+    assert clean.score == 100
+    assert dirty.score < clean.score
+    assert dirty.raw_penalty > 0
+    assert clean.raw_penalty == 0
