@@ -3,58 +3,25 @@ from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
 from app.models.session import SessionPhase, SessionStatus
 from app.models.artifact import VerificationMetrics
-from app.sandbox.docker_runner import run_docker_sandbox, parse_test_counts
+from app.sandbox.docker_runner import parse_test_counts
 from app.orchestrator.repair import parse_maven_errors
-from app.services.platform_verification import (
-    inject_contract_test,
-    strip_vcs_metadata,
-)
+from app.services.workspace_verification import run_workspace_verification
 
 def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     logs = state.get("logs", [])
     logs.append("[SANDBOX] Executing hermetic offline Docker build and tests (mvn test -o --network none)")
 
-    # Feature 012 follow-up (acceptance signal the generator cannot author).
-    # Both of these run AFTER every generation stage, so the model neither sees
-    # nor owns them: a verifier the candidate can read is not a verifier.
-    removed = strip_vcs_metadata(workspace_path)
-    if removed:
-        logs.append(
-            f"[SANDBOX] Stripped version-control metadata from the workspace: "
-            f"{', '.join(removed)}"
-        )
-
-    injected = inject_contract_test(workspace_path)
-    if injected is None:
-        # Absence is reported, never treated as a pass. The silent alternative is
-        # a session that looks verified while no platform-authored check ran.
-        logs.append(
-            "[SANDBOX] NO platform contract test was injected: the workspace has no "
-            "application class, no schema.sql, or no repository. This build's "
-            "acceptance signal is entirely generator-authored."
-        )
-        platform_verified = False
-    else:
-        logs.append(f"[SANDBOX] Injected platform-authored persistence contract test: {injected}")
-        platform_verified = True
-
     def log_cb(line: str):
         logs.append(line.rstrip())
 
-    # Run async runner synchronously within node
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    if loop.is_running():
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            result = pool.submit(asyncio.run, run_docker_sandbox(workspace_path, log_callback=log_cb)).result()
-    else:
-        result = loop.run_until_complete(run_docker_sandbox(workspace_path, log_callback=log_cb))
+    # Preparation and execution live in ONE seam (`run_workspace_verification`),
+    # because the sequential product path must verify identically. When this logic
+    # was inline here, only the graph path had it at all -- the route the readiness
+    # report tells clients to use generated code and never compiled it.
+    verification = run_workspace_verification(workspace_path, log_callback=log_cb)
+    result = verification.result
+    platform_verified = verification.platform_verified
 
     # Feature 012 (FR-001): a substituted result is not a verification. Before
     # anything else, decide whether the build actually ran.

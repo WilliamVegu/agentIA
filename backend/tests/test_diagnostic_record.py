@@ -512,12 +512,16 @@ def test_the_graph_accumulator_preserves_artifacts_when_a_stage_exhausts(
         is_success = False
         fallback_reason = "test: the container runtime is not consulted"
         duration_ms = 0
+        stdout = ""
 
     async def _fake_sandbox(*args, **kwargs):
         return _Unverifiable()
 
+    # The seam moved: preparation and execution now live in one place
+    # (`workspace_verification`) so the sequential product path verifies identically
+    # rather than not at all. Patching the old location silently patched nothing.
     monkeypatch.setattr(
-        "app.orchestrator.nodes.sandbox_node.run_docker_sandbox", _fake_sandbox
+        "app.services.workspace_verification.run_docker_sandbox", _fake_sandbox
     )
 
     initial = _model_state(blueprint, workspace, "t015-c")

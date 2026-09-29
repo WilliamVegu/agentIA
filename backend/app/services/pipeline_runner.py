@@ -4,7 +4,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 from app.config import settings
 from app.models.orchestrator import (
@@ -22,6 +22,8 @@ from app.services.lifecycle_service import (
     transition_phase,
 )
 from app.services.security_service import audit_workspace
+from app.sandbox.docker_runner import parse_test_counts
+from app.services.workspace_verification import run_workspace_verification
 from app.services.conformance_diagnostics import record_session_diagnostics
 from app.services.devops_service import generate_all_devops_assets
 from app.services.docker_service import deploy_local
@@ -511,6 +513,93 @@ def _execute_pipeline_steps(
                 _finalise_blocked_session(session_id, agent_state)
                 return
         transition_phase(session_id, LifecyclePhase.CODE_TESTS, force=True)
+        time.sleep(0.2)
+
+        # Step 5b: HERMETIC VERIFICATION.
+        #
+        # This path used to generate code and go straight to the static audit --
+        # it never compiled or tested anything. So on the route the readiness
+        # report tells clients to use, the acceptance signal was not merely
+        # generator-authored: it did not exist. The graph path had verification
+        # because `sandbox_node` owned it; the sequence of "strip VCS, inject the
+        # platform contract test, build" now lives in one seam
+        # (`run_workspace_verification`) so the two paths cannot drift.
+        #
+        # A build that could not run is NOT a pass: `result.fallback_used` marks a
+        # substituted result, and the session is reported as unverified rather than
+        # silently reaching a verified state (feature 012, FR-005).
+        if pause_event.is_set() or stop_event.is_set():
+            return
+        _emit_event(
+            session_id, LifecyclePhase.CODE_TESTS, "Verificación hermética",
+            78.0, "Compilando y ejecutando la suite en el sandbox offline (mvn test -o)...",
+            PhaseStatus.IN_PROGRESS,
+        )
+        verification_logs: List[str] = []
+        try:
+            verification = run_workspace_verification(
+                str(ws_path), log_callback=verification_logs.append
+            )
+        except Exception as exc:  # noqa: BLE001
+            # A verifier that raises has verified nothing. Recording that honestly
+            # is the whole point: an exception must not become a pass.
+            verification = None
+            verification_error: Optional[str] = f"{type(exc).__name__}: {exc}"
+        else:
+            verification_error = None
+
+        if verification is None:
+            build_success = False
+            test_metrics = {
+                "totalTests": 0, "passedTests": 0, "failedTests": 0,
+                "allPassed": False, "fallback_used": True,
+                "fallback_reason": f"the verifier raised: {verification_error}",
+            }
+        else:
+            build_success = bool(verification.result.is_success)
+            counts = parse_test_counts(verification.result.stdout)
+            test_metrics = {
+                "totalTests": counts.total if counts else 0,
+                "passedTests": counts.passed if counts else 0,
+                "failedTests": ((counts.failures + counts.errors) if counts else 0),
+                # Fail closed: a build that reports success without printing a test
+                # summary has not demonstrated that any test ran.
+                "allPassed": bool(counts and counts.all_passed and counts.total > 0),
+                "fallback_used": bool(verification.result.fallback_used),
+                "fallback_reason": verification.result.fallback_reason,
+                "platformContractTestInjected": verification.platform_verified,
+            }
+
+        # Persist onto the session row, so the detail endpoint can report whether
+        # verification actually ran even after a restart (feature 012, T019).
+        try:
+            _session_db = SessionLocal()
+            try:
+                _row = (
+                    _session_db.query(GenerationSessionDB)
+                    .filter(GenerationSessionDB.id == session_id)
+                    .first()
+                )
+                if _row is not None:
+                    _row.verification_metrics_json = json.dumps(test_metrics)
+                    _session_db.commit()
+            finally:
+                _session_db.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+        _emit_event(
+            session_id, LifecyclePhase.CODE_TESTS,
+            "Verificación hermética completada" if build_success else "Verificación hermética fallida",
+            80.0,
+            (
+                f"BUILD SUCCESS: {test_metrics['passedTests']}/{test_metrics['totalTests']} tests"
+                if build_success
+                else "La compilación o las pruebas fallaron en el sandbox hermético"
+            ),
+            PhaseStatus.COMPLETED if build_success else PhaseStatus.BLOCKED,
+            error=None if build_success else "Hermetic verification failed.",
+        )
         time.sleep(0.2)
 
         # Step 6: Security Audit & Quality Gate
