@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, Header, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
@@ -121,7 +121,15 @@ def broadcast_session_event(session_id: str, event_type: str, data: dict):
             except Exception:
                 pass
 
-async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: str, blueprint_dict: dict):
+async def execute_generation_pipeline(
+    session_id: str,
+    spec_id: str,
+    spec_name: str,
+    blueprint_dict: dict,
+    api_key: Optional[str] = None,
+    provider: Optional[str] = None,
+    model_name: Optional[str] = None,
+):
     """Background worker executing the LangGraph pipeline with concurrency controls."""
     db = SessionLocal()
     try:
@@ -149,13 +157,21 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
         Path(ws_path).mkdir(parents=True, exist_ok=True)
 
         # 3b. Decide the generation mode ONCE, before the first stage runs, and
-        # record it in the generation state (T018). The graph's node callables
-        # are the retained deterministic implementations in this phase, so the
-        # recorded mode is not yet consumed on this path (T020 is deferred — see
-        # the feature's completion report); recording it here makes the decision
-        # auditable and prepares the graph path for the same seam the sequential
-        # path already uses.
-        mode_selection = select_generation_mode()
+        # record it in the generation state (T018).
+        #
+        # The credentials must reach this call. Calling `select_generation_mode()`
+        # with no arguments returns DETERMINISTIC for every request, so this route
+        # used to emit offline templates while `/quick-start` emitted model output
+        # -- two entry points, two different products, nothing in the response
+        # distinguishing them. The caller's credentials arrive as the same
+        # X-LLM-API-Key / X-LLM-Provider headers every other route already reads,
+        # and `llm_api_key` must be placed in the state because `run_stage` builds
+        # the model client from it.
+        mode_selection = select_generation_mode(
+            api_key=api_key,
+            provider=provider,
+            model_name=model_name,
+        )
         instruction_revision = ""
         try:
             from app.orchestrator.stages.instructions import load_instruction_set
@@ -177,8 +193,14 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
             "status": "RUNNING",
             "generation_mode": mode_selection.mode,
             "instruction_set_revision": instruction_revision,
+            # A DETERMINISTIC session records no provider or model, so it can
+            # never be miscounted as model-generated. `mode_selection.provider`
+            # and `.model` are populated only in MODEL mode.
             "llm_provider": mode_selection.provider,
             "llm_model": mode_selection.model,
+            # Required: `run_stage` reads this to construct the client. Absent it,
+            # a MODEL-mode session would fail at the first stage.
+            "llm_api_key": api_key,
         }
 
         def run_graph_with_streaming():
@@ -432,8 +454,18 @@ async def quick_start_session(payload: QuickStartSessionRequest):
 
 
 @router.post("", response_model=GenerationSessionSummary, status_code=status.HTTP_202_ACCEPTED)
-async def create_generation_session(payload: CreateSessionRequest):
-    """Triggers an autonomous generation session for an ingested specification."""
+async def create_generation_session(
+    payload: CreateSessionRequest,
+    x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
+    x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
+):
+    """Triggers an autonomous generation session for an ingested specification.
+
+    Reads the caller's LLM credentials from the same headers every other route
+    uses. Without them this route silently selected DETERMINISTIC mode and emitted
+    offline templates while `/quick-start` emitted model output (feature 011
+    follow-up), so a client could not tell which product it had received.
+    """
     try:
         blueprint = get_specification(payload.specId)
     except KeyError:
@@ -475,7 +507,9 @@ async def create_generation_session(payload: CreateSessionRequest):
             session_id=session_id,
             spec_id=payload.specId,
             spec_name=spec_name,
-            blueprint_dict=blueprint.model_dump()
+            blueprint_dict=blueprint.model_dump(),
+            api_key=x_llm_api_key,
+            provider=x_llm_provider,
         )
     )
 

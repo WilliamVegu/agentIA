@@ -63,7 +63,37 @@ def test_the_suffix_is_applied_to_both_mounts_when_set(monkeypatch):
         "the workspace mount lacked the suffix; inside the container it would be "
         "unreadable and Maven would find no pom.xml"
     )
-    assert cache == "/host/.m2/repository:/root/.m2/repository:ro:Z"
+    # Docker separates the options after the second colon with COMMAS. This
+    # assertion previously pinned `:ro:Z`, which Docker rejects outright:
+    #
+    #     docker: invalid spec: ...:/root/.m2/repository:ro:Z: too many colons
+    #
+    # The command never reached Maven, so on any labelled host every session
+    # reported a build failure for a reason unrelated to the generated code --
+    # exactly the ambiguity this feature exists to remove. A test that pins the
+    # bug is worse than no test, so the expectation is corrected here rather than
+    # in a comment.
+    assert cache == "/host/.m2/repository:/root/.m2/repository:ro,Z"
+
+
+def test_the_suffix_is_accepted_in_any_of_the_shapes_an_operator_might_supply(monkeypatch):
+    """``Z``, ``:Z`` and ``,Z`` must all produce the same valid spec.
+
+    The setting is a host property an operator edits by hand, and the failure mode
+    of getting it slightly wrong is a build that fails before Maven runs, which is
+    indistinguishable from a real compilation failure. Normalising the input
+    removes one way to be wrong about it.
+    """
+    from app.config import settings
+
+    produced = set()
+    for value in ("Z", ":Z", ",Z"):
+        monkeypatch.setattr(settings, "DOCKER_MOUNT_SUFFIX", value, raising=False)
+        cmd = _cmd()
+        cache = cmd[cmd.index("-v", cmd.index("-v") + 1) + 1]
+        produced.add(cache)
+
+    assert produced == {"/host/.m2/repository:/root/.m2/repository:ro,Z"}
 
 
 def test_the_offline_contract_is_untouched(monkeypatch):

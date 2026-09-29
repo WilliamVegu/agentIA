@@ -3,13 +3,41 @@ from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
 from app.models.session import SessionPhase, SessionStatus
 from app.models.artifact import VerificationMetrics
-from app.sandbox.docker_runner import run_docker_sandbox
+from app.sandbox.docker_runner import run_docker_sandbox, parse_test_counts
 from app.orchestrator.repair import parse_maven_errors
+from app.services.platform_verification import (
+    inject_contract_test,
+    strip_vcs_metadata,
+)
 
 def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     logs = state.get("logs", [])
     logs.append("[SANDBOX] Executing hermetic offline Docker build and tests (mvn test -o --network none)")
+
+    # Feature 012 follow-up (acceptance signal the generator cannot author).
+    # Both of these run AFTER every generation stage, so the model neither sees
+    # nor owns them: a verifier the candidate can read is not a verifier.
+    removed = strip_vcs_metadata(workspace_path)
+    if removed:
+        logs.append(
+            f"[SANDBOX] Stripped version-control metadata from the workspace: "
+            f"{', '.join(removed)}"
+        )
+
+    injected = inject_contract_test(workspace_path)
+    if injected is None:
+        # Absence is reported, never treated as a pass. The silent alternative is
+        # a session that looks verified while no platform-authored check ran.
+        logs.append(
+            "[SANDBOX] NO platform contract test was injected: the workspace has no "
+            "application class, no schema.sql, or no repository. This build's "
+            "acceptance signal is entirely generator-authored."
+        )
+        platform_verified = False
+    else:
+        logs.append(f"[SANDBOX] Injected platform-authored persistence contract test: {injected}")
+        platform_verified = True
 
     def log_cb(line: str):
         logs.append(line.rstrip())
@@ -66,13 +94,31 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
         }
 
     if result.is_success:
-        logs.append("[SANDBOX] Build & tests PASSED with 100% success rate.")
+        # Report what the build actually ran. The previous fixed
+        # ``totalTests=5, passedTests=5`` was a fabricated figure in the one field
+        # the acceptance signal rests on.
+        counts = parse_test_counts(result.stdout)
+        if counts is None:
+            logs.append(
+                "[SANDBOX] The build reported success but printed no test summary: "
+                "there is no evidence that any test executed."
+            )
+            total, passed, failed = 0, 0, 0
+            all_passed = False  # fail closed: no summary is not a demonstration
+        else:
+            total, passed = counts.total, counts.passed
+            failed = counts.failures + counts.errors
+            all_passed = counts.all_passed and counts.total > 0
+        logs.append(
+            f"[SANDBOX] Build & tests PASSED ({passed}/{total} tests). "
+            f"Platform contract test injected: {platform_verified}."
+        )
         metrics = VerificationMetrics(
-            totalTests=5,
-            passedTests=5,
-            failedTests=0,
+            totalTests=total,
+            passedTests=passed,
+            failedTests=failed,
             executionDurationMs=result.duration_ms,
-            allPassed=True,
+            allPassed=all_passed,
             fallback_used=result.fallback_used,
             fallback_reason=result.fallback_reason,
         )
@@ -87,10 +133,16 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     else:
         logs.append(f"[SANDBOX] Build failed with exit code {result.exit_code}.")
         diag = parse_maven_errors(result.stdout + "\n" + result.stderr)
+        counts = parse_test_counts(result.stdout)
+        if counts is None:
+            total, passed, failed = 0, 0, 0
+        else:
+            total, passed = counts.total, counts.passed
+            failed = counts.failures + counts.errors
         metrics = VerificationMetrics(
-            totalTests=5,
-            passedTests=4,
-            failedTests=1,
+            totalTests=total,
+            passedTests=passed,
+            failedTests=failed,
             executionDurationMs=result.duration_ms,
             allPassed=False,
             fallback_used=result.fallback_used,

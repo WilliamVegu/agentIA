@@ -1,7 +1,9 @@
 import os
+import re
 import time
 import asyncio
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Callable, List
 from pydantic import BaseModel, Field
@@ -37,6 +39,82 @@ class DockerExecutionResult(BaseModel):
     def is_success(self) -> bool:
         return self.exit_code == 0
 
+_SUREFIRE_SUMMARY_RE = re.compile(
+    r"Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)"
+)
+
+
+@dataclass(frozen=True)
+class TestCounts:
+    """What the build actually reported running.
+
+    Reported rather than assumed because the alternative -- a fixed
+    ``totalTests=5, passedTests=5`` on every success -- is a fabricated figure in
+    the one field the whole acceptance signal rests on.
+    """
+
+    total: int
+    failures: int
+    errors: int
+    skipped: int
+
+    @property
+    def passed(self) -> int:
+        return max(self.total - self.failures - self.errors - self.skipped, 0)
+
+    @property
+    def all_passed(self) -> bool:
+        return self.failures == 0 and self.errors == 0
+
+
+def parse_test_counts(stdout: str) -> Optional[TestCounts]:
+    """The build's final surefire summary, or ``None`` when none was printed.
+
+    Surefire emits a ``Tests run:`` line per test class and again as a final
+    total, so the **last** match is the summary. ``None`` is meaningful and is not
+    zero: a build that reports success without ever printing a summary has not
+    demonstrated that any test ran, and callers must not render that as a pass.
+    """
+    matches = _SUREFIRE_SUMMARY_RE.findall(stdout or "")
+    if not matches:
+        return None
+    total, failures, errors, skipped = (int(value) for value in matches[-1])
+    return TestCounts(total=total, failures=failures, errors=errors, skipped=skipped)
+
+
+def mount_spec(
+    host_path: str,
+    container_path: str,
+    *,
+    read_only: bool = False,
+    suffix: str = "",
+) -> str:
+    """Compose a ``-v`` / ``--volume`` specification with correctly joined options.
+
+    **Docker separates the options after the second colon with COMMAS**, as in
+    ``/host:/container:ro,Z``. The previous code concatenated them --
+    ``f"...:ro{mount_suffix}"`` -- which for the documented ``:Z`` suffix produced
+    ``:ro:Z``. Docker rejects that with ``invalid spec ... too many colons`` and
+    exits 125 *before Maven runs*, so on any host that needs a label suffix every
+    session failed to build for a reason that looks exactly like a real build
+    failure. Only the combination is affected: a lone ``:Z`` or a lone ``:ro`` is
+    valid, which is why this survived on unlabelled hosts.
+
+    The suffix is accepted in any of the shapes a host configuration might supply
+    (``Z``, ``:Z``, ``,Z``) so an operator cannot half-fix the setting.
+    """
+    options: List[str] = []
+    if read_only:
+        options.append("ro")
+    cleaned = (suffix or "").strip().lstrip(":,").strip()
+    options.extend(part for part in cleaned.split(",") if part)
+
+    spec = f"{host_path}:{container_path}"
+    if options:
+        spec += ":" + ",".join(options)
+    return spec
+
+
 def build_docker_cmd(
     workspace_host_path: str,
     maven_cache_host_path: str,
@@ -64,8 +142,8 @@ def build_docker_cmd(
     return [
         "docker", "run", "--rm",
         "--network", "none",
-        "-v", f"{ws_path}:/workspace{mount_suffix}",
-        "-v", f"{m2_path}:/root/.m2/repository:ro{mount_suffix}",
+        "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix),
+        "-v", mount_spec(m2_path, "/root/.m2/repository", read_only=True, suffix=mount_suffix),
         "-w", "/workspace",
         docker_image,
         "mvn", "test", "-o"
