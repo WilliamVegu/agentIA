@@ -1,0 +1,580 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{warn}{RGB}{160,60,40}
+\definecolor{good}{RGB}{30,120,70}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true, linkcolor=accent, urlcolor=accent,
+  pdftitle={AgentIA --- Reflective Skill Optimisation: Proposal, Lineage and Schema},
+  pdfauthor={AgentIA Engineering}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}AgentIA --- Reflective Skill Optimisation}
+\fancyhead[R]{\small\color{accent}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{softgray}, breaklines=true,
+  columns=fullflexible, keepspaces=true, showstringspaces=false,
+  xleftmargin=0.5em, xrightmargin=0.5em,
+}
+
+\newtcolorbox{notebox}[1][]{colback=softgray,colframe=accent,boxrule=0.4pt,
+  arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,breakable,#1}
+
+\title{\vspace{-1.4cm}\textbf{Reflective Skill Optimisation}\\[0.25cm]
+\large Proposal, research lineage, and implementation schema for a no-RL
+self-improvement loop over the diagnostic channel}
+\author{AgentIA Engineering}
+\date{2026-09-29}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{notebox}
+\textbf{What this document is.} A proposal for making the AgentIA coding agent
+more reliable using \textbf{reflective, no-RL optimisation}: a language model
+reflects over recorded evidence and proposes edits to skill documents, which are
+admitted only on measured contribution and evicted when they fall below an
+evidence floor. \textbf{No weight updates, no training, no GPUs} --- the platform
+has none, and the evidence says a reflective curator captures a measurable
+fraction of what a trained one achieves.
+
+It is written \emph{after} the first real run
+(\texttt{agentia\_first\_baseline.tex}) and after the instrument shipped, so it
+separates what has been measured from what is merely proposed. Where a claim is
+not yet measured, it is labelled as such.
+\end{notebox}
+
+\tableofcontents
+\vspace{0.5cm}
+
+\section{The proposal in one page}
+
+\begin{center}
+\begin{tabular}{@{}p{0.24\textwidth}p{0.70\textwidth}@{}}
+\toprule
+\textbf{Element} & \textbf{Proposal} \\
+\midrule
+Objective & \textbf{Conformance}, measured by the deterministic rule instrument ---
+not build success, which is a binary whole-corpus outcome that no skill edit can
+move detectably at this sample size. \\
+Proposal mechanism & A reflective LLM proposes a bounded edit set against skill
+documents. No gradients, no fine-tuning, no RL. \\
+Admission & Measured contribution, by leave-one-out: compare outcomes with the
+skill present against outcomes with it absent. \\
+Eviction & Remove a skill only when its measured contribution is \textbf{below a
+stated floor}. ``No proven benefit'' is not grounds for removal. \\
+Guardrail & The existing strict-improvement gate is demoted from acceptance
+criterion to regression veto. It keeps its job; it loses its vote. \\
+Bound & A round considers a bounded number of skills, because attribution cost is
+(multiplicative) skills $\times$ tasks. \\
+Gate to build & The corpus report must first show the conformance measure
+\emph{varies} across real sessions. If every session scores identically, there is
+nothing to move. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The loop, in the shape it would take:
+
+\begin{lstlisting}
+  session runs
+      |
+      v
+  compliance gate evaluates each stage's candidate
+      |                       \
+      | (pass)                 \ (fail) -> rule_id, severity, artifact, stage
+      v                         v
+  artifacts persisted      DIAGNOSTIC CHANNEL          <-- exists (feature 015)
+                                |
+                                v
+                     aggregate by rule across sessions
+                     (which rules recur, where, how often)
+                                |
+                                v
+                     reflective LLM proposes skill edits
+                     targeting the RECURRING rules
+                                |
+                                v
+                     candidate skill -> fresh sessions -> measure
+                                |
+                                v
+                     admit only on measured contribution;
+                     evict skills below the evidence floor
+\end{lstlisting}
+
+\section{Why the diagnostic channel precedes the loop}
+\label{sec:channel}
+
+This ordering is the proposal's load-bearing decision, and it is not a preference.
+It follows from the single largest effect in the evidence base.
+
+CoEvoSkills (\texttt{arXiv:2604.01687}) reports \textbf{+40.5 points} on
+SkillsBench with a co-evolving diagnostic verifier. Its own ablation:
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{CoEvoSkills variant} & \textbf{Score} \\
+\midrule
+Full (co-evolving diagnostic verifier) & \textbf{71.1} \\
+Opaque pass/fail oracle only & 41.1 \quad ($-30.0$) \\
+No evolution at all & 42.4 \quad ($-28.7$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{A loop fed only a binary verdict performs no better than no loop at all.}
+41.1 with a pass/fail oracle against 42.4 with nothing: the loop is not merely
+weaker without structure, it is \emph{indistinguishable from absent}. The
+diagnostic channel is therefore worth more than the loop, and building the loop
+first would have produced a component that cannot be shown to do anything.
+
+Three further results point the same way:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item An LLM-as-judge is the instrument the literature most distrusts, and it
+  fails concretely: in the direct SkillOpt-on-code evaluation
+  (\texttt{arXiv:2609.12742}), a candidate that wrote \textbf{an empty file} scored
+  \emph{higher} on the judge than the baseline. A scoring channel that rewards
+  emptiness cannot steer anything.
+  \item Hand-written rule quality is largely content-independent --- random rules
+  and curated rules scored \textbf{63.8\%} each in the guardrails study
+  (\texttt{arXiv:2604.11088v2}, 679 files, 25{,}532 rules) --- which is an argument
+  for a \emph{deterministic} instrument rather than for cleverer prose.
+  \item Rules about architecture measured \textbf{worst} of the rule types
+  (53.4\% against 63.8\% for tool/process rules). Since AgentIA's whole subject is
+  layered architecture, the signal must come from the platform's own gate, not from
+  a rule recipe imported from elsewhere.
+\end{itemize}
+
+This is why feature 015 shipped the instrument and \emph{deferred} the optimiser.
+The decision is recorded in \texttt{specs/015-diagnostic-skill-evolution/spec.md}
+under ``Deferred: the optimizer''.
+
+\section{The three conditions the evidence requires}
+\label{sec:conditions}
+
+\subsection{Condition 1 --- Per-skill contribution, by leave-one-out}
+
+A whole-corpus pass-rate comparison cannot attribute an effect to a rule: with one
+document, co-applied edits confound one another, and ``the output got better'' is
+not ``this rule was responsible''. The primitive that resolves this is
+training-free and computes
+
+\begin{center}
+\texttt{delta(task, skill) = r(task, skill) - r(task, absent)}
+\end{center}
+
+by replaying with the skill removed. This is decision \textbf{D3} in
+\texttt{research.md}. Its cost is multiplicative --- skills $\times$ tasks --- which
+is why the per-round skill bound (D10) is not a convenience but the thing that
+keeps measurement affordable.
+
+\subsection{Condition 2 --- Eviction with an evidence floor}
+
+A skill library that can only grow degrades until injecting a skill is worse than
+injecting nothing (\texttt{arXiv:2605.22148}). The repair is contribution-based
+eviction, and the floor is what stops measurement noise from driving removals:
+``we could not prove it helps'' and ``it hurts'' are different findings.
+
+The direction is corroborated by operation ablations
+(\texttt{arXiv:2605.29440}):
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Operation set} & \textbf{Score} \\
+\midrule
+Add only & 47.0 \\
+Add $+$ remove & 48.3 \\
+Add $+$ rewrite & 53.5 \\
+All three & \textbf{59.0} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Add-only editing --- feature 014's behaviour --- is the worst configuration. This is
+decision \textbf{D4}.
+
+\subsection{Condition 3 --- Diagnostics richer than pass/fail}
+
+The channel must carry \emph{structure}: which rule, on which artifact, in which
+stage, at which severity. A score says a session went badly; it does not say what
+to change. \texttt{rule\_histogram} is the part a curator can act on, and
+per-stage attribution converts a session total into a profile. This is decision
+\textbf{D7}; the implementation reads the verdicts the platform \emph{already}
+computes rather than re-evaluating anything.
+
+\begin{notebox}[colframe=warn]
+\textbf{The honest limit of this condition.} Per-stage attribution adds
+\emph{resolution}, not \emph{evidence}. Re-checking the same task repeatedly raises
+the session count but not the number of distinct tasks, and the channel is a fixed
+hand-written rule set: a defect class nobody encoded reads clean. It measures
+\textbf{conformance, not correctness} --- a well-layered but broken service scores
+full marks.
+\end{notebox}
+
+\section{Research lineage}
+\label{sec:lineage}
+
+Three lineages, in ascending order of how directly they bear on this proposal.
+
+\subsection{Reflective text-space optimisation (no weights)}
+
+GEPA (\texttt{arXiv:2507.19457}) reports \textbf{+6\% average, up to +20\%} over
+GRPO with \textbf{up to 35$\times$ fewer rollouts}. SkillOpt
+(\texttt{arXiv:2605.23904}) reports best-or-tied in \textbf{52 of 52} cells,
+\textbf{+5.4} over its strongest per-cell competitor (82.3 vs 76.9), across seven
+models at roughly \textbf{+17.6} average. Both work on text, not weights.
+
+\subsection{A trained curator, and the fraction reflection recovers}
+
+CODESKILL (\texttt{arXiv:2605.25430}) is the closest controlled comparison, and it
+is the source of the number this proposal leans on:
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Curator} & \textbf{Score} \\
+\midrule
+No skill management & 29.32 \\
+Prompt-based skill management (GPT-5.4-mini) & 35.25 \quad ($+5.93$, 54\% of headline) \\
+SFT curator & 34.54 \quad ($+5.22$, 47\% of headline) \\
+CODESKILL (RL curator) & \textbf{40.35} \quad ($+11.03$ headline) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{A prompt-based curator with no training, no iteration and no verifier
+feedback captures roughly half the gain of the trained RL curator.} That is the
+measured floor reflection starts from --- not zero. The RL half ($+5.1$ to $+5.8$)
+is the part this platform cannot reach, and it is honest to say so: the trained run
+cost approximately \textbf{920 H100-GPU-hours}.
+
+\subsection{Null results, which are part of the lineage}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item The direct test of SkillOpt on repository-level code
+  (\texttt{arXiv:2609.12742}) reports GEPA docs \textbf{+4.9\,pp} and SkillOpt
+  \textbf{+0.1\,pp}, \emph{neither significant}, over 20--26 held-out tasks per repo.
+  \item Gloaguen et al.\ (\texttt{arXiv:2602.11988}) found \textbf{no general gain}
+  and \textbf{+20\% cost}; the v2 figure is ``7\%'' with a ``does not generally
+  improve'' verdict.
+  \item LLM-written skills measured \textbf{+0.0\,pp} against \textbf{+16.2\,pp} for
+  human-written ones in the Ratchet study.
+\end{itemize}
+
+The reports themselves disagree on how to frame these; the fact sheet records that
+report~1 calls the repo-level question untested while report~2 reports the direct
+null. For this proposal the reading is simple: \textbf{the effect is real in
+text-space but bounded, and it is procedural --- consistency, not capability.}
+
+\subsection{Where the levers rank}
+
+The two reports rank the available levers, and they differ in a way this proposal
+must respect:
+
+\begin{center}
+\begin{tabular}{@{}p{0.30\textwidth}p{0.30\textwidth}p{0.32\textwidth}@{}}
+\toprule
+& \textbf{Report 1 (capability)} & \textbf{Report 2 (zero-compute EV)} \\
+\midrule
+Best & model capability & verification-guided best-of-$k$ \\
+then & harness / interface design & executable house standard \\
+then & verification-guided selection & conformance score as metric \\
+then & RL post-training & harness / pipeline \\
+then & RL-trained skill banks & retrieval \\
+then & \textbf{optimised text skills} & bounded self-repair \\
+worst & hand-written rules & \textbf{skill-document optimisation} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent On capability, text skills rank above hand-written rules. On expected
+value per unit of compute, skill-document optimisation ranks \textbf{last}. This
+proposal is therefore explicitly the \emph{last} lever, and it says so rather than
+implying otherwise. It is being built because the mechanism is cheap
+\emph{once the evidence exists} --- and because the evidence is the thing the
+platform just learned it did not have.
+
+\section{Implementation schema}
+\label{sec:schema}
+
+\subsection{The channel, end to end}
+
+\begin{lstlisting}
+  stage candidate
+        |
+        v
+  compliance gate (security_service + test_analysis_service, merged)
+        |  LOCAL violation  -> reject, consume a correction attempt
+        |  ACCUMULATED      -> record, never reject
+        v
+  accepted artifact set --> persisted to the workspace
+        |
+        v
+  session terminal ------> diagnose(artifacts)                 [instrument]
+        |                       |
+        |                       +--> score, raw_penalty, density
+        |                       +--> rule_histogram, findings[]
+        |                       +--> evaluable / not evaluable
+        |                       +--> unverified (synthetic build)
+        v
+  stage_attribution(journal)
+        |  reads initial_verdict per stage  (introduction, not persistence)
+        |  per stage: outcome, requests, rule_histogram, passed|None
+        v
+  session_diagnostic_records  (one row per session)
+        |
+        v
+  corpus_report: population, exclusions+reasons, conformance distribution,
+                 correction effort, distinct tasks, cost if data exists
+        |
+        v
+  [DEFERRED] skill_contribution: leave-one-out delta per skill
+        |
+        v
+  [DEFERRED] reflect -> candidate skill -> fresh sessions -> admit/evict
+\end{lstlisting}
+
+\subsection{What exists, and what is deferred}
+
+\begin{center}
+\begin{tabular}{@{}p{0.33\textwidth}p{0.33\textwidth}p{0.26\textwidth}@{}}
+\toprule
+\textbf{Component} & \textbf{Where} & \textbf{State} \\
+\midrule
+Deterministic instrument & \texttt{services/conformance\_diagnostics.py} & \textbf{built} \\
+Per-stage attribution & same, reading the stage journal & \textbf{built} \\
+Session record (durable) & \texttt{models/diagnostics.py} & \textbf{built} \\
+Corpus report & \texttt{services/corpus\_report.py} & \textbf{built} \\
+Batch driver & \texttt{scripts/run\_corpus\_baseline.py} & \textbf{built} \\
+Skill generator (reflection) & \texttt{scripts/skillopt/reflect.py} & exists, \textbf{fed the wrong signal} \\
+\textbf{Per-skill contribution} & \texttt{services/skill\_contribution.py} & \textbf{deferred} \\
+\textbf{Eviction with a floor} & \texttt{scripts/skillopt/currency.py} & \textbf{deferred} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The reflector currently receives a derived build exit code, a terminal status and
+artifact paths --- the ``opaque verdict'' of \S\ref{sec:channel}. It should receive
+the rule histogram: which rules fired, how often, at which stage. The channel
+exists; the wiring does not. That is a small change to a built component, and it is
+deferred only because the channel's variance across real sessions is still
+unmeasured.
+
+\section{What is measured today}
+\label{sec:measured}
+
+\subsection{The first real run}
+
+From \texttt{agentia\_first\_baseline.tex}: one session, blueprint \texttt{minimal},
+provider \texttt{deepseek}, model \texttt{deepseek-flash}.
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Measure} & \textbf{Value} \\
+\midrule
+Model calls & 15 \\
+Input tokens & 26{,}351 \\
+Output tokens & 139{,}679 \\
+Cost & \$0.085295889 \quad (15 of 15 calls priced) \\
+Terminal state & BLOCKED \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every stage consumed its entire correction budget. The first four were accepted on
+their third attempt; TEST never converged. This is \emph{systematic procedural
+non-compliance} --- exactly the failure mode a reflective loop targets, and
+precisely the signal the compliance gate already computes.
+
+\subsection{The artifact question, re-measured}
+
+The baseline document recorded a diagnostic record with
+\texttt{artifact\_count = 0}, \texttt{evaluable = false} on a session whose first
+four stages had persisted artifacts, and named that the critical path. That has now
+been traced to its end, and the conclusion is different from the one the record
+implied.
+
+\begin{center}
+\begin{tabular}{@{}p{0.42\textwidth}p{0.50\textwidth}@{}}
+\toprule
+\textbf{Question} & \textbf{Answer, and how it was established} \\
+\midrule
+Are artifacts lost on the stage-runner exhaustion path? & \textbf{No.} A scripted
+model reproducing the baseline's exact pattern (two rejections then an acceptance
+for each of four stages, three rejections for TEST) returns all seven persisted
+artifacts in the final state --- through the stage loop, through the compiled graph,
+and through the production \texttt{stream}+update accumulator. \\
+Why did the record read zero? & It was \textbf{fabricated test output}. The single
+stored record held five EXHAUSTED stages with empty rule histograms --- the shape
+the test fixtures wrote under the production session key, which is the collision
+commit \texttt{dbcfa2e} fixed. \\
+Is a real blocked session diagnosable now? & \textbf{Yes.} The reproduction records
+\texttt{artifact\_count = 7}, \texttt{evaluable = true}, with the four corrected
+stages carrying the rules that rejected their first candidate. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A regression test now pins each of those three claims
+(\texttt{test\_diagnostic\_record.py}), so the ``not yet reproduced'' note in
+\texttt{dbcfa2e} is closed.
+
+One genuine defect \emph{was} found by tracing this, and it matters more than the
+one that was assumed. \texttt{stage\_attribution} read
+\texttt{verdict.get("passed", not violations)} on an absent verdict, so a stage
+whose candidate never parsed was reported \texttt{passed = true}. That rendered a
+session in which \emph{every} stage was rejected as one in which every stage
+passed --- the conflation FR-004 forbids, one level down, and the exact input an
+optimiser would learn nothing from. A stage with no verdict now reports
+\texttt{passed = null}: absence, not success.
+
+\section{The gate on building the loop}
+\label{sec:gate}
+
+\begin{notebox}[colframe=warn]
+\textbf{Do not build the optimiser until the corpus report shows the conformance
+measure VARIES across real sessions.} If every recorded session scores identically,
+there is nothing for a loop to move, and the effort belongs on a different lever.
+\end{notebox}
+
+Even once it varies, the arithmetic is unforgiving, and it is arithmetic rather
+than pessimism. For a paired comparison, the exact floor at five tasks cannot reach
+significance under \emph{any} outcome:
+
+\begin{center}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\textbf{Distinct tasks} & \textbf{Best attainable $p$} & \textbf{Verdict} \\
+\midrule
+4 & 0.125 & cannot reach $p < 0.05$ \\
+5 & 0.0625 & cannot reach $p < 0.05$ \\
+6 & 0.03125 & first size that can \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Against a single-run pass@1 variance measured at \textbf{2.2--6.0\,pp}, five
+blueprints support no inference at all: one task moves the pass rate 25 points. The
+power analysis is equally blunt: roughly \textbf{120--200 paired tasks} are needed
+to detect a 10\,pp effect. The platform has five.
+
+\subsection{So the decision is: grow the corpus, or do not build the loop}
+
+In dependency order:
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Grow the held-out corpus.} Six is the arithmetic minimum; the power
+  target is two orders of magnitude beyond it. This is the highest-value change and
+  it is cheap.
+  \item \textbf{Run real sessions with the container runtime reachable}, so the
+  diagnostic records accumulate and the variance question can actually be answered.
+  \item \textbf{Feed the reflector the rule histogram} instead of the build exit
+  code.
+  \item \textbf{Build leave-one-out contribution}, then \textbf{eviction with a
+  floor}.
+  \item \textbf{Only then} run the loop, scored on conformance.
+\end{enumerate}
+
+\section{Honest limits}
+\label{sec:limits}
+
+\begin{center}
+\begin{tabular}{@{}p{0.30\textwidth}p{0.64\textwidth}@{}}
+\toprule
+\textbf{Limit} & \textbf{Detail} \\
+\midrule
+Reflection's ceiling is unmeasured here & It captures $\approx$54\% of a trained
+curator's gain \emph{on CODESKILL's benchmarks}. How much it recovers on repository-level
+Spring Boot code is not stated anywhere in the reports. \\
+The direct repo-level test is null & SkillOpt on repository-level code measured
+\textbf{+0.1\,pp}, not significant. This proposal is betting on conformance and
+cost, where the evidence is better, not on resolve rate. \\
+The measure is conformance, not correctness & A well-layered but broken service
+scores full marks. A defect class nobody encoded reads clean. \\
+Stage-local findings are blocked before persistence & The findings that survive
+into a saved artifact set come from whole-project rules only --- a narrow signal,
+and its real-world variance is exactly what is still unmeasured. \\
+Small $n$ & Five blueprints. No significance is attainable. Repeated runs of one
+task are not independent observations and are never counted as a larger sample. \\
+No trainable environment & No GPUs, no fine-tuning, no RL. The trained half of the
+CODESKILL result is out of reach by construction, not by choice. \\
+The corpus currently holds no real records & The store held one record, and it was
+test output. A measurement store that cannot be told apart from its own fixtures is
+worthless; that is fixed, but it means the variance question is still open. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Decision record}
+
+\begin{center}
+\begin{tabular}{@{}p{0.10\textwidth}p{0.44\textwidth}p{0.38\textwidth}@{}}
+\toprule
+\textbf{Ref} & \textbf{Decision} & \textbf{Reason} \\
+\midrule
+D1 & Optimise conformance, not build success & build success is binary and
+unmeasurable at $n=5$ \\
+D2 & The instrument is deterministic, not an LLM judge & a drifting judge makes a
+measured improvement unattributable \\
+D3 & Contribution by leave-one-out, per skill & the only training-free primitive
+that converts ``it got better'' into ``this rule did it'' \\
+D4 & Remove only below an evidence floor & ``not proven to help'' $\neq$ ``hurts'';
+noise must not drive removals \\
+D5 & Reflect; never train & no compute for weight updates; reflection has a
+measured floor \\
+D6 & Normalise the measure for artifact-set size & a raw count rewards generating
+less code \\
+D7 & Attribution from the existing stage journal & it is already computed and free
+to keep \\
+D8 & Insufficiency is a reportable outcome & a point estimate without its power is
+noise reported as a result \\
+D9 & Demote the gate to a guardrail & it is a good regression veto and a bad
+acceptance criterion \\
+D10 & Bound the skills per round & attribution cost is skills $\times$ tasks \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{notebox}
+\textbf{The one-sentence position.} Text-space skill optimisation is real, bounded,
+and ranked last per unit of compute; its diagnostic channel is worth more than its
+loop, and the platform now has the channel, the record, and the report --- so the
+next honest step is to grow the corpus and measure whether there is anything to
+optimise, not to build the optimiser.
+\end{notebox}
+
+\end{document}
