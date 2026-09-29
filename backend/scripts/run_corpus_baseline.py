@@ -54,26 +54,37 @@ CORPUS_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "baseline_blueprints
 DEFAULT_BLUEPRINTS = ("constrained", "minimal", "multi-entity", "pair-a", "pair-b")
 
 
-def available_blueprints() -> List[str]:
-    return sorted(path.stem for path in CORPUS_DIR.glob("*.json"))
+def available_blueprints(directory: Optional[Path] = None) -> List[str]:
+    return sorted(path.stem for path in Path(directory or CORPUS_DIR).glob("*.json"))
 
 
 def graph_runner(blueprint_name: str, *, provider: Optional[str] = None,
-                 api_key: Optional[str] = None, model_name: Optional[str] = None) -> Dict[str, Any]:
+                 api_key: Optional[str] = None, model_name: Optional[str] = None,
+                 session_prefix: str = "corpus",
+                 corpus_dir: Optional[Path] = None) -> Dict[str, Any]:
     """Run one session through the existing graph and return its final state.
 
     The production path. Kept as a module-level function so a caller can pass its
     own runner instead — the seam is a PARAMETER, never a monkeypatch, so a
     refactor cannot silently stop injecting and leave the suite running real
     sessions against a live provider.
+
+    ``session_prefix`` must match the prefix the RECORD is written under, because it
+    also sets the state's ``session_id`` -- and that is what the cost recorder keys
+    each call on. These were once independent: the record used the caller's prefix
+    while the state hardcoded "corpus", so a run under a fresh prefix wrote records
+    under one key and cost rows under another, and the report then said "cost: no
+    data" for a run that had spent real money. Records and cost are one identity or
+    the cost is unanswerable.
     """
     from app.orchestrator.graph import generation_graph
 
-    blueprint = json.loads((CORPUS_DIR / f"{blueprint_name}.json").read_text(encoding="utf-8"))
-    workspace = Path(tempfile.mkdtemp(prefix=f"corpus-{blueprint_name}-"))
+    directory = Path(corpus_dir) if corpus_dir is not None else CORPUS_DIR
+    blueprint = json.loads((directory / f"{blueprint_name}.json").read_text(encoding="utf-8"))
+    workspace = Path(tempfile.mkdtemp(prefix=f"{session_prefix}-{blueprint_name}-"))
 
     state: Dict[str, Any] = {
-        "session_id": f"corpus-{blueprint_name}",
+        "session_id": f"{session_prefix}-{blueprint_name}",
         "blueprint": blueprint,
         "workspace_path": str(workspace),
         "generated_files": {},
@@ -252,13 +263,37 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "earlier records intact."
         ),
     )
+    parser.add_argument(
+        "--corpus-dir", default=None,
+        help=(
+            "directory of blueprint JSON files. Defaults to the frozen five. Point it "
+            "at a harder set to measure whether conformance varies at all -- the "
+            "frozen five saturate (every session scores 100), which leaves an "
+            "optimiser nothing to move."
+        ),
+    )
+    parser.add_argument(
+        "--all", action="store_true",
+        help="run every blueprint found in --corpus-dir (ignores --blueprints)",
+    )
     args = parser.parse_args(argv)
 
-    names = [n.strip() for n in args.blueprints.split(",") if n.strip()]
-    known = available_blueprints()
+    corpus_dir = Path(args.corpus_dir).resolve() if args.corpus_dir else CORPUS_DIR
+    if not corpus_dir.is_dir():
+        print(f"Not a directory: {corpus_dir}", file=sys.stderr)
+        return 2
+    if args.all:
+        names = sorted(path.stem for path in corpus_dir.glob("*.json"))
+    else:
+        names = [n.strip() for n in args.blueprints.split(",") if n.strip()]
+    known = available_blueprints(corpus_dir)
     unknown = [n for n in names if n not in known]
     if unknown:
-        print(f"Unknown blueprints: {unknown}. Available: {known}", file=sys.stderr)
+        print(f"Unknown blueprints: {unknown}", file=sys.stderr)
+        print(f"Available in {corpus_dir}: {known}", file=sys.stderr)
+        return 2
+    if not names:
+        print(f"No blueprints found in {corpus_dir}", file=sys.stderr)
         return 2
 
     # Resolve the provider key, falling back to the environment. Without this the
@@ -280,13 +315,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print("Generation baseline")
     print("=" * 62)
-    print(f"  blueprints : {', '.join(names)}")
+    print(f"  corpus     : {corpus_dir}")
+    print(f"  blueprints : {len(names)} -> {', '.join(names)}")
     print(f"  provider   : {provider or 'default'}  (key present: {bool(api_key)})")
+    print(f"  session key: {args.session_prefix}-<blueprint>")
     print()
 
     summary = run_baseline(
         runner=lambda name: graph_runner(
-            name, provider=provider, api_key=api_key, model_name=args.model
+            name, provider=provider, api_key=api_key, model_name=args.model,
+            session_prefix=args.session_prefix, corpus_dir=corpus_dir,
         ),
         blueprints=names,
         session_prefix=args.session_prefix,

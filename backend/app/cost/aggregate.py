@@ -89,6 +89,21 @@ def aggregate_session(
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     store_mod.write_session_cost_record(record, path=path)
+
+    # Mirror the SESSION aggregate too, not only the per-call records. The session
+    # row is what answers "what did this task cost in tokens", and it was never
+    # mirrored: only mirror_call_record was wired, so a telemetry destination
+    # received a pile of individual calls and no session totals. Best-effort by
+    # construction -- the sink swallows everything and returns a bool -- so an
+    # absent library or an unreachable destination cannot affect the aggregate its
+    # caller has just persisted.
+    try:
+        from app.cost.mlflow_sink import mirror_session_cost_record
+
+        mirror_session_cost_record(record)
+    except Exception:
+        pass
+
     return record
 
 

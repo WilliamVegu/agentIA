@@ -372,3 +372,31 @@ def test_distinct_tasks_are_reported_available_and_verified_separately():
     assert "3 available, 1 verified" in text, (
         "the report did not state availability and verified sample separately"
     )
+
+
+def test_the_session_prefix_keys_both_the_record_and_the_cost(monkeypatch):
+    """Records and cost rows must share ONE identity.
+
+    They were once independent: the diagnostic record used the caller's prefix while
+    the graph state hardcoded "corpus", so a run under a fresh prefix wrote records
+    under one key and cost rows under another -- and the report then said "cost: no
+    data" for a run that had spent real money. Per-task token pricing depends on this
+    identity holding.
+    """
+    from run_corpus_baseline import graph_runner, CORPUS_DIR
+
+    captured = {}
+
+    class _CapturingGraph:
+        def invoke(self, state):
+            captured.update(state)
+            return state
+
+    monkeypatch.setattr("app.orchestrator.graph.generation_graph", _CapturingGraph())
+
+    graph_runner("minimal", session_prefix="pricing-1", corpus_dir=CORPUS_DIR)
+
+    assert captured["session_id"] == "pricing-1-minimal", (
+        "the graph state's session_id does not follow the record prefix, so the cost "
+        "recorder keys these calls under a different identity than the record"
+    )
