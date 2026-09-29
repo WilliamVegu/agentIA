@@ -35,6 +35,41 @@ SESSION_GENERATION_STATE: Dict[str, Dict[str, Any]] = {}
 class CreateSessionRequest(BaseModel):
     specId: str = Field(..., description="UUID of ingested specification")
 
+def _verification_fallback_used(db_sess) -> bool:
+    """Whether verification actually ran, read from the persisted metrics.
+
+    Feature 012 (FR-005). Degrades to ``False`` rather than raising when the
+    metrics are absent or unparseable: a session row predating the column, or one
+    whose metrics were never written, is a data gap and must not turn a session
+    detail request into a server error.
+    """
+    raw = getattr(db_sess, "verification_metrics_json", None) if db_sess else None
+    if not raw:
+        return False
+    try:
+        return bool(json.loads(raw).get("fallback_used", False))
+    except Exception:
+        return False
+
+
+def _persist_verification_metrics(db_sess, final_state: dict) -> None:
+    """Store the verification metrics so the marking survives a process restart.
+
+    Feature 012 (T019). Called before the branch's commit, so the detail endpoint
+    can report whether verification actually ran even after a restart -- the
+    in-process state does not survive one.
+    """
+    if db_sess is None:
+        return
+    metrics = final_state.get("test_metrics")
+    if not metrics:
+        return
+    try:
+        db_sess.verification_metrics_json = json.dumps(metrics)
+    except Exception:
+        pass
+
+
 def broadcast_session_event(session_id: str, event_type: str, data: dict):
     """Stores event in history and broadcasts to all active SSE subscribers."""
     data_with_meta = dict(data)
@@ -169,6 +204,22 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
                     })
                     last_log_count += 1
 
+                # Feature 012 (FR-005, T021): surface whether verification
+                # actually ran as soon as the sandbox node finishes -- BEFORE any
+                # terminal event. In permissive mode a session can still reach
+                # VERIFIED, so this streaming event is the only place a watcher
+                # learns the verification was synthetic. A structured field, not a
+                # log line, so a machine consumer can branch without parsing.
+                if node_name == "sandbox":
+                    sandbox_metrics = node_output.get("test_metrics") or {}
+                    broadcast_session_event(session_id, "verification_result", {
+                        "sessionId": session_id,
+                        "verificationFallbackUsed": bool(sandbox_metrics.get("fallback_used", False)),
+                        "fallbackReason": sandbox_metrics.get("fallback_reason"),
+                        "buildSuccess": node_output.get("build_success", False),
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+
                 # If repair node, broadcast repair_iteration event
                 if node_name == "repair":
                     attempts = accumulated_state.get("repair_attempts", 1)
@@ -199,11 +250,16 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
                 db_sess.status = SessionStatus.COMPLETED
                 db_sess.phase = SessionPhase.VERIFIED
                 db_sess.completed_at = datetime.now(timezone.utc)
+                _persist_verification_metrics(db_sess, final_state)
                 db.commit()
 
             broadcast_session_event(session_id, "session_completed", {
                 "sessionId": session_id,
                 "status": "COMPLETED",
+                # FR-005: a session may reach VERIFIED under permissive mode with a
+                # substituted verification, so the terminal event must say so.
+                "verificationFallbackUsed": bool(metrics.get("fallback_used", False)),
+                "fallbackReason": metrics.get("fallback_reason"),
                 "totalTests": metrics.get("totalTests", 5),
                 "passedTests": metrics.get("passedTests", 5),
                 "failedTests": metrics.get("failedTests", 0),
@@ -218,14 +274,19 @@ async def execute_generation_pipeline(session_id: str, spec_id: str, spec_name: 
                 db_sess.phase = SessionPhase.FAILED
                 db_sess.error_message = final_state.get("error", "Human intervention required")
                 db_sess.completed_at = datetime.now(timezone.utc)
+                _persist_verification_metrics(db_sess, final_state)
                 db.commit()
 
+            blocked_metrics = final_state.get("test_metrics") or {}
             broadcast_session_event(session_id, "session_blocked", {
                 "sessionId": session_id,
                 "attempt": final_state.get("repair_attempts", 3),
                 "maxAttempts": settings.MAX_REPAIR_ATTEMPTS,
                 "failureReason": final_state.get("error", "Human intervention required"),
-                "status": "BLOCKED"
+                "status": "BLOCKED",
+                # FR-005: distinguishes "could not verify" from a real build failure.
+                "verificationFallbackUsed": bool(blocked_metrics.get("fallback_used", False)),
+                "fallbackReason": blocked_metrics.get("fallback_reason"),
             })
 
     except Exception as ex:
@@ -420,7 +481,10 @@ async def get_session_by_id(session_id: str):
             createdAt=db_sess.created_at,
             startedAt=db_sess.started_at,
             completedAt=db_sess.completed_at,
-            errorMessage=db_sess.error_message
+            errorMessage=db_sess.error_message,
+            # Feature 012 (FR-005): whether verification actually ran, read from
+            # the persisted metrics so it survives a restart.
+            verificationFallbackUsed=_verification_fallback_used(db_sess),
         )
     finally:
         db.close()

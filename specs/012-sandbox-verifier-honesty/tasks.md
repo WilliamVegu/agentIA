@@ -86,12 +86,12 @@ Re-pointing them **first** means an implementer who later sees red knows the fai
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Add to `backend/tests/test_sandbox_verifier_honesty.py` the permissive-mode suite (SC-002): legacy outcome restored, and `fallback_used is True` with `fallback_reason` set on every substituted result — the FR-007 audit-blind-spot check.
-- [ ] T014 [P] [US2] Add to `backend/tests/test_sandbox_verifier_honesty.py` the mode-detection tests: flag absent → honest default; flag explicitly `False` → honest default; flag set to an unrecognized value → treated as disabled (fails safe).
+- [X] T013 [P] [US2] Add to `backend/tests/test_sandbox_verifier_honesty.py` the permissive-mode suite (SC-002): legacy outcome restored, and `fallback_used is True` with `fallback_reason` set on every substituted result — the FR-007 audit-blind-spot check.
+- [X] T014 [P] [US2] Add to `backend/tests/test_sandbox_verifier_honesty.py` the mode-detection tests: flag absent → honest default; flag explicitly `False` → honest default; flag set to an unrecognized value → treated as disabled (fails safe).
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Confirm and, if necessary, complete the permissive branch in the policy function in `backend/app/sandbox/docker_runner.py` so that permissive mode permits a session to reach the verified state (FR-002 relaxing FR-003, per the Q1 resolution) **and** still records the marking on every result and on the metrics.
+- [X] T015 [US2] Confirm and, if necessary, complete the permissive branch in the policy function in `backend/app/sandbox/docker_runner.py` so that permissive mode permits a session to reach the verified state (FR-002 relaxing FR-003, per the Q1 resolution) **and** still records the marking on every result and on the metrics.
 
 **Checkpoint**: US1 and US2 both work independently. Permissive mode is opt-in, never inferred, and never silent.
 
@@ -105,15 +105,15 @@ Re-pointing them **first** means an implementer who later sees red knows the fai
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Add to `backend/tests/test_sandbox_verifier_honesty.py` the metrics-payload test: `fallback_used` mirrors the verification result, and `allPassed=True` with `fallback_used=True` is reachable only in permissive mode.
-- [ ] T017 [P] [US3] Add to `backend/tests/test_sandbox_verifier_honesty.py` the session-detail tests (SC-005): `verificationFallbackUsed` is present and true for a substituted session, is readable through a **fresh database session** (proving it survived a restart), and degrades to `False` without raising when persisted metrics are absent or unparseable.
-- [ ] T018 [P] [US3] Add to `backend/tests/test_sandbox_verifier_honesty.py` the live-stream test: the marking is observable **before** the session reaches a terminal state, and is a structured field rather than only a free-text log line.
+- [X] T016 [P] [US3] Add to `backend/tests/test_sandbox_verifier_honesty.py` the metrics-payload test: `fallback_used` mirrors the verification result, and `allPassed=True` with `fallback_used=True` is reachable only in permissive mode.
+- [X] T017 [P] [US3] Add to `backend/tests/test_sandbox_verifier_honesty.py` the session-detail tests (SC-005): `verificationFallbackUsed` is present and true for a substituted session, is readable through a **fresh database session** (proving it survived a restart), and degrades to `False` without raising when persisted metrics are absent or unparseable.
+- [X] T018 [P] [US3] Add to `backend/tests/test_sandbox_verifier_honesty.py` the live-stream test: the marking is observable **before** the session reaches a terminal state, and is a structured field rather than only a free-text log line.
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Persist the serialized `VerificationMetrics` into `verification_metrics_json` in `backend/app/api/routes_session.py` (or the node that owns the session row) so the detail endpoint can read it after a restart.
-- [ ] T020 [US3] Expose `verification_fallback_used` on `GET /api/v1/sessions/{session_id}` in `backend/app/api/routes_session.py`, reading the persisted metrics and degrading to `False` without raising when they are absent or unparseable. Additive and optional, so no existing client breaks.
-- [ ] T021 [US3] Include the structured marking for the verification step in the session event stream in `backend/app/api/routes_session.py`, so a watcher learns the verification was synthetic even when the session proceeds to `VERIFIED` under permissive mode.
+- [X] T019 [US3] Persist the serialized `VerificationMetrics` into `verification_metrics_json` in `backend/app/api/routes_session.py` (or the node that owns the session row) so the detail endpoint can read it after a restart.
+- [X] T020 [US3] Expose `verification_fallback_used` on `GET /api/v1/sessions/{session_id}` in `backend/app/api/routes_session.py`, reading the persisted metrics and degrading to `False` without raising when they are absent or unparseable. Additive and optional, so no existing client breaks.
+- [X] T021 [US3] Include the structured marking for the verification step in the session event stream in `backend/app/api/routes_session.py`, so a watcher learns the verification was synthetic even when the session proceeds to `VERIFIED` under permissive mode.
 
 **Checkpoint**: all three user stories functional and independently verifiable.
 
@@ -123,11 +123,11 @@ Re-pointing them **first** means an implementer who later sees red knows the fai
 
 **Purpose**: Measurement integrity, the real-build verification, and the guardrail checks.
 
-- [ ] T022 [P] Implement FR-008 in `backend/tests/test_generation_stage_measurement.py`: exclude every fallback-marked result from published figures **regardless of terminal state** (permissive-mode sessions can reach `VERIFIED`, so the status must not be the discriminator), and record the excluded count in the generated report.
-- [ ] T023 Regenerate `reports/measurements/011-sc011-intervention-rate.md` and `reports/measurements/011-us1-baseline-comparison.md` so the committed artifacts reflect the filtered population and the recorded exclusion count.
-- [ ] T024 Add the SC-003 real-build case to `backend/tests/test_sandbox_verifier_honesty.py` and verify it with a **real** offline build from a shell that can reach the container runtime: run the passing-test and failing-test cases end to end and assert `fallback_used is False` and the genuine Maven output. If the executing shell cannot reach the runtime (see [constitution-recheck.md](constitution-recheck.md) §3 and [quickstart.md](quickstart.md) Scenario 3), report SC-003 as **not verified by me** and have it verified from a capable shell — never infer it from a second-hand report.
-- [ ] T025 Run the full suite and verify the guardrails: `graph.py` unchanged, `backend/app/orchestrator/nodes/repair_node.py` unchanged, the offline generation path unmodified, and no test asserts synthetic success under the default configuration.
-- [ ] T026 Update `specs/012-sandbox-verifier-honesty/plan.md`, `specs/012-sandbox-verifier-honesty/research.md` (D10), `specs/012-sandbox-verifier-honesty/constitution-recheck.md` §3, and `specs/012-sandbox-verifier-honesty/quickstart.md` with the actual SC-003 outcome, replacing the "testable" statement with what was observed.
+- [X] T022 [P] Implement FR-008 in `backend/tests/test_generation_stage_measurement.py`: exclude every fallback-marked result from published figures **regardless of terminal state** (permissive-mode sessions can reach `VERIFIED`, so the status must not be the discriminator), and record the excluded count in the generated report.
+- [X] T023 Regenerate `reports/measurements/011-sc011-intervention-rate.md` and `reports/measurements/011-us1-baseline-comparison.md` so the committed artifacts reflect the filtered population and the recorded exclusion count.
+- [X] T024 Add the SC-003 real-build case to `backend/tests/test_sandbox_verifier_honesty.py` and verify it with a **real** offline build from a shell that can reach the container runtime: run the passing-test and failing-test cases end to end and assert `fallback_used is False` and the genuine Maven output. If the executing shell cannot reach the runtime (see [constitution-recheck.md](constitution-recheck.md) §3 and [quickstart.md](quickstart.md) Scenario 3), report SC-003 as **not verified by me** and have it verified from a capable shell — never infer it from a second-hand report.
+- [X] T025 Run the full suite and verify the guardrails: `graph.py` unchanged, `backend/app/orchestrator/nodes/repair_node.py` unchanged, the offline generation path unmodified, and no test asserts synthetic success under the default configuration.
+- [X] T026 Update `specs/012-sandbox-verifier-honesty/plan.md`, `specs/012-sandbox-verifier-honesty/research.md` (D10), `specs/012-sandbox-verifier-honesty/constitution-recheck.md` §3, and `specs/012-sandbox-verifier-honesty/quickstart.md` with the actual SC-003 outcome, replacing the "testable" statement with what was observed.
 
 ---
 

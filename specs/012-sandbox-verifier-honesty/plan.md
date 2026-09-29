@@ -127,3 +127,39 @@ The gate verdict is **unchanged: all six principles satisfied**, with Principle 
 | **Additive column reuse (no new table, no migration tool)** | Principle III — clean code; repo convention | Follows feature 011's T013 precedent exactly: purely additive, idempotent, and the existing mechanism already handles a missing column. |
 
 **No new violations. No Complexity Tracking entries added.** One Principle V residual (hardcoded counts) is recorded above as explicitly deferred.
+
+---
+
+## SC-003 outcome (recorded 2026-09-28, task T026)
+
+SC-003 requires a real build to run when a real runtime is present, with
+`fallback_used = False`. Four cases were specified. **The outcome is recorded
+below with the observer for each, because the observer matters.**
+
+| # | Case | Expected | Observed | Observed by |
+| --- | --- | --- | --- | --- |
+| 1 | Real runtime, passing test | `exit=0`, `fallback_used=False` | `exit=0`, `fallback_used=False`, real Maven output | **Operator, manually from a capable shell** |
+| 2 | Real runtime, failing test | `exit != 0`, `fallback_used=False` | `exit=1`, `fallback_used=False`, real Maven output | **Operator, manually from a capable shell** |
+| 3 | Runtime mocked unreachable, default | `exit != 0`, `fallback_used=True`, reason = "the container runtime is not reachable..." | as expected | **Verified by the automated suite** |
+| 4 | Runtime mocked unreachable, permissive | `exit=0`, `fallback_used=True` | as expected | **Verified by the automated suite** |
+
+**Cases 3 and 4 are independently reproduced** by
+`backend/tests/test_sandbox_verifier_honesty.py` (`test_trigger1_...`,
+`test_permissive_mode_restores_the_legacy_outcome`,
+`test_permissive_mode_still_records_the_marking`), which run in the default suite.
+
+**Cases 1 and 2 were NOT independently observed by the implementer.** Their shell
+could not reach the container runtime (the sandbox makes the runtime's state
+directory read-only), so `docker info` failed and `check_docker_daemon()` returned
+false. The evidence for those two cases is the operator's manual run, which is
+recorded here as theirs rather than presented as an observation this feature made.
+An opt-in test (`AGENTIA_RUN_REAL_SANDBOX=1`) encodes both cases so a capable
+shell can reproduce them; in the implementer's shell it skips with that reason
+stated in the skip message.
+
+**SC-003 status: satisfied on the operator's evidence for the real-runtime half,
+and independently verified for the mocked half.** The pass/fail pair in cases 1-2
+is the substance of SC-003 -- it demonstrates the verifier still distinguishes a
+real pass from a real fail once the synthetic path is closed -- and that is exactly
+the half this environment could not observe directly.
+

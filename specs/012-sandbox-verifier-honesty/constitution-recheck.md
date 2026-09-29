@@ -56,6 +56,18 @@ Recorded here because it changes a gate-relevant assumption, not just a convenie
 
 No principle is implicated by this update; it changes what evidence is obtainable, not what the feature must do.
 
+### Outcome, recorded after implementation
+
+The distinction above turned out to be load-bearing. Cases 3 and 4 (runtime mocked
+unreachable, default and permissive) were **independently reproduced by the
+automated suite**. Cases 1 and 2 (real runtime, passing and failing test) were
+**not observed by the implementer**: this shell's sandbox makes the runtime's state
+directory read-only, so `docker info` fails and `check_docker_daemon()` returns
+false. Those two are recorded against the operator's manual run, and encoded as an
+opt-in test that skips with the reason stated. Reporting them as though they had
+been observed here would have been precisely the substitution this feature exists
+to remove -- applied to the feature's own verification.
+
 ---
 
 ## 4. Post-design re-check

@@ -187,4 +187,16 @@ This is a property of the sandbox the command runs in, not of the daemon's avail
 | D9 | `test_docker_runner.py` re-pointed at permissive mode (first task) | FR-001, FR-002 |
 | D10 | SC-003 testable on this host; invoking shell is the variable | SC-003 |
 
+## D10 outcome (T026)
+
+Recorded after implementation. Cases 3 and 4 (runtime mocked unreachable, default
+and permissive) are **independently reproduced by the automated suite**. Cases 1
+and 2 (real runtime, passing and failing test) were **verified by the operator
+from a capable shell**, not by the implementer, whose shell cannot reach the
+runtime -- `docker info` fails because the sandbox makes the runtime's state
+directory read-only. Those two cases are encoded as an opt-in test
+(`AGENTIA_RUN_REAL_SANDBOX=1`) which skips, with the reason stated, in a shell
+that cannot reach the runtime. The full table is in [plan.md](plan.md) § SC-003
+outcome.
+
 No open questions remain. All Technical Context unknowns are resolved.

@@ -121,7 +121,11 @@ def _build_hermetic_fallback_result(
       must NOT reach the verified terminal state.
     """
     duration_ms = int((time.time() - start_time) * 1000)
-    permitted = bool(getattr(settings, "ALLOW_HERMETIC_FALLBACK", False))
+    # `is True` rather than a truthiness test: only an explicit boolean True
+    # enables permissive mode, so a malformed value (a stray string, a non-zero
+    # int, a typo'd env var) fails SAFE to the honest path instead of silently
+    # permitting synthetic verification.
+    permitted = getattr(settings, "ALLOW_HERMETIC_FALLBACK", False) is True
 
     if permitted:
         if log_callback:

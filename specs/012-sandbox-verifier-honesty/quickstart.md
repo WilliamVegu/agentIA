@@ -120,6 +120,32 @@ read-only file system
 
 If you hit this, SC-003 is **not verified by you**. Verify it from a shell that can reach the runtime, or explicitly grant that access. Do **not** mark it satisfied from someone else's report — asserting an unobserved result is exactly the failure this feature exists to remove.
 
+### Automated form (opt-in)
+
+Both cases below are encoded in `backend/tests/test_sandbox_verifier_honesty.py`
+as an opt-in test:
+
+```bash
+AGENTIA_RUN_REAL_SANDBOX=1 .venv/bin/python -m pytest \
+  backend/tests/test_sandbox_verifier_honesty.py -k sc003 -v
+```
+
+It skips by default so the suite stays hermetic (Principle VI). In a shell that
+cannot reach the runtime it skips again, with that reason stated rather than
+failing — an agent-shell limitation is not evidence that SC-003 fails.
+
+### Recorded outcome
+
+| Case | Observed by |
+| --- | --- |
+| Real runtime, passing test → `exit=0`, `fallback_used=False` | Operator, manually from a capable shell |
+| Real runtime, failing test → `exit=1`, `fallback_used=False` | Operator, manually from a capable shell |
+| Runtime mocked unreachable, default → `exit!=0`, `fallback_used=True` | Automated suite |
+| Runtime mocked unreachable, permissive → `exit=0`, `fallback_used=True` | Automated suite |
+
+See [plan.md](plan.md) § SC-003 outcome for the full table and the reason the
+observer is recorded per row.
+
 ---
 
 ## Scenario 4 — Offline generation path unchanged (SC-004)
