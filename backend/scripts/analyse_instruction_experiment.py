@@ -76,7 +76,12 @@ def analyse(records: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
     comparisons: Dict[str, Any] = {}
     for challenger, baseline in (("prohibition", "control"), ("prohibition", "placebo"),
-                                 ("placebo", "control")):
+                                 ("placebo", "control"),
+                                 # The literature's actual control for
+                                 # content-independence: a real rule set applied to
+                                 # the wrong subject.
+                                 ("mismatched", "control"),
+                                 ("prohibition", "mismatched")):
         if challenger not in arms or baseline not in arms:
             continue
         wins = losses = ties = 0
@@ -172,6 +177,22 @@ def render(result: Dict[str, Any]) -> str:
         )
     lines.append("")
     lines.append(f"  {result['conclusion']}")
+    lines.append("")
+    lines.append("  LIMITATIONS (stated before the run, not after)")
+    lines.append("  - n tasks bounds what is detectable at all: at fewer than 6 no paired")
+    lines.append("    two-sided test can reach p<0.05, and at exactly 6 only a unanimous")
+    lines.append("    result can. This design can find a large consistent effect, not a")
+    lines.append("    modest one.")
+    lines.append("  - The content-free placebo is a WEAKER control than it looks. The")
+    lines.append("    literature's content-independence result used mismatched-DOMAIN rule")
+    lines.append("    files, which performed like curated ones; a placebo of process")
+    lines.append("    platitudes may be actively unhelpful rather than merely")
+    lines.append("    uninformative. A prohibition-vs-placebo win therefore overstates")
+    lines.append("    polarity by however much the placebo underperforms. The `mismatched`")
+    lines.append("    arm exists to settle that and was added after the first run began, so")
+    lines.append("    it is NOT part of the pre-registered three-arm comparison.")
+    lines.append("  - One provider, one model, one run per cell in the analysed data unless")
+    lines.append("    runs_per_cell says otherwise.")
     return "\n".join(lines)
 
 

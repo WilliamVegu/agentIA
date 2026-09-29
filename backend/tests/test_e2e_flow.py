@@ -141,7 +141,34 @@ def test_quickstart_feature_005_e2e():
     assert manual_resp.json()["status"] == "REPAIR_APPLIED"
 
 
-def test_full_unified_orchestration_e2e():
+@pytest.fixture
+def hermetic_container_build(monkeypatch):
+    """Keep this suite off the container runtime.
+
+    The pipeline now verifies the workspace, which is correct in production. In a
+    flow test it makes the run depend on the host (a Docker build, seconds long) and
+    on a generated Java project compiling, neither of which is what this test is
+    about -- it asserts the API and lifecycle orchestration. The verification seam is
+    stubbed to a PASS so the rest of the flow is exercised unchanged, and the
+    verification-specific behaviour is covered by test_pipeline_runner.py.
+    """
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+    import app.services.pipeline_runner as pr
+
+    fake = WorkspaceVerification(
+        result=DockerExecutionResult(
+            exit_code=0,
+            stdout="[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0\n",
+        ),
+        platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
+    )
+    monkeypatch.setattr(
+        pr, "run_workspace_verification", lambda path, log_callback=None: fake
+    )
+
+
+def test_full_unified_orchestration_e2e(hermetic_container_build):
     """T045: Validates end-to-end unified orchestration across all 8 features."""
     # 1. Quick-Start Session
     qs_resp = client.post("/api/v1/sessions/quick-start", json={

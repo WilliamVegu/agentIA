@@ -163,6 +163,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="1 run, 2 tasks: validate the harness cheaply first")
     parser.add_argument("--out", default="reports/measurements/instruction-polarity.json")
     parser.add_argument(
+        "--resume", action="store_true",
+        help=(
+            "carry forward completed cells from --out and run only what is missing. "
+            "A 90-session run takes hours; without this a relaunch re-runs cells under "
+            "the SAME session ids and merges two attempts' cost under one identity."
+        ),
+    )
+    parser.add_argument(
         "--tag", default="",
         help=(
             "run-scoped prefix on session ids and workspaces. Without it a re-run "
@@ -205,18 +213,39 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         revisions[arm] = arm_revision(arm_dir)
 
     total_sessions = len(tasks) * len(arms) * runs
+    out_path = REPO / args.out
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # A 90-session run takes hours and dies with its shell. Resuming the cells that
+    # already produced a record costs nothing and is the difference between losing
+    # two hours of spend and losing none -- but the cells must be skipped rather than
+    # re-run, because re-running reuses the SAME session id (arm/task/run) and would
+    # accumulate two attempts' cost under one identity, making the per-cell spend
+    # unattributable.
+    records: List[Dict[str, Any]] = []
+    done: set = set()
+    if args.resume and out_path.is_file():
+        try:
+            previous = json.loads(out_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            previous = {}
+        for record in previous.get("records", []):
+            if record.get("build_success") is None:
+                continue  # an errored cell has no outcome; it is worth retrying
+            records.append(record)
+            done.add((record["run"], record["task"], record["arm"]))
+        print(f"resume   : {len(done)} completed cell(s) carried forward")
+
+    remaining = total_sessions - len(done)
     print(f"tasks    : {len(tasks)} -> {', '.join(tasks)}")
     print(f"arms     : {', '.join(arms)}")
-    print(f"runs/task: {runs}   sessions: {total_sessions}")
+    print(f"runs/task: {runs}   sessions: {total_sessions}   remaining: {remaining}")
     print(f"cap      : ${args.cap_usd:.2f}   spend already recorded: ${_spend_usd():.4f}")
     for arm, revision in revisions.items():
         print(f"  {arm:12} revision {revision[:16]}")
     print()
 
     baseline_spend = _spend_usd()
-    records: List[Dict[str, Any]] = []
-    out_path = REPO / args.out
-    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     def flush(status: str) -> None:
         out_path.write_text(
@@ -255,6 +284,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for run_index in range(1, runs + 1)
         for task in tasks
         for arm in arms
+        if (run_index, task, arm) not in done
     ]
     work: "queue.Queue" = queue.Queue()
     for item in plan:

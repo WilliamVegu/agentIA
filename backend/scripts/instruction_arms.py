@@ -34,7 +34,30 @@ CONTROL_DIR = Path(__file__).resolve().parents[1] / "app" / "resources" / "instr
 
 STAGES: Tuple[str, ...] = ("scaffolder", "domain", "service", "controller", "test")
 
-ARMS: Tuple[str, ...] = ("control", "prohibition", "placebo")
+ARMS: Tuple[str, ...] = ("control", "prohibition", "placebo", "mismatched")
+
+#: The literature's actual placebo: a rule set from a DIFFERENT domain.
+#:
+#: Recorded because the `placebo` arm above is a weaker control than it looks.
+#: arXiv:2604.11088 found that mismatched-domain rule files performed like curated
+#: ones (58.6 vs 56.9) -- which is what makes "the gain is content-independent" a
+#: claim about priming rather than about usefulness. A content-free placebo made of
+#: process platitudes is not equivalent to that: it removes the rules without
+#: substituting a plausibly useful alternative, so it may be *worse* than neutral.
+#: If the content-free placebo underperforms control -- and in the first run it does,
+#: 0 wins 3 losses 2 ties over five tasks -- then a prohibition-versus-placebo win
+#: overstates the polarity effect, because part of the gap is the placebo being
+#: actively unhelpful rather than merely uninformative.
+#:
+#: This arm closes that hole by using another stage's control rules verbatim, which
+#: is a real rule set of comparable length applied to the wrong subject.
+MISMATCHED_SOURCE: Dict[str, str] = {
+    "scaffolder": "test",
+    "domain": "controller",
+    "service": "scaffolder",
+    "controller": "domain",
+    "test": "service",
+}
 
 #: The same constraints as the control documents, stated as prohibitions.
 #:
@@ -203,6 +226,15 @@ def placebo_rules(target: str) -> str:
 _RULES_BLOCK = re.compile(r"(## Rules\n)(.*?)(\n## Output contract)", re.DOTALL)
 
 
+def _control_rules_body(stage: str, control_dir: Path) -> str:
+    """The control document's Rules body for a stage, verbatim."""
+    source = (control_dir / f"{stage}.md").read_text(encoding="utf-8")
+    match = _RULES_BLOCK.search(source)
+    if match is None:
+        raise ValueError(f"{stage}.md has no Rules block")
+    return match.group(2)
+
+
 def _replace_rules(document: str, rules_body: str) -> str:
     """Swap only the Rules body, preserving every other section byte-for-byte."""
     replaced, count = _RULES_BLOCK.subn(
@@ -233,11 +265,16 @@ def build_arm(arm: str, target_dir: Path, *, control_dir: Path = CONTROL_DIR) ->
             body = source
         elif arm == "prohibition":
             body = _replace_rules(source, PROHIBITION_RULES[stage])
-        else:
+        elif arm == "placebo":
             # Length-matched to the TREATMENT arm, not to the control: the
             # comparison that matters is prohibition-vs-placebo, and an unconstrained
             # text of different length would confound polarity with token budget.
             body = _replace_rules(source, placebo_rules(PROHIBITION_RULES[stage]))
+        else:
+            # `mismatched`: a real rule set applied to the wrong subject. The
+            # literature's actual control for content-independence.
+            donor = MISMATCHED_SOURCE[stage]
+            body = _replace_rules(source, _control_rules_body(donor, control_dir))
 
         (target_dir / f"{stage}.md").write_text(body, encoding="utf-8")
 
