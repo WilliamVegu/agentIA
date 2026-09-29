@@ -44,6 +44,9 @@ from app.orchestrator.stages.compliance import (
 #: because they compare artifacts against each other rather than against a rule set.
 RULE_DEPENDENCY_NOT_ALLOWED = "DEPENDENCY_NOT_ALLOWED"
 RULE_SCHEMA_ENTITY_MISMATCH = "SCHEMA_ENTITY_MISMATCH"
+#: A table exists but is missing a column an entity explicitly maps, or lacks the
+#: primary key an @Id requires. The table-name check above cannot see either.
+RULE_SCHEMA_COLUMN_MISMATCH = "SCHEMA_COLUMN_MISMATCH"
 
 #: Penalty per finding, identical to the weights in
 #: ``security_service.evaluate_quality_gate``. Reusing the established weights
@@ -350,6 +353,121 @@ def check_schema_matches_entities(files: Mapping[str, str]) -> list:
     return violations
 
 
+_CREATE_TABLE_BLOCK_RE = re.compile(
+    r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[\"`]?(\w+)[\"`]?\s*\((.*?)\)\s*;",
+    re.IGNORECASE | re.DOTALL,
+)
+_EXPLICIT_COLUMN_RE = re.compile(r"@Column\s*\(\s*name\s*=\s*[\'\"]([^\'\"]+)[\'\"]")
+_MAPPED_TABLE_RE = re.compile(r"@Table\s*\(\s*name\s*=\s*[\'\"](\w+)[\'\"]")
+_HAS_ID_RE = re.compile(r"@Id\b")
+
+
+def _schema_tables(schema: str) -> Dict[str, Dict[str, Any]]:
+    """``table -> {"columns": set, "primary_key": bool}`` from the generated DDL."""
+    tables: Dict[str, Dict[str, Any]] = {}
+    for table, body in _CREATE_TABLE_BLOCK_RE.findall(schema):
+        columns = set()
+        for line in body.splitlines():
+            stripped = line.strip().rstrip(",")
+            if not stripped:
+                continue
+            first = stripped.split()[0].strip('"`')
+            if first.upper() in {"PRIMARY", "FOREIGN", "UNIQUE", "CONSTRAINT", "INDEX", "KEY"}:
+                continue
+            columns.add(first)
+        tables[table.lower()] = {
+            "columns": columns,
+            "primary_key": "PRIMARY KEY" in body.upper(),
+        }
+    return tables
+
+
+def check_schema_columns_match_entities(files: Mapping[str, str]) -> list:
+    """Columns an entity explicitly maps must exist in the table that maps it.
+
+    The table-name check next door cannot see this: a table can exist, carry the
+    right name, and still lack the columns the entity declares -- which fails
+    identically under ``ddl-auto=validate`` and is invisible to every unit test the
+    generator writes, because those mock the repository.
+
+    **Deliberately narrow, to stay false-positive free.** Only *explicit*
+    ``@Column(name = ...)`` mappings are compared, plus the presence of a primary
+    key when the entity declares ``@Id``. A bare field is not checked, because its
+    column name depends on the persistence provider's naming strategy and guessing
+    it would produce findings that are wrong rather than findings that are useful.
+    A rule that cries wolf is worse than no rule: it teaches the operator to ignore
+    the channel.
+
+    Attribution is ACCUMULATED, for the same reason as the table-name check: no
+    single stage owns both the entity and the DDL, and a stage must not be rejected
+    for a mismatch it could not have seen.
+    """
+    schema = files.get("schema.sql")
+    if not schema:
+        return []
+
+    tables = _schema_tables(schema)
+    if not tables:
+        return []
+
+    violations = []
+    for path, content in sorted(files.items()):
+        if not path.endswith(".java"):
+            continue
+        mapped = _MAPPED_TABLE_RE.search(content)
+        if not mapped:
+            continue
+        table = mapped.group(1).lower()
+        declared = tables.get(table)
+        if declared is None:
+            continue  # the table-name rule already reports this
+
+        for column in sorted(set(_EXPLICIT_COLUMN_RE.findall(content))):
+            if column.lower() in {c.lower() for c in declared["columns"]}:
+                continue
+            violations.append(ComplianceViolation(
+                artifact_path="schema.sql",
+                rule_id=RULE_SCHEMA_COLUMN_MISMATCH,
+                severity=SEVERITY_HIGH,
+                message=(
+                    f"Entity in {path} maps {table}.{column}, but schema.sql's "
+                    f"{table} declares only: "
+                    f"{', '.join(sorted(declared['columns'])) or 'no columns'}. "
+                    f"Under ddl-auto=validate the application will not start against "
+                    f"the schema it generated."
+                ),
+                suggested_fix=(
+                    f"Add the column {column} to CREATE TABLE {table} in schema.sql, "
+                    f"or drop the explicit @Column name so the provider's naming "
+                    f"strategy applies to both."
+                ),
+                attribution=ATTRIBUTION_ACCUMULATED,
+                contributing_sources=(
+                    "conformance_diagnostics.check_schema_columns_match_entities",
+                ),
+            ))
+
+        if _HAS_ID_RE.search(content) and not declared["primary_key"]:
+            violations.append(ComplianceViolation(
+                artifact_path="schema.sql",
+                rule_id=RULE_SCHEMA_COLUMN_MISMATCH,
+                severity=SEVERITY_HIGH,
+                message=(
+                    f"Entity in {path} declares an @Id, but schema.sql's {table} "
+                    f"declares no PRIMARY KEY. The entity cannot be loaded or "
+                    f"persisted against this table."
+                ),
+                suggested_fix=(
+                    f"Declare a PRIMARY KEY on {table}'s identifier column in schema.sql."
+                ),
+                attribution=ATTRIBUTION_ACCUMULATED,
+                contributing_sources=(
+                    "conformance_diagnostics.check_schema_columns_match_entities",
+                ),
+            ))
+    return violations
+
+
 def record_session_diagnostics(
     session_id: str,
     final_state: Mapping[str, Any],
@@ -438,6 +556,7 @@ def diagnose(
     # Cross-artifact consistency, like the allowlist above: outside both validator
     # families because it compares two generated files rather than applying a rule.
     extra_violations.extend(check_schema_matches_entities(files))
+    extra_violations.extend(check_schema_columns_match_entities(files))
 
     verdict = normalize_verdict(files, extra_violations=extra_violations)
     violations = verdict.violations

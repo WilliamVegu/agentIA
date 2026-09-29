@@ -308,7 +308,9 @@ def with_session_generation_mode(state: Mapping[str, Any]) -> Dict[str, Any]:
 
     if not prepared.get("instruction_set_revision"):
         try:
-            prepared["instruction_set_revision"] = instructions_mod.load_instruction_set().revision
+            prepared["instruction_set_revision"] = instructions_mod.load_instruction_set(
+                prepared.get("instruction_dir")
+            ).revision
         except Exception:  # noqa: BLE001
             # The deterministic path does not read instructions; the MODEL path
             # loads them itself and fails loudly if they are unusable.
@@ -961,7 +963,15 @@ def _run_model_stage(
             f"stage {stage!r}."
         )
 
-    instruction_set = instructions_mod.load_instruction_set()
+    # The instruction set is normally the repository's own. A caller may name an
+    # alternative directory, which is what makes an instruction experiment a
+    # controlled comparison rather than two runs against two checkouts. It is a
+    # STATE key, deliberately: the seam is a parameter, so a caller cannot
+    # silently change which instructions a session ran with, and the revision
+    # stamped on the artifacts still records exactly which text produced them.
+    instruction_set = instructions_mod.load_instruction_set(
+        state.get("instruction_dir")
+    )
     instruction = instruction_set.for_stage(stage)
     scope = STAGE_ARTIFACT_SCOPES[stage]
 
