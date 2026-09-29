@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,8 +31,7 @@
 
 ## Notes
 
-- **One item open.** Two `[NEEDS CLARIFICATION]` markers are present, on **FR-001** and **FR-003**. Both are scope-affecting with no safe default; neither is a missing detail. All other 15 items pass.
-- Both must be resolved before `/speckit-plan`, because FR-003 determines whether the headline number is right or wrong by up to a factor of two, and FR-001 determines whether every call is recorded at all.
+- **All 16 items pass.** The two clarifications were raised and resolved on 2026-09-28; both are folded into the requirements. Zero markers remain.
 
 ## Validation Detail
 
@@ -97,3 +96,37 @@ zero calls. Two choke points are defensible with different failure modes. See Q2
 Currency, the command-line nature of the report, and the treatment of offline
 sessions and unpriced models are recorded as assumptions rather than asked about,
 because each has a clearly better default. Only the two markers above lack one.
+
+## Resolved Clarifications
+
+### Q1 — Which pricing basis? → **Option A: expanded schema, priced per call**
+
+FR-003 now requires the table to carry **both peak and off-peak** rates **and** both
+**cache-hit and cache-miss** input rates. The basis is computed **per call** from
+that call's timestamp, and cache-hit input tokens are read from the response's
+usage metadata.
+
+- Cache-miss input = prompt tokens − cache-hit input tokens.
+- If cache fields are absent, the call is priced as **cache-miss (upper bound)**
+  and the count of such calls is surfaced on the report (FR-003a, SC-008).
+- FR-003a requires the report to state its basis, the peak window, and the
+  upper-bound count.
+
+**Recorded limitation**: the platform does not model the provider's public-holiday
+calendar, so a holiday call the provider prices off-peak is priced at peak here.
+It overstates rather than understates, and is disclosed in the basis statement.
+
+### Q2 — Which choke point records the call? → **Option A: recording proxy**
+
+FR-001 now requires a **wrapper around the client the factory returns**, recording
+on every invocation (sync and async) before returning. Stage name and session
+identifier reach the wrapper through a **context set by feature 011's stage
+execution boundary**, because the factory constructs clients before any stage is
+known. Recording at the call site was rejected as a convention rather than a
+guarantee.
+
+**Test-seam guardrail folded in**: the wrapper must not break the existing
+fake-client seam. The fake must remain usable with recording inert, and the
+wrapper must present the same interface the tests already use. If it interferes
+with the fake path, the fix is a bypass condition that preserves the tests — never
+a weakening of the tests or of the recording guarantee. Captured as **SC-009**.
