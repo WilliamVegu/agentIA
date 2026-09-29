@@ -242,6 +242,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--provider", default=None)
     parser.add_argument("--model", default=None)
     parser.add_argument("--api-key", default=None)
+    parser.add_argument(
+        "--session-prefix", default="corpus",
+        help=(
+            "session-key prefix. Records AND cost rows are keyed by it, so a re-run "
+            "under the default key overwrites the earlier diagnostic record while the "
+            "earlier cost rows keep accumulating -- the reported cost then belongs to "
+            "two runs. Pass a fresh prefix to keep a measurement clean and to leave "
+            "earlier records intact."
+        ),
+    )
     args = parser.parse_args(argv)
 
     names = [n.strip() for n in args.blueprints.split(",") if n.strip()]
@@ -279,6 +289,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             name, provider=provider, api_key=api_key, model_name=args.model
         ),
         blueprints=names,
+        session_prefix=args.session_prefix,
     )
 
     unverified = summary["report"].excluded.get("unverified", 0)
