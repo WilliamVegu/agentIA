@@ -93,3 +93,6 @@ mlruns/
 
 # coverage.py data file
 .coverage
+
+# start_services.sh runtime state (pids, logs)
+.run/
