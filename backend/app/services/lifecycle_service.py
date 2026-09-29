@@ -100,7 +100,6 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
         phase_states: List[PhaseState] = []
         completed_count = 0
         is_blocked = False
-        blocked_reason = None
 
         # Determine phase completion based on workspace artifacts and DB status
         for idx, phase in enumerate(PHASE_ORDER):
@@ -172,7 +171,9 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                     if sess.repair_attempts >= 3 and sess.status == SessionStatus.BLOCKED:
                         status = PhaseStatus.BLOCKED
                         is_blocked = True
-                        blocked_reason = "Límite de 3 auto-reparaciones alcanzado (Principio V)"
+                        # Was assigned to a local `blocked_reason` that nothing ever read,
+                        # so the phase reached the UI as BLOCKED with blockingReason=null.
+                        reason = "Límite de 3 auto-reparaciones alcanzado (Principio V)"
                     else:
                         status = PhaseStatus.COMPLETED
                         summary["pom"] = "pom.xml"
@@ -195,7 +196,8 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                         if qg_status == "BLOCKED":
                             status = PhaseStatus.BLOCKED
                             is_blocked = True
-                            blocked_reason = f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
+                            # Same discarded-assignment defect as the repair limit above.
+                            reason = f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
                         else:
                             status = PhaseStatus.COMPLETED
                     except Exception:
@@ -320,49 +322,6 @@ def transition_phase(session_id: str, target_phase: LifecyclePhase, force: bool 
         db.close()
 
     return get_session_lifecycle(session_id)
-
-
-def mark_downstream_outdated(session_id: str, modified_phase: LifecyclePhase):
-    """Marks all downstream phases after modified_phase as OUTDATED in session progress tracking."""
-    if modified_phase not in PHASE_ORDER:
-        return
-
-    mod_index = PHASE_ORDER.index(modified_phase)
-    outdated = [p.value for p in PHASE_ORDER[mod_index + 1:]]
-
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess:
-            prog = {}
-            if sess.phase_progress_json:
-                try:
-                    prog = json.loads(sess.phase_progress_json)
-                except Exception:
-                    prog = {}
-            prog["outdated_phases"] = outdated
-            prog["last_modified_phase"] = modified_phase.value
-            sess.phase_progress_json = json.dumps(prog)
-            db.commit()
-    finally:
-        db.close()
-
-
-def clear_outdated_phases(session_id: str):
-    """Clears outdated phase flags after re-synchronization."""
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess and sess.phase_progress_json:
-            try:
-                prog = json.loads(sess.phase_progress_json)
-                prog["outdated_phases"] = []
-                sess.phase_progress_json = json.dumps(prog)
-                db.commit()
-            except Exception:
-                pass
-    finally:
-        db.close()
 
 
 def get_project_overview(session_id: str) -> ProjectOverviewSummary:
