@@ -435,6 +435,17 @@ def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
     # opts into permissive mode explicitly. Verifier honesty itself is asserted in
     # backend/tests/test_sandbox_verifier_honesty.py.
     monkeypatch.setattr(settings, "ALLOW_HERMETIC_FALLBACK", True)
+    # The permissive fallback only fires when the container runtime is
+    # unreachable, so this test's precondition used to depend on ambient host
+    # state: on a host where the runtime answers, the fallback never fires, a real
+    # build runs against the generated code, and the assertions below fail for a
+    # reason that has nothing to do with graph plumbing. Forcing the daemon check
+    # makes the precondition deterministic. Verifier honesty itself is asserted in
+    # backend/tests/test_sandbox_verifier_honesty.py.
+    monkeypatch.setattr(
+        "app.services.docker_service.check_docker_daemon",
+        lambda: False,
+    )
 
     session_ws = clean_workspace / "sess_graph_full"
     session_ws.mkdir()
