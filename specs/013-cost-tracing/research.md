@@ -47,7 +47,15 @@ backend/app/orchestrator/stages/runner.py:812   client = implementation.build_cl
 
 MLflow is still written on every call when reachable, so FR-001's "records to MLflow" is satisfied in normal operation.
 
-**This is the one decision in this plan worth your explicit sign-off.** FR-005 reads as "MLflow primary, SQLite fallback"; the design is "SQLite primary, MLflow mirror". If MLflow was intended as the system of record, say so — the change is contained (the report reads the tracking URI instead of the local file, and the local store becomes the fallback), but it also means the report's determinism and offline behaviour depend on the tracking server's availability, which is the trade the design avoids.
+**APPROVED — sign-off received, and FR-005 has been updated to match.** The requirement now states directly that the local store is authoritative and the telemetry destination is optional. The inversion is no longer a reading of ambiguous wording; it is the specification.
+
+The rationale as approved:
+
+- "Never lost" and "a deterministic report" are both properties obtained from *one* authoritative store.
+- If the telemetry destination were authoritative, the report's determinism would depend on the tracking server's availability — the exact failure mode FR-005 exists to prevent.
+- With the local store authoritative, the destination becomes a visualization layer that can be absent without affecting anything.
+
+**Consequence to keep in view during implementation**: because the report reads only the local store, a destination that was down for some sessions changes nothing, and one holding partial data cannot make the report wrong. There is no union, no de-duplication, and no health check in the report path.
 
 **Why a separate SQLite file rather than the platform's existing database**: cost records have a different retention and growth profile from session rows (one row per model call, forever), and keeping them out of `studio.db` avoids coupling the report to the session schema and its threading.
 
@@ -144,13 +152,18 @@ A flat two-number table cannot represent this: Flash input spans a factor of 100
 
 ---
 
-## D10 — Branch: three features on one branch
+## D10 — Branch: three features on one branch (DECIDED)
 
-**Decision**: Recorded as an open decision for the user rather than resolved here. The plan proceeds on `feature/011-llm-generation-nodes`, consistent with 012, but flags that a third feature materially enlarges the review surface — and that 013 adds a new runtime dependency (MLflow) and a new package, unlike 012 which was a contained correctness fix.
+**Decision**: Feature 013 stays on `feature/011-llm-generation-nodes`. Recorded in [constitution-recheck.md](constitution-recheck.md) §2 as the third stacked feature in the same arc, with the same exception rationale as 012.
 
-**Rationale**: The isolation requirement (nothing merges until review) is unaffected either way, and no `before_specify` hook is registered to create a branch. But 012's recorded exception was explicitly about a *two*-feature stack where 012 fixed a defect in 011. A third feature is a different proposition, and deciding it by default would be exactly the kind of silent inheritance this project's specifications have been careful to avoid.
+**Rationale, as decided**:
 
-**Alternatives considered**: none — this is a decision for the requester, not a technical trade-off.
+- `main` is untouched, so the isolation requirement the branching convention protects is preserved.
+- Three features in the same arc, none merged to the main line.
+- Splitting now would require rebasing three features' commits for **zero** isolation benefit.
+- Splitting would also yield branches that are not independently green: 013 depends on 011's stage boundary for the recording context and on 012's fallback marking for the report's exclusion rule. Neither 011 nor 012 alone would carry a passing 013.
+
+**Alternatives considered**: a dedicated branch for 013. Rejected: it buys no isolation (nothing merges either way) and costs a rebase across the stack.
 
 ---
 
@@ -167,6 +180,43 @@ A flat two-number table cannot represent this: Flash input spans a factor of 100
 | D7 | Add a usage-reporting test double | FR-001, FR-001a |
 | D8 | Nearest-rank percentiles, fixed precision, deterministic ordering | FR-006, SC-003 |
 | D9 | No credential in any cost record | Principle VI |
-| D10 | Three-feature branch recorded as an open decision | — |
+| D10 | Three-feature branch, recorded in constitution-recheck.md | — |
+| D11 | Attribute-probing wrapper; async delegates to sync and is recorded | FR-001, SC-010 |
+| D12 | The usage-reporting fake is the first task, because nothing downstream is verifiable without it | SC-001, FR-001 |
 
 No open `NEEDS CLARIFICATION` items remain.
+
+---
+
+## D11 — A client may implement only one invocation form
+
+**Decision**: The wrapper probes the wrapped client for the asynchronous entry point at construction time. If the client has it, the wrapper defines an asynchronous path that records and delegates. If it does not, the wrapper defines an asynchronous path that **delegates to the client's synchronous entry point** (run off the event loop) and records the call, rather than raising.
+
+**Evidence the constraint is real**: `backend/tests/fixtures/fake_model.py` defines `ScriptedChatModel.invoke` (line 48) and **no `ainvoke`**. Confirmed by inspection: the file contains no `ainvoke` at all. A wrapper that unconditionally defines `ainvoke` and forwards to `self._inner.ainvoke(...)` would raise `AttributeError` the moment anything called the wrapped fake asynchronously. Nothing calls it today (`graph.py`'s `ainvoke` is the graph's own entry point, not a chat client's), so the gap is **latent** — which is exactly why it needs a test rather than a fix discovered later.
+
+**Why delegate rather than pass through silently**: both options are defensible, and the two differ in recording semantics, so the choice must be explicit and documented:
+
+| Option | Behaviour | Recording |
+| --- | --- | --- |
+| **Delegate to sync** (chosen) | The async call runs the sync implementation off the event loop and returns its result | **Recorded** — the call happened, so it cost money and must be counted |
+| Pass through, no recording | The async call is forwarded without recording | **Not recorded** — silent spend, the failure this feature exists to prevent |
+
+Delegation is chosen because a call that happens is a call that costs, and a pass-through would create a second, quieter version of the silent-zero problem. The cost is that the wrapper must run the sync call without blocking the loop.
+
+**Alternatives considered**:
+- *Define `ainvoke` only when the client has it; otherwise leave it undefined.* Rejected: the attribute error just moves to the caller, which is the failure the requirement forbids.
+- *Require every client to implement both.* Rejected: it would mean changing the existing fake, which the guardrail forbids — the fake is extended, never reshaped, and the wrapper must cope with what exists.
+
+---
+
+## D12 — The usage-reporting fake is the first task
+
+**Decision**: The first implementation task is adding usage metadata to the fake response and confirming the synchronous path records end-to-end through the wrapper into the local store.
+
+**Rationale**: The fake currently reports no usage, so every recording assertion written before it would exercise only the unknown-usage path. That means SC-001's literal claim — that ten sessions produce records with **non-zero** token counts — is untestable, and every downstream task that depends on a recorded token count cannot be verified. Sequencing it first means each later task can be checked against a real recorded value rather than against an absence.
+
+**Constraint on the task itself**: the fake is **extended, not reshaped**. Existing tests assert on `.content` and `.calls`, so usage metadata must be additive and defaulted, and no existing assertion may be weakened to accommodate it. If a later task finds itself wanting to relax a pre-existing test, that is a signal the extension was done wrong.
+
+**Alternatives considered**:
+- *Add a second, separate usage-reporting fake alongside the existing one.* Rejected: two fakes would let the recording tests drift away from the client the rest of the suite actually uses, and the seam being protected is precisely the existing fake's.
+- *Hand-write response objects in each recording test.* Rejected for the same reason, plus duplication.

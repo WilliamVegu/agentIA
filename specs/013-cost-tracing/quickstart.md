@@ -165,6 +165,26 @@ AGENTIA_RUN_REAL_COST_TRACING=1 DEEPSEEK_API_KEY=... \
 
 ---
 
+## Scenario 7a — Async call on a sync-only client (SC-010)
+
+**Purpose**: prove the wrapper does not turn a working client into one that raises.
+
+**Action**:
+
+```bash
+.venv/bin/python -m pytest backend/tests/test_cost_recording.py -k ainvoke -v
+```
+
+**Expected**:
+
+- Invoking the wrapped fake client asynchronously completes without raising, even though the fake implements only the synchronous entry point.
+- The documented fallback is what happens: the call is delegated to the synchronous implementation and **is recorded** (a call that runs is a call that costs).
+- The record carries the same fields as a synchronous call.
+
+**Failure looks like**: `AttributeError` from the wrapper; or the call succeeding but producing no record, which would be silent spend.
+
+---
+
 ## Scenario 8 — The existing suite is untouched by recording (SC-009)
 
 **Purpose**: prove the recording wrapper does not break the seam it wraps.
@@ -195,6 +215,7 @@ If the wrapper does interfere with the fake path, the fix is a **bypass conditio
 - [ ] Scenario 5 passes (SC-002: headline figure with its population)
 - [ ] Scenario 6 passes (SC-003, SC-006: byte-identical re-runs, durable when the destination is down)
 - [ ] Scenario 7 **run with a key, or explicitly recorded as not verified** (SC-001's literal form)
+- [ ] Scenario 7a passes (SC-010: async call on a sync-only client does not raise, and is recorded)
 - [ ] Scenario 8 passes (SC-009: pre-existing suite unmodified)
 - [ ] No credential appears in any cost record, report line, or telemetry parameter
 - [ ] `reports/measurements/` and `reports/baselines/` are untouched by this feature

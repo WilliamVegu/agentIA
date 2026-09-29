@@ -17,6 +17,23 @@ Two properties must hold:
 - **Unbypassable in production.** Any code path that constructs a client inside the stage boundary is wrapped, including a future call site that knows nothing about recording. Recording at the call site was rejected precisely because it is a convention rather than a guarantee.
 - **Invisible outside production.** Direct factory calls — including all of `test_llm_factory.py`, which asserts `isinstance(model, ChatOpenAI)` and the Gemini/Groq equivalents in seven places — MUST receive the unwrapped client. The condition is *"is recording active"*, never *"is this a test"*. A bypass keyed on test presence would leave production unprotected.
 
+### 1.1a Clients that implement only one invocation form
+
+A client may provide the synchronous entry point, the asynchronous one, or both. The existing fake client provides **only** the synchronous one (verified: `backend/tests/fixtures/fake_model.py` defines `invoke` and no `ainvoke`).
+
+**Contract**
+
+- Calling the asynchronous entry point on the wrapper MUST NOT raise when the wrapped client lacks it.
+- The wrapper MUST probe the client at construction and choose a path accordingly.
+- The chosen fallback MUST be **documented**, because the options differ in recording semantics:
+
+| Fallback | Recording | Verdict |
+| --- | --- | --- |
+| Delegate the async call to the client's sync entry point, run off the event loop | **Recorded** — the call happened and cost money | **Chosen** |
+| Pass the async call through without recording | **Not recorded** — silent spend | Rejected |
+
+- A test MUST exercise the exact combination — the fake client, wrapped, invoked asynchronously — and assert both that it does not raise and that the documented behaviour is what occurs (SC-010). Asserting only "does not raise" would let the recording silently change later.
+
 ### 1.2 Required fields
 
 Every recorded call carries: session identifier, stage name, provider, model, timestamp, latency, input tokens, output tokens, and — where reported — cache-hit input tokens. Plus the derived `usage_known`, `cache_basis_known`, `peak`, `priced`, `cost_usd`, and `pricing_basis`.

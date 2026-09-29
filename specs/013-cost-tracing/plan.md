@@ -103,6 +103,14 @@ backend/
 
 See [research.md](research.md). All Technical Context unknowns were resolved by inspection and one fetched primary source; there are no open `NEEDS CLARIFICATION` items. Decisions: D1 conditional proxy, D2 recording context, D3 three storage decisions, D4 expanded pricing schema, D5 cache extraction and its upper-bound default, D6 peak window, D7 usage-reporting test double, D8 report determinism, D9 secret containment, D10 the branch question.
 
+## Sequencing Constraint
+
+**The first implementation task is extending the fake client to report usage, and confirming the synchronous path records end to end through the wrapper into the local store.**
+
+The existing fake reports no usage, so any recording assertion written before it exercises only the unknown-usage path. SC-001 claims ten sessions produce records with **non-zero** token counts; without the extended fake that claim is untestable, and every downstream task that reads a recorded token count is unverifiable. See [research.md](research.md) D12.
+
+The constraint on the task itself: **extend the fake, do not reshape it.** Existing tests assert on `.content` and `.calls`, so usage metadata is additive and defaulted, and no pre-existing assertion may be weakened to accommodate it.
+
 ## Phase 1 — Design
 
 - [data-model.md](data-model.md) — the model-call record, the session cost record, the pricing entry, and the session-row addition.
@@ -119,7 +127,8 @@ The gate verdict is **unchanged: all six principles satisfied**. The design deci
 | Design decision | Constitutional bearing | Assessment |
 | --- | --- | --- |
 | **The proxy is applied only while a recording context is active** | Principle III — no dead code; and the spec's SC-009 seam guarantee | Correct and required. It keeps seven existing assertions valid *and* keeps the recording guarantee undiluted in production, because production construction always happens inside the stage boundary that establishes the context. It is a bypass scoped by *when recording is on*, not by *which tests exist* — the distinction matters, since a test-shaped bypass would leave production unprotected. |
-| **The local SQLite store is the system of record; MLflow is a mirror** | Principles IV and VI | Deliberate reading of FR-005, recorded in D3. "Cost data is never lost" and "the report is deterministic" are both easier to guarantee with one authoritative local store than with a primary/fallback pair that the report would have to union and de-duplicate. SC-006 then holds by construction rather than by luck. **If MLflow was intended as the system of record, this is the one decision to reverse**, and it is a contained change. |
+| **The local SQLite store is the system of record; MLflow is a mirror** | Principles IV and VI | **Approved, and FR-005 has been updated to state it directly** — it is no longer a reading of ambiguous wording. "Cost data is never lost" and "the report is deterministic" are both properties of one authoritative store; a primary/fallback pair would make the report's determinism depend on the tracking server, the exact failure FR-005 prevents. The destination is now a visualization layer whose absence is a non-event, and SC-006 holds by construction. |
+| **A client implementing only sync invocation must not break when called async** | Principle III — no latent breakage | Required by D11. The existing fake implements only the sync form, so a wrapper that unconditionally forwards an async call would raise. The wrapper delegates async to sync and records it; a non-recording pass-through was rejected because it would create a second, quieter form of silent spend. |
 | **Unknown usage is recorded, never zero** | Principle III — no silent fallbacks | A zero would be indistinguishable from a genuinely cheap call and would bias the headline figure downward. An explicit marker plus a report count is the honest form. |
 | **An unpriced model is marked, never priced at zero** | Principle V — gate honesty | Same failure mode as 012's synthetic success, in money: a missing price silently becoming zero would understate spend. |
 | **Cache-miss is the default when cache fields are absent** | Principle V | The conservative direction for a figure used to justify spend. Guessing a cache *hit* would understate cost. Recorded and counted on the report rather than hidden. |
