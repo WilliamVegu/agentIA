@@ -51,6 +51,19 @@ class Settings(BaseSettings):
         default=str(Path.home() / ".m2" / "repository"),
         description="Host path to Maven local repository for read-only mount"
     )
+    DOCKER_MOUNT_SUFFIX: str = Field(
+        default="",
+        description=(
+            "Suffix appended to every sandbox volume mount, e.g. ':Z'. REQUIRED on "
+            "hosts where the container runtime applies SELinux labels to bind "
+            "mounts -- rootless podman with labels does -- because without it the "
+            "workspace mount is unreadable inside the container: Maven finds no "
+            "pom.xml and every session blocks for a reason that has nothing to do "
+            "with the generated code. Empty by default because it is a property of "
+            "the host, not of the agent: Docker Desktop and unlabelled hosts do not "
+            "need it, and hardcoding it would encode one machine into the platform."
+        ),
+    )
     WORKSPACE_DIR: str = Field(
         default=str(Path(__file__).resolve().parent.parent / "workspaces"),
         description="Directory where generated code is synthesized and built"

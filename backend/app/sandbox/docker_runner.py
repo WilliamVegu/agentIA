@@ -53,11 +53,19 @@ def build_docker_cmd(
     ws_path = str(Path(workspace_host_path).resolve())
     m2_path = str(Path(maven_cache_host_path).resolve())
 
+    # The host may require a mount option (typically ":Z" on rootless podman with
+    # SELinux labels). Without it the bind mount is unreadable inside the
+    # container, Maven finds no pom.xml in /workspace, and the session blocks for
+    # a reason unrelated to the generated code -- which is indistinguishable from
+    # a real build failure at the report level. Empty by default so behaviour is
+    # unchanged on hosts that do not need it.
+    mount_suffix = getattr(settings, "DOCKER_MOUNT_SUFFIX", "") or ""
+
     return [
         "docker", "run", "--rm",
         "--network", "none",
-        "-v", f"{ws_path}:/workspace",
-        "-v", f"{m2_path}:/root/.m2/repository:ro",
+        "-v", f"{ws_path}:/workspace{mount_suffix}",
+        "-v", f"{m2_path}:/root/.m2/repository:ro{mount_suffix}",
         "-w", "/workspace",
         docker_image,
         "mvn", "test", "-o"
