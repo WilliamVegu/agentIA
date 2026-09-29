@@ -345,3 +345,30 @@ def test_calls_that_could_not_be_priced_are_not_reported_as_zero():
 
     assert "none priced" in text
     assert "$0.0000" not in text, "unpriced calls were rendered as a cost of zero"
+
+
+def test_distinct_tasks_are_reported_available_and_verified_separately():
+    """A task in the corpus is available even when its session was excluded.
+
+    The verified count is the sample that backs the figures; the available count
+    is what the corpus holds. Reporting only the former tells a reader weighing
+    whether to gather more evidence that the corpus is smaller than it is.
+    """
+    records = [
+        record("s1", task="minimal"),                  # backs the figures
+        record("s2", task="pair-a", evaluable=False),  # recorded, nothing to evaluate
+        record("s3", task="pair-b", unverified=True),  # recorded, synthetic build
+        record("s4", task="pair-a", evaluable=False),  # repeat of an available task
+    ]
+
+    report = build_report(records)
+
+    assert report.distinct_tasks == 1, "the verified sample is one task"
+    assert report.distinct_tasks_available == 3, (
+        "three tasks are in the corpus, and two of them were excluded"
+    )
+
+    text = render_report(report)
+    assert "3 available, 1 verified" in text, (
+        "the report did not state availability and verified sample separately"
+    )

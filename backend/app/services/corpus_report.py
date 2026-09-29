@@ -18,7 +18,9 @@ it". This is the same discipline the cost report already applies.
 as ten observations is pseudo-replication, and it is how a corpus of five gets
 described as if it were fifty. Distinct tasks are therefore counted from an
 explicit label, and records without one are reported as untagged rather than
-guessed at.
+guessed at. The count is reported **twice** -- available across the whole corpus,
+and verified among the sessions that back the figures -- because a reader judging
+whether more evidence is worth gathering needs the first, not just the second.
 """
 
 from __future__ import annotations
@@ -51,8 +53,15 @@ class CorpusReport:
     verified: int
     #: reason -> count. Stated, never silent.
     excluded: Dict[str, int] = field(default_factory=dict)
-    #: Distinct task labels among verified sessions.
+    #: Distinct task labels among verified sessions -- the sample that backs every
+    #: derived figure.
     distinct_tasks: int = 0
+    #: Distinct task labels across EVERY recorded session, including the excluded
+    #: ones. The two are reported separately because they answer different
+    #: questions: "how many tasks does the corpus hold" and "how many tasks back
+    #: the figures". Reporting only the verified count understates the corpus to a
+    #: reader judging whether more evidence is worth gathering (FR-015).
+    distinct_tasks_available: int = 0
     #: Verified sessions carrying no task label. Reported rather than guessed at.
     untagged: int = 0
     #: Conformance measures of verified sessions. Listed raw: at these counts a
@@ -102,10 +111,15 @@ def build_report(
     """Summarise recorded diagnostics. Excluded sessions enter no figure."""
     verified: List[Mapping[str, Any]] = []
     excluded: Dict[str, int] = {}
+    available_tasks: set = set()
 
     for record in records:
         if not isinstance(record, Mapping):
             continue
+        # Availability is counted before any exclusion: a task is in the corpus
+        # whether or not its session could be evaluated.
+        if record.get("task"):
+            available_tasks.add(str(record["task"]))
         if record.get("unverified"):
             excluded[EXCLUDED_UNVERIFIED] = excluded.get(EXCLUDED_UNVERIFIED, 0) + 1
             continue
@@ -144,6 +158,7 @@ def build_report(
         verified=len(verified),
         excluded=excluded,
         distinct_tasks=len(tasks),
+        distinct_tasks_available=len(available_tasks),
         untagged=untagged,
         densities=[float(r.get("density") or 0.0) for r in verified],
         scores=[int(r.get("score") or 0) for r in verified],
@@ -172,7 +187,10 @@ def render_report(report: CorpusReport) -> str:
         lines.append(f"      - {reason}: {count} ({detail})")
 
     lines.append("")
-    lines.append(f"  distinct tasks           : {report.distinct_tasks}")
+    lines.append(f"  distinct tasks           : {report.distinct_tasks_available} available, "
+                 f"{report.distinct_tasks} verified")
+    lines.append("      Available counts every labelled task in the corpus; verified")
+    lines.append("      counts the tasks that back the figures below.")
     if report.untagged:
         lines.append(f"  verified but untagged    : {report.untagged} (no task label)")
 
