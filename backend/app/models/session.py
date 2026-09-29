@@ -56,6 +56,10 @@ class GenerationSessionDB(Base):
     # the session detail endpoint can report whether verification actually ran,
     # including after a process restart (the in-process state does not survive).
     verification_metrics_json = Column(Text, nullable=True)
+    # Feature 013 additive storage. Holds the session's cost aggregate so the
+    # session detail surface can report what a session cost without reading the
+    # cost store. The cost store remains the system of record; this is a copy.
+    cost_record_json = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -102,6 +106,8 @@ def _ensure_generation_columns():
                     conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN artifact_provenance_json TEXT"))
                 if "verification_metrics_json" not in existing_cols:
                     conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN verification_metrics_json TEXT"))
+                if "cost_record_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN cost_record_json TEXT"))
                 conn.commit()
     except Exception:
         pass

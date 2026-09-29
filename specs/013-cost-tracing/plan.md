@@ -135,3 +135,75 @@ The gate verdict is **unchanged: all six principles satisfied**. The design deci
 | **No credential may appear in a cost record** | Principle VI | The record carries provider and model identifiers only. Tested, not assumed — the same invariant 011's provenance records carry. |
 
 **No new violations. No Complexity Tracking entries added.**
+
+
+---
+
+## Implementation outcomes (T022)
+
+All 22 tasks complete. Suite: **306 passed, 1 skipped** (baseline before this
+feature: 263 passed, 1 skipped — the increase is this feature's tests only).
+
+### The defect the red anchor caught
+
+The recording context was first established around **client construction only**.
+That is wrong, and only an end-to-end test could see it: the wrapper is applied
+during construction, but the record is assembled when the call is actually
+*invoked*, at which point the context had already closed. The result was records
+with `session_id = None` and `stage = None` — written, but unattributable.
+
+The fix is to span the **whole model stage** with the context: construction *and*
+every invocation, including correction attempts. This is exactly why T001 wrote
+the through-the-seam test first rather than unit-testing the wrapper in isolation
+([research.md](research.md) D2, [constitution-recheck.md](constitution-recheck.md) §3.3).
+
+### Verified
+
+| Criterion | Result |
+| --- | --- |
+| SC-001 (fake path) | A call through the stage boundary records one priced row with non-zero tokens |
+| SC-002 | The report prints the headline figure with its population |
+| SC-003 | Two runs over unchanged data are **byte-identical** |
+| SC-004 | A fallback-marked session is excluded from the headline and the exclusion count is printed |
+| SC-005 | Unknown model and unknown usage both yield `NULL` cost, never zero; the report counts them |
+| SC-006 | With `MLFLOW_TRACKING_URI` pointed at an unreachable port, both runs exit 0 and are byte-identical |
+| SC-007 | Identical calls inside and outside the peak window differ by exactly 2.0× |
+| SC-008 | The report states its basis, the peak window, and the cache-miss-assumed count |
+| SC-009 | `test_llm_factory.py`'s seven `isinstance` assertions pass unmodified; the fake path is never wrapped |
+| SC-010 | An async call on the sync-only fake does not raise **and is recorded** |
+
+### Sample session (through the real seam)
+
+| Field | Value |
+| --- | --- |
+| session / stage | `sample-session` / `DOMAIN` |
+| provider / model | `deepseek` / `deepseek-flash` |
+| input / output tokens | 4180 / 962 |
+| cache-hit input tokens | 3200 (`peak = False`) |
+| pricing basis | `off_peak/cache-aware` |
+| **cost** | **$0.0007338000** |
+| credential present | **no** |
+
+Reconciles by hand: 3200 × $0.003 + 980 × $0.15 + 962 × $0.60, per million tokens.
+
+### NOT verified
+
+**SC-001's literal form — ten sessions against the real provider with non-zero
+token counts — was not run.** It requires a provider key and spends real money, so
+the test skips unless `AGENTIA_RUN_REAL_COST_TRACING=1` and `DEEPSEEK_API_KEY` are
+both set. Recorded here as *not verified* rather than inferred from the fake path:
+inferring it would be the same substitution feature 012 refused for its own
+success criterion.
+
+### Deviations from the plan worth recording
+
+- **Pricing basis strings** are `peak/cache-aware`, `off_peak/cache-aware`,
+  `peak/cache-miss-assumed` and `off_peak/cache-miss-assumed` — more specific than
+  the `peak/cache-miss` example in [contracts/cost-record.md](contracts/cost-record.md)
+  §2.1, because the report's cache-miss-assumed count needs to be derivable from
+  the same field.
+- **The store rejects a call record with no `call_id`.** Discovered while testing
+  insertion-order determinism: a malformed write produced a junk row that changed
+  the reported call count. A record without an identity cannot be de-duplicated on
+  re-run, so it is refused and counted rather than stored.
+

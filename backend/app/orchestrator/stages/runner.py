@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
+from app.cost import recording as cost_recording
 from app.models.session import SessionPhase, SessionStatus
 from app.orchestrator.stages import instructions as instructions_mod
 from app.orchestrator.stages import journal as journal_mod
@@ -1030,7 +1031,20 @@ def run_stage(
         if mode == journal_mod.GENERATION_MODE_DETERMINISTIC:
             result = _run_deterministic_stage(isolated, stage, journal)
         else:
-            result = _run_model_stage(isolated, stage, journal, api_key=api_key)
+            # Feature 013 (T010): the cost-recording context spans the ENTIRE model
+            # stage -- client construction AND every invocation, including correction
+            # attempts. Construction alone is not enough: the factory wraps the
+            # client inside this boundary, but the record is assembled when the call
+            # is actually made, so a context closed after construction would produce
+            # records with no session or stage.
+            #
+            # Every production construction happens inside this boundary, which is
+            # what makes the recorder unbypassable in production while leaving direct
+            # factory calls -- and therefore the pre-existing factory tests and the
+            # fake-client seam -- untouched. The condition the factory keys on is
+            # "is recording active", never "is this a test".
+            with cost_recording.recording_context(isolated.get("session_id"), stage):
+                result = _run_model_stage(isolated, stage, journal, api_key=api_key)
     except journal_mod.JournalBudgetError as exc:
         # T037: budget exhaustion terminates the session in the human-intervention
         # state rather than escaping as an unhandled exception. The recorded

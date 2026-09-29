@@ -37,6 +37,13 @@ backend/app/orchestrator/stages/runner.py:812   client = implementation.build_cl
 - *Explicit parameters through `build_client`.* Rejected: five signature changes and a new way to forget.
 - *A module-level global.* Rejected: not safe across concurrent sessions. The platform runs sessions concurrently (`MAX_CONCURRENT_SESSIONS`), so a global would cross-attribute sessions.
 
+**Implementation correction (T022)**: the context must span the **whole model
+stage**, not just client construction. The factory wraps the client during
+construction, but the record is assembled when the call is invoked — by which time
+a context scoped to construction has closed. The first implementation did exactly
+that and produced records with `session_id = None`. Only T001's end-to-end test
+could see it; a unit test of the wrapper in isolation would have passed.
+
 ---
 
 ## D3 — Storage: three decisions, one of them worth your attention

@@ -72,6 +72,21 @@ class Settings(BaseSettings):
         default=False,
         description="Permit the synthetic sandbox result when a real build cannot run. Default false (honest failure).",
     )
+
+    # --- Feature 013 cost tracing -------------------------------------------
+    # The tracking destination is a MIRROR, not the system of record. Cost records
+    # are always written to COST_STORE_PATH first, so this destination being
+    # unreachable is a non-event and the report never depends on it (FR-005).
+    MLFLOW_TRACKING_URI: str = Field(
+        default="http://localhost:5000",
+        description="Telemetry destination for mirrored cost records. Unreachable is a non-event.",
+    )
+    # The durable local store that IS the system of record. The report reads only
+    # this, which is what makes the figures deterministic and offline (FR-005, FR-006).
+    COST_STORE_PATH: str = Field(
+        default="backend/cost_tracking.db",
+        description="SQLite file holding call-level and session-level cost records.",
+    )
     
     # Database (anchored to backend/studio.db by default; future migration target is PostgreSQL)
     DATABASE_URL: str = Field(

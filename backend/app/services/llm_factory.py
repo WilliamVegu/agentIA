@@ -227,6 +227,33 @@ class LLMFactory:
         return SUPPORTED_MODELS.get(provider, [])
 
     @staticmethod
+    def _maybe_wrap(client, provider: str, model_name: str):
+        """Wrap a constructed client in the cost recorder, when recording is active.
+
+        The condition is **"is a recording context active"**, never **"is this a
+        test"**. That distinction is the whole point: a test-shaped condition would
+        leave every production call unrecorded while the suite stayed green.
+
+        Recording is active only inside the stage execution boundary, which is
+        where every production construction happens. A direct factory call — which
+        is what the pre-existing factory tests make, and what the fake-client seam
+        relies on — has no context and receives the unwrapped client, so those
+        tests are untouched by construction.
+        """
+        if client is None:
+            return None
+        try:
+            from app.cost.recording import RecordingChatClient, is_recording_active
+        except Exception:  # pragma: no cover - cost package unavailable
+            return client
+        if not is_recording_active():
+            return client
+        try:
+            return RecordingChatClient(client, provider, model_name)
+        except Exception:  # pragma: no cover - defensive
+            return client
+
+    @staticmethod
     def get_chat_model(
         api_key: Optional[str] = None,
         provider: Optional[str] = None,
@@ -249,12 +276,16 @@ class LLMFactory:
         if detected_provider == LLMProvider.GEMINI.value:
             from langchain_google_genai import ChatGoogleGenerativeAI
             resolved_key = clean_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-            return ChatGoogleGenerativeAI(
-                model=resolved_model,
-                google_api_key=resolved_key,
-                temperature=temperature,
-                max_retries=2,
-                timeout=120.0,
+            return LLMFactory._maybe_wrap(
+                ChatGoogleGenerativeAI(
+                    model=resolved_model,
+                    google_api_key=resolved_key,
+                    temperature=temperature,
+                    max_retries=2,
+                    timeout=120.0,
+                ),
+                detected_provider,
+                resolved_model,
             )
 
         if detected_provider == LLMProvider.GROQ.value:
@@ -303,6 +334,8 @@ class LLMFactory:
                 # entirely when unset so DeepSeek applies its own default rather
                 # than the factory inventing one.
                 kwargs_ds["max_tokens"] = max_tokens
-            return ChatOpenAI(**kwargs_ds)
+            return LLMFactory._maybe_wrap(
+                ChatOpenAI(**kwargs_ds), detected_provider, resolved_model
+            )
 
         raise ValueError(f"Unsupported LLM provider: {detected_provider}")

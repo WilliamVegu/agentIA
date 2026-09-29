@@ -29,6 +29,13 @@ from app.orchestrator.stages.runner import ModelStageImplementation
 @dataclass
 class FakeResponse:
     content: str
+    # --- Feature 013 (T001): ADDITIVE usage metadata, defaulted to None so every
+    # --- pre-existing construction and assertion in this file and across the
+    # --- suite is unchanged. When None, the response reports no usage at all,
+    # --- which is the unknown-usage path the cost recorder must handle by
+    # --- recording an explicit marker rather than a zero.
+    usage_metadata: Optional[Dict[str, Any]] = None
+    response_metadata: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -38,21 +45,33 @@ class ScriptedChatModel:
     Implements just the surface the stage execution boundary uses: ``invoke``
     returning an object with a ``.content`` attribute. Every request is recorded
     so tests can assert what the boundary actually sent.
+
+    Deliberately implements **only** the synchronous entry point and no
+    ``ainvoke`` — the recording wrapper (feature 013) must cope with a client
+    that implements one invocation form, not both.
     """
 
     responses: List[str] = field(default_factory=list)
     calls: List[str] = field(default_factory=list)
     default_response: str = ""
     raise_on_invoke: Optional[Exception] = None
+    # --- Feature 013 (T001): ADDITIVE. When set, every response carries this
+    # --- usage metadata, so the cost recorder has real token counts to price.
+    # --- Defaulted to None, which leaves existing behaviour byte-identical.
+    usage_metadata: Optional[Dict[str, Any]] = None
+    response_metadata: Optional[Dict[str, Any]] = None
 
     def invoke(self, request: Any) -> FakeResponse:
         if self.raise_on_invoke is not None:
             raise self.raise_on_invoke
         text = str(request)
         self.calls.append(text)
-        if self.responses:
-            return FakeResponse(content=self.responses.pop(0))
-        return FakeResponse(content=self.default_response)
+        content = self.responses.pop(0) if self.responses else self.default_response
+        return FakeResponse(
+            content=content,
+            usage_metadata=self.usage_metadata,
+            response_metadata=self.response_metadata,
+        )
 
     # Convenience for assertions
     @property
@@ -62,6 +81,53 @@ class ScriptedChatModel:
 
 def make_scripted_model(*responses: str, default_response: str = "") -> ScriptedChatModel:
     return ScriptedChatModel(responses=list(responses), default_response=default_response)
+
+
+# ---------------------------------------------------------------------------
+# Feature 013 (T001): usage-reporting fake
+# ---------------------------------------------------------------------------
+def build_usage_metadata(
+    input_tokens: int,
+    output_tokens: int,
+    cache_hit_input_tokens: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Build the usage metadata a real provider response carries.
+
+    ``input_tokens`` is the **total** prompt token count, matching what providers
+    report. DeepSeek additionally reports how many of those were served from
+    cache; the cost recorder reads that to price the call, and defaults the whole
+    prompt to cache-miss when it is absent.
+    """
+    metadata: Dict[str, Any] = {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": input_tokens + output_tokens,
+    }
+    if cache_hit_input_tokens is not None:
+        # Mirrors the provider's ``response_metadata.token_usage`` shape, which is
+        # where the prompt-cache-hit count lives.
+        metadata["input_token_details"] = {"cache_read": cache_hit_input_tokens}
+    return metadata
+
+
+def make_usage_reporting_model(
+    *responses: str,
+    input_tokens: int = 1000,
+    output_tokens: int = 250,
+    cache_hit_input_tokens: Optional[int] = None,
+    default_response: str = "",
+) -> ScriptedChatModel:
+    """A scripted model whose responses report real token usage.
+
+    Additive: ``make_scripted_model`` is unchanged and still reports **no** usage,
+    which is the unknown-usage path. Use this one when a test needs a priced call.
+    """
+    return ScriptedChatModel(
+        responses=list(responses),
+        default_response=default_response,
+        usage_metadata=build_usage_metadata(input_tokens, output_tokens, cache_hit_input_tokens),
+        response_metadata={"token_usage": {"prompt_cache_hit_tokens": cache_hit_input_tokens or 0}},
+    )
 
 
 # ---------------------------------------------------------------------------

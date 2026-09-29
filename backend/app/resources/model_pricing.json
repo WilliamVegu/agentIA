@@ -1,0 +1,45 @@
+{
+  "_comment": "Pricing table for feature 013 cost tracing. Rates are USD per 1,000,000 tokens. Fetched from the source below; never recalled or estimated. The provider prices by time of day (peak vs off-peak) AND by whether the prompt was served from cache, so a flat two-number-per-model table cannot reproduce its billing.",
+  "source": "https://api-docs.deepseek.com/quick_start/pricing",
+  "retrieved_at": "2026-09-28",
+  "source_notes": [
+    "Off-peak rates are exactly half of peak rates, per the source. That relationship is asserted at load time.",
+    "Peak hours are 01:00-04:00 and 06:00-10:00 UTC, Monday through Friday, excluding Chinese public holidays. All other hours are off-peak.",
+    "The source confirms deepseek-flash and deepseek-v4-pro are the current model names, and that the legacy deepseek-v4-flash aliases are billed at the Flash price (the factory already normalises those)."
+  ],
+  "peak_window": {
+    "timezone": "UTC",
+    "ranges": ["01:00-04:00", "06:00-10:00"],
+    "weekdays": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    "holidays_modelled": false,
+    "caveat": "The platform does not model the provider's public-holiday calendar, so a call the provider prices off-peak on a Chinese public holiday is priced at peak here. This overstates cost, never understates it, and is disclosed in the report's basis statement."
+  },
+  "models": {
+    "deepseek": {
+      "deepseek-flash": {
+        "peak": {
+          "input_cache_hit": 0.006,
+          "input_cache_miss": 0.3,
+          "output": 1.2
+        },
+        "off_peak": {
+          "input_cache_hit": 0.003,
+          "input_cache_miss": 0.15,
+          "output": 0.6
+        }
+      },
+      "deepseek-v4-pro": {
+        "peak": {
+          "input_cache_hit": 0.044,
+          "input_cache_miss": 1.32,
+          "output": 3.96
+        },
+        "off_peak": {
+          "input_cache_hit": 0.022,
+          "input_cache_miss": 0.66,
+          "output": 1.98
+        }
+      }
+    }
+  }
+}
