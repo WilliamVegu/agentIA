@@ -16,6 +16,7 @@ try:
         SpecificationDraft,
     )
     from app.services.injection_guard import assert_no_injection
+    from app.services.specification_guard import assert_looks_like_specification
     from app.services.structured_output import invoke_structured
     from app.services.llm_factory import LLMFactory
 except ImportError:
@@ -31,6 +32,7 @@ except ImportError:
         SpecificationDraft,
     )
     from backend.app.services.injection_guard import assert_no_injection
+    from backend.app.services.specification_guard import assert_looks_like_specification
     from backend.app.services.structured_output import invoke_structured
     from backend.app.services.llm_factory import LLMFactory
 
@@ -238,6 +240,13 @@ def transform_requirements(
     # `/requirements/transform` alone would leave the product's main entry point
     # unguarded -- and the refusal must travel with the call, not with one caller.
     assert_no_injection(getattr(request, "rawText", "") or "", field="rawText")
+
+    # Then: is this a specification at all? The injection guard answers a different
+    # question and correctly finds nothing wrong with a question like "que dia es hoy?".
+    # That input previously produced three entities and two BDD stories about resolving the
+    # current date, because nothing asked whether the text described a service. Checked
+    # before the model call so a non-specification costs nothing and writes nothing.
+    assert_looks_like_specification(getattr(request, "rawText", "") or "", field="rawText")
 
     chosen_provider = provider or getattr(request, "provider", None)
     chosen_model = getattr(request, "modelName", None)

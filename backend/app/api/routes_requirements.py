@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, status
 from fastapi.responses import JSONResponse
+from app.services.specification_guard import UnlikelySpecificationError
 from app.services.injection_guard import PromptInjectionError, has_blocking_finding, scan_text
 
 try:
@@ -123,6 +124,13 @@ def transform_requirements_endpoint(
         # The service raises it, so the pipeline path is covered too; here it becomes
         # the documented 400 envelope instead of a 500.
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=injected.to_dict())
+    except UnlikelySpecificationError as unlikely:
+        # Distinct from injection, and reported distinctly: the caller did not attack
+        # anything, they asked a question. The message has to say what was missing so the
+        # request can be rewritten, rather than reading as a refusal of their work.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=unlikely.to_dict()
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
