@@ -96,7 +96,8 @@
     \end{tabular}
   \end{center}
   \begin{itemize}
-    \item $\sim$\$0.005 por llamada al modelo; todo en un modelo de bajo coste.
+    \item $\sim$\$0.005 por llamada; $\sim$\textbf{78K tokens por servicio} (15.6K por llamada), salida $\approx$1.9$\times$ la entrada.
+    \item Uso acumulado: \textbf{19.0M tokens} (6.5M entrada + 12.5M salida) en \textbf{1{,}219 llamadas}.
     \item El coste escala con el tamaño del servicio, de forma predecible.
     \item Fuente: sistema de registro propio y su espejo MLflow (ya operativo).
   \end{itemize}

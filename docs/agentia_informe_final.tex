@@ -251,10 +251,28 @@ Cinco congelados & 120 & 0.63 & --- \\
 Diez difíciles & 50 & 0.64 & --- \\
 Sondas / sueltas & $\approx$250 & $\approx$0.16 & --- \\
 \midrule
-\textbf{Total} & \textbf{1172} & \textbf{8.01} & \textbf{12.28M} \\
+\textbf{Total} & \textbf{1219} & \textbf{8.15} & \textbf{12.48M} \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\subsection{Uso de tokens (actual, del espejo MLflow y del registro)}
+
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Fuente} & \textbf{Entrada} & \textbf{Salida} & \textbf{Cache} & \textbf{Combinado} \\
+\midrule
+Registro (autoritativo) & 6.54M & 12.48M & 2.20M & \textbf{19.02M} \\
+Espejo MLflow & 5.49M & 9.92M & 1.76M & \textbf{15.41M} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Por llamada: $\approx$5{,}360 entrada + $\approx$10{,}240 salida $\approx$ 15.6K tokens; por
+servicio (5 llamadas) $\approx$78K tokens. La salida es $\approx$1.9$\times$ la entrada
+(esperado: el generador \emph{emite} código). $\approx$2.2M tokens de entrada se
+sirvieron desde caché ($\approx$34\%).
 
 Por servicio: \textbf{\$0.052--\$0.077} (diez difíciles), $\approx$\$0.005 por llamada;
 por etapa, el test es el más caro (\$0.0061) y dominio el más barato (\$0.0012). Todo
@@ -262,11 +280,32 @@ en \texttt{deepseek-flash}.
 
 \begin{notebox}[colframe=warn]
 \textbf{El espejo MLflow se ha desviado y puede verse vacío.} El espejo totaliza
-\textbf{\$6.39} frente a \textbf{\$8.01} (subestimación del 20\%); además, \texttt{mlflow
+\textbf{\$6.39} frente a \textbf{\$8.15} (subestimación del $\approx$22\%) y
+\textbf{15.41M} tokens frente a \textbf{19.02M}; además, \texttt{mlflow
 ui} abre por defecto el almacén vacío \texttt{mlruns/} en vez de \texttt{mlflow.db}, y
 los agregados de sesión (168) cayeron en el experimento legado \texttt{Default}, con 0
 en \texttt{agentia}. Hasta reparar el sink, el almacén local es la cifra a citar.
 \end{notebox}
+
+\subsection{Datos que faltan y qué hacer}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{El espejo subestima (20--22\%) y está partido en dos experimentos.}
+  \emph{Qué hacer}: arreglar el targeting de experimento en \texttt{mlflow\_sink.py}
+  para que los registros de sesión caigan en \texttt{agentia}, y migrar las 877
+  ejecuciones legadas de \texttt{Default} (o aceptar que el espejo es solo
+  indicativo).
+  \item \textbf{Falta desglose por modelo.} Todo es \texttt{deepseek-flash}; para
+  comparar proveedores se necesita una corrida con otro modelo. \emph{Qué hacer}:
+  una tanda corta (p.\ ej.\ Gemini o Groq) sobre el mismo corpus para tener coste y
+  tokens por modelo.
+  \item \textbf{El coste de caché es aproximado.} Los tokens cache-hits se registran,
+  pero su base de precio no está verificada contra factura. \emph{Qué hacer}: auditar
+  \texttt{pricing\_basis} contra la factura del proveedor una vez.
+  \item \textbf{Agregados de sesión ausentes en \texttt{agentia}.} \emph{Qué hacer}:
+  confirmar que \texttt{mirror\_session\_cost\_record} se invoca al terminar cada
+  sesión y escribe \texttt{total\_cost\_usd} en el experimento correcto.
+\end{itemize}
 
 \section{Conclusión}
 

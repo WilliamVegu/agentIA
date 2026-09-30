@@ -434,9 +434,12 @@ Sondas / sesiones sueltas & $\approx$250 & $\approx$0.16 & --- \\
 \end{tabular}
 \end{center}
 
-Las 1172 llamadas fueron \texttt{deepseek-flash}. Total de tokens de entrada 6.45M,
-de salida 12.28M. El coste dominante es el experimento de polaridad de instrucciones,
-que es una medición terminada (un nulo), no un drenaje continuo.
+Las 1219 llamadas fueron \texttt{deepseek-flash}. Total de tokens de entrada 6.54M,
+de salida 12.48M (combinado 19.02M), de los cuales 2.20M de entrada se sirvieron desde
+caché ($\approx$34\%). El espejo registra 5.49M de entrada / 9.92M de salida (15.41M
+combinado) --- la misma subestimación que su coste. El coste dominante es el
+experimento de polaridad de instrucciones, que es una medición terminada (un nulo), no
+un drenaje continuo.
 
 \subsection{Por tarea y por etapa (mediciones reales)}
 

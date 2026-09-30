@@ -411,9 +411,11 @@ Probes / single sessions & $\approx$ 250 & $\approx$ 0.16 & --- \\
 \end{tabular}
 \end{center}
 
-All 1172 calls were \texttt{deepseek-flash}. Total input tokens 6.45M, output tokens
-12.28M. The single dominant cost is the instruction-polarity experiment, which is a
-finished measurement (a null), not an ongoing drain.
+All 1219 calls were \texttt{deepseek-flash}. Total input tokens 6.54M, output tokens
+12.48M (combined 19.02M), of which 2.20M input tokens were served from cache
+($\approx$34\%). The mirror records 5.49M in / 9.92M out (15.41M combined) --- the
+same undercount as its cost. The single dominant cost is the instruction-polarity
+experiment, which is a finished measurement (a null), not an ongoing drain.
 
 \subsection{Per-task and per-stage (real measurements)}
 
