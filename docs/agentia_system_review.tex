@@ -198,6 +198,42 @@ apply, a strict-improvement gate, per-skill contribution by leave-one-out, and
 eviction with an evidence floor --- but it is deliberately not run, for the reasons
 stated in Section~\ref{sec:verification}.
 
+\section{User interface availability}
+
+The product surface is a React/Vite single-page application (the earlier Streamlit
+app is retained as \texttt{frontend-legacy/}). It is organised as a ten-tab workspace
+with Spanish labels, tabulated below; a lifecycle stepper mirrors the backend phase
+machine, and architecture and entity-relationship diagrams render through a Mermaid
+viewer.
+
+\begin{center}
+\begin{longtable}{@{}p{0.24\textwidth}p{0.70\textwidth}@{}}
+\toprule
+\textbf{Tab} & \textbf{What it exposes} \\
+\midrule
+0. Resumen & executive dashboard; 1-click quick start; Auto-Pilot vs step-by-step mode \\
+1. Requisitos & BDD user stories (Given/When/Then) and spec.md export \\
+2. Arquitectura & 4-layer architecture, component catalogue, REST contracts (Mermaid) \\
+3. Modelos \& SQL & JPA entities, DTO records, schema.sql, ER diagram \\
+4. Blueprints & drag-and-drop spec.md / JSON blueprint ingestion and validation \\
+5. Monitor Live & live logs over Server-Sent Events, phase progress, pause/resume/cancel \\
+6. Código \& Fix & code explorer, tests, repair diffs, manual intervention for blocked sessions \\
+7. Calidad SAST & static secrets/CVE/architecture audit, quality gate, 1-click remediation \\
+8. DevOps \& Demo & Dockerfile, compose, CI/CD, k8s manifests, local deploy, smoke test, REST console \\
+9. Entrega Git & ZIP download and atomic Git publish \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Beyond the tabs: an LLM settings drawer (provider: Gemini, Groq, OpenAI, DeepSeek or
+offline mock; API key; model; connection verification), authentication on the login
+screen, a dark/light theme toggle, and a session list with status. The UI mirrors the
+backend's honest three-state verification (verified / verified with findings / not
+evaluable), following a frontend audit that removed several places where the interface
+reported outcomes that had not occurred (a fabricated smoke-test ``UP'' verdict, a
+REST console that invented 200/201/204 responses, and a CRUD form that invented a
+created record).
+
 \section{Design}
 
 \begin{figure}[htbp]
