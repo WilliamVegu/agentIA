@@ -68,6 +68,15 @@ class Settings(BaseSettings):
         default=str(Path(__file__).resolve().parent.parent / "workspaces"),
         description="Directory where generated code is synthesized and built"
     )
+    SPECIFICATION_DIR: str = Field(
+        default=str(Path(__file__).resolve().parent.parent / "specifications"),
+        description=(
+            "Where ingested blueprints are persisted. They were held only in a "
+            "process-local dict, so every restart -- including each uvicorn --reload "
+            "during development -- discarded them, and the ingest-then-generate flow "
+            "failed at the second step with 'Specification not found'."
+        ),
+    )
     
     # Maximum auto-repair iterations (Adaptive Constitution Principle V)
     MAX_REPAIR_ATTEMPTS: int = 5
