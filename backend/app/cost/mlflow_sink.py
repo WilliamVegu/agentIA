@@ -128,3 +128,61 @@ def mirror_call_record(record: Dict[str, Any]) -> bool:
 
 def mirror_session_cost_record(record: Dict[str, Any]) -> bool:
     return _record("session", record)
+
+
+# ---------------------------------------------------------------------------
+# LLM tracing
+# ---------------------------------------------------------------------------
+_tracing_enabled = False
+
+
+def enable_tracing() -> bool:
+    """Turn on MLflow's LangChain autologging. Returns whether it is on.
+
+    **Why this did not already exist.** The tracking UI's "Traces" page was empty and had
+    always been: this module mirrors *cost records* as runs, and a run is not a trace. A
+    trace is a span tree of individual calls -- prompt, response, latency, tokens -- and
+    producing one requires instrumenting the calls, which nothing did. An operator reading
+    an empty Traces page reasonably concludes the mirror is broken; it was working, and
+    reporting a different thing.
+
+    `mlflow.langchain.autolog()` is the whole implementation: it wraps LangChain's callbacks
+    and emits a span per model call. Every generation path in this repo goes through a
+    LangChain client (`LLMFactory.get_chat_model`), including the stages, the requirement
+    and architecture transforms, and the reflector, so one call covers all of them.
+
+    Best-effort by construction, like the rest of this module: an unreachable destination or
+    an absent library returns False and the application carries on. Tracing is telemetry,
+    never a precondition for generating code.
+
+    Idempotent: autologging is process-wide, so a second call is a no-op.
+    """
+    global _tracing_enabled
+    if _tracing_enabled:
+        return True
+
+    try:
+        import mlflow  # imported lazily: absent by default, and that is fine
+    except Exception as exc:  # noqa: BLE001
+        _mirror_failures.append(f"tracing: telemetry library unavailable ({type(exc).__name__})")
+        return False
+
+    try:
+        _bound_the_transport()
+        mlflow.set_tracking_uri(_tracking_uri())
+        # Traces are stored per experiment, so tracing must be pointed at the same place
+        # the runs go or the two views disagree about where this project's data lives.
+        mlflow.set_experiment(settings.MLFLOW_EXPERIMENT)
+        from mlflow.langchain import autolog
+
+        autolog()
+        _tracing_enabled = True
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _mirror_failures.append(f"tracing: could not enable autolog ({type(exc).__name__}: {exc})")
+        return False
+
+
+def tracing_enabled() -> bool:
+    """Whether autologging is on. Read by tests and by the startup log line."""
+    return _tracing_enabled

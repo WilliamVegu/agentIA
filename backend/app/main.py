@@ -10,6 +10,17 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Enable MLflow LLM tracing once, at import. Best-effort: an unreachable tracking server
+# must not stop the API from starting, and tracing is telemetry rather than a
+# precondition for generating code.
+try:
+    from app.cost.mlflow_sink import enable_tracing
+
+    if enable_tracing():
+        logger.info("MLflow LLM tracing enabled; model calls will appear under Traces")
+except Exception as _tracing_exc:  # noqa: BLE001
+    logger.warning("MLflow LLM tracing unavailable: %s", _tracing_exc)
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -71,11 +82,28 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 @app.get("/healthz", tags=["Health"])
 async def healthcheck():
+    """Health, plus whether the telemetry mirror and LLM tracing are actually on.
+
+    The tracing state is reported here because its absence is otherwise invisible: the
+    tracking UI showed an empty Traces page and nothing anywhere said why. Runs and traces
+    are two different features -- this module mirrors cost records as RUNS, and a trace is a
+    span tree that requires instrumenting the calls -- so "no traces" looked like a broken
+    mirror when it was a missing feature. Now the answer is one request.
+    """
+    telemetry: dict = {"tracing": False, "failures": []}
+    try:
+        from app.cost.mlflow_sink import mirror_failures, tracing_enabled
+
+        telemetry = {"tracing": tracing_enabled(), "failures": mirror_failures()[-3:]}
+    except Exception as exc:  # noqa: BLE001 - health must answer even if telemetry cannot
+        telemetry = {"tracing": False, "failures": [f"{type(exc).__name__}: {exc}"]}
+
     return {
         "status": "UP",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "app": settings.APP_NAME,
-        "version": settings.APP_VERSION
+        "version": settings.APP_VERSION,
+        "mlflow": telemetry
     }
 
 # Include routers dynamically when available
