@@ -161,13 +161,27 @@ def test_the_live_mark_downstream_outdated_returns_the_accumulated_set(session):
     result = lifecycle.mark_downstream_outdated(session_id, LifecyclePhase.STORIES)
 
     assert isinstance(result, list), "the removed definition returned None"
+
+    # Only phases that have actually been BUILT can be stale. This fixture lays down the
+    # artifacts for phases 1-4, so ARCHITECTURE and DATA_MODEL are flagged and the three
+    # beyond them are not: they have no artifacts, so there is nothing to be stale.
+    #
+    # This assertion previously expected all five. That was the reported bug -- clicking
+    # "Aprobar y Diseñar Arquitectura" flagged every downstream phase unconditionally, so
+    # the banner announced "upstream modifications detected" after nothing but a routine
+    # approval, and its Re-sincronizar button re-ran generation for a correct state.
     assert set(result) == {
         LifecyclePhase.ARCHITECTURE.value,
         LifecyclePhase.DATA_MODEL.value,
-        LifecyclePhase.CODE_TESTS.value,
-        LifecyclePhase.SECURITY_AUDIT.value,
-        LifecyclePhase.DEVOPS_DEPLOY.value,
     }
+    assert LifecyclePhase.CODE_TESTS.value not in result, (
+        "an unbuilt phase was marked outdated"
+    )
+
+    # …and building a phase makes it eligible again.
+    _complete_phase_5(ws)
+    grown = lifecycle.mark_downstream_outdated(session_id, LifecyclePhase.STORIES)
+    assert LifecyclePhase.CODE_TESTS.value in grown
 
 
 # ---------------------------------------------------------------------------

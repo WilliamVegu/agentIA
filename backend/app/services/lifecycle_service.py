@@ -393,6 +393,34 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
     )
 
 
+#: The artifacts whose presence means a phase has actually been built. Deliberately
+#: the same conditions `get_session_progress` uses to derive COMPLETED from the
+#: workspace, so the two cannot disagree about whether a phase exists.
+_PHASE_COMPLETION_ARTIFACTS = {
+    LifecyclePhase.REQUIREMENTS: ("spec.md",),
+    LifecyclePhase.STORIES: ("user_stories.json",),
+    LifecyclePhase.ARCHITECTURE: ("architecture.json",),
+    LifecyclePhase.DATA_MODEL: ("schema.sql",),
+    LifecyclePhase.CODE_TESTS: ("pom.xml", "src"),
+    LifecyclePhase.SECURITY_AUDIT: ("security_audit_report.json",),
+    LifecyclePhase.DEVOPS_DEPLOY: ("docker-compose.yml",),
+}
+
+
+def completed_phases(session_id: str) -> set:
+    """The phases whose artifacts exist on disk, i.e. that have actually been built.
+
+    Derived from the workspace rather than from a stored flag, for the same reason the
+    status view does it that way: a flag can claim a phase ran when nothing was written.
+    """
+    ws_path = _get_workspace_path(session_id)
+    return {
+        phase.value
+        for phase, artifacts in _PHASE_COMPLETION_ARTIFACTS.items()
+        if all((ws_path / artifact).exists() for artifact in artifacts)
+    }
+
+
 def mark_downstream_outdated(session_id: str, modified_phase: Union[str, LifecyclePhase]) -> List[str]:
     """Marks all downstream phases following modified_phase as OUTDATED in session progress."""
     phase_val = modified_phase.value if isinstance(modified_phase, LifecyclePhase) else str(modified_phase)
@@ -411,6 +439,25 @@ def mark_downstream_outdated(session_id: str, modified_phase: Union[str, Lifecyc
     if not downstream:
         return []
 
+    # Only a phase that has been BUILT can become stale. A phase with no artifacts is
+    # not outdated, it is simply not built yet -- and on a first pass through the
+    # lifecycle every downstream phase is empty.
+    #
+    # This is the bug reported from the UI: clicking "Aprobar y Diseñar Arquitectura"
+    # saves the requirements and then marked all five downstream phases outdated, so the
+    # banner announced "upstream modifications detected" when nothing had been modified.
+    # The phases could not even display as OUTDATED -- the status view only shows that
+    # for a COMPLETED phase -- so the flag existed solely to raise the banner. Its
+    # "Re-sincronizar" button then re-runs generation to DEVOPS_DEPLOY for a state that
+    # was already correct, spending real model calls to fix nothing.
+    built = completed_phases(session_id)
+    stale = [phase for phase in downstream if phase in built]
+
+    # No early return when `stale` is empty: the stored flags still have to be pruned,
+    # or a flag whose artifact was removed keeps the banner up with nothing behind it.
+    # A first version of this fix returned early and left exactly that state behind,
+    # which the test `test_flags_for_artifacts_that_no_longer_exist_are_dropped` caught.
+
     db = SessionLocal()
     try:
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
@@ -424,12 +471,14 @@ def mark_downstream_outdated(session_id: str, modified_phase: Union[str, Lifecyc
             except Exception:
                 prog = {}
 
-        existing_outdated = set(prog.get("outdated_phases", []))
-        existing_outdated.update(downstream)
-        prog["outdated_phases"] = list(existing_outdated)
+        # Drop flags for phases that are no longer built (a workspace reset, or an
+        # artifact removed). Keeping them would keep the banner up with nothing behind it.
+        existing_outdated = {p for p in prog.get("outdated_phases", []) if p in built}
+        existing_outdated.update(stale)
+        prog["outdated_phases"] = sorted(existing_outdated)
         sess.phase_progress_json = json.dumps(prog)
         db.commit()
-        return list(existing_outdated)
+        return sorted(existing_outdated)
     finally:
         db.close()
 
