@@ -24,8 +24,8 @@
       "mismatched": "7b8c72cae041453b"
     }
   },
-  "status": "complete",
-  "spend_usd": 4.4901,
+  "status": "stopped by operator after 4 of 5 runs (spend frozen at $6.26; polarity verdict already rendered)",
+  "spend_usd": 0.838,
   "records": [
     {
       "session_id": "p4-full2-control-tier1-01-r1",
@@ -1093,181 +1093,6 @@
       "duration_seconds": 252.5
     },
     {
-      "arm": "prohibition",
-      "task": "tier1-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 5681de4b-bf57-4d81-96ff-31a3b153c93a)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier1-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 2bb73ecd-667b-4d88-bbe4-6b16997654a3)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier1-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: b66fa3ae-55a1-4889-a69b-39921ac250cd)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier1-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 12f98790-e11d-4664-b7d9-9191c4f1edab)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier2-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 7b9f70fe-8c24-4fc7-993e-43c51e5d27ce)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier2-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 49205af8-e72c-46de-b030-50ea1f939ab6)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier2-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: f5f3c92e-92c5-494c-8781-dcb9da69cb2a)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier2-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 629d3287-86c4-4305-8ffd-415d80e14e56)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier2-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 9de4c00d-742f-48a0-88a0-4b8f79a0dfdc)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier2-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: d6ead67a-da2c-4fc3-9d27-09acbd5b75ab)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier2-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 22f04a0c-43bf-4040-a771-fc8443b40a63)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier2-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: d38bac99-6d10-4125-a2ae-de5dcfe25c76)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier3-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: b9410e53-2ff7-4e16-9dac-10a038a4a76d)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier3-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: b10a8046-8e13-4e92-ac63-b5dd81ebdf74)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier3-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: e2a4c74b-1e1c-4020-9f11-bf1e8d98b88a)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier3-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 251e281a-8b22-47f6-b066-82668041f595)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier3-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 2d6c6e29-23c8-4247-ba41-7b5f0d9a4efe)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier3-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 69a505c8-19bb-4b2b-9ef9-823aa25d13cd)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier3-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 9129b9b1-5c0d-4daf-b667-54e3a95a7be6)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier4-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 0ac28e66-33c4-43de-bba0-3f07bf18233b)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier3-02",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 009865e7-6f9b-4d65-84ff-c801abad5060)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier4-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 3e0d205c-c885-4635-8bf5-f4574e62ecad)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier4-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 7c458d8d-024d-4b3c-b86b-44681b35f999)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier1-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: ad929255-5216-4b26-a35c-a41c5e242439)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier4-01",
-      "run": 4,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 331e44f3-056c-4b4c-a710-250cd7fcfc9a)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
       "session_id": "p4-full2-placebo-tier4-01-r3",
       "arm": "placebo",
       "task": "tier4-01",
@@ -1283,165 +1108,304 @@
       "duration_seconds": 291.6
     },
     {
-      "arm": "mismatched",
-      "task": "tier1-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 9a5528b0-4ae9-4444-ba14-1d4f1348e9f5)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier2-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: a4f12207-89b6-4beb-b745-050ced5567e8)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier2-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 5c74ff02-c56b-4429-ba40-de3112723a86)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier2-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 2866a2e5-7af8-42e0-9414-acaccf562f9b)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier2-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: f99b3ce2-9ba4-4b00-ba6e-99581c617b14)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier2-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: c3a4e569-d5ef-44e0-82ca-c2301711720d)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier2-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 0e3b1c87-20fa-412e-8f99-d244fb9341e3)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier2-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 92c9dc88-974a-4867-8d49-4b1151243102)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier2-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 37883335-8c9a-494c-894b-6d0751708f3c)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier3-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 6e46b661-86fc-4f8e-8f0e-ec77f75d356b)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier3-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 394ac0c4-e6d3-4873-9bf7-6e49abd8083f)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier1-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 9f769e5a-4ea7-4f4d-a054-af111ce26ac4)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier3-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: b13da2a9-1caa-4050-9df6-bb78a51e96ac)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier3-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: d329bc48-10fe-4fc4-b468-d3658d8c5cad)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier3-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 4efbfe80-ec4a-4011-8d4e-23d867525064)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier3-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 1fedf8dd-5c4b-43b0-8fab-64642ed04a8f)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier3-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 8f0d1b80-e23c-4287-a4c9-7b7de4d4dd2c)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "mismatched",
-      "task": "tier3-02",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 94131dfb-f54a-40f9-b164-2f512ea7aff4)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "control",
-      "task": "tier4-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 72054e75-7390-46da-b6f5-d6762a308dec)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "prohibition",
-      "task": "tier4-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: c34b63bc-d1ce-476f-a571-ae1353171e3a)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
-      "arm": "placebo",
-      "task": "tier4-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 62dc9de0-0d25-4913-bedb-057b4f2b6cc3)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
-    },
-    {
+      "session_id": "p4-full2-prohibition-tier1-01-r4",
       "arm": "prohibition",
       "task": "tier1-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 10141654-661f-4dd3-a7bd-d8ff087dfb4d)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 7,
+      "tests_passed": 7,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 15,
+      "duration_seconds": 107.4
     },
     {
+      "session_id": "p4-full2-mismatched-tier1-01-r4",
       "arm": "mismatched",
-      "task": "tier4-01",
-      "run": 5,
-      "error": "APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance (request_id: 9ddb6765-4fcd-40a2-a418-08aa1615095b)', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}",
-      "build_success": null
+      "task": "tier1-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 7,
+      "tests_passed": 7,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 15,
+      "duration_seconds": 126.0
+    },
+    {
+      "session_id": "p4-full2-placebo-tier1-01-r4",
+      "arm": "placebo",
+      "task": "tier1-01",
+      "run": 4,
+      "build_success": false,
+      "terminal_status": "BLOCKED",
+      "verification_fallback_used": true,
+      "tests_total": 0,
+      "tests_passed": 0,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 15,
+      "duration_seconds": 168.1
+    },
+    {
+      "session_id": "p4-full2-control-tier1-01-r4",
+      "arm": "control",
+      "task": "tier1-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 8,
+      "tests_passed": 8,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 15,
+      "duration_seconds": 174.4
+    },
+    {
+      "session_id": "p4-full2-control-tier2-01-r4",
+      "arm": "control",
+      "task": "tier2-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 14,
+      "tests_passed": 14,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 182.8
+    },
+    {
+      "session_id": "p4-full2-prohibition-tier2-01-r4",
+      "arm": "prohibition",
+      "task": "tier2-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 16,
+      "tests_passed": 16,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 216.0
+    },
+    {
+      "session_id": "p4-full2-placebo-tier2-01-r4",
+      "arm": "placebo",
+      "task": "tier2-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 15,
+      "tests_passed": 15,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 187.9
+    },
+    {
+      "session_id": "p4-full2-mismatched-tier2-01-r4",
+      "arm": "mismatched",
+      "task": "tier2-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 15,
+      "tests_passed": 15,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 213.2
+    },
+    {
+      "session_id": "p4-full2-prohibition-tier2-02-r4",
+      "arm": "prohibition",
+      "task": "tier2-02",
+      "run": 4,
+      "build_success": false,
+      "terminal_status": "BLOCKED",
+      "verification_fallback_used": true,
+      "tests_total": 0,
+      "tests_passed": 0,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 157.0
+    },
+    {
+      "session_id": "p4-full2-control-tier2-02-r4",
+      "arm": "control",
+      "task": "tier2-02",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 17,
+      "tests_passed": 17,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 215.6
+    },
+    {
+      "session_id": "p4-full2-mismatched-tier2-02-r4",
+      "arm": "mismatched",
+      "task": "tier2-02",
+      "run": 4,
+      "build_success": false,
+      "terminal_status": "BLOCKED",
+      "verification_fallback_used": true,
+      "tests_total": 0,
+      "tests_passed": 0,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 192.9
+    },
+    {
+      "session_id": "p4-full2-placebo-tier2-02-r4",
+      "arm": "placebo",
+      "task": "tier2-02",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 18,
+      "tests_passed": 18,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 23,
+      "duration_seconds": 231.0
+    },
+    {
+      "session_id": "p4-full2-control-tier3-01-r4",
+      "arm": "control",
+      "task": "tier3-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 26,
+      "tests_passed": 26,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 31,
+      "duration_seconds": 248.3
+    },
+    {
+      "session_id": "p4-full2-prohibition-tier3-01-r4",
+      "arm": "prohibition",
+      "task": "tier3-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 26,
+      "tests_passed": 26,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 31,
+      "duration_seconds": 278.3
+    },
+    {
+      "session_id": "p4-full2-placebo-tier3-01-r4",
+      "arm": "placebo",
+      "task": "tier3-01",
+      "run": 4,
+      "build_success": false,
+      "terminal_status": "BLOCKED",
+      "verification_fallback_used": true,
+      "tests_total": 0,
+      "tests_passed": 0,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 31,
+      "duration_seconds": 237.4
+    },
+    {
+      "session_id": "p4-full2-mismatched-tier3-01-r4",
+      "arm": "mismatched",
+      "task": "tier3-01",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 24,
+      "tests_passed": 24,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 31,
+      "duration_seconds": 238.2
+    },
+    {
+      "session_id": "p4-full2-prohibition-tier3-02-r4",
+      "arm": "prohibition",
+      "task": "tier3-02",
+      "run": 4,
+      "build_success": false,
+      "terminal_status": "BLOCKED",
+      "verification_fallback_used": true,
+      "tests_total": 0,
+      "tests_passed": 0,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 39,
+      "duration_seconds": 291.9
+    },
+    {
+      "session_id": "p4-full2-placebo-tier3-02-r4",
+      "arm": "placebo",
+      "task": "tier3-02",
+      "run": 4,
+      "build_success": true,
+      "terminal_status": "COMPLETED",
+      "verification_fallback_used": false,
+      "tests_total": 35,
+      "tests_passed": 35,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 39,
+      "duration_seconds": 268.0
+    },
+    {
+      "session_id": "p4-full2-control-tier3-02-r4",
+      "arm": "control",
+      "task": "tier3-02",
+      "run": 4,
+      "build_success": false,
+      "terminal_status": "BLOCKED",
+      "verification_fallback_used": true,
+      "tests_total": 0,
+      "tests_passed": 0,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 39,
+      "duration_seconds": 353.2
+    },
+    {
+      "session_id": "p4-full2-mismatched-tier3-02-r4",
+      "arm": "mismatched",
+      "task": "tier3-02",
+      "run": 4,
+      "build_success": false,
+      "terminal_status": "BLOCKED",
+      "verification_fallback_used": true,
+      "tests_total": 0,
+      "tests_passed": 0,
+      "new_penalty": 0,
+      "raw_penalty": 0,
+      "artifact_count": 39,
+      "duration_seconds": 300.2
     }
   ]
 }
