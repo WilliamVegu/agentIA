@@ -45,7 +45,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
 #: The files this module is responsible for, in the order a reader wants them.
-LIFECYCLE_ARTIFACTS = ("spec.md", "user_stories.json", "architecture.json", "schema.sql")
+LIFECYCLE_ARTIFACTS = (
+    "spec.md",
+    "user_stories.json",
+    "architecture.json",
+    "schema.sql",
+    # The model as a document, so the Models & SQL tab survives a reload. Without it that
+    # tab read from React state alone and emptied on resume while schema.sql sat beside it.
+    "domain_model.json",
+)
 
 
 @dataclass
@@ -286,6 +294,43 @@ def ensure_lifecycle_artifacts(workspace: str | Path, blueprint: Mapping[str, An
     )
     schema = _schema_sql(blueprint)
     _write_if_absent(ws / "schema.sql", schema, written=written, skipped=skipped)
+
+    # The model as a document, so Models & SQL survives a reload on this path too. Shaped
+    # like `DataModelSynthesisResponse` -- the same keys the view already reads -- and
+    # marked derived, because it is not a model-designed schema.
+    entities = _entities_from_blueprint(blueprint)
+    _write_if_absent(
+        ws / "domain_model.json",
+        json.dumps({
+            "serviceName": blueprint.get("serviceName") or blueprint.get("service_name") or "service",
+            "packageName": blueprint.get("packageName") or "com.corp.service",
+            "entities": [
+                {
+                    "name": entity.name,
+                    "tableName": entity.tableName,
+                    "attributes": [
+                        {
+                            "name": attribute.name,
+                            "columnName": _snake(attribute.name),
+                            "javaType": attribute.type,
+                            "sqlType": "BIGINT" if attribute.type in ("Long", "long") else "VARCHAR",
+                            "isPrimaryKey": attribute.isPrimaryKey,
+                            "nullable": attribute.nullable,
+                            "isUnique": False,
+                            "validationRules": [],
+                        }
+                        for attribute in entity.attributes
+                    ],
+                }
+                for entity in entities
+            ],
+            "sqlSchema": {"schemaDdl": schema, "seedDml": "", "tableNames": [e.tableName for e in entities]},
+            "mermaidErDiagram": _architecture(blueprint)["mermaidDiagram"],
+            "generatedFrom": "blueprint",
+        }, indent=2),
+        written=written,
+        skipped=skipped,
+    )
 
     # Also place it on the classpath so it travels inside the built artifact. Spring
     # Boot applies it at startup (SPRING_SQL_INIT_MODE=always), which is what lets the

@@ -22,6 +22,7 @@ import { SingleRowCard } from '../components/common/SingleRowCard';
 import { MermaidViewer } from '../components/common/MermaidViewer';
 import { CodeViewer } from '../components/common/CodeViewer';
 import { SlideOverDrawer } from '../components/common/SlideOverDrawer';
+import { exportService } from '../services/exportService';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
 import { modelsService } from '../services/modelsService';
@@ -57,6 +58,34 @@ export const DomainModelsView: React.FC = () => {
       setDesign(null);
     }
   }, [dataModelDesign, activeSessionId]);
+
+  useEffect(() => {
+    // The model existed only in React state, so this tab was populated while you ran the
+    // step and empty after any reload, resume or history access -- with `schema.sql` and
+    // now `domain_model.json` on disk the whole time. Reported as "modelos & SQL
+    // disappear".
+    if (!activeSessionId || dataModelDesign) return;
+    let cancelled = false;
+    const read = (exportService as {
+      getArtifactContent?: (id: string, path: string) => Promise<string>;
+    }).getArtifactContent;
+    if (typeof read !== 'function') return;
+    read(activeSessionId, 'domain_model.json')
+      .then((content) => {
+        if (cancelled || !content?.trim()) return;
+        const parsed = JSON.parse(content);
+        // A derived model has no mermaid source of its own; borrow the architecture's
+        // rather than render an empty diagram section.
+        setDesign(parsed);
+      })
+      .catch(() => {
+        // Absent on sessions generated before this was persisted, or unreadable. The tab
+        // then says nothing has been synthesised, which is true for what it can see.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, dataModelDesign]);
 
   const [activeSqlTab, setActiveSqlTab] = useState<'schema' | 'data'>('schema');
   const [isSynthesizing, setIsSynthesizing] = useState(false);

@@ -427,6 +427,13 @@ def _execute_pipeline_steps(
                 if not data_sql_file.exists() and sql_resp.sqlSchema.seedDml:
                     with open(data_sql_file, "w", encoding="utf-8") as f:
                         f.write(sql_resp.sqlSchema.seedDml)
+                # The domain model itself, so the Models & SQL tab can be reopened. It
+                # previously existed only in the response and in React state, which is why
+                # the tab emptied on a reload while schema.sql sat on disk beside it.
+                model_file = ws_path / "domain_model.json"
+                if not model_file.exists():
+                    with open(model_file, "w", encoding="utf-8") as f:
+                        json.dump(sql_resp.model_dump(), f, indent=2)
             except Exception as exc:
                 # Derive the DDL from THIS blueprint's entities. The previous
                 # fallback wrote a hardcoded `items` table (id, name, created_at)

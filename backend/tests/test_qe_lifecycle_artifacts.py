@@ -72,7 +72,7 @@ def blueprint():
     }
 
 
-def test_all_four_artifacts_are_written(tmp_path, blueprint):
+def test_every_artifact_is_written(tmp_path, blueprint):
     result = ensure_lifecycle_artifacts(tmp_path, blueprint)
 
     assert set(result["written"]) == set(LIFECYCLE_ARTIFACTS)
@@ -141,7 +141,7 @@ def test_an_existing_artifact_is_never_overwritten(tmp_path, blueprint):
     assert (tmp_path / "architecture.json").read_text(encoding="utf-8") == '{"authored": true}'
     assert (tmp_path / "spec.md").read_text(encoding="utf-8") == "# Authored spec"
     assert set(result["skipped"]) == {"architecture.json", "spec.md"}
-    assert set(result["written"]) == {"user_stories.json", "schema.sql"}
+    assert set(result["written"]) == {"user_stories.json", "schema.sql", "domain_model.json"}
 
 
 def test_it_is_idempotent(tmp_path, blueprint):
@@ -233,3 +233,44 @@ def test_recovered_entities_produce_a_usable_schema(tmp_path):
     sql = (tmp_path / "schema.sql").read_text(encoding="utf-8")
     assert "CREATE TABLE IF NOT EXISTS orders" in sql
     assert "reference VARCHAR(255) NOT NULL" in sql
+
+
+def test_the_domain_model_is_persisted_so_the_tab_survives_a_reload(tmp_path, blueprint):
+    """Reported as "modelos & SQL disappear".
+
+    The Models & SQL tab read its content from React state only. It was populated while the
+    step ran and empty after any reload, resume or history access -- with `schema.sql` on
+    disk the whole time. There was no GET endpoint for the model and nothing persisted it,
+    so the tab had no way to reconstruct what it had shown a moment earlier.
+    """
+    import json
+
+    result = ensure_lifecycle_artifacts(tmp_path, blueprint)
+
+    assert "domain_model.json" in result["written"]
+    model = json.loads((tmp_path / "domain_model.json").read_text(encoding="utf-8"))
+
+    # Shaped like the API's DataModelSynthesisResponse, because the view reads these keys.
+    assert {e["name"] for e in model["entities"]} == {"Customer", "Ticket"}
+    assert model["sqlSchema"]["schemaDdl"].startswith("--")
+    assert "CREATE TABLE IF NOT EXISTS customers" in model["sqlSchema"]["schemaDdl"]
+    assert model["mermaidErDiagram"]
+
+    # Marked derived: it is a mechanical reconstruction, not a model-designed schema.
+    assert model["generatedFrom"] == "blueprint"
+
+
+def test_the_domain_model_carries_the_attribute_fields_the_view_renders(tmp_path, blueprint):
+    """The view renders columnName/javaType/sqlType per attribute."""
+    import json
+
+    ensure_lifecycle_artifacts(tmp_path, blueprint)
+    model = json.loads((tmp_path / "domain_model.json").read_text(encoding="utf-8"))
+
+    customer = next(e for e in model["entities"] if e["name"] == "Customer")
+    fields = {a["name"]: a for a in customer["attributes"]}
+    assert fields["fullName"]["columnName"] == "full_name"
+    assert fields["fullName"]["javaType"] == "String"
+    assert fields["id"]["sqlType"] == "BIGINT"
+    assert fields["id"]["isPrimaryKey"] is True
+    assert fields["email"]["nullable"] is False

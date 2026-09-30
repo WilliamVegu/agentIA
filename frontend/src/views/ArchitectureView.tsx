@@ -26,6 +26,7 @@ import { requirementsService } from '../services/requirementsService';
 import { modelsService } from '../services/modelsService';
 import { specService } from '../services/specService';
 import { orchestratorService } from '../services/orchestratorService';
+import { exportService } from '../services/exportService';
 import apiClient from '../services/apiClient';
 
 export const ArchitectureView: React.FC = () => {
@@ -71,6 +72,31 @@ export const ArchitectureView: React.FC = () => {
       setDesign(null);
     }
   }, [architectureDesign, activeSessionId]);
+
+  useEffect(() => {
+    // The design lived only in React state, so it was present while you ran the step and
+    // gone the moment you reloaded, resumed a job, or opened the session from history --
+    // with `architecture.json` sitting on disk the whole time. Reported as "arquitectura
+    // disappears"; nothing had been lost, it was simply never read back.
+    if (!activeSessionId || architectureDesign) return;
+    let cancelled = false;
+    const read = (exportService as {
+      getArtifactContent?: (id: string, path: string) => Promise<string>;
+    }).getArtifactContent;
+    if (typeof read !== 'function') return;
+    read(activeSessionId, 'architecture.json')
+      .then((content) => {
+        if (cancelled || !content?.trim()) return;
+        setDesign(JSON.parse(content));
+      })
+      .catch(() => {
+        // Absent or unreadable: leave it empty. Not an error worth a banner -- the tab
+        // says nothing has been designed yet, which is the truth.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, architectureDesign]);
 
   const updateDesign = (newDesign: any) => {
     setDesign(newDesign);
