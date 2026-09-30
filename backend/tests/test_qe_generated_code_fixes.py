@@ -220,3 +220,110 @@ def test_a_correct_test_file_is_byte_identical():
     source = "import org.springframework.boot.test.mock.mockito.MockBean;\n@MockBean private A a;\n"
 
     assert fix_spring_test_annotations(source) == (source, [])
+
+
+# ---------------------------------------------------------------------------
+# An unmapped path must be answered with 404, not 500
+# ---------------------------------------------------------------------------
+_ADVICE_WITH_NESTED_RECORD = '''package com.corp.x.controller;
+
+import java.time.Instant;
+import java.util.Map;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleGeneral(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+    }
+
+    public record ApiError(Instant timestamp, int status, String message, Map<String, String> details) {
+    }
+}
+'''
+
+
+def test_an_unmapped_path_gets_a_404_handler(tmp_path):
+    """Measured on a real deployment: `GET /api/borrowers` -> 500, `/api/v1/customers` -> 200.
+
+    An endpoint that does not exist was indistinguishable from a server fault, which is why
+    a playground call to the wrong service was diagnosed as a container failure.
+    """
+    from app.services.generated_code_fixes import ensure_not_found_handler
+
+    target = tmp_path / "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java"
+    target.parent.mkdir(parents=True)
+    target.write_text(_ADVICE_WITH_NESTED_RECORD, encoding="utf-8")
+
+    changed = ensure_not_found_handler(tmp_path)
+
+    assert list(changed) == ["src/main/java/com/corp/x/controller/GlobalExceptionHandler.java"]
+    text = target.read_text(encoding="utf-8")
+    assert "NoResourceFoundException" in text
+    assert "NOT_FOUND" in text
+
+
+def test_the_handler_works_with_any_error_type(tmp_path):
+    """The model path declares a nested `record ApiError`; the deterministic template uses
+    a plain `Map`. A handler naming either would fail to compile in the other, so it uses a
+    wildcard return type and a `Map` body, and fully-qualified names so no import is added.
+    """
+    from app.services.generated_code_fixes import ensure_not_found_handler
+
+    target = tmp_path / "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java"
+    target.parent.mkdir(parents=True)
+    target.write_text(_ADVICE_WITH_NESTED_RECORD, encoding="utf-8")
+
+    ensure_not_found_handler(tmp_path)
+    text = target.read_text(encoding="utf-8")
+
+    assert "ResponseEntity<?>" in text, "must not name the file's own error type"
+    assert text.count("{") == text.count("}"), "the insertion must not unbalance the class"
+    # No import lines were added: everything is fully qualified.
+    assert "import org.springframework.web.servlet" not in text
+
+
+def test_the_handler_is_inserted_inside_the_class(tmp_path):
+    """It must land before the closing brace, not after the file."""
+    from app.services.generated_code_fixes import ensure_not_found_handler
+
+    target = tmp_path / "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java"
+    target.parent.mkdir(parents=True)
+    target.write_text(_ADVICE_WITH_NESTED_RECORD, encoding="utf-8")
+
+    ensure_not_found_handler(tmp_path)
+    text = target.read_text(encoding="utf-8")
+
+    assert text.rstrip().endswith("}")
+    assert text.index("handleNoResourceFound") < text.rindex("}")
+
+
+def test_a_deterministic_template_is_left_alone(tmp_path):
+    """The deterministic emitter already declares the handler."""
+    from app.services.generated_code_fixes import ensure_not_found_handler
+
+    target = tmp_path / "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java"
+    target.parent.mkdir(parents=True)
+    original = _ADVICE_WITH_NESTED_RECORD.replace(
+        "@RestControllerAdvice",
+        "@RestControllerAdvice\n// already declares NoResourceFoundException handling",
+    )
+    target.write_text(original, encoding="utf-8")
+
+    assert ensure_not_found_handler(tmp_path) == {}
+    assert target.read_text(encoding="utf-8") == original
+
+
+def test_a_file_without_the_advice_is_ignored(tmp_path):
+    from app.services.generated_code_fixes import ensure_not_found_handler
+
+    target = tmp_path / "src/main/java/com/corp/x/service/ThingService.java"
+    target.parent.mkdir(parents=True)
+    original = "package com.corp.x.service;\npublic class ThingService {}\n"
+    target.write_text(original, encoding="utf-8")
+
+    assert ensure_not_found_handler(tmp_path) == {}
+    assert target.read_text(encoding="utf-8") == original

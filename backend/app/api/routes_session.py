@@ -24,6 +24,7 @@ from app.services.spec_service import get_specification
 from app.services.queue_service import queue_manager
 from app.orchestrator.graph import generation_graph
 from app.services.generated_code_fixes import (
+    ensure_not_found_handler,
     normalise_generated_entities,
     normalise_generated_tests,
 )
@@ -254,6 +255,16 @@ async def execute_generation_pipeline(
                             print(f"[FIX] {path}: {'; '.join(what)} -> Spring Boot 3.2.3 compatible")
                     except Exception as exc:  # noqa: BLE001
                         print(f"[WARN] test normalisation failed: {type(exc).__name__}: {exc}")
+
+                # The advice is written by now. Ensure an unmapped path is answered with
+                # 404 rather than falling through to the generic handler's 500 -- the
+                # deterministic emitter declares that handler and the model path does not.
+                if node_name == "controller":
+                    try:
+                        for path, what in ensure_not_found_handler(ws_path).items():
+                            print(f"[FIX] {path}: {what}")
+                    except Exception as exc:  # noqa: BLE001
+                        print(f"[WARN] 404 handler check failed: {type(exc).__name__}: {exc}")
 
                 if node_name == "domain":
                     try:

@@ -319,6 +319,20 @@ export const DevOpsDeploymentView: React.FC = () => {
     ? (targetEntity.attributes || []).filter((a: any) => !a.isPrimaryKey)
     : [];
 
+  //: Java time types, and the input control that can produce a value for each.
+  //:
+  //: These were plain text boxes. An `Instant` field is `@NotNull` on the generated entity,
+  //: so it genuinely has to be sent, and Jackson rejects anything that is not ISO-8601 --
+  //: typing "11" produced a 500 with no explanation of what was wrong. A picker cannot
+  //: produce an unparseable value, which removes the trap rather than documenting it.
+  const temporalInputType = (javaType: string): 'datetime-local' | 'date' | null => {
+    if (javaType === 'Instant' || javaType === 'LocalDateTime' || javaType === 'OffsetDateTime') {
+      return 'datetime-local';
+    }
+    if (javaType === 'LocalDate') return 'date';
+    return null;
+  };
+
   const coerceField = (attr: any, raw: string): any => {
     const t = String(attr.javaType || attr.type || 'String');
     if (t.startsWith('List')) {
@@ -333,6 +347,18 @@ export const DevOpsDeploymentView: React.FC = () => {
       const n = Number(raw);
       if (Number.isNaN(n)) throw new Error(`${attr.name} debe ser numérico`);
       return n;
+    }
+    if (temporalInputType(t)) {
+      // `datetime-local` yields "2026-09-30T12:00" with no zone. Instant is an instant on
+      // the timeline, so it needs one; LocalDateTime is not, so it must not gain one.
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new Error(`${attr.name} debe ser una fecha válida`);
+      }
+      if (t === 'LocalDateTime') {
+        return raw.length === 16 ? `${raw}:00` : raw;
+      }
+      return parsed.toISOString();
     }
     return raw;
   };
@@ -714,14 +740,20 @@ export const DevOpsDeploymentView: React.FC = () => {
                           {' '}({attr.javaType || attr.type})
                           {attr.nullable ? '' : ' *'}
                         </span>
+                        {String(attr.javaType || attr.type) === 'Instant' && (
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            se envía como ISO-8601 UTC
+                          </span>
+                        )}
                       </label>
                       <input
                         type={
-                          ['Long', 'Integer', 'int', 'long', 'BigDecimal', 'Double', 'double', 'Float'].includes(
+                          temporalInputType(String(attr.javaType || attr.type)) ??
+                          (['Long', 'Integer', 'int', 'long', 'BigDecimal', 'Double', 'double', 'Float'].includes(
                             String(attr.javaType || attr.type),
                           )
                             ? 'number'
-                            : 'text'
+                            : 'text')
                         }
                         step={['BigDecimal', 'Double', 'double', 'Float'].includes(String(attr.javaType || attr.type)) ? '0.01' : undefined}
                         value={fieldValues[attr.name] ?? ''}

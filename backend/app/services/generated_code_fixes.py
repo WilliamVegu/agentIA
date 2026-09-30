@@ -189,3 +189,79 @@ def normalise_generated_tests(workspace: str | Path) -> Dict[str, List[str]]:
             fixed[str(java_file.relative_to(ws))] = changed
 
     return fixed
+
+
+#: Handler injected when the generated advice cannot answer an unmapped path.
+#:
+#: Deliberately written with fully-qualified names and `ResponseEntity<?>`:
+#:
+#:   * no import has to be added, so the file cannot break because one was inserted in the
+#:     wrong place or the class is absent from the pinned Spring version;
+#:   * the return type does not name the file's own error type. The model path declares a
+#:     nested `record ApiError(Instant, int, String, Map)` while the deterministic template
+#:     uses a plain `Map`, so a handler written for either would fail to compile in the
+#:     other. A wildcard plus a `Map` body serialises correctly in both.
+_NOT_FOUND_HANDLER = '''
+    /**
+     * An unmapped path is a client error, not a server fault.
+     *
+     * Spring raises NoResourceFoundException for a request that matches no handler. Without
+     * this method it reaches the generic Exception handler and is reported as 500, which
+     * makes a missing endpoint -- or a request aimed at a different service -- look like an
+     * internal failure.
+     */
+    @org.springframework.web.bind.annotation.ExceptionHandler(
+            org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public org.springframework.http.ResponseEntity<?> handleNoResourceFound(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return org.springframework.http.ResponseEntity
+                .status(org.springframework.http.HttpStatus.NOT_FOUND)
+                .body(java.util.Map.of(
+                        "timestamp", java.time.Instant.now().toString(),
+                        "status", org.springframework.http.HttpStatus.NOT_FOUND.value(),
+                        "error", "Not Found",
+                        "message", "Endpoint no encontrado: /" + ex.getResourcePath()));
+    }
+'''
+
+
+def ensure_not_found_handler(workspace: str | Path) -> Dict[str, str]:
+    """Make generated advice answer an unmapped path with 404 instead of 500.
+
+    The deterministic emitter already declares this handler; the model path does not, so
+    model-generated services answer unknown paths with 500. Measured on the deployed
+    help-desk service:
+
+        GET /api/borrowers     -> 500   (no such endpoint)
+        GET /api/v1/customers  -> 200
+
+    That 500 is why a playground call aimed at the wrong service was diagnosed as a
+    container failure. A 404 would have said "no such endpoint" immediately.
+
+    Inserted before the class's closing brace, after any nested type declarations, which is
+    valid for the nested record the model path emits.
+
+    Idempotent: a file already mentioning the exception is left byte-identical.
+    """
+    ws = Path(workspace)
+    inserted: Dict[str, str] = {}
+
+    for java_file in sorted(ws.glob("src/main/java/**/*.java")):
+        try:
+            source = java_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "@RestControllerAdvice" not in source:
+            continue
+        if "NoResourceFoundException" in source:
+            continue
+
+        closing = source.rfind("}")
+        if closing == -1:
+            continue
+
+        patched = source[:closing] + _NOT_FOUND_HANDLER + source[closing:]
+        java_file.write_text(patched, encoding="utf-8")
+        inserted[str(java_file.relative_to(ws))] = "NoResourceFoundException -> 404"
+
+    return inserted
