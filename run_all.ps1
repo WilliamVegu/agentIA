@@ -11,7 +11,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir\ba
 Start-Sleep -Seconds 3
 
 Write-Host "[2/2] Iniciando Frontend Studio (React/Vite en http://localhost:3000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir\frontend'; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir\frontend'; npm.cmd run dev"
 
 Write-Host "`n==============================================================================" -ForegroundColor Green
 Write-Host "Servicios iniciados en consolas independientes:" -ForegroundColor Green

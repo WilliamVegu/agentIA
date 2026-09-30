@@ -1,0 +1,52 @@
+{
+  "generation_sessions": [
+    {
+      "id": "56c7f6a7-cc4d-49b3-b4bd-36993affcd67",
+      "spec_id": "09b4f357-f2eb-415d-978f-fba90ed9d493",
+      "spec_name": "prueba",
+      "status": "COMPLETED",
+      "phase": "VERIFIED",
+      "queue_position": 0,
+      "repair_attempts": 0,
+      "current_lifecycle_phase": "COMPLETED",
+      "lifecycle_mode": "AUTO_PILOT",
+      "phase_progress_json": "{\"outdated_phases\": []}",
+      "created_at": "2026-09-25 17:51:29.995905",
+      "started_at": "2026-09-25 17:51:30.045782",
+      "completed_at": "2026-09-25 17:51:46.743401",
+      "error_message": null
+    },
+    {
+      "id": "6229c094-8440-4b33-b86f-f1f2eafda525",
+      "spec_id": "34c5f0c0-a0f6-4366-a917-e6ca957b3cad",
+      "spec_name": "prueba",
+      "status": "QUEUED",
+      "phase": "INITIALIZATION",
+      "queue_position": 0,
+      "repair_attempts": 0,
+      "current_lifecycle_phase": "REQUIREMENTS",
+      "lifecycle_mode": "GUIDED_STEP",
+      "phase_progress_json": null,
+      "created_at": "2026-09-25 17:53:33.132735",
+      "started_at": null,
+      "completed_at": null,
+      "error_message": null
+    },
+    {
+      "id": "d549c812-0bb5-4ab2-8c8a-14ea38413406",
+      "spec_id": "72cf3e85-51e1-45cb-9d2a-ef2cab3e49c6",
+      "spec_name": "ceviche",
+      "status": "COMPLETED",
+      "phase": "VERIFIED",
+      "queue_position": 0,
+      "repair_attempts": 0,
+      "current_lifecycle_phase": "COMPLETED",
+      "lifecycle_mode": "AUTO_PILOT",
+      "phase_progress_json": "{\"outdated_phases\": []}",
+      "created_at": "2026-09-30 15:07:39.034259",
+      "started_at": "2026-09-30 15:07:39.047728",
+      "completed_at": "2026-09-30 15:07:44.131831",
+      "error_message": null
+    }
+  ]
+}
