@@ -26,128 +26,20 @@ import { useStudio } from '../context/StudioContext';
 import { devopsService, LocalDeploymentSession, SmokeTestResult } from '../services/devopsService';
 import { exportService } from '../services/exportService';
 
-const SAMPLE_DOCKERFILE = `# Multi-stage Build for Spring Boot 3 / Java 21 LTS (Eclipse Temurin)
-FROM eclipse-temurin:21-jdk-alpine AS builder
-WORKDIR /workspace
-COPY pom.xml .
-COPY src ./src
-RUN ./mvnw clean package -DskipTests
-RUN java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted
 
-FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup -u 10001
-USER 10001
-WORKDIR /app
-COPY --from=builder /workspace/target/extracted/dependencies/ ./
-COPY --from=builder /workspace/target/extracted/spring-boot-loader/ ./
-COPY --from=builder /workspace/target/extracted/snapshot-dependencies/ ./
-COPY --from=builder /workspace/target/extracted/application/ ./
-EXPOSE 8080
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]
-`;
 
-const SAMPLE_DOCKERIGNORE = `.git
-.gitignore
-.idea
-target/
-*.class
-*.jar
-*.war
-.mvn
-`;
-
-const SAMPLE_COMPOSE = `version: '3.8'
-
-services:
-  app:
-    build: .
-    container_name: \${SERVICE_NAME:-order-service}
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studio_db
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=\${DB_PASSWORD:-postgres}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - app-network
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: studio-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=studio_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  pgdata:
-`;
-
-const SAMPLE_GITHUB_CI = `name: Autonomous CI/CD Pipeline
-
-on:
-  push:
-    branches: [ main, feature/* ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-      - name: Run Hermetic Verification Suite
-        run: ./mvnw clean verify -B
-      - name: Build Docker Image
-        run: docker build -t \${{ github.repository }}:\${{ github.sha }} .
-`;
-
-const SAMPLE_GITLAB_CI = `image: maven:3.9.6-eclipse-temurin-21-alpine
-
-stages:
-  - test
-  - build
-
-verify_job:
-  stage: test
-  script:
-    - mvn clean verify -B
-  artifacts:
-    reports:
-      junit: target/surefire-reports/*.xml
-
-build_job:
-  stage: build
-  script:
-    - mvn clean package -DskipTests
-`;
-
+//: What to show when an artifact has not been generated. Names the file it looked for,
+//: so "not generated" can never be mistaken for "generated differently".
+const MissingArtifact: React.FC<{ path: string }> = ({ path }) => (
+  <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center">
+    <p className="text-xs text-slate-500 dark:text-slate-400">
+      No hay <span className="font-mono">{path}</span> en este workspace.
+    </p>
+    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+      Pulse <strong>Generar Manifiestos DevOps</strong> para producirlo.
+    </p>
+  </div>
+);
 
 //: Which generated file each subtab shows. The keys are the filenames the API returns
 //: under `kubernetesManifests`, so the tab and the generator cannot disagree.
@@ -168,6 +60,10 @@ export const DevOpsDeploymentView: React.FC = () => {
   // filename -> content, exactly as the API returns it. Empty until something generates
   // it or the workspace is read, and the tab says so rather than inventing a manifest.
   const [k8sManifests, setK8sManifests] = useState<Record<string, string>>({});
+  // The generated DevOps files, by workspace-relative path. Same reasoning as the
+  // Kubernetes manifests: the constants these replaced were samples from another
+  // service, so every tab showed a plausible artifact whether or not one existed.
+  const [devopsFiles, setDevopsFiles] = useState<Record<string, string>>({});
   const [activeCicdSubtab, setActiveCicdSubtab] = useState<'github' | 'gitlab'>('github');
   const [activeK8sSubtab, setActiveK8sSubtab] = useState<'deployment' | 'service' | 'configmap' | 'ingress'>('deployment');
 
@@ -236,17 +132,28 @@ export const DevOpsDeploymentView: React.FC = () => {
       return;
     }
     let cancelled = false;
+    const wanted = [
+      ...Object.values(K8S_FILES).map((f) => `k8s/${f}`),
+      'Dockerfile',
+      '.dockerignore',
+      'docker-compose.yml',
+      '.github/workflows/ci-cd.yml',
+      '.gitlab-ci.yml',
+    ];
     Promise.all(
-      Object.values(K8S_FILES).map((file) =>
+      wanted.map((path) =>
         exportService
-          .getArtifactContent(activeSessionId, `k8s/${file}`)
-          .then((content) => [file, content] as const)
+          .getArtifactContent(activeSessionId, path)
+          .then((content) => [path, content] as const)
           .catch(() => null),
       ),
     ).then((entries) => {
       if (cancelled) return;
       const found = Object.fromEntries(entries.filter(Boolean) as [string, string][]);
-      setK8sManifests(found);
+      setK8sManifests(
+        Object.fromEntries(Object.entries(found).filter(([p]) => p.startsWith('k8s/')).map(([p, c]) => [p.slice(4), c])),
+      );
+      setDevopsFiles(Object.fromEntries(Object.entries(found).filter(([p]) => !p.startsWith('k8s/'))));
     });
     return () => {
       cancelled = true;
@@ -286,6 +193,13 @@ export const DevOpsDeploymentView: React.FC = () => {
       // how the Kubernetes tab ended up rendering samples instead of these files.
       const bundle = await devopsService.generateManifests(activeSessionId, 'POSTGRESQL', hostPort);
       setK8sManifests(bundle.kubernetesManifests || {});
+      setDevopsFiles({
+        Dockerfile: bundle.dockerfileContent,
+        '.dockerignore': bundle.dockerignoreContent,
+        'docker-compose.yml': bundle.dockerComposeContent,
+        '.github/workflows/ci-cd.yml': bundle.githubActionsWorkflow,
+        '.gitlab-ci.yml': bundle.gitlabCiWorkflow,
+      });
       setFeedback('✅ Manifiestos DevOps (Dockerfile, Compose, CI/CD y Kubernetes) generados exitosamente.');
       await fetchStatus();
     } catch (err: any) {
@@ -853,28 +767,28 @@ export const DevOpsDeploymentView: React.FC = () => {
 
         {activeManifestTab === 'docker' && (
           <div className="space-y-3">
-            <CodeViewer
-              code={SAMPLE_DOCKERFILE}
-              language="dockerfile"
-              filename="Dockerfile (Multi-Stage JRE 21 LTS)"
-              maxHeight="max-h-72"
-            />
-            <CodeViewer
-              code={SAMPLE_DOCKERIGNORE}
-              language="text"
-              filename=".dockerignore"
-              maxHeight="max-h-40"
-            />
+            {devopsFiles['Dockerfile'] ? (
+              <CodeViewer code={devopsFiles['Dockerfile']} language="dockerfile"
+                          filename="Dockerfile (Multi-Stage JRE 21 LTS)" maxHeight="max-h-72" />
+            ) : (
+              <MissingArtifact path="Dockerfile" />
+            )}
+            {devopsFiles['.dockerignore'] ? (
+              <CodeViewer code={devopsFiles['.dockerignore']} language="text"
+                          filename=".dockerignore" maxHeight="max-h-40" />
+            ) : (
+              <MissingArtifact path=".dockerignore" />
+            )}
           </div>
         )}
 
         {activeManifestTab === 'compose' && (
-          <CodeViewer
-            code={SAMPLE_COMPOSE}
-            language="yaml"
-            filename="docker-compose.yml (Spring Boot + PostgreSQL)"
-            maxHeight="max-h-80"
-          />
+          devopsFiles['docker-compose.yml'] ? (
+            <CodeViewer code={devopsFiles['docker-compose.yml']} language="yaml"
+                        filename="docker-compose.yml (Spring Boot + PostgreSQL)" maxHeight="max-h-80" />
+          ) : (
+            <MissingArtifact path="docker-compose.yml" />
+          )
         )}
 
         {activeManifestTab === 'cicd' && (
@@ -903,19 +817,17 @@ export const DevOpsDeploymentView: React.FC = () => {
             </div>
 
             {activeCicdSubtab === 'github' ? (
-              <CodeViewer
-                code={SAMPLE_GITHUB_CI}
-                language="yaml"
-                filename=".github/workflows/ci-cd.yml"
-                maxHeight="max-h-72"
-              />
+              devopsFiles['.github/workflows/ci-cd.yml'] ? (
+                <CodeViewer code={devopsFiles['.github/workflows/ci-cd.yml']} language="yaml"
+                            filename=".github/workflows/ci-cd.yml" maxHeight="max-h-72" />
+              ) : (
+                <MissingArtifact path=".github/workflows/ci-cd.yml" />
+              )
+            ) : devopsFiles['.gitlab-ci.yml'] ? (
+              <CodeViewer code={devopsFiles['.gitlab-ci.yml']} language="yaml"
+                          filename=".gitlab-ci.yml" maxHeight="max-h-72" />
             ) : (
-              <CodeViewer
-                code={SAMPLE_GITLAB_CI}
-                language="yaml"
-                filename=".gitlab-ci.yml"
-                maxHeight="max-h-72"
-              />
+              <MissingArtifact path=".gitlab-ci.yml" />
             )}
           </div>
         )}
