@@ -206,19 +206,23 @@ describe('Flujo de trabajo: contratos de petición y respuesta', () => {
     server.use(
       http.get(apiPath('/orchestrator/sessions/[^/]+/overview'), async ({ request }) => {
         await capture(request);
+        // Mirrors the real payload. The previous fixture used the invented shape the
+        // frontend type declared, so this test passed for months while every studio
+        // overview card in the running app rendered a fallback literal -- the mock and
+        // the type agreed with each other and neither agreed with the API.
         return HttpResponse.json({
           sessionId: SESSION_ID,
-          serviceName: 'orders-service',
-          database: 'POSTGRESQL',
-          totalStories: 3,
-          totalEntities: 1,
-          totalEndpoints: 4,
-          testSuitesCount: 2,
-          qualityGateStatus: 'PASS',
-          qualityScore: 98,
+          specName: 'orders-service',
+          databaseEngine: 'POSTGRESQL',
+          framework: 'Java 21 / Spring Boot 3',
+          userStoriesCount: 3,
+          entitiesCount: 1,
+          testsPassed: true,
+          securityAuditVerdict: 'PASS',
           deploymentStatus: 'IDLE',
-          activePhase: 'REQUIREMENTS',
-          completionPercentage: 14.3,
+          deploymentUrl: null,
+          pipelineStatus: 'COMPLETED',
+          lifecycle: { completionPercentage: 14.3 },
         });
       }),
       http.get(apiPath('/orchestrator/sessions/[^/]+/lifecycle'), async ({ request }) => {
@@ -237,7 +241,10 @@ describe('Flujo de trabajo: contratos de petición y respuesta', () => {
     const overview = await orchestratorService.getOverview(SESSION_ID);
     const lifecycle = await orchestratorService.getLifecycle(SESSION_ID);
 
-    expect(overview.completionPercentage).toBe(14.3);
+    // `completionPercentage` was never a field on the overview payload -- the real one
+    // is nested under `lifecycle`. Asserting the invented name is what let the type
+    // drift this far from the API without a single test noticing.
+    expect((overview.lifecycle as { completionPercentage?: number })?.completionPercentage).toBe(14.3);
     expect(lifecycle.phases).toHaveLength(1);
     expect(captured[0].path).toBe(`/api/v1/orchestrator/sessions/${SESSION_ID}/overview`);
     expect(captured[1].path).toBe(`/api/v1/orchestrator/sessions/${SESSION_ID}/lifecycle`);

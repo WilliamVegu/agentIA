@@ -282,11 +282,11 @@ export const StudioOverviewView: React.FC = () => {
                   Microservicio Activo
                 </span>
                 <h2 className="text-2xl font-bold tracking-tight text-white mt-0.5">
-                  ⚡ {activeSession?.specName || projectOverview?.serviceName || 'order-service'}
+                  ⚡ {activeSession?.specName || projectOverview?.specName || 'sin nombre'}
                 </h2>
                 <p className="text-xs text-slate-300 mt-1">
                   Java 21 LTS &nbsp;|&nbsp; Spring Boot 3.x &nbsp;|&nbsp; Base de Datos:{' '}
-                  <strong>{projectOverview?.database || 'POSTGRESQL'}</strong> &nbsp;|&nbsp; Sesión:{' '}
+                  <strong>{projectOverview?.databaseEngine || '—'}</strong> &nbsp;|&nbsp; Sesión:{' '}
                   <code className="text-blue-300 font-mono">{activeSessionId}</code>
                 </p>
               </div>
@@ -477,7 +477,7 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Historias BDD</span>
                 <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {projectOverview?.totalStories || 4}
+                  {projectOverview?.userStoriesCount ?? 0}
                 </div>
                 <span className="text-[11px] text-slate-500">Criterios G/W/T</span>
               </div>
@@ -485,33 +485,69 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Entidades SQL</span>
                 <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {projectOverview?.totalEntities || 2}
+                  {projectOverview?.entitiesCount ?? 0}
                 </div>
                 <span className="text-[11px] text-slate-500">Tablas relacionales</span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Suites de Tests</span>
-                <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-2">
-                  ✅ Aprobadas
+                {/* Was the literal "✅ Aprobadas" with no data source at all -- it claimed
+                    passing suites for every session, including ones that never ran. The
+                    overview payload has carried `testsPassed` the whole time. */}
+                <div
+                  className={`text-base font-bold font-mono mt-2 ${
+                    projectOverview?.testsPassed === true
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : projectOverview?.testsPassed === false
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'text-slate-400'
+                  }`}
+                >
+                  {projectOverview?.testsPassed === true
+                    ? '✅ Aprobadas'
+                    : projectOverview?.testsPassed === false
+                      ? '❌ Con fallos'
+                      : '— sin datos'}
                 </div>
-                <span className="text-[11px] text-slate-500">Mockito & WebMvc</span>
+                <span className="text-[11px] text-slate-500">Mockito, WebMvc & JPA</span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Quality Gate</span>
-                <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-2">
-                  ✅ APROBADO
+                {/* Was a literal "✅ APROBADO" and "Puntaje: {qualityScore || 95}/100" --
+                    an invented score of 95 whenever the payload lacked one (which was
+                    always, since `qualityScore` is not a field the API returns). */}
+                <div
+                  className={`text-base font-bold font-mono mt-2 ${
+                    projectOverview?.securityAuditVerdict === 'PASS'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : projectOverview?.securityAuditVerdict === 'BLOCKED'
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'text-slate-400'
+                  }`}
+                >
+                  {projectOverview?.securityAuditVerdict === 'PASS'
+                    ? '✅ APROBADO'
+                    : projectOverview?.securityAuditVerdict === 'BLOCKED'
+                      ? '❌ BLOQUEADO'
+                      : '— sin datos'}
                 </div>
-                <span className="text-[11px] text-slate-500">Puntaje: {projectOverview?.qualityScore || 95}/100</span>
+                <span className="text-[11px] text-slate-500">
+                  Veredicto de la auditoría de seguridad
+                </span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Despliegue</span>
+                {/* `|| 'RUNNING'` claimed a running deployment with no data, and the port
+                    was a literal. The real status and URL are on the payload. */}
                 <div className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-2 truncate">
-                  {projectOverview?.deploymentStatus || 'RUNNING'}
+                  {projectOverview?.deploymentStatus || 'NO DESPLEGADO'}
                 </div>
-                <span className="text-[11px] text-slate-500">Puerto :8080</span>
+                <span className="text-[11px] text-slate-500 truncate block">
+                  {projectOverview?.deploymentUrl || 'Sin URL de despliegue'}
+                </span>
               </div>
             </div>
           </div>
