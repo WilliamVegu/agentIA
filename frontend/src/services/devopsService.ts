@@ -34,14 +34,27 @@ export interface SmokeTestResult {
   message: string;
 }
 
+/**
+ * Mirrors the API's `DevOpsManifestBundle` field for field.
+ *
+ * It previously declared `dockerfile`, `dockerCompose`, `k8sDeployment`, `k8sService`
+ * and `githubCiWorkflow` -- **none of which the API returns**. A caller reading those
+ * names got `undefined`, which is why the Kubernetes tab showed hardcoded sample YAML
+ * instead: the real manifests were on the response under a name this interface did not
+ * describe, so the response was simply never read.
+ */
 export interface ManifestBundle {
   sessionId: string;
   serviceName: string;
-  dockerfile: string;
-  dockerCompose: string;
-  k8sDeployment: string;
-  k8sService: string;
-  githubCiWorkflow: string;
+  databaseEngine: string;
+  dockerfileContent: string;
+  dockerignoreContent: string;
+  dockerComposeContent: string;
+  githubActionsWorkflow: string;
+  gitlabCiWorkflow: string;
+  /** filename -> file content, e.g. `{"deployment.yaml": "..."}`. */
+  kubernetesManifests: Record<string, string>;
+  generatedAt: string;
 }
 
 export const devopsService = {

@@ -24,6 +24,7 @@ import { SingleRowCard } from '../components/common/SingleRowCard';
 import { CodeViewer } from '../components/common/CodeViewer';
 import { useStudio } from '../context/StudioContext';
 import { devopsService, LocalDeploymentSession, SmokeTestResult } from '../services/devopsService';
+import { exportService } from '../services/exportService';
 
 const SAMPLE_DOCKERFILE = `# Multi-stage Build for Spring Boot 3 / Java 21 LTS (Eclipse Temurin)
 FROM eclipse-temurin:21-jdk-alpine AS builder
@@ -147,91 +148,15 @@ build_job:
     - mvn clean package -DskipTests
 `;
 
-const SAMPLE_K8S_DEPLOYMENT = `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: order-service
-  labels:
-    app: order-service
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: order-service
-  template:
-    metadata:
-      labels:
-        app: order-service
-    spec:
-      containers:
-        - name: order-service
-          image: order-service:latest
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8080
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8080
-            initialDelaySeconds: 15
-            periodSeconds: 5
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-`;
 
-const SAMPLE_K8S_SERVICE = `apiVersion: v1
-kind: Service
-metadata:
-  name: order-service
-spec:
-  selector:
-    app: order-service
-  ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
-  type: ClusterIP
-`;
-
-const SAMPLE_K8S_CONFIGMAP = `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: order-service-config
-data:
-  SPRING_PROFILES_ACTIVE: "prod"
-  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics"
-`;
-
-const SAMPLE_K8S_INGRESS = `apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: order-service-ingress
-  annotations:
-    kubernetes.io/ingress.class: nginx
-spec:
-  rules:
-    - host: api.enterprise.corp
-      http:
-        paths:
-          - path: /api/v1/orders
-            pathType: Prefix
-            backend:
-              service:
-                name: order-service
-                port:
-                  number: 8080
-`;
+//: Which generated file each subtab shows. The keys are the filenames the API returns
+//: under `kubernetesManifests`, so the tab and the generator cannot disagree.
+const K8S_FILES: Record<string, string> = {
+  deployment: 'deployment.yaml',
+  service: 'service.yaml',
+  configmap: 'configmap.yaml',
+  ingress: 'ingress.yaml',
+};
 
 export const DevOpsDeploymentView: React.FC = () => {
   const { activeSessionId, reloadCurrentOverview } = useStudio();
@@ -240,6 +165,9 @@ export const DevOpsDeploymentView: React.FC = () => {
 
   const [hostPort, setHostPort] = useState<number>(8080);
   const [activeManifestTab, setActiveManifestTab] = useState<'docker' | 'compose' | 'cicd' | 'k8s'>('docker');
+  // filename -> content, exactly as the API returns it. Empty until something generates
+  // it or the workspace is read, and the tab says so rather than inventing a manifest.
+  const [k8sManifests, setK8sManifests] = useState<Record<string, string>>({});
   const [activeCicdSubtab, setActiveCicdSubtab] = useState<'github' | 'gitlab'>('github');
   const [activeK8sSubtab, setActiveK8sSubtab] = useState<'deployment' | 'service' | 'configmap' | 'ingress'>('deployment');
 
@@ -301,6 +229,31 @@ export const DevOpsDeploymentView: React.FC = () => {
   }, [activeSessionId]);
 
   useEffect(() => {
+    // Read whatever is already on disk, so the tab is correct after a reload and not
+    // only immediately after pressing "Generar Manifiestos".
+    if (!activeSessionId) {
+      setK8sManifests({});
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      Object.values(K8S_FILES).map((file) =>
+        exportService
+          .getArtifactContent(activeSessionId, `k8s/${file}`)
+          .then((content) => [file, content] as const)
+          .catch(() => null),
+      ),
+    ).then((entries) => {
+      if (cancelled) return;
+      const found = Object.fromEntries(entries.filter(Boolean) as [string, string][]);
+      setK8sManifests(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId]);
+
+  useEffect(() => {
     if (!activeSessionId) {
       setCrudPath('');
       setAvailableResources([]);
@@ -329,7 +282,10 @@ export const DevOpsDeploymentView: React.FC = () => {
     setIsGenerating(true);
     setFeedback(null);
     try {
-      await devopsService.generateManifests(activeSessionId, 'POSTGRESQL', hostPort);
+      // The response was previously discarded -- `await` with no assignment -- which is
+      // how the Kubernetes tab ended up rendering samples instead of these files.
+      const bundle = await devopsService.generateManifests(activeSessionId, 'POSTGRESQL', hostPort);
+      setK8sManifests(bundle.kubernetesManifests || {});
       setFeedback('✅ Manifiestos DevOps (Dockerfile, Compose, CI/CD y Kubernetes) generados exitosamente.');
       await fetchStatus();
     } catch (err: any) {
@@ -1009,37 +965,27 @@ export const DevOpsDeploymentView: React.FC = () => {
               </button>
             </div>
 
-            {activeK8sSubtab === 'deployment' && (
+            {k8sManifests[K8S_FILES[activeK8sSubtab]] ? (
               <CodeViewer
-                code={SAMPLE_K8S_DEPLOYMENT}
+                code={k8sManifests[K8S_FILES[activeK8sSubtab]]}
                 language="yaml"
-                filename="k8s/deployment.yaml"
+                filename={`k8s/${K8S_FILES[activeK8sSubtab]}`}
                 maxHeight="max-h-72"
               />
-            )}
-            {activeK8sSubtab === 'service' && (
-              <CodeViewer
-                code={SAMPLE_K8S_SERVICE}
-                language="yaml"
-                filename="k8s/service.yaml"
-                maxHeight="max-h-72"
-              />
-            )}
-            {activeK8sSubtab === 'configmap' && (
-              <CodeViewer
-                code={SAMPLE_K8S_CONFIGMAP}
-                language="yaml"
-                filename="k8s/configmap.yaml"
-                maxHeight="max-h-72"
-              />
-            )}
-            {activeK8sSubtab === 'ingress' && (
-              <CodeViewer
-                code={SAMPLE_K8S_INGRESS}
-                language="yaml"
-                filename="k8s/ingress.yaml"
-                maxHeight="max-h-72"
-              />
+            ) : (
+              // Was four hardcoded SAMPLE_K8S_* constants, from an unrelated
+              // `order-service`: the tab showed a canned manifest whatever the session
+              // contained, while the real files sat on disk. A viewer that cannot tell
+              // "not generated" from "generated differently" is worse than an empty one.
+              <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  No hay <span className="font-mono">k8s/{K8S_FILES[activeK8sSubtab]}</span> en
+                  este workspace.
+                </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                  Pulse <strong>Generar Manifiestos DevOps</strong> para producirlo.
+                </p>
+              </div>
             )}
           </div>
         )}
