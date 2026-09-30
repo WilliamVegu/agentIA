@@ -1,0 +1,29 @@
+digraph workflow {
+  rankdir=LR; fontname="Helvetica"; newrank=true;
+  graph [nodesep=0.35, ranksep=0.7];
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=9, color="#5a6b7b"];
+
+  START [shape=circle, fillcolor="#eaf2ea", label="START"];
+  END   [shape=doublecircle, fillcolor="#fbe9e7", label="END"];
+
+  validator  [fillcolor="#f4f7fa", label="validator\n(blueprint gate)"];
+  scaffolder [fillcolor="#f4f7fa"];
+  domain     [fillcolor="#f4f7fa"];
+  service    [fillcolor="#f4f7fa"];
+  controller [fillcolor="#f4f7fa"];
+  test       [fillcolor="#f4f7fa"];
+  sandbox    [fillcolor="#fdf0e6", label="sandbox\nhermetic build+test"];
+  repair     [fillcolor="#fff3e0", label="repair\n(≤3 attempts, surgical patch)"];
+
+  START -> validator;
+  validator -> scaffolder [label="status≠FAILED"];
+  validator -> END [label="FAILED", color="#c0392b"];
+  scaffolder -> domain -> service -> controller -> test;
+  test -> sandbox;
+  sandbox -> END [label="build_success", color="#27ae60"];
+  sandbox -> repair [label="failed &\nstatus≠BLOCKED", color="#c0392b"];
+  sandbox -> END [label="BLOCKED", color="#c0392b"];
+  repair -> sandbox [label="retry"];
+  repair -> END [label="BLOCKED\n(max attempts)", color="#c0392b"];
+}
