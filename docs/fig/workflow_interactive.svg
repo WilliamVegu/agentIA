@@ -1,0 +1,117 @@
+<svg viewBox="0 0 1020 160" width="100%" height="150" xmlns="http://www.w3.org/2000/svg" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 4px 14px rgba(15,23,42,.06);padding:6px 10px;">
+  <defs>
+    <!-- Arrowhead markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0076CE"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10B981"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#EF4444"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748B"/>
+    </marker>
+  </defs>
+
+  <!-- Connectors (straight line pipeline) -->
+  <line x1="56" y1="52" x2="82" y2="52" stroke="#64748B" stroke-width="2" marker-end="url(#arrow-slate)"/>
+  <line x1="184" y1="52" x2="208" y2="52" stroke="#0076CE" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="196" y="44" font-size="10" font-family="system-ui" fill="#10B981" font-weight="700" text-anchor="middle">ok</text>
+  
+  <line x1="298" y1="52" x2="322" y2="52" stroke="#0076CE" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="412" y1="52" x2="436" y2="52" stroke="#0076CE" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="526" y1="52" x2="550" y2="52" stroke="#0076CE" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="645" y1="52" x2="669" y2="52" stroke="#0076CE" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="754" y1="52" x2="778" y2="52" stroke="#0076CE" stroke-width="2" marker-end="url(#arrow)"/>
+  
+  <!-- Sandbox to FIN (green success) -->
+  <line x1="883" y1="52" x2="946" y2="52" stroke="#10B981" stroke-width="2.5" marker-end="url(#arrow-green)"/>
+  <text x="914" y="44" font-size="10" font-family="system-ui" fill="#10B981" font-weight="700" text-anchor="middle">compiló</text>
+
+  <!-- Sandbox to Reparación (failure loop) -->
+  <path d="M 830 76 L 830 108" fill="none" stroke="#EF4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="844" y="96" font-size="10" font-family="system-ui" fill="#EF4444" font-weight="700">falló</text>
+
+  <!-- Reparación back to Sandbox (retry) -->
+  <path d="M 760 126 C 730 126, 730 68, 772 58" fill="none" stroke="#E20074" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <text x="732" y="104" font-size="9" font-family="system-ui" fill="#E20074" font-weight="700" text-anchor="middle">reintento (≤3)</text>
+
+  <!-- Reparación to FIN (blocked after 3 retries) -->
+  <path d="M 890 126 C 940 126, 960 100, 965 78" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow-red)"/>
+  <text x="955" y="120" font-size="9" font-family="system-ui" fill="#EF4444" font-weight="700">BLOQUEADO</text>
+
+  <!-- Validator to FIN (blueprint invalid) -->
+  <path d="M 135 76 C 135 155, 930 155, 960 78" fill="none" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrow-red)"/>
+  <text x="450" y="152" font-size="9.5" font-family="system-ui" fill="#EF4444" font-weight="600" text-anchor="middle">FALLIDO (si blueprint no cumple esquema de especificación)</text>
+
+  <!-- Node: INICIO -->
+  <circle cx="34" cy="52" r="20" fill="#ECFDF5" stroke="#10B981" stroke-width="2"/>
+  <text x="34" y="56" font-size="10.5" font-family="system-ui" font-weight="800" fill="#065F46" text-anchor="middle">INICIO</text>
+
+  <!-- Node 1: Validador (Deterministic) -->
+  <g transform="translate(84, 28)">
+    <rect width="100" height="48" rx="8" fill="#F8FAFC" stroke="#64748B" stroke-width="2"/>
+    <text x="50" y="20" font-size="11" font-family="system-ui" font-weight="700" fill="#0F172A" text-anchor="middle">1. Validador</text>
+    <rect x="22" y="27" width="56" height="14" rx="4" fill="#E2E8F0"/>
+    <text x="50" y="38" font-size="8.5" font-family="system-ui" font-weight="700" fill="#475569" text-anchor="middle">Zero-LLM</text>
+  </g>
+
+  <!-- Node 2: Scaffolder (LLM) -->
+  <g transform="translate(210, 28)">
+    <rect width="88" height="48" rx="8" fill="#EEF6FC" stroke="#0076CE" stroke-width="2"/>
+    <text x="44" y="20" font-size="11" font-family="system-ui" font-weight="700" fill="#0F172A" text-anchor="middle">2. Scaffolder</text>
+    <text x="44" y="38" font-size="9" font-family="system-ui" fill="#0076CE" font-weight="600" text-anchor="middle">Maven / POM</text>
+  </g>
+
+  <!-- Node 3: Dominio (LLM) -->
+  <g transform="translate(324, 28)">
+    <rect width="88" height="48" rx="8" fill="#EEF6FC" stroke="#0076CE" stroke-width="2"/>
+    <text x="44" y="20" font-size="11" font-family="system-ui" font-weight="700" fill="#0F172A" text-anchor="middle">3. Dominio</text>
+    <text x="44" y="38" font-size="9" font-family="system-ui" fill="#0076CE" font-weight="600" text-anchor="middle">JPA / Records</text>
+  </g>
+
+  <!-- Node 4: Servicio (LLM) -->
+  <g transform="translate(438, 28)">
+    <rect width="88" height="48" rx="8" fill="#EEF6FC" stroke="#0076CE" stroke-width="2"/>
+    <text x="44" y="20" font-size="11" font-family="system-ui" font-weight="700" fill="#0F172A" text-anchor="middle">4. Servicio</text>
+    <text x="44" y="38" font-size="9" font-family="system-ui" fill="#0076CE" font-weight="600" text-anchor="middle">Lógica BDD</text>
+  </g>
+
+  <!-- Node 5: Controlador (LLM) -->
+  <g transform="translate(552, 28)">
+    <rect width="92" height="48" rx="8" fill="#EEF6FC" stroke="#0076CE" stroke-width="2"/>
+    <text x="46" y="20" font-size="11" font-family="system-ui" font-weight="700" fill="#0F172A" text-anchor="middle">5. Controlador</text>
+    <text x="46" y="38" font-size="9" font-family="system-ui" fill="#0076CE" font-weight="600" text-anchor="middle">REST / DTOs</text>
+  </g>
+
+  <!-- Node 6: Test (LLM) -->
+  <g transform="translate(670, 28)">
+    <rect width="84" height="48" rx="8" fill="#EEF6FC" stroke="#0076CE" stroke-width="2"/>
+    <text x="42" y="20" font-size="11" font-family="system-ui" font-weight="700" fill="#0F172A" text-anchor="middle">6. Test</text>
+    <text x="42" y="38" font-size="9" font-family="system-ui" fill="#0076CE" font-weight="600" text-anchor="middle">Mockito / Unit</text>
+  </g>
+
+  <!-- Node 7: Sandbox (Deterministic Docker) -->
+  <g transform="translate(780, 24)">
+    <rect width="102" height="52" rx="8" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2.5"/>
+    <text x="51" y="20" font-size="11" font-family="system-ui" font-weight="800" fill="#78350F" text-anchor="middle">7. Sandbox</text>
+    <text x="51" y="34" font-size="9" font-family="system-ui" font-weight="700" fill="#B45309" text-anchor="middle">mvn test -o</text>
+    <text x="51" y="46" font-size="8" font-family="system-ui" fill="#78350F" text-anchor="middle">Docker sin red</text>
+  </g>
+
+  <!-- Node 8: Reparación (Reflective repair) -->
+  <g transform="translate(760, 108)">
+    <rect width="130" height="34" rx="8" fill="#FDF2F8" stroke="#E20074" stroke-width="2"/>
+    <text x="65" y="16" font-size="10.5" font-family="system-ui" font-weight="800" fill="#9D174D" text-anchor="middle">8. Reparación</text>
+    <text x="65" y="28" font-size="8.5" font-family="system-ui" fill="#E20074" font-weight="700" text-anchor="middle">Parche quirúrgico (≤3)</text>
+  </g>
+
+  <!-- Node: FIN (Terminal) -->
+  <g transform="translate(965, 52)">
+    <circle cx="0" cy="0" r="20" fill="#F8FAFC" stroke="#0F172A" stroke-width="2.5"/>
+    <circle cx="0" cy="0" r="16" fill="#ECFDF5" stroke="#10B981" stroke-width="1.5"/>
+    <text x="0" y="4" font-size="10" font-family="system-ui" font-weight="800" fill="#065F46" text-anchor="middle">FIN</text>
+  </g>
+</svg>
