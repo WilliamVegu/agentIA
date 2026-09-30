@@ -382,8 +382,15 @@ def scan_architecture_compliance(files: Dict[str, str]) -> List[StandardsComplia
                 viol_idx += 1
 
         # Stack Rule: Lombok Restrictions (@Data, @Value, @SneakyThrows strictly prohibited)
+        #
+        # Matched on a word boundary, NOT as a substring. `@DataJpaTest` contains the
+        # characters "@Data", so a substring test reported a legitimate Spring Boot test
+        # slice as a prohibited Lombok annotation -- a HIGH violation, which blocked
+        # export (403) and stopped the devops step, for a file that is entirely correct.
+        # The remediation path below already matches with \b, so the checker and the
+        # fixer disagreed about the same file; this makes them agree.
         for prohibited in ["@Data", "@Value", "@SneakyThrows"]:
-            if prohibited in content:
+            if re.search(re.escape(prohibited) + r"\b", content):
                 violations.append(
                     StandardsComplianceViolation(
                         id=f"CONST-VIOL-{viol_idx:03d}",
