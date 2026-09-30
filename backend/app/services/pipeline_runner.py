@@ -29,7 +29,7 @@ from app.services.devops_service import generate_all_devops_assets
 from app.services.docker_service import deploy_local
 from app.models.blueprint import DomainEntity, EntityAttribute, UserStoryRecord, AcceptanceScenarioRecord
 from app.models.requirements import SpecificationDraft
-from app.services.llm_factory import LLMFactory
+from app.services.llm_factory import LLMFactory, LLMProvider
 from app.services.requirements_service import (
     _generate_mock_decomposition,
     serialize_draft_to_markdown,
@@ -214,6 +214,14 @@ def cancel_pipeline(session_id: str) -> bool:
 
 
 def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] = None, provider: Optional[str] = None, model_name: Optional[str] = None) -> SpecificationDraft:
+    draft_file = ws_path / "draft.json"
+    if draft_file.exists():
+        try:
+            with open(draft_file, "r", encoding="utf-8") as f:
+                return SpecificationDraft.model_validate(json.load(f))
+        except Exception:
+            pass
+
     spec_file = ws_path / "spec.md"
     raw_prompt = spec_name
     if spec_file.exists():
@@ -232,13 +240,13 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
             draft = transform_requirements(
                 RequirementsTransformRequest(rawText=raw_prompt, serviceName=spec_name),
                 api_key=api_key,
-                chosen_provider=provider,
-                chosen_model=model_name,
+                provider=provider,
             )
         except (PromptInjectionError, UnlikelySpecificationError):
             raise
         except Exception as exc:
             print(f"[WARN] transform_requirements failed in pipeline: {exc}")
+
     if draft is None:
         from app.services.injection_guard import assert_no_injection
         assert_no_injection(raw_prompt, field="rawText")
@@ -246,6 +254,24 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
             from app.services.specification_guard import assert_looks_like_specification
             assert_looks_like_specification(raw_prompt, field="rawText")
 
+        # Attempt to parse markdown specification if present
+        from app.services.spec_service import parse_spec_markdown
+        try:
+            parsed_bp = parse_spec_markdown(raw_prompt)
+            if parsed_bp and parsed_bp.entities:
+                draft = SpecificationDraft(
+                    serviceName=parsed_bp.serviceName or spec_name,
+                    packageName=parsed_bp.packageName or f"com.corp.{spec_name.lower().replace('-', '.')}",
+                    basePort=8080,
+                    entities=parsed_bp.entities,
+                    userStories=parsed_bp.userStories,
+                    assumptions=["Extracted from specification document"],
+                )
+                draft.markdownSpec = serialize_draft_to_markdown(draft)
+        except Exception:
+            pass
+
+    if draft is None:
         decomp = _generate_mock_decomposition(raw_text=raw_prompt, service_name=spec_name)
         entities = []
         for ent in decomp.entities:
@@ -291,6 +317,13 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
             assumptions=decomp.assumptions,
         )
         draft.markdownSpec = serialize_draft_to_markdown(draft)
+
+    try:
+        with open(draft_file, "w", encoding="utf-8") as f:
+            json.dump(draft.model_dump(), f, indent=2)
+    except Exception as exc:
+        print(f"[WARN] Failed to save draft.json: {exc}")
+
     return draft
 
 
@@ -312,13 +345,23 @@ def _execute_pipeline_steps(
     stop_event = _stop_events[session_id]
 
     try:
-        # Everything below sits inside the handler, including the mode decision and the
-        # instruction-set load. It used to start after them, so a failure there -- an
-        # ambiguous API key, an unloadable instruction set on the MODEL path -- escaped
-        # the function entirely. The caller is a daemon thread, so the exception died
-        # with it: the session row stayed RUNNING and the operator watched a pipeline
-        # that had already stopped. Failing loudly (invariant 11) is the intent; failing
-        # silently *to the operator* was not.
+        # Resolve credentials from settings or environment if not provided
+        if not api_key:
+            api_key = (
+                getattr(settings, "DEEPSEEK_API_KEY", None)
+                or getattr(settings, "GEMINI_API_KEY", None)
+                or getattr(settings, "GROQ_API_KEY", None)
+                or getattr(settings, "OPENAI_API_KEY", None)
+                or os.environ.get("DEEPSEEK_API_KEY")
+                or os.environ.get("GEMINI_API_KEY")
+                or os.environ.get("GROQ_API_KEY")
+                or os.environ.get("OPENAI_API_KEY")
+            )
+        if api_key and (not provider or provider.lower() in ("mock", "offline-mock")):
+            detected = LLMFactory.detect_provider(api_key)
+            if detected != LLMProvider.MOCK.value:
+                provider = detected
+
         detected_llm = LLMFactory.detect_provider(api_key, provider)
         is_mock = LLMFactory.is_mock(api_key, provider)
         active_model = "offline-mock" if is_mock else LLMFactory.resolve_model_name(detected_llm, model_name)
@@ -507,24 +550,65 @@ def _execute_pipeline_steps(
             # would have silently produced an empty workspace, surfacing as a
             # downstream security-audit or DevOps anomaly rather than a
             # generation bug.
-            agent_state = run_generation_stages(
-                agent_state,
-                stages=GENERATION_STAGE_ORDER,
-                api_key=api_key,
+            from app.orchestrator.graph import generation_graph
+            from app.services.generated_code_fixes import (
+                normalise_generated_entities,
+                normalise_generated_tests,
+                ensure_not_found_handler,
             )
+
+            accumulated_state = dict(agent_state)
+            try:
+                for step in generation_graph.stream(agent_state):
+                    node_name = list(step.keys())[0]
+                    node_output = step[node_name]
+                    accumulated_state.update(node_output)
+
+                    if node_name == "scaffolder":
+                        _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Scaffolder", 70.0, "Estructura Maven y dependencias Spring Boot 3 generadas vía grafo", PhaseStatus.IN_PROGRESS)
+                    elif node_name == "domain":
+                        try:
+                            normalise_generated_entities(ws_path)
+                        except Exception:
+                            pass
+                        _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Entidades & DTOs", 72.0, "Entidades de dominio y DTOs generados con éxito", PhaseStatus.IN_PROGRESS)
+                    elif node_name == "service":
+                        _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Servicios & Repositorios", 74.0, "Lógica de negocio y repositorios JPA sintetizados", PhaseStatus.IN_PROGRESS)
+                    elif node_name == "controller":
+                        try:
+                            ensure_not_found_handler(ws_path)
+                        except Exception:
+                            pass
+                        _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Controladores REST", 76.0, "Controladores REST y manejo de excepciones sintetizados", PhaseStatus.IN_PROGRESS)
+                    elif node_name == "test":
+                        try:
+                            normalise_generated_tests(ws_path)
+                        except Exception:
+                            pass
+                        _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Suites de Pruebas", 78.0, "Pruebas unitarias Mockito generadas con éxito", PhaseStatus.IN_PROGRESS)
+                    elif node_name == "sandbox":
+                        _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Sandbox", 80.0, "Compilación y verificación completadas en el sandbox", PhaseStatus.IN_PROGRESS)
+                    elif node_name == "repair":
+                        _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Auto-reparación", 82.0, "Ciclo de auto-reparación adaptativa", PhaseStatus.IN_PROGRESS)
+
+                agent_state = accumulated_state
+            except Exception as graph_exc:
+                print(f"[WARN] generation_graph execution failed ({graph_exc}), falling back to run_generation_stages")
+                agent_state = run_generation_stages(
+                    agent_state,
+                    stages=GENERATION_STAGE_ORDER,
+                    api_key=api_key,
+                )
+
             generated_count = len(agent_state.get("generated_files", {}) or {})
             print(
-                f"[INFO] generation stages complete: mode={generation_mode}, "
+                f"[INFO] generation graph complete: mode={generation_mode}, "
                 f"artifacts={generated_count}, "
                 f"requests={(agent_state.get('generation_journal') or {}).get('total_requests', 0)}"
             )
+
             # Apply assisted mode post-generation normalisations
             try:
-                from app.services.generated_code_fixes import (
-                    normalise_generated_entities,
-                    normalise_generated_tests,
-                    ensure_not_found_handler,
-                )
                 normalise_generated_entities(ws_path)
                 normalise_generated_tests(ws_path)
                 ensure_not_found_handler(ws_path)
@@ -743,6 +827,22 @@ def run_pipeline(
     t = _active_threads.get(session_id)
     if not force and t and t.is_alive() and _pipeline_statuses.get(session_id) == PipelineRunStatus.RUNNING:
         return False
+
+    if not api_key:
+        api_key = (
+            getattr(settings, "DEEPSEEK_API_KEY", None)
+            or getattr(settings, "GEMINI_API_KEY", None)
+            or getattr(settings, "GROQ_API_KEY", None)
+            or getattr(settings, "OPENAI_API_KEY", None)
+            or os.environ.get("DEEPSEEK_API_KEY")
+            or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GROQ_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+        )
+    if api_key and (not provider or provider.lower() in ("mock", "offline-mock")):
+        detected = LLMFactory.detect_provider(api_key)
+        if detected != LLMProvider.MOCK.value:
+            provider = detected
 
     if api_key or provider or model_name:
         _session_credentials[session_id] = {"api_key": api_key, "provider": provider, "model_name": model_name}

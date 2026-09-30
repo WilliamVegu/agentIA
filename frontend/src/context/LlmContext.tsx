@@ -78,8 +78,33 @@ export const LlmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
 
   useEffect(() => {
-    setEphemeralLlmCredentials(apiKey, provider);
-  }, [apiKey, provider]);
+    setEphemeralLlmCredentials(apiKey, provider, model);
+  }, [apiKey, provider, model]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (typeof llmService?.getDefaultConfig === 'function') {
+      llmService.getDefaultConfig()
+        .then((cfg) => {
+          if (!isMounted || !cfg) return;
+          if (cfg.hasConfiguredKey && cfg.defaultProvider && cfg.defaultProvider !== 'mock') {
+            const prov = cfg.defaultProvider as LlmProviderType;
+            setProviderState(prov);
+            const mod = cfg.defaultModel || DEFAULT_MODELS[prov] || 'default';
+            setModelState(mod);
+            setIsVerified(true);
+            setStatusMessage(`Conectado al motor LLM configurado: ${prov.toUpperCase()} (${mod})`);
+            setEphemeralLlmCredentials(apiKey, prov, mod);
+          }
+        })
+        .catch(() => {
+          // Server might be starting or in offline environment
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const setProvider = (p: LlmProviderType) => {
     setProviderState(p);

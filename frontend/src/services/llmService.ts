@@ -22,7 +22,19 @@ export interface HealthCheckResponse {
   version: string;
 }
 
+export interface LlmConfigResponse {
+  defaultProvider: string;
+  defaultModel: string;
+  hasConfiguredKey: boolean;
+  configuredProviders: string[];
+}
+
 export const llmService = {
+  async getDefaultConfig(): Promise<LlmConfigResponse> {
+    const response = await apiClient.get<LlmConfigResponse>('/llm/config');
+    return response.data;
+  },
+
   async verifyConnection(payload: VerifyLlmPayload): Promise<VerifyLlmResponse> {
     const response = await apiClient.post<VerifyLlmResponse>('/llm/verify', payload);
     return response.data;

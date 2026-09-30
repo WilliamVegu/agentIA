@@ -2,7 +2,7 @@ import io
 import uuid
 from pathlib import Path
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, status, Response
+from fastapi import APIRouter, HTTPException, status, Response, Header
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
@@ -80,7 +80,12 @@ async def invalidate_downstream_phases(session_id: str, payload: Optional[Dict[s
 
 
 @router.post("/pipeline/run", status_code=status.HTTP_202_ACCEPTED)
-async def run_autopilot_pipeline(payload: PipelineRunRequest):
+async def run_autopilot_pipeline(
+    payload: PipelineRunRequest,
+    x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
+    x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
+    x_llm_model: Optional[str] = Header(default=None, alias="X-LLM-Model"),
+):
     """Initiates autonomous background Auto-Pilot pipeline execution."""
     target_session_id = payload.session_id
     if target_session_id == "new":
@@ -107,14 +112,18 @@ async def run_autopilot_pipeline(payload: PipelineRunRequest):
     if payload.force:
         clear_outdated_phases(target_session_id)
 
+    active_key = (payload.api_key or "").strip() or (x_llm_api_key or "").strip() or None
+    active_provider = (payload.provider or "").strip() or (x_llm_provider or "").strip() or None
+    active_model = (payload.model or "").strip() or (x_llm_model or "").strip() or None
+
     started = run_pipeline(
         session_id=target_session_id,
         target_phase=payload.target_phase or LifecyclePhase.DEVOPS_DEPLOY,
         stop_on_gate=payload.stop_on_gate,
         auto_deploy=payload.auto_deploy,
-        api_key=payload.api_key,
-        provider=payload.provider,
-        model_name=payload.model,
+        api_key=active_key,
+        provider=active_provider,
+        model_name=active_model,
     )
     if not started:
         raise HTTPException(

@@ -173,6 +173,20 @@ async def execute_generation_pipeline(
         # X-LLM-API-Key / X-LLM-Provider headers every other route already reads,
         # and `llm_api_key` must be placed in the state because `run_stage` builds
         # the model client from it.
+        if not api_key:
+            api_key = (
+                getattr(settings, "DEEPSEEK_API_KEY", None)
+                or getattr(settings, "GEMINI_API_KEY", None)
+                or getattr(settings, "GROQ_API_KEY", None)
+                or getattr(settings, "OPENAI_API_KEY", None)
+                or os.environ.get("DEEPSEEK_API_KEY")
+                or os.environ.get("GEMINI_API_KEY")
+                or os.environ.get("GROQ_API_KEY")
+                or os.environ.get("OPENAI_API_KEY")
+            )
+        if api_key and (not provider or provider.lower() in ("mock", "offline-mock")):
+            provider = LLMFactory.detect_provider(api_key)
+
         mode_selection = select_generation_mode(
             api_key=api_key,
             provider=provider,
@@ -462,7 +476,12 @@ async def list_sessions(limit: int = 50):
 
 
 @router.post("/quick-start", response_model=QuickStartSessionResponse, status_code=status.HTTP_201_CREATED)
-async def quick_start_session(payload: QuickStartSessionRequest):
+async def quick_start_session(
+    payload: QuickStartSessionRequest,
+    x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
+    x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
+    x_llm_model: Optional[str] = Header(default=None, alias="X-LLM-Model"),
+):
     """Creates a new generation session immediately from natural language input or service name."""
     session_id = str(uuid.uuid4())
     spec_id = str(uuid.uuid4())
@@ -519,7 +538,15 @@ async def quick_start_session(payload: QuickStartSessionRequest):
     pipeline_started = False
     if payload.auto_run:
         from app.services.pipeline_runner import run_pipeline
-        run_pipeline(session_id, api_key=payload.api_key, provider=payload.llm_provider)
+        active_key = (payload.api_key or "").strip() or (x_llm_api_key or "").strip() or None
+        active_provider = (payload.llm_provider or "").strip() or (x_llm_provider or "").strip() or None
+        active_model = getattr(payload, "model", None) or (x_llm_model or "").strip() or None
+        run_pipeline(
+            session_id,
+            api_key=active_key,
+            provider=active_provider,
+            model_name=active_model,
+        )
         pipeline_started = True
 
     return QuickStartSessionResponse(
@@ -539,6 +566,7 @@ async def create_generation_session(
     payload: CreateSessionRequest,
     x_llm_api_key: Optional[str] = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
+    x_llm_model: Optional[str] = Header(default=None, alias="X-LLM-Model"),
 ):
     """Triggers an autonomous generation session for an ingested specification.
 
@@ -583,14 +611,19 @@ async def create_generation_session(
     })
 
     # Spawn asynchronous background pipeline
+    active_key = getattr(payload, "apiKey", None) or x_llm_api_key
+    active_provider = getattr(payload, "provider", None) or x_llm_provider
+    active_model = getattr(payload, "model", None) or x_llm_model
+
     asyncio.create_task(
         execute_generation_pipeline(
             session_id=session_id,
             spec_id=payload.specId,
             spec_name=spec_name,
             blueprint_dict=blueprint.model_dump(),
-            api_key=x_llm_api_key,
-            provider=x_llm_provider,
+            api_key=active_key,
+            provider=active_provider,
+            model_name=active_model,
         )
     )
 

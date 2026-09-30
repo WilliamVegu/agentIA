@@ -38,20 +38,29 @@ def resolve_api_key(
 ) -> str:
     """
     Resolves the ephemeral LLM API key with priority:
-    1. Offline mock if provider is 'mock'
-    2. Payload key
-    3. Header X-LLM-API-Key
-    4. Host environment variables: GEMINI_API_KEY / GOOGLE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY
-    5. Fallback to offline-mock if ALLOW_OFFLINE_MOCK is True
+    1. Explicit key in payload or header (X-LLM-API-Key)
+    2. Offline mock if provider is 'mock' and no explicit key provided
+    3. Host environment variables / settings: DEEPSEEK_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, OPENAI_API_KEY
+    4. Fallback to offline-mock if ALLOW_OFFLINE_MOCK is True
     Raises HTTP 401 if no valid key is resolved per Constitution Principle VI.
     """
+    explicit_key = (payload_key or "").strip() or (header_key or "").strip()
+    if explicit_key:
+        if explicit_key in ("mock-key", "test-key", "offline-mock"):
+            return "offline-mock"
+        return explicit_key
+
     clean_provider = (provider or "").strip().lower()
     if clean_provider == "mock":
         return "offline-mock"
 
+    from app.config import settings
     key = (
-        payload_key
-        or header_key
+        getattr(settings, "DEEPSEEK_API_KEY", None)
+        or getattr(settings, "GEMINI_API_KEY", None)
+        or getattr(settings, "GROQ_API_KEY", None)
+        or getattr(settings, "OPENAI_API_KEY", None)
+        or os.environ.get("DEEPSEEK_API_KEY")
         or os.environ.get("GEMINI_API_KEY")
         or os.environ.get("GOOGLE_API_KEY")
         or os.environ.get("GROQ_API_KEY")
@@ -60,7 +69,6 @@ def resolve_api_key(
     if not key or not key.strip():
         allow_mock = os.environ.get("ALLOW_OFFLINE_MOCK", "").lower() in ("true", "1", "yes")
         try:
-            from app.config import settings
             allow_mock = allow_mock or getattr(settings, "ALLOW_OFFLINE_MOCK", False)
         except Exception:
             pass
@@ -71,7 +79,7 @@ def resolve_api_key(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="LLM API key is required to perform requirements transformation. "
-                   "Configure your free Gemini or Groq key in the Settings sidebar or provide via X-LLM-API-Key header."
+                   "Configure your API key (DeepSeek, Gemini, Groq, OpenAI) in the Settings sidebar or provide via X-LLM-API-Key header."
         )
     return key.strip()
 
@@ -195,22 +203,42 @@ async def get_session_requirements(session_id: str):
             except Exception:
                 pass
 
-    stories_file = ws_path / "user_stories.json"
+    draft_file = ws_path / "draft.json"
     draft_data = None
-    if stories_file.exists():
+    if draft_file.exists():
         try:
-            with open(stories_file, "r", encoding="utf-8") as f:
-                stories_json = json.load(f)
-            draft_data = {
-                "serviceName": spec_name,
-                "packageName": f"com.corp.{spec_name.lower().replace('-', '.')}",
-                "basePort": 8080,
-                "entities": [],
-                "userStories": stories_json if isinstance(stories_json, list) else stories_json.get("userStories", []),
-                "assumptions": [],
-            }
+            with open(draft_file, "r", encoding="utf-8") as f:
+                draft_data = json.load(f)
         except Exception:
             pass
+
+    if draft_data is None:
+        stories_file = ws_path / "user_stories.json"
+        if stories_file.exists():
+            try:
+                with open(stories_file, "r", encoding="utf-8") as f:
+                    stories_json = json.load(f)
+
+                entities_list = []
+                model_file = ws_path / "domain_model.json"
+                if model_file.exists():
+                    try:
+                        with open(model_file, "r", encoding="utf-8") as mf:
+                            m_data = json.load(mf)
+                            entities_list = m_data.get("entities", [])
+                    except Exception:
+                        pass
+
+                draft_data = {
+                    "serviceName": spec_name,
+                    "packageName": f"com.corp.{spec_name.lower().replace('-', '.')}",
+                    "basePort": 8080,
+                    "entities": entities_list,
+                    "userStories": stories_json if isinstance(stories_json, list) else stories_json.get("userStories", []),
+                    "assumptions": [],
+                }
+            except Exception:
+                pass
 
     return {
         "sessionId": session_id,

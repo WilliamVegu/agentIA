@@ -26,8 +26,11 @@ class Settings(BaseSettings):
         return bool(v)
     
     # AI / LLM Configuration
+    DEEPSEEK_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
     GOOGLE_API_KEY: str | None = None
+    GROQ_API_KEY: str | None = None
+    OPENAI_API_KEY: str | None = None
     
     # Server configuration
     HOST: str = "0.0.0.0"

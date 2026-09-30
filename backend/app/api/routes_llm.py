@@ -26,13 +26,62 @@ class LLMVerifyResponse(BaseModel):
     latency_ms: int = Field(..., alias="latencyMs")
 
 
+class LLMConfigResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    default_provider: str = Field(..., alias="defaultProvider")
+    default_model: str = Field(..., alias="defaultModel")
+    has_configured_key: bool = Field(..., alias="hasConfiguredKey")
+    configured_providers: list[str] = Field(..., alias="configuredProviders")
+
+
+@router.get("/config", response_model=LLMConfigResponse)
+def get_llm_config():
+    """Returns detected active provider/model based on server environment settings."""
+    import os
+    from app.config import settings
+    configured = []
+    if getattr(settings, "DEEPSEEK_API_KEY", None) or os.environ.get("DEEPSEEK_API_KEY"):
+        configured.append("deepseek")
+    if getattr(settings, "GEMINI_API_KEY", None) or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
+        configured.append("gemini")
+    if getattr(settings, "GROQ_API_KEY", None) or os.environ.get("GROQ_API_KEY"):
+        configured.append("groq")
+    if getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY"):
+        configured.append("openai")
+
+    default_prov = configured[0] if configured else "mock"
+    default_mod = DEFAULT_MODELS.get(default_prov, "offline-mock")
+
+    return LLMConfigResponse(
+        defaultProvider=default_prov,
+        defaultModel=default_mod,
+        hasConfiguredKey=len(configured) > 0,
+        configuredProviders=configured,
+    )
+
+
 @router.post("/verify", response_model=LLMVerifyResponse)
 def verify_llm_connection(payload: LLMVerifyRequest):
     """
     Validates ephemeral LLM credentials with a lightweight ping invocation,
     measuring latency and confirming provider availability.
     """
+    import os
+    from app.config import settings
+
     clean_key = (payload.api_key or "").strip()
+    if not clean_key and payload.provider and payload.provider != "mock":
+        target_prov = payload.provider.lower()
+        if target_prov == "deepseek":
+            clean_key = getattr(settings, "DEEPSEEK_API_KEY", None) or os.environ.get("DEEPSEEK_API_KEY") or ""
+        elif target_prov == "gemini":
+            clean_key = getattr(settings, "GEMINI_API_KEY", None) or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+        elif target_prov == "groq":
+            clean_key = getattr(settings, "GROQ_API_KEY", None) or os.environ.get("GROQ_API_KEY") or ""
+        elif target_prov == "openai":
+            clean_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY") or ""
+
     detected = LLMFactory.detect_provider(clean_key, payload.provider)
     model_name = LLMFactory.resolve_model_name(detected, payload.model)
 

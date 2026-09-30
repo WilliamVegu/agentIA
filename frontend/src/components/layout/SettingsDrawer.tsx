@@ -27,13 +27,27 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
   const [localKey, setLocalKey] = useState(apiKey);
   const [showKey, setShowKey] = useState(false);
 
+  React.useEffect(() => {
+    setLocalKey(apiKey);
+  }, [apiKey]);
+
   const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setProvider(e.target.value as LlmProviderType);
+    const newProv = e.target.value as LlmProviderType;
+    setProvider(newProv);
+    if (localKey) {
+      setApiKey(localKey.trim());
+    }
+  };
+
+  const handleKeyChange = (val: string) => {
+    setLocalKey(val);
+    setApiKey(val.trim());
   };
 
   const handleSaveAndVerify = async () => {
-    setApiKey(localKey);
-    await verifyConnection(localKey, provider, model);
+    const trimmed = localKey.trim();
+    setApiKey(trimmed);
+    await verifyConnection(trimmed, provider, model);
   };
 
   return (
@@ -81,7 +95,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
               <input
                 type={showKey ? 'text' : 'password'}
                 value={localKey}
-                onChange={(e) => setLocalKey(e.target.value)}
+                onChange={(e) => handleKeyChange(e.target.value)}
+                onBlur={() => setApiKey(localKey.trim())}
                 placeholder={provider === 'gemini' ? 'AQ... o AIzaSy...' : provider === 'groq' ? 'gsk_...' : 'sk-...'}
                 className="w-full px-3 py-2 pr-16 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
