@@ -101,3 +101,4 @@ mlruns/
 
 # start_services.sh runtime state (pids, logs)
 .run/
+docs/fig/*-1.png
