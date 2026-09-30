@@ -126,3 +126,116 @@ def test_the_guard_runs_before_anything_else_happens(monkeypatch):
     request = RequirementsTransformRequest(rawText=REPORTED, serviceName="mock-test")
     with pytest.raises(UnlikelySpecificationError):
         transform_requirements(request, "unused-key", provider="mock")
+
+
+# ---------------------------------------------------------------------------
+# The other entrance: blueprint ingestion
+# ---------------------------------------------------------------------------
+NONSENSE_MARKDOWN = "# Feature Specification: mock-test\n\nque dia es hoy?\n"
+
+
+def test_the_upload_entrance_no_longer_invents_a_domain():
+    """Measured before the fix: uploading nonsense returned 201.
+
+        {'entityCount': 1, 'storyCount': 1, 'isValid': True, 'validationWarnings': []}
+
+    `parse_spec_markdown` fabricated entity `Resource` (`id`, `name`) and story `US-1`
+    "manage resources" with the scenario "service is running / endpoint is called /
+    returns successful response". Nothing in the document said any of that, so EVERY
+    document produced a "valid" specification and the caller could not learn that their
+    file was unreadable. That is why the round trip appeared to work.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.post(
+        "/api/v1/specifications/upload",
+        files={"file": ("spec.md", NONSENSE_MARKDOWN.encode(), "text/markdown")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "UNLIKELY_SPECIFICATION"
+
+
+def test_the_parser_refuses_a_document_with_no_entities():
+    """No fabrication: it says what it could not find."""
+    from app.services.spec_service import parse_spec_markdown
+
+    document = (
+        "# Feature Specification: thing\n\n"
+        "## User Scenarios & Testing\n\n"
+        "### User Story 1 - do something (Priority: P1)\n\n"
+        "Given a state, when it happens, then it works.\n"
+    )
+
+    with pytest.raises(ValueError) as refused:
+        parse_spec_markdown(document)
+
+    assert "No domain entities" in str(refused.value)
+
+
+def test_the_parser_round_trips_the_layout_the_application_writes():
+    """The least a generator can do is read its own output.
+
+    It could not. The parser understood only `### Key Entities` with `- **Name**: ...`,
+    while `lifecycle_artifacts` writes `## Domain Entities` with `### Name (`table`)` and
+    `- `attr`: Type — PK, required`. Every upload of the app's own spec.md found no
+    entities and fell through to the fabricated `Resource`.
+    """
+    from app.services.spec_service import parse_spec_markdown
+
+    document = (
+        "# Feature Specification: Help Desk\n\n"
+        "**Feature Branch**: `help-desk`\n\n"
+        "## User Scenarios & Testing *(mandatory)*\n\n"
+        "### User Story 1 - register a customer (Priority: P1)\n\n"
+        "Given a new customer, when they register, then an account exists.\n\n"
+        "## Domain Entities\n\n"
+        "### Customer (`customers`)\n\n"
+        "- `id`: Long — PK, required\n"
+        "- `email`: String — required\n"
+        "- `nickname`: String — optional\n"
+    )
+
+    blueprint = parse_spec_markdown(document)
+
+    assert [e.name for e in blueprint.entities] == ["Customer"]
+    entity = blueprint.entities[0]
+    assert entity.tableName == "customers"
+    fields = {a.name: a for a in entity.attributes}
+    assert fields["id"].isPrimaryKey is True
+    assert fields["email"].nullable is False
+    assert fields["nickname"].nullable is True
+    assert [s.id for s in blueprint.userStories] == ["US-1"]
+
+
+def test_the_bulleted_story_layout_is_read_not_fabricated():
+    """A third layout, previously unread.
+
+    An e2e test asserted ingestion worked while the parser found no stories and the
+    fabricated `US-1 / manage resources` placeholder satisfied it.
+    """
+    from app.services.spec_service import parse_spec_markdown
+
+    document = (
+        "# Feature Specification: Order Service\n"
+        "**Feature Branch**: `001-order-service`\n\n"
+        "### Key Entities\n"
+        "- **Order**: Represents a purchase order. id (Long), totalAmount (BigDecimal)\n\n"
+        "### User Scenarios & Acceptance Criteria\n"
+        "- **US-1**: As a Buyer, I want to create an order, so that I can buy items.\n"
+        "  - **AC-1.1**: Given valid items, when POST /orders is called, then it is created.\n"
+    )
+
+    blueprint = parse_spec_markdown(document)
+    story = blueprint.userStories[0]
+
+    assert story.id == "US-1"
+    assert story.role == "Buyer"
+    assert story.intent == "create an order"
+    assert story.benefit == "I can buy items"
+    assert story.scenarios[0].given == "valid items"
+    assert story.scenarios[0].when == "POST /orders is called"
+    assert story.scenarios[0].then == "it is created"

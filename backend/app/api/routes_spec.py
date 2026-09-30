@@ -1,6 +1,7 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, status
 from app.models.blueprint import ArchitectureBlueprint, SpecificationSummary
 from app.services.injection_guard import PromptInjectionError
+from app.services.specification_guard import UnlikelySpecificationError
 from app.services.spec_service import parse_spec_markdown, save_specification, get_specification
 
 router = APIRouter(prefix="/specifications", tags=["Specifications"])
@@ -16,6 +17,8 @@ async def upload_specification_file(file: UploadFile = File(...)):
         return summary
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="File must be valid UTF-8 text")
+    except UnlikelySpecificationError as unlikely:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=unlikely.to_dict())
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as exc:

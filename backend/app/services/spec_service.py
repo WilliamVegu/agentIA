@@ -2,6 +2,7 @@ import re
 import uuid
 from typing import Dict, List, Tuple
 from app.services.injection_guard import assert_no_injection
+from app.services.specification_guard import assert_looks_like_specification
 from app.models.blueprint import (
     ArchitectureBlueprint,
     DomainEntity,
@@ -14,7 +15,144 @@ from app.models.blueprint import (
 # In-memory store for parsed specifications
 SPECIFICATIONS_STORE: Dict[str, ArchitectureBlueprint] = {}
 
+
+def _parse_emitted_entities(content: str) -> List[DomainEntity]:
+    """Read the entity layout this application writes.
+
+    ``### Customer (`customers`)`` followed by ``- `id`: Long — PK, required`` bullets.
+
+    Types and flags are taken verbatim rather than mapped through a table: the document
+    already states them, and a mapping layer is where a type silently changes.
+    """
+    entities: List[DomainEntity] = []
+
+    for match in re.finditer(
+        r"(?m)^###\s+([A-Za-z][A-Za-z0-9_]*)\s*\(`([^`]+)`\)\s*$"
+        r"(.*?)(?=^###\s|^##\s|\Z)",
+        content,
+        re.DOTALL,
+    ):
+        name, table_name, body = match.group(1), match.group(2), match.group(3)
+        attributes: List[EntityAttribute] = []
+
+        for attr_match in re.finditer(
+            r"(?m)^-\s*`([A-Za-z_][A-Za-z0-9_]*)`:\s*([A-Za-z][A-Za-z0-9_<>\[\], ]*?)"
+            r"\s*(?:—|-|--)\s*([^\n]*)$",
+            body,
+        ):
+            attr_name, attr_type, flags = (
+                attr_match.group(1),
+                attr_match.group(2).strip(),
+                attr_match.group(3).lower(),
+            )
+            attributes.append(
+                EntityAttribute(
+                    name=attr_name,
+                    type=attr_type,
+                    isPrimaryKey="pk" in flags,
+                    nullable="required" not in flags,
+                    validationRules=["@NotNull"] if "required" in flags else [],
+                )
+            )
+
+        if attributes:
+            entities.append(
+                DomainEntity(name=name, tableName=table_name, attributes=attributes)
+            )
+
+    return entities
+
+
+
+def _parse_bulleted_stories(content: str) -> List[UserStoryRecord]:
+    """Read the bulleted story layout.
+
+        - **US-1**: As a Buyer, I want to create an order, so that I can buy items.
+          - **AC-1.1**: Given valid items, when POST /orders is called, then it is created.
+
+    A third layout, alongside ``### User Story N - Title (Priority: P1)`` and the app's own
+    entity headings. It was previously not read at all: the parser found no stories and the
+    fabricated "US-1 / manage resources" placeholder was substituted, which is why an e2e
+    test asserting that ingestion works passed while parsing nothing.
+    """
+    stories: List[UserStoryRecord] = []
+
+    for match in re.finditer(
+        r"(?m)^\s*-\s*\*\*(US-?\d+)\*\*\s*:\s*(.+?)"
+        r"(?=^\s*-\s*\*\*US-?\d+\*\*|\Z)",
+        content,
+        re.DOTALL,
+    ):
+        story_id = match.group(1).replace("US-", "US-").replace("US--", "US-")
+        body = match.group(2)
+
+        prose = body.split("\n", 1)[0].strip()
+        role = "User"
+        intent = prose
+        benefit = ""
+        role_match = re.search(r"\bAs an?\s+([^,]+),", prose, re.IGNORECASE)
+        if role_match:
+            role = role_match.group(1).strip()
+        want_match = re.search(r"\bI want\s+(.+?)(?:,\s*so that|$)", prose, re.IGNORECASE)
+        if want_match:
+            intent = re.sub(r"^to\s+", "", want_match.group(1).strip())
+        benefit_match = re.search(r"\bso that\s+(.+)$", prose, re.IGNORECASE)
+        if benefit_match:
+            benefit = benefit_match.group(1).strip().rstrip(".")
+
+        scenarios: List[AcceptanceScenarioRecord] = []
+        for ac_match in re.finditer(
+            r"\*\*(AC-[\w.\-]+)\*\*\s*:\s*(.+?)(?=$|\n\s*-\s*\*\*(?:AC|US))",
+            body,
+            re.DOTALL,
+        ):
+            ac_id, ac_text = ac_match.group(1), " ".join(ac_match.group(2).split())
+            given = when = then = ""
+            gwt = re.search(
+                r"given\s+(.+?)\s*,?\s*when\s+(.+?)\s*,?\s*then\s+(.+?)\.?$",
+                ac_text,
+                re.IGNORECASE,
+            )
+            if gwt:
+                given, when, then = (g.strip().rstrip(".,") for g in gwt.groups())
+            else:
+                # No Given/When/Then phrasing: keep the sentence as the expected outcome
+                # rather than splitting it into invented clauses.
+                then = ac_text.rstrip(".")
+            scenarios.append(
+                AcceptanceScenarioRecord(
+                    scenarioId=ac_id, given=given, when=when, then=then
+                )
+            )
+
+        if not scenarios:
+            # The record requires at least two clauses of some length; refusing here is
+            # honest, and the caller is told the document could not be read.
+            continue
+
+        stories.append(
+            UserStoryRecord(
+                id=story_id,
+                priority="P1",
+                role=role,
+                intent=intent or prose,
+                benefit=benefit,
+                scenarios=scenarios,
+            )
+        )
+
+    return stories
+
+
 def parse_spec_markdown(content: str) -> ArchitectureBlueprint:
+    # Asked "que dia es hoy?" this used to return a VALID blueprint: entity `Resource`
+    # with `id`/`name`, story `US-1` "manage resources", and the scenario "service is
+    # running / endpoint is called / returns successful response". Nothing in the document
+    # said any of that. Measured: uploading that text returned 201 with `entityCount: 1,
+    # storyCount: 1, isValid: true, validationWarnings: []`, so every document produced a
+    # "valid" specification and the caller had no way to learn their file was unreadable.
+    assert_looks_like_specification(content, field="document")
+
     """
     Parses standard Spec Kit Markdown files extracting service name,
     entities, user stories, and Given/When/Then scenarios.
@@ -35,9 +173,27 @@ def parse_spec_markdown(content: str) -> ArchitectureBlueprint:
     package_name = f"com.corp.{clean_name.replace('-', '.')}"
 
     # 2. Extract Entities
+    #
+    # TWO formats, because the app both consumes and produces these documents and they
+    # disagreed. This parser only understood the Spec Kit layout:
+    #
+    #     ### Key Entities
+    #     - **Customer**: id (Long), email (String)
+    #
+    # while `lifecycle_artifacts` writes the layout every generated session contains:
+    #
+    #     ## Domain Entities
+    #     ### Customer (`customers`)
+    #     - `id`: Long — PK, required
+    #
+    # So uploading a spec.md the app itself produced found NO entities and fell through to
+    # the fabricated `Resource` below -- which is why the round-trip appeared to work and
+    # why an unreadable document returned `isValid: true`. Round-tripping its own output is
+    # the least a generator can do.
     entities: List[DomainEntity] = []
+    entities = _parse_emitted_entities(content)
     entity_section = re.search(r"### Key Entities.*?(?=##|\Z)", content, re.DOTALL)
-    if entity_section:
+    if not entities and entity_section:
         entity_matches = re.findall(r"-\s*\*\*([A-Za-z0-9]+)\*\*:\s*(.+)", entity_section.group(0))
         for name, desc in entity_matches:
             attrs = [EntityAttribute(name="id", type="UUID", isPrimaryKey=True)]
@@ -58,15 +214,14 @@ def parse_spec_markdown(content: str) -> ArchitectureBlueprint:
             ))
 
     if not entities:
-        # Fallback default entity
-        entities.append(DomainEntity(
-            name="Resource",
-            tableName="resources",
-            attributes=[
-                EntityAttribute(name="id", type="UUID", isPrimaryKey=True),
-                EntityAttribute(name="name", type="String", validationRules=["@NotBlank"])
-            ]
-        ))
+        # Was a fabricated `Resource` entity with `id`/`name`. Inventing a domain made an
+        # unreadable document look like a parsed one, and the invention is what a service
+        # would then be generated from. Say what could not be found instead.
+        raise ValueError(
+            "No domain entities could be read from this document. A specification needs "
+            "entity definitions -- for example a '### Entity: Customer' heading with its "
+            "attributes -- before a service can be generated from it."
+        )
 
     # 3. Extract User Stories and Given/When/Then scenarios
     user_stories: List[UserStoryRecord] = []
@@ -123,21 +278,17 @@ def parse_spec_markdown(content: str) -> ArchitectureBlueprint:
         ))
 
     if not user_stories:
-        user_stories.append(UserStoryRecord(
-            id="US-1",
-            priority="P1",
-            role="User",
-            intent="manage resources",
-            benefit="operate service",
-            scenarios=[
-                AcceptanceScenarioRecord(
-                    scenarioId="AC-1.1",
-                    given="service is running",
-                    when="endpoint is called",
-                    then="returns successful response"
-                )
-            ]
-        ))
+        user_stories = _parse_bulleted_stories(content)
+
+    if not user_stories:
+        # Was a fabricated "US-1 / manage resources" story with a generic scenario. Same
+        # reasoning as the entity above: a placeholder story satisfies every downstream
+        # check while describing nothing.
+        raise ValueError(
+            "No user stories could be read from this document. A specification needs "
+            "story sections -- for example '### User Story 1 - <title>' with Given/When/"
+            "Then scenarios -- before a service can be generated from it."
+        )
 
     blueprint = ArchitectureBlueprint(
         serviceName=clean_name,
