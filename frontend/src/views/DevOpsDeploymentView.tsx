@@ -255,6 +255,13 @@ export const DevOpsDeploymentView: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [newTotalAmount, setNewTotalAmount] = useState('');
+  // The collection path this service actually exposes, read from its controllers.
+  // It used to be a hardcoded `/api/v1/orders`, which is wrong for every blueprint
+  // without an Order entity -- so the form posted to a path that did not exist and the
+  // old silent fallback hid the 404. Empty until discovery answers; the form refuses
+  // to submit rather than guessing.
+  const [crudPath, setCrudPath] = useState('');
+  const [availableResources, setAvailableResources] = useState<string[]>([]);
 
   // REST Console State
   const [reqMethod, setReqMethod] = useState<'GET' | 'POST' | 'DELETE'>('GET');
@@ -291,6 +298,30 @@ export const DevOpsDeploymentView: React.FC = () => {
     if (activeSessionId) {
       fetchStatus();
     }
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setCrudPath('');
+      setAvailableResources([]);
+      return;
+    }
+    let cancelled = false;
+    devopsService
+      .getPlaygroundResources(activeSessionId)
+      .then((res) => {
+        if (cancelled) return;
+        setAvailableResources(res.resources || []);
+        setCrudPath(res.defaultResource || '');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAvailableResources([]);
+        setCrudPath('');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [activeSessionId]);
 
   const handleGenerateManifests = async () => {
@@ -374,6 +405,14 @@ export const DevOpsDeploymentView: React.FC = () => {
   const handleCreateOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCustomerEmail) return;
+    if (!activeSessionId) return;
+    if (!crudPath) {
+      setFeedback(
+        'No se ha detectado ninguna ruta REST en este servicio todavía. ' +
+        'Despliega el servicio y vuelve a intentarlo, o usa la consola REST de la derecha.',
+      );
+      return;
+    }
 
     const payload = {
       customerEmail: newCustomerEmail,
@@ -394,17 +433,22 @@ export const DevOpsDeploymentView: React.FC = () => {
     let failure: string | null = null;
 
     try {
-      const resp = await fetch(`http://localhost:${hostPort}/api/v1/orders`, {
+      // Through the platform, not the browser: a direct cross-origin call is rejected
+      // by the generated service (no CORS), and `crudPath` is the path its controllers
+      // actually expose rather than a hardcoded /api/v1/orders.
+      const result = await devopsService.proxyPlayground(activeSessionId, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        path: crudPath,
+        body: payload,
       });
-      if (resp.ok) {
-        const data = await resp.json().catch(() => null);
+      if (result.error) {
+        failure = result.error;
+      } else if (result.statusCode && result.statusCode < 300) {
+        const data = result.body as { id?: number | string; status?: string } | null;
         if (data?.id) createdId = data.id;
         if (data?.status) actualStatus = data.status;
       } else {
-        failure = `HTTP ${resp.status}`;
+        failure = `HTTP ${result.statusCode}`;
       }
     } catch (err) {
       failure = err instanceof Error ? err.message : String(err);
@@ -413,11 +457,11 @@ export const DevOpsDeploymentView: React.FC = () => {
     if (failure) {
       setTerminalLogs((prev) => [
         ...prev,
-        `[http] POST /api/v1/orders FAILED (${failure}) — el servicio no aceptó el registro`,
+        `[http] POST ${crudPath} FAILED (${failure}) — el servicio no aceptó el registro`,
       ]);
       setFeedback(
         `No se pudo crear el registro: ${failure}. ` +
-        `El servicio se consulta en http://localhost:${hostPort}/api/v1/orders — ` +
+        `La ruta ${crudPath} se consulta a través del backend de la plataforma — ` +
         `verifica que el contenedor está en ejecución y que la entidad existe.`,
       );
       return;
@@ -433,38 +477,55 @@ export const DevOpsDeploymentView: React.FC = () => {
     setOrders([newOrd, ...orders]);
     setTerminalLogs((prev) => [
       ...prev,
-      `[http] POST /api/v1/orders 201 CREATED {"id":${newOrd.id},"customerEmail":"${newOrd.customerEmail}"}`,
+      `[http] POST ${crudPath} 201 CREATED {"id":${newOrd.id},"customerEmail":"${newOrd.customerEmail}"}`,
     ]);
   };
 
   const handleSendCustomRest = async () => {
+    if (!activeSessionId) return;
     const t0 = performance.now();
     const cleanEndpoint = reqEndpoint.startsWith('/') ? reqEndpoint : `/${reqEndpoint}`;
-    const url = `http://localhost:${hostPort}${cleanEndpoint}`;
 
     try {
-      const options: RequestInit = {
-        method: reqMethod,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-        },
-      };
+      let parsedBody: unknown;
       if (reqMethod === 'POST' && reqBody.trim()) {
-        options.body = reqBody;
+        try {
+          parsedBody = JSON.parse(reqBody);
+        } catch {
+          parsedBody = reqBody;
+        }
       }
 
-      const resp = await fetch(url, options);
-      const t1 = performance.now();
-      setRestLatency(Math.round(t1 - t0));
-      setRestStatusCode(resp.status);
+      const result = await devopsService.proxyPlayground(activeSessionId, {
+        method: reqMethod,
+        path: cleanEndpoint,
+        body: parsedBody,
+      });
+      setRestLatency(result.latencyMs ?? Math.round(performance.now() - t0));
 
-      const text = await resp.text();
-      try {
-        const json = JSON.parse(text);
-        setRestResponse(JSON.stringify(json, null, 2));
-      } catch {
-        setRestResponse(text || '// Respuesta recibida (HTTP ' + resp.status + ')');
+      if (result.error) {
+        // The platform reports what actually happened; it never invents a status.
+        setRestStatusCode(null);
+        setRestResponse(
+          [
+            '// NO HUBO RESPUESTA DEL SERVICIO',
+            `// ${reqMethod} ${result.url || cleanEndpoint}`,
+            `// ${result.error}`,
+            '',
+            '// Nada se ejecutó en el contenedor. Esto NO es una respuesta del API.',
+          ].join('\n'),
+        );
+        return;
+      }
+
+      setRestStatusCode(result.statusCode ?? null);
+      if (typeof result.body === 'string') {
+        setRestResponse(result.body);
+      } else {
+        setRestResponse(JSON.stringify(result.body, null, 2));
+      }
+      if (result.truncated) {
+        setRestResponse((prev) => `${prev}\n\n// (respuesta truncada por el proxy)`);
       }
     } catch (err) {
       // A console that invents a response is worse than one that shows nothing: the
@@ -478,7 +539,7 @@ export const DevOpsDeploymentView: React.FC = () => {
       setRestResponse(
         [
           '// NO HUBO RESPUESTA DEL SERVICIO',
-          `// ${reqMethod} ${url}`,
+          `// ${reqMethod} ${cleanEndpoint}`,
           `// ${err instanceof Error ? err.message : String(err)}`,
           '',
           '// Nada se ejecutó en el contenedor. Esto NO es una respuesta del API.',

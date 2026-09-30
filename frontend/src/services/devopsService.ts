@@ -12,6 +12,18 @@ export interface LocalDeploymentSession {
   startedAt?: string;
 }
 
+export interface PlaygroundProxyResult {
+  statusCode: number | null;
+  url: string;
+  latencyMs: number | null;
+  contentType?: string;
+  truncated?: boolean;
+  body?: unknown;
+  bodyText?: string | null;
+  /** Populated only when the call did NOT complete. `statusCode` is null in that case. */
+  error: string | null;
+}
+
 export interface SmokeTestResult {
   sessionId: string;
   endpointTested: string;
@@ -62,6 +74,36 @@ export const devopsService = {
 
   async stopContainers(sessionId: string): Promise<LocalDeploymentSession> {
     const response = await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/stop`);
+    return response.data;
+  },
+
+  /**
+   * Forward one playground call through the platform.
+   *
+   * The browser cannot call the container directly: the generated service ships no
+   * CORS configuration, so every cross-origin call is rejected (403 on preflight) and
+   * surfaces as "Failed to fetch" while Docker is healthy. The platform proxies it
+   * server-side, which also lets it refuse dangerous paths and derive the endpoint
+   * from the service's own controllers.
+   */
+  async proxyPlayground(
+    sessionId: string,
+    payload: { method: string; path: string; body?: unknown },
+  ): Promise<PlaygroundProxyResult> {
+    const response = await apiClient.post<PlaygroundProxyResult>(
+      `/devops/${sessionId}/playground`,
+      payload,
+    );
+    return response.data;
+  },
+
+  /** The REST paths the generated service exposes, read from its controllers. */
+  async getPlaygroundResources(sessionId: string): Promise<{
+    sessionId: string;
+    resources: string[];
+    defaultResource: string | null;
+  }> {
+    const response = await apiClient.get(`/devops/${sessionId}/playground/resources`);
     return response.data;
   },
 
