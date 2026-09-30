@@ -440,7 +440,7 @@ describe('Flujo de trabajo en la interfaz', () => {
 
     // The active session is chosen by the context from the list call; tab 8's status
     // effect re-runs once it is set, so waiting on the button is enough.
-    fireEvent.click(await screen.findByTitle('8. DevOps & Demo'));
+    fireEvent.click(await screen.findByTitle('6. DevOps & Demo'));
 
     const smokeButton = await screen.findByText('🧪 Ejecutar Smoke Test');
     const button = smokeButton.closest('button')!;

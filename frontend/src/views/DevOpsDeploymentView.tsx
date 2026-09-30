@@ -140,14 +140,20 @@ export const DevOpsDeploymentView: React.FC = () => {
       '.github/workflows/ci-cd.yml',
       '.gitlab-ci.yml',
     ];
-    Promise.all(
-      wanted.map((path) =>
-        exportService
-          .getArtifactContent(activeSessionId, path)
-          .then((content) => [path, content] as const)
-          .catch(() => null),
-      ),
-    ).then((entries) => {
+    // Guarded: a missing or throwing reader must not take the whole view down. It did --
+    // the first version called this unguarded and the view crashed on mount in any test
+    // whose `exportService` mock lacked the method, so the page rendered nothing at all.
+    const read = (path: string): Promise<readonly [string, string] | null> => {
+      try {
+        const fn = (exportService as { getArtifactContent?: (id: string, p: string) => Promise<string> })
+          .getArtifactContent;
+        if (typeof fn !== 'function') return Promise.resolve(null);
+        return fn(activeSessionId, path).then((content) => [path, content] as const);
+      } catch {
+        return Promise.resolve(null);
+      }
+    };
+    Promise.all(wanted.map((path) => read(path).catch(() => null))).then((entries) => {
       if (cancelled) return;
       const found = Object.fromEntries(entries.filter(Boolean) as [string, string][]);
       setK8sManifests(
@@ -167,8 +173,20 @@ export const DevOpsDeploymentView: React.FC = () => {
       return;
     }
     let cancelled = false;
-    devopsService
-      .getPlaygroundResources(activeSessionId)
+    // Guarded for the same reason as the artifact reader below: this is a new dependency
+    // and an unmocked or older service object would otherwise throw on mount and blank
+    // the entire screen. Discovery failing should leave the form empty, not break the tab.
+    const discover = (devopsService as {
+      getPlaygroundResources?: (id: string) => Promise<{ resources?: string[]; defaultResource?: string | null }>;
+    }).getPlaygroundResources;
+    if (typeof discover !== 'function') {
+      setAvailableResources([]);
+      setCrudPath('');
+      return () => {
+        cancelled = true;
+      };
+    }
+    discover(activeSessionId)
       .then((res) => {
         if (cancelled) return;
         setAvailableResources(res.resources || []);

@@ -149,7 +149,7 @@ describe('App End-to-End Integration & WorkspaceRouter', () => {
     // Monitor Live (separate surface, not a step)
     fireEvent.click(screen.getByTitle('Monitor Live'));
     await waitFor(() => {
-      expect(screen.getByText(/Orquestación y Monitoreo en Vivo/i)).toBeInTheDocument();
+      expect(screen.getByText(/Monitor en Vivo: Orquestación LangGraph/i)).toBeInTheDocument();
     });
 
     // Step 4: Código & Fix

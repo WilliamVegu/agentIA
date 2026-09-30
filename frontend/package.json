@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --no-file-parallelism",
+    "test:parallel": "vitest run"
   },
   "dependencies": {
     "@types/jszip": "^3.4.0",
