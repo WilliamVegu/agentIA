@@ -26,6 +26,9 @@ export const SecurityQualityView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [remediatingId, setRemediatingId] = useState<string | null>(null);
   const [remediationDiffs, setRemediationDiffs] = useState<Record<string, string>>({});
+  // Keyed by finding id. Per-finding failures are surfaced next to the finding rather
+  // than swallowed.
+  const [remediationErrors, setRemediationErrors] = useState<Record<string, string>>({});
   const [remediatedIds, setRemediatedIds] = useState<Set<string>>(new Set());
 
   const fetchAudit = async () => {
@@ -61,17 +64,34 @@ export const SecurityQualityView: React.FC = () => {
         findingId,
         filePath,
       });
-      setRemediatedIds((prev) => new Set(prev).add(findingId));
-      if (res?.diff) {
-        setRemediationDiffs((prev) => ({ ...prev, [findingId]: res.diff }));
+      // The backend decides whether anything was applied. `apply_surgical_remediation`
+      // returns `applied: false` with an unchanged file when none of its patterns match,
+      // and this used to mark the finding REMEDIADO on any 2xx regardless.
+      if (res?.applied) {
+        setRemediatedIds((prev) => new Set(prev).add(findingId));
+        if (res?.diff) {
+          setRemediationDiffs((prev) => ({ ...prev, [findingId]: res.diff }));
+        }
+      } else {
+        setRemediationErrors((prev) => ({
+          ...prev,
+          [findingId]:
+            'No se aplicó ningún cambio: el backend no encontró un patrón aplicable en este archivo.',
+        }));
       }
       await reloadCurrentOverview();
-    } catch {
-      // Simulation diff
-      setRemediatedIds((prev) => new Set(prev).add(findingId));
-      setRemediationDiffs((prev) => ({
+    } catch (err: any) {
+      // There was a `// Simulation diff` block here that marked the finding REMEDIADO
+      // and displayed a fabricated unified diff -- "- password: \"admin_password_123\""
+      // replaced by a plausible env var -- on ANY failure. A user reading it would
+      // believe a hardcoded credential had been fixed. Nothing may be marked remediated,
+      // and no diff may be shown, that the backend did not return.
+      const detail = err?.response?.data?.detail;
+      setRemediationErrors((prev) => ({
         ...prev,
-        [findingId]: `--- a/${filePath}\n+++ b/${filePath}\n@@ -12,3 +12,3 @@\n- password: "admin_password_123"\n+ password: "\${DB_PASSWORD:postgres}"`,
+        [findingId]:
+          (typeof detail === 'string' ? detail : detail?.message) ||
+          'La remediación falló. No se modificó ningún archivo.',
       }));
     } finally {
       setRemediatingId(null);
@@ -86,7 +106,13 @@ export const SecurityQualityView: React.FC = () => {
   const score = qg.score ?? 0;
   const qgStatus = qg.status || (score >= 80 ? 'PASS' : score >= 60 ? 'WARNING' : 'BLOCKED');
   const rating = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : 'F';
-  const summaryMsg = qg.summaryMessage || 'Evaluación de seguridad completada con compuerta de calidad aprobada.';
+  // The fallback asserted the quality gate had PASSED, and it rendered even when the
+  // status was BLOCKED -- a claim about a verdict that had not been made.
+  const summaryMsg =
+    qg.summaryMessage ||
+    (report
+      ? 'El servidor no devolvió un resumen de la compuerta de calidad.'
+      : 'Sin informe de auditoría para esta sesión.');
 
   return (
     <div className="space-y-6">
@@ -235,6 +261,7 @@ export const SecurityQualityView: React.FC = () => {
               const isRemediated = remediatedIds.has(v.id);
               const isWorking = remediatingId === v.id;
               const diffText = remediationDiffs[v.id];
+              const remedErr = remediationErrors[v.id];
               const sev = v.severity || 'HIGH';
               const sevBadgeColor =
                 sev === 'CRITICAL'
@@ -314,6 +341,11 @@ export const SecurityQualityView: React.FC = () => {
                     </div>
                   )}
 
+                  {remedErr && (
+                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
+                      {remedErr}
+                    </div>
+                  )}
                   {diffText && (
                     <div>
                       <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
@@ -349,6 +381,7 @@ export const SecurityQualityView: React.FC = () => {
               const isRemediated = remediatedIds.has(viol.id);
               const isWorking = remediatingId === viol.id;
               const diffText = remediationDiffs[viol.id];
+              const remedErr = remediationErrors[viol.id];
 
               return (
                 <div
@@ -405,6 +438,11 @@ export const SecurityQualityView: React.FC = () => {
                     + <strong>Corrección Sugerida:</strong> {viol.suggestedFix}
                   </div>
 
+                  {remedErr && (
+                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
+                      {remedErr}
+                    </div>
+                  )}
                   {diffText && (
                     <div>
                       <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
