@@ -300,6 +300,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     // the form targeted a non-existent endpoint and the fallback hid the 404.
     let createdId: number | string | null = null;
     let actualStatus: string | null = null;
+    let createdHttp: number | null = null;
     let failure: string | null = null;
 
     try {
@@ -314,6 +315,7 @@ export const DevOpsDeploymentView: React.FC = () => {
       if (result.error) {
         failure = result.error;
       } else if (result.statusCode && result.statusCode < 300) {
+        createdHttp = result.statusCode;
         const data = result.body as { id?: number | string; status?: string } | null;
         if (data?.id) createdId = data.id;
         if (data?.status) actualStatus = data.status;
@@ -347,7 +349,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     setOrders([newOrd, ...orders]);
     setTerminalLogs((prev) => [
       ...prev,
-      `[http] POST ${crudPath} 201 CREATED {"id":${newOrd.id},"customerEmail":"${newOrd.customerEmail}"}`,
+      `[http] POST ${crudPath} ${createdHttp ?? '—'} {"id":${newOrd.id},"customerEmail":"${newOrd.customerEmail}"}`,
     ]);
   };
 
@@ -509,12 +511,29 @@ export const DevOpsDeploymentView: React.FC = () => {
         )}
 
         {smokeResult && (
-          <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+          // Styled by outcome. This was unconditional emerald with a check, so a FAILURE
+          // or the SKIPPED the catch now sets both rendered as a green pass -- and
+          // SKIPPED carries no latency, so it printed "undefinedms".
+          <div
+            className={`mt-2.5 p-2.5 rounded-lg border text-xs flex items-center justify-between ${
+              smokeResult.status === 'SUCCESS'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                : smokeResult.status === 'SKIPPED'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+                  : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+            }`}
+          >
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              {smokeResult.status === 'SUCCESS' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+              )}
               <span>{smokeResult.message}</span>
             </div>
-            <span className="font-mono font-bold">{smokeResult.latencyMs}ms</span>
+            {typeof smokeResult.latencyMs === 'number' && (
+              <span className="font-mono font-bold">{smokeResult.latencyMs}ms</span>
+            )}
           </div>
         )}
       </SingleRowCard>

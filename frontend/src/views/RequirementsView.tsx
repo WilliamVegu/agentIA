@@ -168,13 +168,28 @@ export const RequirementsView: React.FC = () => {
       }
 
       const incomingStories = res?.userStories || res?.stories;
-      if (incomingStories && Array.isArray(incomingStories) && incomingStories.length > 0) {
+      const storyCount = Array.isArray(incomingStories) ? incomingStories.length : 0;
+      if (storyCount > 0) {
         setStories(mapIncomingStories(incomingStories, nextEntities));
       }
 
-      setFeedbackMsg('Requerimientos transformados: Historias BDD generadas exitosamente (mínimo 3 historias).');
-    } catch {
-      setFeedbackMsg('Modo autónomo local: Historias formalizadas con éxito.');
+      // Report the count that actually came back. This said "(mínimo 3 historias)"
+      // unconditionally, which is a claim about the response, not a description of it.
+      setFeedbackMsg(
+        storyCount > 0
+          ? `Requerimientos transformados: ${storyCount} historia(s) BDD generadas.`
+          : 'La transformación no devolvió ninguna historia. Revisa el prompt e inténtalo de nuevo.',
+      );
+    } catch (err: any) {
+      // A failed call was reported as success -- "Modo autónomo local: Historias
+      // formalizadas con éxito." -- which is exactly what put a green banner above an
+      // empty catalogue on screen. Nothing was formalised, so nothing may say it was.
+      const detail = err?.response?.data?.detail;
+      setFeedbackMsg(
+        (typeof detail === 'string' ? detail : detail?.message) ||
+        'No se pudieron transformar los requisitos: la llamada al modelo falló. ' +
+        'No se generó ninguna historia.',
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -230,9 +245,14 @@ export const RequirementsView: React.FC = () => {
       setIsRefineOpen(false);
       setRefinePrompt('');
       setFeedbackMsg('Especificación refinada exitosamente mediante IA.');
-    } catch {
-      setIsRefineOpen(false);
-      setFeedbackMsg('Ajustes aplicados a las historias de usuario.');
+    } catch (err: any) {
+      // Keep the drawer open on failure: closing it looks like the refinement was
+      // accepted, and the previous message claimed the adjustments had been applied.
+      const detail = err?.response?.data?.detail;
+      setFeedbackMsg(
+        (typeof detail === 'string' ? detail : detail?.message) ||
+        'No se pudieron aplicar los ajustes: la llamada al modelo falló.',
+      );
     } finally {
       setIsProcessing(false);
     }

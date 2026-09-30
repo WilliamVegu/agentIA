@@ -66,6 +66,15 @@ export const GenerationMonitorView: React.FC = () => {
     }
 
     const evtType = lastEvent.event || lastEvent.type;
+
+    if (evtType === 'session_completed' || lastEvent.status === 'COMPLETED') {
+      setCompletion({
+        totalTests: lastEvent.totalTests,
+        passedTests: lastEvent.passedTests,
+        verificationFallbackUsed: lastEvent.verificationFallbackUsed,
+        artifactCount: lastEvent.artifactCount,
+      });
+    }
     const isMilestoneOrFinished =
       evtType === 'session_completed' ||
       evtType === 'session_blocked' ||
@@ -120,7 +129,18 @@ export const GenerationMonitorView: React.FC = () => {
     }
   };
 
-  const currentStatus = activeSession?.status || 'RUNNING';
+  // IDLE, not RUNNING: with no session loaded the sandbox card claimed a running build.
+  // The completion event is the only carrier of these counts: the session list returns
+  // neither them nor the verification flag, and the detail endpoint returns only the
+  // flag. Without this the banner had nothing to read and printed literals.
+  const [completion, setCompletion] = useState<{
+    totalTests?: number;
+    passedTests?: number;
+    verificationFallbackUsed?: boolean;
+    artifactCount?: number;
+  } | null>(null);
+
+  const currentStatus = activeSession?.status || 'IDLE';
   const currentPhase = livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || 'INITIALIZATION';
   const repairs = activeSession?.repairAttempts || 0;
   const isCompleted = currentStatus === 'COMPLETED';
@@ -312,8 +332,38 @@ export const GenerationMonitorView: React.FC = () => {
               🎉 ¡Microservicio Generado y Verificado al 100%!
             </h4>
           </div>
+          {/* Counts come from the session the backend reported, never from literals.
+              This said "5/5 Pasadas (100%) | Sandbox verificado sin errores" for every
+              completed session -- including one whose 21 tests were 21/21, and any run
+              that completed with verificationFallbackUsed, which is not a verification. */}
           <p className="text-xs">
-            Pruebas Unitarias Mockito y Spring Boot: <strong>5/5 Pasadas (100%)</strong> | Sandbox verificado sin errores.
+            {typeof completion?.passedTests === 'number' &&
+            typeof completion?.totalTests === 'number' ? (
+              <>
+                Pruebas Unitarias Mockito y Spring Boot:{' '}
+                <strong>
+                  {completion.passedTests}/{completion.totalTests} Pasadas
+                  {completion.totalTests > 0
+                    ? ` (${Math.round((completion.passedTests / completion.totalTests) * 100)}%)`
+                    : ''}
+                </strong>
+              </>
+            ) : (
+              <>
+                Recuento de pruebas no disponible en esta sesión (abra la sesión para
+                recibir el evento de finalización).
+              </>
+            )}{' '}
+            |{' '}
+            {completion?.verificationFallbackUsed ? (
+              <strong className="text-amber-700 dark:text-amber-300">
+                verificación sustituida: el sandbox no emitió un veredicto propio
+              </strong>
+            ) : completion ? (
+              'Sandbox verificado sin errores.'
+            ) : (
+              'Estado de verificación no disponible.'
+            )}
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <button

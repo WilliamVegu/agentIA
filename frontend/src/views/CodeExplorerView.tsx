@@ -188,7 +188,11 @@ export const CodeExplorerView: React.FC = () => {
 
   const filteredArtifacts = categories[selectedCategory] || artifacts || [];
 
-  const finalState = repairData?.finalState || (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : 'VERIFIED');
+  // `null` means NO VERDICT, and it is rendered as such. This defaulted to 'VERIFIED'
+  // whenever the repairs report was missing or its request failed, so the header showed
+  // a green "VERIFIED" for a session nothing had verified.
+  const finalState =
+    repairData?.finalState ?? (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : null);
   const totalIters = repairData?.totalIterations ?? (Array.isArray(repairs) ? repairs.length : 0);
   const isBlocked = finalState === 'BLOCKED';
 
@@ -232,7 +236,11 @@ export const CodeExplorerView: React.FC = () => {
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 dark:text-slate-400 font-medium">Pruebas Unitarias Mockito</span>
           <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
-            {metricsData.passedTests} / {metricsData.totalTests} Pasadas (100%)
+            {metricsData.totalTests > 0
+              ? `${metricsData.passedTests} / ${metricsData.totalTests} Pasadas (${Math.round(
+                  (metricsData.passedTests / metricsData.totalTests) * 100,
+                )}%)`
+              : 'Sin datos de pruebas'}
           </div>
         </div>
       </div>
@@ -436,11 +444,18 @@ export const CodeExplorerView: React.FC = () => {
           </p>
 
           {repairs.length === 0 ? (
-            <div className="p-6 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            // "No repair records" is not evidence that anything passed. It is also what a
+            // FAILED request to /repairs looks like, because that catch is empty -- so this
+            // claimed a clean first-iteration build for sessions whose report never loaded.
+            <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 text-xs flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-slate-400 shrink-0" />
               <div>
-                <strong className="block text-sm">Sin intervenciones necesarias</strong>
-                <span>La generación inicial compiló y superó todas las pruebas en la primera iteración de sandbox.</span>
+                <strong className="block text-sm">Sin registros de auto-reparación</strong>
+                <span>
+                  No se recuperó ningún informe de reparaciones para esta sesión. Esto no
+                  indica por sí mismo que la compilación pasara: consulte la verificación
+                  del sandbox en la pestaña de Monitor.
+                </span>
               </div>
             </div>
           ) : (
