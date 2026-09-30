@@ -93,17 +93,15 @@ export const ArchitectureView: React.FC = () => {
         }
       }
       if (!draftPayload) {
-        const rawServiceName = (activeSession?.specName || 'app-service')
-          .toLowerCase()
-          .replace(/[^a-z0-9-]/g, '-')
-          .replace(/^-+|-+$/g, '') || 'app-service';
-        draftPayload = {
-          serviceName: rawServiceName,
-          packageName: `com.corp.${rawServiceName.replace(/[^a-z0-9]/g, '')}`,
-          basePort: 8080,
-          entities: [{ name: 'Resource', tableName: 'resources', attributes: [{ name: 'id', type: 'Long', isPrimaryKey: true }] }],
-          userStories: [],
-        };
+        // Was a fabricated draft -- service `app-service`, one `Resource` entity with a
+        // single `id` -- sent to the architecture model and presented as derived from the
+        // session. There is no specification to design from, so say that instead.
+        setErrorMsg(
+          'No hay un borrador de requisitos para esta sesión. Genere y apruebe las ' +
+          'historias en la pestaña de Requisitos antes de diseñar la arquitectura.',
+        );
+        setIsGenerating(false);
+        return;
       }
       const res = await architectureService.design({
         draft: draftPayload,
@@ -204,35 +202,21 @@ export const ArchitectureView: React.FC = () => {
         .replace(/^-+|-+$/g, '') || 'order-service';
       const cleanPackage = design.packageName || currentDraft?.packageName || `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
 
-      const draftEntities = (currentDraft?.entities && currentDraft.entities.length > 0)
-        ? currentDraft.entities
-        : [
-            {
-              name: 'Order',
-              tableName: 'orders',
-              attributes: [{ name: 'id', type: 'Long', nullable: false, isPrimaryKey: true, validationRules: [] }],
-            },
-          ];
+      // No invented fallback. This used to substitute an `Order`/`orders` entity and a
+      // "Gestionar pedidos" story with a full acceptance scenario when the draft was
+      // empty, and the result was submitted to POST /specifications -- so a session could
+      // be created, and a microservice generated, from domain content nobody wrote.
+      const draftEntities = currentDraft?.entities || [];
+      const draftStories = currentDraft?.userStories || [];
 
-      const draftStories = (currentDraft?.userStories && currentDraft.userStories.length > 0)
-        ? currentDraft.userStories
-        : [
-            {
-              id: 'US-001',
-              priority: 'P1',
-              role: 'Usuario',
-              intent: 'Gestionar pedidos',
-              benefit: 'Operar el negocio',
-              scenarios: [
-                {
-                  scenarioId: 'AC-1.1',
-                  given: 'Servicio en ejecución y base de datos disponible',
-                  when: 'Cliente envía solicitud REST',
-                  then: 'El microservicio procesa y retorna 201 Created',
-                },
-              ],
-            },
-          ];
+      if (draftEntities.length === 0 || draftStories.length === 0) {
+        setErrorMsg(
+          'El borrador no declara entidades o historias de usuario. Complete la ' +
+          'especificación en la pestaña de Requisitos antes de transferirla a generación.',
+        );
+        setIsGenerating(false);
+        return;
+      }
 
       const blueprintPayload = {
         serviceName: rawServiceName,

@@ -220,32 +220,40 @@ export const DomainModelsView: React.FC = () => {
         packageName: cleanPackage,
         basePort: 8080,
         databaseMode: 'PostgreSQL',
-        entities: rawEntities.map((e: any) => {
-          const name = typeof e === 'string' ? e : e?.name || 'Order';
-          const tableName = typeof e === 'object' && e?.tableName ? e.tableName : `${name.toLowerCase()}s`;
-          return {
-            name,
-            tableName,
-            attributes: ((typeof e === 'object' && (e?.attributes || e?.fields)) || [{ name: 'id', type: 'Long', isPrimaryKey: true }]).map((a: any) => ({
-              name: a.name,
-              type: a.type || a.javaType || 'Long',
-              nullable: !!a.nullable,
-              isPrimaryKey: !!a.isPrimaryKey || !!a.primaryKey,
-              validationRules: a.validationRules || [],
-            })),
-          };
-        }),
+        // Only names and labels are defaulted. This used to substitute entity `Order`, an
+        // `id: Long` primary key, role `Usuario`, intent "Gestionar entidades de negocio",
+        // benefit "Completar operaciones" and three Given/When/Then clauses -- all of it
+        // submitted to POST /specifications and used to generate the service. The server's
+        // minimum-length validation passed on the invented text, so the gap was invisible.
+        entities: rawEntities
+          .map((e: any) => {
+            const name = typeof e === 'string' ? e : e?.name;
+            if (!name) return null;
+            const tableName = typeof e === 'object' && e?.tableName ? e.tableName : `${name.toLowerCase()}s`;
+            return {
+              name,
+              tableName,
+              attributes: ((typeof e === 'object' && (e?.attributes || e?.fields)) || []).map((a: any) => ({
+                name: a.name,
+                type: a.type || a.javaType || 'String',
+                nullable: !!a.nullable,
+                isPrimaryKey: !!a.isPrimaryKey || !!a.primaryKey,
+                validationRules: a.validationRules || [],
+              })),
+            };
+          })
+          .filter(Boolean),
         userStories: rawStories.map((s: any) => ({
           id: s.id,
           priority: s.priority || 'P1',
-          role: s.role || 'Usuario',
-          intent: s.intent || s.feature || 'Gestionar entidades de negocio',
-          benefit: s.benefit || 'Completar operaciones',
+          role: s.role || '',
+          intent: s.intent || s.feature || '',
+          benefit: s.benefit || '',
           scenarios: (s.scenarios || []).map((sc: any, idx: number) => ({
             scenarioId: sc.scenarioId || `AC-${s.id}.${idx + 1}`,
-            given: sc.given || 'Precondición válida',
-            when: sc.when || 'Operación ejecutada',
-            then: sc.then || 'Resultado esperado obtenido',
+            given: sc.given || '',
+            when: sc.when || '',
+            then: sc.then || '',
           })),
         })),
       };
