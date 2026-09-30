@@ -443,15 +443,50 @@ def test_a_building_session_is_returned_without_touching_the_network(monkeypatch
     assert status.status == DeploymentStatus.BUILDING
 
 
-def test_an_unknown_session_with_a_live_endpoint_is_discovered_as_healthy(monkeypatch):
-    """A container started outside this process must still be reported, not shown as IDLE."""
+def test_a_container_started_outside_this_process_is_discovered(monkeypatch):
+    """A container started outside this process must still be reported, not shown as IDLE.
+
+    This replaces `test_an_unknown_session_with_a_live_endpoint_is_discovered_as_healthy`,
+    which asserted the same intent through an unsafe implementation: it probed a bare
+    `host_port` and, on a 200 UP, created a deployment record for whichever session was
+    asked about. The port is a shared default, so ANY service on it satisfied EVERY
+    session -- a loan-servicing session with no container reported HEALTHY because the
+    help-desk container was running, and its 500s were then diagnosed as a container
+    problem.
+
+    The intent is kept and the attribution is fixed: an externally-started container is
+    discovered by its `com.docker.compose.project` label, which compose sets to the session
+    id. Discovery is now per-session, which is what "still be reported" requires.
+    """
+    monkeypatch.setattr(ds, "_containers_for_session", lambda sid: [
+        {"id": "app555", "name": "externally-started", "ports": "0.0.0.0:18081->8080/tcp", "status": "Up"},
+    ])
     monkeypatch.setattr(ds.requests, "get", lambda url, **kw: _FakeResponse(200, {"status": "UP"}))
 
-    status = ds.get_deployment_status(SESSION_ID, host_port=18081)
+    status = ds.get_deployment_status(SESSION_ID)
 
     assert status.status == DeploymentStatus.HEALTHY
     assert status.healthStatus == "UP"
+    assert status.containerId == "app555"
+    assert status.hostPort == 18081, "the recovered container's own port, not a default"
     assert ds._active_deployments[SESSION_ID].status == DeploymentStatus.HEALTHY
+
+
+def test_a_live_endpoint_belonging_to_another_session_is_not_this_session(monkeypatch):
+    """The misattribution itself, as a test.
+
+    Something answers on the port. It belongs to a different session. This session is not
+    deployed, and saying otherwise is what made a wrong-payload failure look like a
+    container failure.
+    """
+    monkeypatch.setattr(ds, "_containers_for_session", lambda sid: [])  # nothing for this session
+    monkeypatch.setattr(ds.requests, "get", lambda url, **kw: _FakeResponse(200, {"status": "UP"}))
+
+    status = ds.get_deployment_status(SESSION_ID)
+
+    assert status.status != DeploymentStatus.HEALTHY
+    assert status.containerId is None
+    assert SESSION_ID not in ds._active_deployments
 
 
 def test_an_existing_failed_session_is_cleared_when_the_endpoint_recovers(monkeypatch):

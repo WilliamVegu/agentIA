@@ -33,39 +33,136 @@ def check_docker_daemon() -> bool:
         return False
 
 
+def _containers_for_session(session_id: str) -> list:
+    """Containers belonging to a session, identified by the compose project label.
+
+    The deployment registry is in memory, so a backend restart used to orphan every running
+    container: the platform forgot it had deployed anything and reported IDLE while the
+    service was up. Docker already records the association -- `docker compose` names the
+    project after the session id -- so the state can be recovered rather than guessed.
+
+    Read-only. On any failure it returns an empty list, which degrades to "not deployed":
+    the honest answer when the state cannot be established.
+    """
+    try:
+        proc = subprocess.run(
+            [
+                "docker", "ps",
+                "--filter", f"label=com.docker.compose.project={session_id}",
+                "--format", "{{.ID}}\t{{.Names}}\t{{.Ports}}\t{{.Status}}",
+            ],
+            capture_output=True, text=True, timeout=3.0, check=False,
+        )
+        if proc.returncode != 0:
+            return []
+        rows = []
+        for line in proc.stdout.strip().splitlines():
+            parts = line.split("\t")
+            if len(parts) == 4:
+                rows.append({"id": parts[0], "name": parts[1], "ports": parts[2], "status": parts[3]})
+        return rows
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return []
+
+
+def _host_port_from_ports(ports: str) -> int | None:
+    """`0.0.0.0:8080->8080/tcp` -> 8080."""
+    try:
+        for chunk in ports.split(","):
+            chunk = chunk.strip()
+            if "->" not in chunk:
+                continue
+            host_side, container_side = chunk.split("->", 1)
+            container_port = container_side.split("/")[0]
+            if container_port != "8080":
+                continue
+            return int(host_side.rsplit(":", 1)[-1])
+    except (ValueError, IndexError):
+        return None
+    return None
+
+
+def _recover_deployment(session_id: str) -> "LocalDeploymentSession | None":
+    """Rebuild a session's deployment record from the running containers, if any."""
+    containers = _containers_for_session(session_id)
+    if not containers:
+        return None
+
+    app_container = None
+    db_container = None
+    for c in containers:
+        name = c["name"].lower()
+        if any(marker in name for marker in ("postgres", "mysql", "mariadb", "-db")):
+            db_container = c
+        else:
+            app_container = c
+    if app_container is None:
+        return None
+
+    session = LocalDeploymentSession(
+        sessionId=session_id,
+        containerId=app_container["id"],
+        databaseContainerId=db_container["id"] if db_container else None,
+        status=DeploymentStatus.RUNNING,
+        hostPort=_host_port_from_ports(app_container["ports"]) or 8080,
+        containerPort=8080,
+        testUrl=None,
+        healthStatus=None,
+    )
+    session.testUrl = f"http://localhost:{session.hostPort}/actuator/health"
+    _active_deployments[session_id] = session
+    return session
+
+
 def get_deployment_status(session_id: str, host_port: int = 8080) -> LocalDeploymentSession:
     """Returns the current deployment tracking state for a session, actively checking actual container health."""
     session = _active_deployments.get(session_id)
     if session and session.status == DeploymentStatus.BUILDING:
         return session
 
-    # Check if container is actually running and healthy via Actuator
-    test_url = f"http://localhost:{host_port}/actuator/health"
+    # A session with no deployment record is NOT DEPLOYED, and probing must not change
+    # that. This used to probe a fixed `localhost:8080` and, on a 200 UP, CREATE a
+    # deployment record for whichever session was asked about:
+    #
+    #     if not session:
+    #         session = LocalDeploymentSession(sessionId=session_id,
+    #                                          status=DeploymentStatus.HEALTHY, ...)
+    #
+    # The port is a shared default, so ANY service listening on it satisfied EVERY
+    # session. A session with no container of its own (`containerId: null`) reported
+    # HEALTHY / UP / PostgreSQL because a different session's container was running. The
+    # DevOps tab then said the service was up while its endpoints returned 500 for
+    # entities it did not have, which is what made a wrong-payload failure look like a
+    # container failure. Reported exactly that way: "verifica que el contenedor está en
+    # ejecución" -- the container was running, it just belonged to another service.
+    #
+    # The probe now only ever UPDATES a record that already exists. Health cannot be
+    # established by discovering that *something* answers on a port.
+    if not session:
+        # Recover from Docker before concluding "not deployed": the registry is in memory
+        # and a restart orphans every running container, which previously showed a live
+        # service as IDLE. Recovery is read-only and keyed on the compose project label,
+        # which `docker compose` sets to the session id.
+        session = _recover_deployment(session_id)
+        if not session:
+            return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.IDLE)
+
+    # Probe the port this session was actually deployed on, not a default.
+    port = session.hostPort or host_port
+    test_url = f"http://localhost:{port}/actuator/health"
     try:
         resp = requests.get(test_url, timeout=0.8)
         if resp.status_code == 200 and resp.json().get("status") == "UP":
-            if not session:
-                session = LocalDeploymentSession(
-                    sessionId=session_id,
-                    status=DeploymentStatus.HEALTHY,
-                    hostPort=host_port,
-                    containerPort=8080,
-                    testUrl=test_url,
-                    healthStatus="UP",
-                )
-                _active_deployments[session_id] = session
-            else:
-                session.status = DeploymentStatus.HEALTHY
-                session.healthStatus = "UP"
-                session.testUrl = test_url
-                session.errorMessage = None
-            return session
+            session.status = DeploymentStatus.HEALTHY
+            session.healthStatus = "UP"
+            session.testUrl = test_url
+            session.errorMessage = None
+        else:
+            session.healthStatus = "DOWN"
     except Exception:
-        pass
+        session.healthStatus = "UNKNOWN"
 
-    if session:
-        return session
-    return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.IDLE)
+    return session
 
 
 def get_deployment_logs(session_id: str) -> list:
