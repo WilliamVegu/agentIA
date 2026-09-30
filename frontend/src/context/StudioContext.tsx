@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { SessionListItem, sessionService } from '../services/sessionService';
 import { orchestratorService, ProjectOverview } from '../services/orchestratorService';
+import type { TabKey } from '../config/workspaceTabs';
 
 interface StudioContextType {
-  activeTab: number;
-  setActiveTab: (tab: number) => void;
+  activeTab: TabKey;
+  setActiveTab: (tab: TabKey) => void;
   activeSessionId: string | null;
   activeSession: SessionListItem | null;
   sessions: SessionListItem[];
@@ -31,7 +32,8 @@ interface StudioContextType {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<number>(0);
+  // A key, not an index: see config/workspaceTabs.ts for why the number was removed.
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [projectOverview, setProjectOverview] = useState<ProjectOverview | null>(null);
@@ -105,7 +107,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const startNewService = () => {
     setActiveSessionId(null);
-    setActiveTab(0);
+    // Ingestion is the first tab, so a new service starts where a specification enters.
+    setActiveTab('blueprints');
     setProjectOverview(null);
     setLifecycle(null);
     setCurrentDraft(null);

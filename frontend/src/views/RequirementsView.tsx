@@ -395,10 +395,10 @@ export const RequirementsView: React.FC = () => {
           console.warn('Could not auto-start session:', sessErr);
         }
       }
-      setActiveTab(5); // Switch to Tab 5 Monitor
+      setActiveTab('monitor'); // Switch to Tab 5 Monitor
     } catch (err) {
       console.error('Error al transferir a generación:', err);
-      setActiveTab(5);
+      setActiveTab('monitor');
     } finally {
       setIsProcessing(false);
     }
@@ -471,7 +471,7 @@ export const RequirementsView: React.FC = () => {
       await orchestratorService.invalidateDownstream(activeSessionId, 'STORIES');
       await reloadCurrentOverview();
     }
-    setActiveTab(2); // Move to tab 2 Architecture
+    setActiveTab('architecture'); // Move to tab 2 Architecture
   };
 
   return (

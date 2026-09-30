@@ -594,7 +594,7 @@ export const CodeExplorerView: React.FC = () => {
             La evaluación estática de vulnerabilidades, reglas de inmutabilidad y reporte SonarQube se encuentran centralizados en la pestaña canónica.
           </p>
           <button
-            onClick={() => setActiveTab(7)}
+            onClick={() => setActiveTab('quality')}
             className="py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm inline-flex items-center gap-1.5"
           >
             <span>👉 Abrir Auditoría en Pestaña 7</span>

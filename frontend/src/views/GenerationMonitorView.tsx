@@ -151,7 +151,7 @@ export const GenerationMonitorView: React.FC = () => {
     <div className="space-y-6">
       {/* Top Status Card */}
       <SingleRowCard
-        title="Fase 5: Orquestación y Monitoreo en Vivo (LangGraph)"
+        title="Monitor en Vivo: Orquestación LangGraph"
         subtitle="Supervisa la generación de código por LangGraph, compilación hermética y pruebas Mockito en tiempo real"
         badge={
           <div className="flex items-center gap-2">
@@ -367,13 +367,13 @@ export const GenerationMonitorView: React.FC = () => {
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
-              onClick={() => setActiveTab(6)}
+              onClick={() => setActiveTab('code')}
               className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
             >
               🔍 Explorar Código & Tests (Tab 6)
             </button>
             <button
-              onClick={() => setActiveTab(9)}
+              onClick={() => setActiveTab('delivery')}
               className="py-2 px-4 rounded-lg text-xs font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/60 hover:bg-emerald-200 transition-colors"
             >
               📦 Descargar ZIP & Git (Tab 9)
@@ -394,7 +394,7 @@ export const GenerationMonitorView: React.FC = () => {
             Se agotaron los 5 intentos permitidos de auto-reparación adaptativa sin resolver todos los fallos de compilación detectados.
           </p>
           <button
-            onClick={() => setActiveTab(6)}
+            onClick={() => setActiveTab('code')}
             className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-sm"
           >
             🛠️ Abrir Intervención Manual en Tab 6 →

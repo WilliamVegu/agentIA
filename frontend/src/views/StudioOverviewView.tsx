@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { AssistedScrollBtn } from '../components/common/AssistedScrollBtn';
+import type { TabKey } from '../config/workspaceTabs';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
 import { sessionService } from '../services/sessionService';
@@ -70,9 +71,9 @@ export const StudioOverviewView: React.FC = () => {
       if (res?.sessionId) {
         selectSession(res.sessionId);
         if (isAuto) {
-          setActiveTab(5); // Switch to Monitor tab
+          setActiveTab('monitor'); // Switch to Monitor tab
         } else {
-          setActiveTab(1); // Switch to Requirements tab
+          setActiveTab('requirements'); // Switch to Requirements tab
         }
       }
     } catch (err: any) {
@@ -142,9 +143,9 @@ export const StudioOverviewView: React.FC = () => {
         force: true,
       });
       await Promise.all([reloadCurrentOverview(), refreshSessions()]);
-      setActiveTab(5);
+      setActiveTab('monitor');
     } catch {
-      setActiveTab(5);
+      setActiveTab('monitor');
     } finally {
       setIsPipelineWorking(false);
     }
@@ -152,17 +153,17 @@ export const StudioOverviewView: React.FC = () => {
 
   const handleContinueAssisted = () => {
     const nextTarget = lifecycle?.nextTargetPhase || 'SPECIFICATION';
-    const tabMap: Record<string, number> = {
-      SPECIFICATION: 1,
-      STORIES: 1,
-      ARCHITECTURE: 2,
-      DATA_MODEL: 3,
-      CODE_GENERATION: 5,
-      SECURITY_AUDIT: 7,
-      DEPLOYMENT: 8,
-      VERIFIED: 9,
-    };
-    setActiveTab(tabMap[nextTarget] || 1);
+    const tabMap: Record<string, TabKey> = {
+      SPECIFICATION: 'requirements',
+      STORIES: 'requirements',
+      ARCHITECTURE: 'architecture',
+      DATA_MODEL: 'models',
+      CODE_GENERATION: 'monitor',
+      SECURITY_AUDIT: 'quality',
+      DEPLOYMENT: 'devops',
+      VERIFIED: 'delivery',
+    } as const;
+    setActiveTab(tabMap[nextTarget as keyof typeof tabMap] || 'requirements');
   };
 
   const pipelineStatus =
@@ -400,19 +401,19 @@ export const StudioOverviewView: React.FC = () => {
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
-                  onClick={() => setActiveTab(6)}
+                  onClick={() => setActiveTab('code')}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
                 >
                   🔍 Explorar Código Fuente (Tab 6)
                 </button>
                 <button
-                  onClick={() => setActiveTab(7)}
+                  onClick={() => setActiveTab('quality')}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   🛡️ Ver Quality Gate & SAST (Tab 7)
                 </button>
                 <button
-                  onClick={() => setActiveTab(9)}
+                  onClick={() => setActiveTab('delivery')}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   📦 Descarga & Publicación Git (Tab 9)

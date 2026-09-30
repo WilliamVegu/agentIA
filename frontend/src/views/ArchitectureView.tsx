@@ -183,10 +183,10 @@ export const ArchitectureView: React.FC = () => {
         await orchestratorService.invalidateDownstream(activeSessionId, 'ARCHITECTURE');
         await reloadCurrentOverview();
       }
-      setActiveTab(3); // Go to tab 3 (Modelos & SQL)
+      setActiveTab('models'); // Go to tab 3 (Modelos & SQL)
     } catch (err: any) {
       // Fallback transition
-      setActiveTab(3);
+      setActiveTab('models');
     } finally {
       setIsGenerating(false);
     }
@@ -268,10 +268,10 @@ export const ArchitectureView: React.FC = () => {
           console.warn('Could not auto-start session:', sessErr);
         }
       }
-      setActiveTab(5); // Go to tab 5 (Generación & Logs)
+      setActiveTab('monitor'); // Go to tab 5 (Generación & Logs)
     } catch (err: any) {
       console.error('Error al transferir arquitectura a generación:', err);
-      setActiveTab(5);
+      setActiveTab('monitor');
     } finally {
       setIsGenerating(false);
     }

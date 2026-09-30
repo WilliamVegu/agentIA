@@ -76,7 +76,7 @@ export const SpecIngestionView: React.FC = () => {
     <div className="space-y-6">
       {/* Top Card */}
       <SingleRowCard
-        title="Fase 4: Ingesta y Validación Formal de Blueprints (Spec Kit)"
+        title="Ingesta y Validación Formal de Blueprints (Spec Kit)"
         subtitle="Carga de especificaciones estandarizadas en Markdown o esquemas Blueprint en JSON"
         badge={
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
@@ -243,7 +243,7 @@ export const SpecIngestionView: React.FC = () => {
                     console.warn(e);
                   }
                 }
-                setActiveTab(5);
+                setActiveTab('monitor');
               }}
               className="py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
             >

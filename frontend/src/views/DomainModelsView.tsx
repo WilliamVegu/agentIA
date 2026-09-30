@@ -277,10 +277,10 @@ export const DomainModelsView: React.FC = () => {
         await orchestratorService.invalidateDownstream(activeSessionId, 'DATA_MODEL');
         await reloadCurrentOverview();
       }
-      setActiveTab(5); // Switch to Tab 5 Monitor
+      setActiveTab('monitor'); // Switch to Tab 5 Monitor
     } catch (err: any) {
       console.error('Error al transferir modelos a generación:', err);
-      setActiveTab(5);
+      setActiveTab('monitor');
     } finally {
       setIsSynthesizing(false);
     }

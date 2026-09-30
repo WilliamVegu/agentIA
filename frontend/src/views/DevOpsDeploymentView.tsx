@@ -430,7 +430,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     <div className="space-y-6">
       {/* 1. Status Banner & Metrics */}
       <SingleRowCard
-        title="Fase 8: DevOps, Contenerización & Despliegue Multi-Stage"
+        title="Fase 6: DevOps, Contenerización & Despliegue Multi-Stage"
         subtitle="Dockerfile multi-stage hermético, Compose con base de datos, pipelines de CI/CD (GitHub Actions / GitLab CI) y Kubernetes"
         badge={
           <span

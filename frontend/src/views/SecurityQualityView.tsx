@@ -195,7 +195,7 @@ export const SecurityQualityView: React.FC = () => {
               <span>Actualizar Auditoría</span>
             </button>
             <button
-              onClick={() => setActiveTab(8)}
+              onClick={() => setActiveTab('devops')}
               className="py-2.5 px-5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all flex items-center gap-1.5"
             >
               <span>Continuar a DevOps →</span>
