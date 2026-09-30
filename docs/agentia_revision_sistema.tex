@@ -106,67 +106,99 @@ Cuatro hechos dominan esta revisión.
   (20\%), de modo que el almacén local --- no el espejo --- es la cifra a citar.
 \end{enumerate}
 
-\section{El flujo de trabajo agéntico}
+\section{El agente: qué hace y cómo está gobernado}
 
-\subsection{El pipeline como máquina de estados}
+En su núcleo, AgentIA es un único trabajador autónomo con una sola tarea: convertir
+un blueprint formal en un microservicio Spring Boot completo, compilable y con tests
+que pasan --- y negarse a reportar éxito salvo que eso sea cierto. No es un chatbot
+que sugiere código; es un pipeline gobernado que escribe, revisa, compila y verifica,
+y se detiene cuando no puede. Esta sección describe a ese trabajador en términos
+sencillos: las etapas que ejecuta, las compuertas que lo restringen y el bucle que lo
+mantiene honesto.
 
-La generación es una máquina de estados LangGraph de ocho nodos
-(\texttt{graph.py}). La topología es una columna lineal con exactamente un ciclo
-acotado, mostrada en la Figura~\ref{fig:workflow}:
+\subsection{La tarea, etapa por etapa}
+
+Ocho etapas llevan una especificación a un servicio verificado. Cada una tiene una
+única responsabilidad revisable, que es lo que hace auditable la salida.
 
 \begin{center}
-\texttt{validador $\rightarrow$ scaffolder $\rightarrow$ dominio $\rightarrow$ servicio
-$\rightarrow$ controlador $\rightarrow$ test $\rightarrow$ sandbox
-$\rightleftharpoons$ reparación}
+\begin{longtable}{@{}p{0.19\textwidth}p{0.34\textwidth}p{0.41\textwidth}@{}}
+\toprule
+\textbf{Etapa} & \textbf{Produce} & \textbf{Por qué importa} \\
+\midrule
+Validador & aprueba o rechaza el blueprint & una mala especificación se ataja antes de gastar un token \\
+Scaffolder & \texttt{pom.xml}, configuración, punto de entrada & la lista blanca de dependencias y el esqueleto, fijados por política \\
+Dominio & entidades JPA + registros DTO inmutables & el modelo de datos, en un único lugar canónico \\
+Servicio & repositorio, servicio, implementación & la lógica de negocio aislada en su propia capa \\
+Controlador & endpoints REST + manejador global de errores & una superficie de API uniforme \\
+Test & tests unitarios derivados de los escenarios de aceptación & todo comportamiento declarado tiene un test \\
+Sandbox & compila y ejecuta los tests, offline & prueba, no promesa \\
+Reparación & un parche quirúrgico, luego re-ejecuta & autocorrección, acotada \\
+\bottomrule
+\end{longtable}
 \end{center}
 
-Cada nodo de generación emite uno o varios archivos en un espacio de trabajo
-compartido; el sandbox compila y prueba el proyecto completo de forma hermética; ante
-un fallo el nodo de reparación aplica un parche quirúrgico y el sandbox se vuelve a
-ejecutar, acotado por un número máximo de intentos.
+El orden no es arbitrario: cada etapa construye solo sobre los artefactos que las
+anteriores ya produjeron, de modo que una decisión tomada aguas arriba --- el nombre
+del paquete, una entidad, un contrato --- nunca se contradice silenciosamente aguas
+abajo.
 
-\subsection{Doble implementación: MODELO y DETERMINISTA}
+\subsection{Autonomía con un tope duro}
 
-Cada etapa de generación tiene dos implementaciones (\texttt{stages/deterministic/} y
-\texttt{stages/model/}), seleccionadas una vez por sesión mediante
-\texttt{select\_generation\_mode()}. La decisión se registra en el estado y nunca se
-re-decide a mitad de sesión, de modo que una sesión no puede producir un híbrido de
-artefactos con forma de plantilla y con forma de modelo. La ruta determinista emite
-plantillas offline con cero llamadas al modelo y es idéntica byte a byte entre
-ejecuciones; la ruta de modelo conduce un LLM de uso general (actualmente
-\texttt{deepseek-flash}) con un conjunto de instrucciones versionado.
+El pipeline es deliberadamente un bucle acotado, mostrado en la
+Figura~\ref{fig:workflow}. La generación corre en una dirección; luego el sandbox
+compila. Si la compilación falla, la etapa de reparación lee el error real de Maven,
+aplica un parche estrecho y vuelve a compilar --- hasta un límite fijo (tres intentos
+según la constitución, cinco en un archivo de configuración, una inconsistencia
+señalada en la Sección~\ref{sec:findings}). Al llegar al límite, la sesión se marca
+\texttt{BLOQUEADA} y se entrega a un humano.
 
-\subsection{La compuerta de cumplimiento}
+Ese tope es el punto, no una limitación: el agente puede corregirse, pero no puede
+iterar indefinidamente, y no puede devolver en silencio algo que no pudo compilar. La
+autonomía acotada es la propiedad que un directorio puede avalar --- el coste de una
+respuesta equivocada está limitado a una revisión, nunca a un gasto de tokens sin
+freno ni a un artefacto no verificable.
 
-Antes de persistir el candidato de cualquier etapa, pasa una compuerta de cumplimiento
-combinada (\texttt{stages/compliance.py}): se fusionan la familia de validación de
-análisis de tests y la familia de arquitectura de seguridad, y cada hallazgo lleva una
-atribución --- \texttt{LOCAL} (esta etapa posee el artefacto infractor) o
-\texttt{ACUMULADO} (ninguna etapa lo posee). Los hallazgos locales bloqueantes
-rechazan el candidato y consumen un intento de corrección; los hallazgos acumulados se
-registran pero nunca rechazan. Esta separación es lo que impide culpar a una sola
-etapa por una preocupación de todo el proyecto.
+\subsection{Dos motores, una decisión}
 
-\subsection{El sandbox de verificación}
+Cada etapa de generación tiene dos implementaciones: \texttt{DETERMINISTA} (plantillas
+offline, cero llamadas al modelo, salida idéntica byte a byte) y \texttt{MODELO} (un
+LLM de uso general, actualmente \texttt{deepseek-flash}, conducido por un conjunto de
+instrucciones versionado). La elección se hace una vez por sesión y se registra, nunca
+se re-decide a medias, de modo que una sesión no puede mezclar ambas. El motor
+determinista existe por coste y por auditoría: la misma entrada debe producir la misma
+salida cuando un auditor lo pregunta, y una sesión debe poder ejecutarse sin red y sin
+clave de API.
 
-El sandbox (\texttt{workspace\_verification.py}) ejecuta, en orden: eliminar los
-metadatos de control de versiones; inyectar un test de contrato de persistencia
-escrito por la plataforma (un \texttt{@SpringBootTest} con \texttt{ddl-auto=validate}
-contra el \texttt{schema.sql} generado); y luego \texttt{docker run --rm --network none
-... mvn test -o} contra una caché Maven de solo lectura. El test de contrato es la
-señal de aceptación que el generador no puede autorar: el modelo nunca lo ve, y una
-contradicción esquema/entidad falla la compilación aunque todos los tests unitarios
-escritos por el modelo (que simulan el repositorio) pasen. Los conteos de tests se
-extraen del propio resumen de surefire en lugar de fabricarse.
+\subsection{Compuertas que posee el proyecto}
 
-\subsection{Auto-reparación acotada}
+Antes de escribir cualquier archivo, pasa una compuerta de cumplimiento que fusiona
+dos familias de reglas --- el análisis constitucional de tests y el escaneo de
+arquitectura de seguridad. Cada hallazgo lleva una atribución: \texttt{LOCAL} (esta
+etapa posee el archivo infractor) o \texttt{ACUMULADO} (una preocupación de todo el
+proyecto, p.\ ej.\ ``los errores deben centralizarse''). Una violación local rechaza
+el candidato y gasta un intento de corrección; una acumulada se registra pero nunca se
+le culpa a una sola etapa.
 
-Ante un fallo de compilación, el nodo de reparación analiza la traza de Maven
-(\texttt{repair.py}, \texttt{repair\_parser.py}) en una clase de fallo (compilación,
-aserción, tiempo de ejecución) y aplica un parche unificado quirúrgico, reentrando en
-el sandbox. El límite de intentos es 3 en la constitución y 5 en
-\texttt{config.py:73} --- una inconsistencia viva señalada en la
-Sección~\ref{sec:findings}.
+La propiedad clave para el directorio: \textbf{estas son las reglas del propio
+proyecto, aplicadas de forma determinista --- no la opinión del modelo sobre su propia
+salida.}
+
+\subsection{El agente no puede calificar su propia tarea}
+
+La decisión de diseño determinante es que el test de aceptación \emph{no} lo escribe
+el modelo. Tras cada etapa, la plataforma inyecta su propio test de contrato de
+persistencia --- un arranque de contexto Spring con \texttt{ddl-auto=validate} contra
+el \texttt{schema.sql} generado --- y luego compila y ejecuta todo dentro de un
+contenedor Docker sellado, sin red y con una caché de dependencias de solo lectura. El
+modelo nunca ve este test, por lo que no puede escribir para él.
+
+Esto importa porque los tests unitarios del propio modelo simulan la capa de
+persistencia: un servicio generado cuyo esquema contradice sus entidades pasaría todos
+los tests escritos por el modelo y fallaría el de la plataforma. Esa clase de defecto
+se ha capturado aquí, y es exactamente la brecha que este diseño cierra. Los conteos
+de tests se leen de la propia salida de la compilación, nunca se fabrican, y una
+compilación que reporta éxito sin ejecutar ningún test se registra como no verificada.
 
 \section{Orquestación}
 
@@ -259,7 +291,7 @@ creado).
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.82\linewidth]{fig/workflow.pdf}
+  \includegraphics[width=\linewidth]{fig/workflow.pdf}
   \caption{La máquina de estados de generación: una columna lineal con un ciclo
   acotado de reparación--sandbox.}
   \label{fig:workflow}

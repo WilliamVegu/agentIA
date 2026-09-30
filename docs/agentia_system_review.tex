@@ -100,64 +100,92 @@ Four facts dominate this review.
   store --- not the mirror --- is the number to quote.
 \end{enumerate}
 
-\section{The agentic workflow}
+\section{The agent: what it does, and how it is governed}
 
-\subsection{The pipeline as a state machine}
+At its core, AgentIA is a single autonomous worker with one job: turn a formal
+blueprint into a complete, compilable, test-passing Spring Boot microservice --- and
+refuse to report success unless that is true. It is not a chatbot that suggests code;
+it is a governed pipeline that writes, checks, builds and verifies, and stops when it
+cannot. This section describes that worker in plain terms: the stages it runs, the
+guardrails that constrain it, and the loop that keeps it honest.
 
-Generation is a LangGraph state machine of eight nodes (\texttt{graph.py}). The
-topology is a linear spine with exactly one bounded cycle, shown in
-Figure~\ref{fig:workflow}:
+\subsection{The job, stage by stage}
+
+Eight stages take a specification to a verified service. Each one has a single,
+reviewable responsibility, which is what makes the output auditable.
 
 \begin{center}
-\texttt{validator $\rightarrow$ scaffolder $\rightarrow$ domain $\rightarrow$ service
-$\rightarrow$ controller $\rightarrow$ test $\rightarrow$ sandbox
-$\rightleftharpoons$ repair}
+\begin{longtable}{@{}p{0.19\textwidth}p{0.34\textwidth}p{0.41\textwidth}@{}}
+\toprule
+\textbf{Stage} & \textbf{Produces} & \textbf{Why it matters} \\
+\midrule
+Validator & passes or rejects the blueprint & a bad spec is caught before a single token is spent \\
+Scaffolder & \texttt{pom.xml}, configuration, entry point & the dependency allowlist and the skeleton, fixed by policy \\
+Domain & JPA entities + immutable DTO records & the data model, in one canonical place \\
+Service & repository, service, implementation & business logic isolated in its own layer \\
+Controller & REST endpoints + global error handler & a uniform API surface \\
+Test & unit tests derived from the acceptance scenarios & every declared behaviour has a test \\
+Sandbox & compiles and runs the tests, offline & proof, not a claim \\
+Repair & a surgical patch, then re-runs & self-correction, bounded \\
+\bottomrule
+\end{longtable}
 \end{center}
 
-Each generation node emits one file (or a small set of files) into a shared
-workspace; the sandbox then compiles and tests the whole project hermetically; on
-failure the repair node applies a surgical patch and the sandbox runs again, bounded
-by a maximum attempt count.
+The order is not arbitrary: each stage builds only on artifacts the previous stages
+have already produced, so a decision made upstream --- the package name, an entity, a
+contract --- is never silently contradicted downstream.
 
-\subsection{Dual implementation: MODEL and DETERMINISTIC}
+\subsection{Autonomy with a hard stop}
 
-Every generation stage has two implementations (\texttt{stages/deterministic/} and
-\texttt{stages/model/}), selected once per session by
-\texttt{select\_generation\_mode()}. The decision is recorded in the state and never
-re-decided mid-session, so a session cannot produce a hybrid of template-shaped and
-model-shaped artifacts. The deterministic path emits offline templates with zero
-model calls and is byte-identical across runs; the model path drives a commodity LLM
-(currently \texttt{deepseek-flash}) with a versioned instruction set.
+The pipeline is deliberately a bounded loop, shown in Figure~\ref{fig:workflow}.
+Generation runs in one direction; then the sandbox builds. If the build fails, the
+repair stage reads the actual Maven error, applies a narrow patch, and builds again
+--- up to a fixed limit (three attempts by the constitution, five in one config
+file, an inconsistency noted in Section~\ref{sec:findings}). At the limit the session
+is marked \texttt{BLOCKED} and handed to a human.
 
-\subsection{The compliance gate}
+That bound is the point, not a limitation: the agent may correct itself, but it may
+not loop indefinitely, and it may not silently hand back something it could not build.
+Bounded autonomy is the property a board can underwrite --- the cost of a wrong answer
+is capped at a review, never an unbounded token burn or an unverifiable artifact.
 
-Before any stage's candidate is persisted it passes a merged compliance gate
-(\texttt{stages/compliance.py}): the test-analysis validator family and the security
-architecture validator family are combined, and every finding carries an attribution
---- \texttt{LOCAL} (this stage owns the offending artifact) or \texttt{ACCUMULATED}
-(no single stage owns it). Blocking local violations reject the candidate and consume
-a correction attempt; accumulated findings are recorded but never reject. This split
-is what keeps a whole-project concern from being blamed on one stage.
+\subsection{Two engines, one decision}
 
-\subsection{The verification sandbox}
+Every generation stage has two implementations: \texttt{DETERMINISTIC} (offline
+templates, zero model calls, byte-identical output) and \texttt{MODEL} (a commodity
+LLM, currently \texttt{deepseek-flash}, driven by a versioned instruction set). The
+choice is made once per session and recorded, never re-decided halfway, so a session
+cannot mix the two. The deterministic engine exists for cost and for audit: the same
+input must produce the same output when an auditor asks, and a session must be able to
+run with no network and no API key.
 
-The sandbox (\texttt{workspace\_verification.py}) runs, in order: strip
-version-control metadata; inject a platform-authored persistence contract test (a
-\texttt{@SpringBootTest} with \texttt{ddl-auto=validate} against the generated
-\texttt{schema.sql}); then \texttt{docker run --rm --network none ... mvn test -o}
-against a read-only Maven cache. The contract test is the acceptance signal the
-generator cannot author: the model never sees it, and a schema/entity contradiction
-fails the build even though every model-written unit test (which mocks the
-repository) passes. Test counts are parsed from the build's own surefire summary
-rather than fabricated.
+\subsection{Guardrails the project owns}
 
-\subsection{Bounded self-repair}
+Before any file is written, it passes a compliance gate that merges two rule families
+--- the constitutional test analysis and the security architecture scan. Every
+finding carries an attribution: \texttt{LOCAL} (this stage owns the offending file) or
+\texttt{ACCUMULATED} (a whole-project concern, e.g.\ ``errors must be centralised'').
+A local violation rejects the candidate and spends one correction attempt; an
+accumulated one is recorded but never blamed on a single stage.
 
-On build failure the repair node parses the Maven trace
-(\texttt{repair.py}, \texttt{repair\_parser.py}) into a failure class
-(compilation, assertion, runtime) and applies a surgical unified patch, then re-enters
-the sandbox. The attempt cap is 3 in the constitution and 5 in
-\texttt{config.py:73} --- a live inconsistency noted in Section~\ref{sec:findings}.
+The key property for the board: \textbf{these are the project's own rules, enforced
+deterministically --- not the model's opinion of its own output.}
+
+\subsection{The agent cannot grade its own homework}
+
+The decisive design choice is that the acceptance test is \emph{not} written by the
+model. After every stage, the platform injects its own persistence contract test --- a
+Spring context boot with \texttt{ddl-auto=validate} against the generated
+\texttt{schema.sql} --- then compiles and runs everything inside a sealed Docker
+container with no network and a read-only dependency cache. The model never sees this
+test, so it cannot write to it.
+
+This matters because the model's own unit tests mock the persistence layer out: a
+generated service whose schema contradicts its entities would pass every model-written
+test and fail the platform's. That class of defect has been caught here, and it is
+exactly the gap this design closes. Test counts are read from the build's own output,
+never fabricated, and a build that reports success without running any test is
+recorded as not verified.
 
 \section{Orchestration}
 
@@ -246,7 +274,7 @@ created record).
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.82\linewidth]{fig/workflow.pdf}
+  \includegraphics[width=\linewidth]{fig/workflow.pdf}
   \caption{The generation state machine: a linear spine with one bounded
   repair--sandbox cycle.}
   \label{fig:workflow}
