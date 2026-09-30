@@ -1,0 +1,156 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{graphicx}
+
+\usetheme{Madrid}
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{good}{RGB}{30,120,70}
+\definecolor{warn}{RGB}{160,60,40}
+\setbeamercolor{structure}{fg=accent}
+\setbeamercolor{frametitle}{bg=accent,fg=white}
+\setbeamertemplate{navigation symbols}{}
+
+\title{Generación autónoma de microservicios}
+\subtitle{Dónde está la industria, cómo funciona la solución, qué cuesta y hacia dónde vamos}
+\author{Ingeniería AgentIA}
+\date{2026}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Dónde está la industria: tres caminos}
+  \begin{columns}[T]
+    \begin{column}{0.33\textwidth}
+      \begin{block}{1. Agentes generalistas de código}
+        Arreglan o completan código \emph{ya existente}.
+        \begin{itemize}
+          \item Dominan los rankings.
+          \item Saturados y \textbf{caros} (\$5--\$30 por tarea).
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \begin{block}{2. Generadores guiados por especificación}
+        Construyen la aplicación \emph{desde una especificación formal}.
+        \begin{itemize}
+          \item Es nuestro camino.
+          \item Solo se resuelve \textbf{12--55\%}: mucho espacio.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \begin{block}{3. Agentes que se auto-mejoran}
+        Escriben su propio ``manual'' de trabajo.
+        \begin{itemize}
+          \item Prometedor en laboratorio.
+          \item En código real, mejora \textbf{casi nula}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{1em}
+  \centering
+  \textbf{La lección de toda la investigación: el ingrediente que gana no es un
+  modelo más listo ni un manual auto-escrito --- es una \emph{verificación} de fiar.}
+\end{frame}
+
+\begin{frame}{Cómo funciona la solución}
+  \begin{center}
+    \includegraphics[width=0.94\textwidth]{fig/how_it_works.pdf}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Lo que eso garantiza}
+  \begin{itemize}
+    \item \textbf{Se escribe} un servicio completo, no fragmentos: entidades, lógica,
+    API, tests.
+    \item \textbf{Se verifica} en un contenedor sellado, sin red: compila y pasa sus
+    pruebas, o no se entrega.
+    \item \textbf{Se autocorrige} hasta 3 veces; al tercer fallo se detiene y pide a
+    un humano. Nunca un bucle infinito, nunca un ``éxito'' no comprobado.
+    \item \textbf{Se audita} el cumplimiento de las reglas del proyecto, aplicadas por
+    la plataforma, no por la opinión del modelo.
+  \end{itemize}
+  \begin{block}{En una frase}
+    Una especificación entra; un microservicio compilado, probado y conforme sale ---
+    o el sistema dice que no pudo.
+  \end{block}
+\end{frame}
+
+\begin{frame}{El coste (medido, de la última ejecución)}
+  \begin{center}
+    \begin{tabular}{lr}
+      \toprule
+      \textbf{Qué} & \textbf{Coste} \\
+      \midrule
+      Un microservicio (dificultad media, recién ejecutado) & \textbf{\$0.067} \\
+      Rango por servicio (corpus de 10 servicios) & \$0.052 -- \$0.077 \\
+      Un servicio \textbf{garantizado} (se generan 3, se entrega el que compila) & \textbf{\$0.20} \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \begin{itemize}
+    \item $\sim$\$0.005 por llamada al modelo; todo en un modelo de bajo coste.
+    \item El coste escala con el tamaño del servicio, de forma predecible.
+    \item Fuente: sistema de registro propio y su espejo MLflow (ya operativo).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{El trabajo hecho hasta aquí}
+  \begin{itemize}
+    \item \textbf{La plataforma ya verifica su propia salida.} Antes reportaba ``0 de
+    15 verificadas''; el bloqueo era un defecto de un carácter en la configuración de
+    despliegue.
+    \item \textbf{Ambas vías de producto compilan y prueban}, no solo una.
+    \item \textbf{La métrica de calidad dejó de ser manipulable}: ya no se mejora
+    ``generando más archivos''.
+    \item \textbf{El registro de coste es honesto} y ahora visible en MLflow.
+    \item Queda \textbf{un punto abierto}: el verificador a veces cambia su veredicto
+    (se corrige en la siguiente iteración).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{El futuro: auto-mejora}
+  \begin{block}{La idea}
+    Que el sistema aprenda de sus propios errores y mejore su ``manual'' de
+    generación automáticamente.
+  \end{block}
+  \begin{block}{Lo que la evidencia exige}
+    \emph{Un sistema que aprende de un juez ruidoso aprende ruido.} Por eso el orden
+    correcto es:
+  \end{block}
+  \begin{enumerate}
+    \item Hacer \textbf{sólido el verificador} (que dé siempre el mismo veredicto).
+    \item Hacer que la \textbf{medida detecte} los fallos reales.
+    \item \emph{Solo entonces}, encender el bucle de auto-mejora.
+  \end{enumerate}
+  El mecanismo de auto-mejora \textbf{ya está construido}; se enciende cuando la
+  base sea fiable.
+\end{frame}
+
+\begin{frame}{El camino}
+  \begin{center}
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Paso} & \textbf{Qué} & \textbf{Esfuerzo} \\
+      \midrule
+      1 & Sólido el verificador (una configuración) & corto \\
+      2 & Detectar fallos reales en la medida & corto \\
+      3 & Medir si un ``manual'' aporta & \$3--\$5 \\
+      4 & Encender la auto-mejora (ya construida) & condicionado \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \begin{block}{El mensaje}
+    De ``no podía verificar su propia salida'' a ``genera, compila y verifica por
+    \$0.07, y se auto-mejorará cuando la base sea fiable''.
+  \end{block}
+\end{frame}
+
+\end{document}
