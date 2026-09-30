@@ -162,3 +162,61 @@ def test_a_non_entity_file_is_never_touched(tmp_path):
 
     assert normalise_generated_entities(tmp_path) == {}
     assert controller.read_text(encoding="utf-8").count("@NotNull") == 1
+
+
+# ---------------------------------------------------------------------------
+# Test annotations the pinned Spring Boot version does not provide
+# ---------------------------------------------------------------------------
+def test_mockito_bean_is_rewritten_to_mock_bean(tmp_path):
+    """`@MockitoBean` arrived in Spring Boot 3.4; this project pins 3.2.3.
+
+    A generated controller test imported
+    `org.springframework.test.context.bean.override.mockito.MockitoBean` and failed to
+    compile with "package ... does not exist", which consumed the repair budget and
+    blocked the session. The instruction set states the rule, but an instruction is a
+    request and a model may not follow it.
+    """
+    from app.services.generated_code_fixes import normalise_generated_tests
+
+    target = tmp_path / "src/test/java/com/corp/x/controller/FooControllerTest.java"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "package com.corp.x.controller;\n"
+        "import org.springframework.test.context.bean.override.mockito.MockitoBean;\n"
+        "@WebMvcTest(FooController.class)\n"
+        "class FooControllerTest {\n"
+        "    @MockitoBean private FooService service;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    fixed = normalise_generated_tests(tmp_path)
+
+    assert list(fixed) == ["src/test/java/com/corp/x/controller/FooControllerTest.java"]
+    text = target.read_text(encoding="utf-8")
+    assert "@MockitoBean" not in text
+    assert "@MockBean private FooService service;" in text
+    assert "import org.springframework.boot.test.mock.mockito.MockBean;" in text, (
+        "rewriting only the annotation leaves the unresolvable import behind"
+    )
+
+
+def test_an_existing_mock_bean_is_never_touched():
+    """The word boundary matters: `@MockitoBean` must not match inside `@MockBean`."""
+    from app.services.generated_code_fixes import fix_spring_test_annotations
+
+    source = "@MockBean private FooService a;\n@MockitoBean private BarService b;\n"
+
+    corrected, changed = fix_spring_test_annotations(source)
+
+    assert corrected.count("@MockBean") == 2
+    assert "@MockitoBean" not in corrected
+    assert set(changed) == {"@MockitoBean"}
+
+
+def test_a_correct_test_file_is_byte_identical():
+    from app.services.generated_code_fixes import fix_spring_test_annotations
+
+    source = "import org.springframework.boot.test.mock.mockito.MockBean;\n@MockBean private A a;\n"
+
+    assert fix_spring_test_annotations(source) == (source, [])

@@ -56,11 +56,11 @@ export const ResponsiveTabGrid: React.FC = () => {
       {/* The monitor sits apart on purpose. It is not a step in the sequence -- it is the
           live console you keep open while any step runs -- and being 5th in the row read
           as "visit this after Models & SQL". */}
-      <div className="flex items-center gap-2 border-t border-slate-300/70 dark:border-slate-800 pt-2">
-        <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-500 shrink-0 px-1">
-          Siempre disponible
-        </span>
-        <div className="flex-1">{button(MONITOR_TAB)}</div>
+      {/* Separated by the rule and the different icon tint, with no annotation. The
+          "Siempre disponible" caption stated the obvious and, in a row of labels that are
+          all navigation, read as a status rather than a heading. */}
+      <div className="border-t border-slate-300/70 dark:border-slate-800 pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">{button(MONITOR_TAB)}</div>
       </div>
     </nav>
   );

@@ -36,11 +36,21 @@ on a service whose only write path was completely broken.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 #: Entity files are the only place a JPA id annotation appears.
 _ENTITY_GLOB = "src/main/java/**/model/entity/*.java"
+
+#: Generated test sources, where the Spring test annotations live.
+_TEST_GLOB = "src/test/java/**/*.java"
+
+#: An annotation that does not exist in the pinned Spring Boot version, and its
+#: predecessor, which does. `@MockitoBean` arrived in Spring Boot 3.4;
+#: `test_analysis_service` and the generated pom pin 3.2.3.
+_MOCKITO_BEAN_IMPORT = "org.springframework.test.context.bean.override.mockito.MockitoBean"
+_MOCK_BEAN_IMPORT = "org.springframework.boot.test.mock.mockito.MockBean"
 
 _MARKER = "@GeneratedValue"
 _OFFENDING = "@NotNull"
@@ -126,6 +136,54 @@ def normalise_generated_entities(workspace: str | Path) -> Dict[str, List[str]]:
         except OSError:
             continue
         corrected, changed = fix_generated_id_not_null(original)
+        if changed and corrected != original:
+            java_file.write_text(corrected, encoding="utf-8")
+            fixed[str(java_file.relative_to(ws))] = changed
+
+    return fixed
+
+
+def fix_spring_test_annotations(source: str) -> Tuple[str, List[str]]:
+    """Replace test annotations the pinned Spring Boot version does not provide.
+
+    A generated controller test imported
+    ``org.springframework.test.context.bean.override.mockito.MockitoBean`` and failed to
+    compile with "package ... does not exist". The project pins Spring Boot 3.2.3, where
+    that annotation does not exist; ``@MockBean`` is its predecessor.
+
+    The instruction set states the rule, but an instruction is a request and a model may
+    not follow it -- this session is the evidence. A correction over the emitted files
+    applies whichever path produced them, which is why it lives here rather than in the
+    prompt alone.
+
+    Matched on a word boundary so ``@MockBean`` itself is never touched, and the import is
+    rewritten with it, since swapping only the annotation leaves the bad import behind.
+    """
+    changed: List[str] = []
+    out = source
+
+    if f"{_MOCKITO_BEAN_IMPORT};" in out:
+        out = out.replace(f"import {_MOCKITO_BEAN_IMPORT};", f"import {_MOCK_BEAN_IMPORT};")
+        changed.append("MockitoBean import")
+
+    if re.search(r"@MockitoBean\b", out):
+        out = re.sub(r"@MockitoBean\b", "@MockBean", out)
+        changed.append("@MockitoBean")
+
+    return out, changed
+
+
+def normalise_generated_tests(workspace: str | Path) -> Dict[str, List[str]]:
+    """Apply the corrections to every generated test source in the workspace."""
+    ws = Path(workspace)
+    fixed: Dict[str, List[str]] = {}
+
+    for java_file in sorted(ws.glob(_TEST_GLOB)):
+        try:
+            original = java_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        corrected, changed = fix_spring_test_annotations(original)
         if changed and corrected != original:
             java_file.write_text(corrected, encoding="utf-8")
             fixed[str(java_file.relative_to(ws))] = changed

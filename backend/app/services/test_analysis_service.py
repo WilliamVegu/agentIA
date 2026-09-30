@@ -572,7 +572,14 @@ class {ent_name}IntegrationTest {{
             for fpath, fcontent in source_files.items():
                 if not fpath.endswith(".java"):
                     continue
-                if "@Data" in fcontent:
+                # Matched on a word boundary, exactly as the Lombok check above does.
+                # A substring test fires on `@DataJpaTest`, and because the patch below is
+                # applied with a plain `str.replace`, it rewrote the annotation into
+                # `@BuilderJpaTest` -- leaving `JpaTest` stuck to the last replacement line.
+                # That corrupted a generated test file, which then failed to compile and
+                # consumed the whole repair budget: the session reached BLOCKED with a
+                # broken file that this proactive "repair" had itself produced.
+                if re.search(r"@Data\b", fcontent):
                     patches.append(
                         CodeRepairPatch(
                             id=f"PATCH-PROACT-LOMBOK-{uuid.uuid4().hex[:6]}",
@@ -622,7 +629,21 @@ class {ent_name}IntegrationTest {{
             # If exact snippet not found, return unchanged
             return updated_files, ""
 
-        new_code = original_code.replace(patch.originalSnippet, patch.replacementSnippet, 1)
+        snippet = patch.originalSnippet
+        if snippet.startswith("@"):
+            # An annotation must not be replaced inside a longer one. `str.replace`
+            # matches a substring, so a patch for `@Data` also matches `@DataJpaTest` and
+            # `@Value` also matches `@ValueSource` -- producing annotations that do not
+            # exist and a file that does not compile. The boundary is required, not a
+            # nicety: this is the defect that blocked a session.
+            new_code = re.sub(
+                re.escape(snippet) + r"\b",
+                lambda _match: patch.replacementSnippet,
+                original_code,
+                count=1,
+            )
+        else:
+            new_code = original_code.replace(snippet, patch.replacementSnippet, 1)
         updated_files[file_path] = new_code
 
         # Generate unified diff
