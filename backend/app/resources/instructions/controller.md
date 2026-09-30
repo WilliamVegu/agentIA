@@ -16,6 +16,17 @@ microservice. Automated compliance validation runs before anything you write is 
   `@RestControllerAdvice` must exist, and every error response must be produced there. A
   controller that catches exceptions in order to build an error body is a validation
   failure.
+- **The handler must log what it caught, with its stack trace.** A catch-all that returns a
+  tidy error envelope and writes nothing to the log is a validation failure: it converts a
+  diagnosable failure into an undocumented one. Use an SLF4J `Logger` obtained via
+  `LoggerFactory.getLogger(GlobalExceptionHandler.class)` and call `logger.error(...)` with
+  the exception as the last argument, so the stack trace is recorded. Declare the logger
+  `private static final`.
+- **Do not invent the message for an unexpected failure.** For the catch-all handler, pass
+  the exception's own message through (or a fixed prefix concatenated with it) so the
+  response, the log and the stack trace agree. A constant string such as
+  `"An unexpected error occurred"` discards the only information that would identify the
+  cause, and it is a validation failure.
 - **Uniform error shape (Constitution III)**: every error response must share one structure
   carrying at minimum a timestamp, the HTTP status code, a descriptive message, and — for
   validation failures — the per-field details. Do not invent a different error body per
@@ -63,7 +74,7 @@ one shared service catalogue endpoint.
 
 | Path | Artifact |
 | --- | --- |
-| `src/main/java/<package-path>/controller/GlobalExceptionHandler.java` | Single `@RestControllerAdvice` producing the uniform error structure for every failure case. Emitted once. |
+| `src/main/java/<package-path>/controller/GlobalExceptionHandler.java` | Single `@RestControllerAdvice` producing the uniform error structure for every failure case. Emitted once. Must hold an SLF4J `Logger` and log every handled exception with its stack trace. |
 | `src/main/java/<package-path>/controller/HomeController.java` | Root-path service catalogue endpoint reporting service identity, status, and exposed endpoints. Emitted once. |
 | `src/main/java/<package-path>/controller/<Entity>Controller.java` | REST controller bound to the entity's collection path, delegating to the service interface. |
 

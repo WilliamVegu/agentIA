@@ -77,6 +77,13 @@ STAGE_ARTIFACT_SCOPES: Mapping[str, Tuple[str, ...]] = {
     "SCAFFOLDER": (
         "pom.xml",
         "src/main/resources/application.yml",
+        # The schema ships inside the artifact so Spring Boot applies it at startup
+        # (SPRING_SQL_INIT_MODE=always). That replaced a bind mount into the database
+        # container's init directory, which a real host refused to read. Declared here
+        # because the scaffolder owns src/main/resources, and because an undeclared
+        # artifact is an out-of-scope blocking violation -- which is how the omission was
+        # caught: export returned 403 and the devops step never ran.
+        "src/main/resources/schema.sql",
         "src/main/java/*Application.java",
     ),
     "DOMAIN": (

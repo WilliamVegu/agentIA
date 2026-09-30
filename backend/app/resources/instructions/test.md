@@ -41,6 +41,20 @@ validation runs before anything you write is persisted.
 5. Unit-test the service implementation in isolation: substitute the repository with a mock,
    inject it through the constructor, and verify both the returned value and the
    interactions the implementation is required to perform.
+5a. **Unit tests do not prove persistence, so also emit a slice test that does.** A
+   `@DataJpaTest` per entity, exercising the repository against a real database, must
+   perform an actual `save()` and then read the row back. This is not optional coverage:
+   a Mockito test substitutes the repository, so no persistence provider and no
+   pre-insert entity validation runs, and a service whose every insert fails will pass its
+   entire unit suite. A `@DataJpaTest` is the only layer in this contract that calls
+   `save()` for real.
+5b. **Emit a `@WebMvcTest` per controller.** With the service layer replaced by
+   `@MockitoBean`, assert the HTTP contract: the created resource returns 201, an invalid
+   body returns 400 through the global handler, and a missing resource returns 404. This
+   covers the transport boundary that neither the unit tests nor the slice test exercises.
+5c. Note what each layer cannot see, and do not claim otherwise in a test name: the unit
+   test cannot see persistence, and the web slice cannot see either persistence or
+   business logic.
 6. Stub only what the test actually exercises. Do not add stubbings that no assertion depends
    on, because unnecessary stubbing fails under strict stub enforcement and is reported as a
    test error rather than a test failure.
@@ -65,6 +79,9 @@ test class per declared domain entity, plus exactly one application context test
 | --- | --- |
 | `src/test/java/<package-path>/<ServiceName>ApplicationTests.java` | Application context-load test for the Spring Boot entry point. Emitted once. |
 | `src/test/java/<package-path>/service/<Entity>ServiceTest.java` | Mockito-backed unit tests for the entity's service implementation, derived from the declared acceptance scenarios. |
+| `src/test/java/<package-path>/service/<Entity>ServiceTest.java` | (continued) |
+| `src/test/java/<package-path>/repository/<Entity>RepositoryTest.java` | `@DataJpaTest` slice: saves and reads back a real row for each entity. The only generated test that exercises persistence. |
+| `src/test/java/<package-path>/controller/<Entity>ControllerTest.java` | `@WebMvcTest` slice: asserts the HTTP contract (201/400/404) with the service layer mocked. |
 
 `<package-path>` is the base package name with `/` separators. `<ServiceName>` is the service
 identity in PascalCase; `<Entity>` is the PascalCase entity name from the blueprint. Package
