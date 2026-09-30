@@ -23,6 +23,7 @@ from app.models.session import (
 from app.services.spec_service import get_specification
 from app.services.queue_service import queue_manager
 from app.orchestrator.graph import generation_graph
+from app.services.lifecycle_artifacts import ensure_lifecycle_artifacts
 from app.orchestrator.stages.runner import select_generation_mode
 from app.services.conformance_diagnostics import record_session_diagnostics
 
@@ -202,6 +203,25 @@ async def execute_generation_pipeline(
             # a MODEL-mode session would fail at the first stage.
             "llm_api_key": api_key,
         }
+
+        # Persist the artifacts this run was handed, before generating anything.
+        #
+        # The tabs read from the workspace, but this path writes only code -- no
+        # spec.md, user_stories.json, architecture.json or schema.sql. Without this the
+        # session showed its content during the run (from the frontend's state) and lost
+        # it on reload: "the tabs are gone in history access". It is also what broke the
+        # deploy, because `docker compose` creates a missing bind-mount source as a
+        # DIRECTORY and Postgres then refused to read schema.sql as a SQL file.
+        try:
+            persisted = ensure_lifecycle_artifacts(ws_path, blueprint_dict)
+            if persisted["written"]:
+                print(f"[ARTIFACTS] persisted for {session_id}: {', '.join(persisted['written'])}")
+            if persisted["skipped"]:
+                print(f"[ARTIFACTS] left as they were: {', '.join(persisted['skipped'])}")
+        except Exception as exc:  # noqa: BLE001
+            # Never let artifact persistence stop a generation run; it is a fix for a
+            # reporting gap, not a precondition for producing code.
+            print(f"[WARN] could not persist lifecycle artifacts: {type(exc).__name__}: {exc}")
 
         def run_graph_with_streaming():
             accumulated_state = dict(initial_state)
