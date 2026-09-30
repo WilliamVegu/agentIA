@@ -70,10 +70,35 @@ class PlaygroundProxyError(ValueError):
 
 
 def _resolve_port(session_id: str) -> int:
-    """The port THIS session's deployment published. Never from the caller."""
+    """The port THIS session's deployment published. Never from the caller.
+
+    Refuses when the session has no container of its own. It used to fall back to the
+    shared default 8080 -- and because `LocalDeploymentSession.hostPort` DEFAULTS to 8080,
+    that fallback fired for every undeployed session too. A playground call for a session
+    with no container was therefore sent to whichever service happened to be listening on
+    8080, which is a different session's service, and came back as its 500 for an endpoint
+    it does not have. The operator saw "the service rejected the record" and was told to
+    check the container; the container was fine and belonged to someone else.
+
+    `containerId` is the proof of a real deployment: it is populated only by a deploy or by
+    recovery from the compose project label, never by a port probe.
+    """
     deployment = get_deployment_status(session_id)
+    state = getattr(getattr(deployment, "status", None), "value", None) or "IDLE"
+
+    if not getattr(deployment, "containerId", None):
+        raise PlaygroundProxyError(
+            f"this session has no container of its own (state: {state}). A call would go to "
+            "whichever service is listening on the shared port, which belongs to a different "
+            "session. Deploy this session before using the playground."
+        )
+
     port = getattr(deployment, "hostPort", None)
-    return int(port) if port else 8080
+    if not port:
+        raise PlaygroundProxyError(
+            f"the deployment for this session does not publish a port (state: {state})."
+        )
+    return int(port)
 
 
 def normalise_path(path: str) -> str:

@@ -25,6 +25,32 @@ from pathlib import Path
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _a_session_that_owns_a_container(monkeypatch):
+    """Give forwarding tests a session with its own container.
+
+    `_resolve_port` now refuses a session that owns no container, because falling back to
+    the shared default port delivered one session's calls to another session's service.
+    These tests are about *forwarding* -- headers, truncation, timeouts, the verb -- so
+    they need a reachable target and nothing more. The tests that assert targeting patch
+    the deployment themselves and override this.
+    """
+    from app.models.devops import DeploymentStatus, LocalDeploymentSession
+    from app.services import playground_proxy
+
+    monkeypatch.setattr(
+        playground_proxy,
+        "get_deployment_status",
+        lambda session_id: LocalDeploymentSession(
+            sessionId=session_id,
+            status=DeploymentStatus.HEALTHY,
+            containerId="test-container",
+            hostPort=8123,
+        ),
+    )
+
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
@@ -51,6 +77,9 @@ HOSTILE_PATHS = {
     "empty": "",
     "blank": "   ",
 }
+
+
+
 
 
 @pytest.mark.parametrize("label", sorted(HOSTILE_PATHS))

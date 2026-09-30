@@ -405,8 +405,14 @@ export const DevOpsDeploymentView: React.FC = () => {
       } else {
         failure = `HTTP ${result.statusCode}`;
       }
-    } catch (err) {
-      failure = err instanceof Error ? err.message : String(err);
+    } catch (err: any) {
+      // The platform refuses an undeployed session with a 400 and a reason. Reading only
+      // `err.message` reduced that to "Request failed with status code 400" and threw the
+      // explanation away -- which is the whole reason the platform now states it.
+      const detail = err?.response?.data?.detail;
+      failure =
+        (typeof detail === 'string' ? detail : detail?.message) ||
+        (err instanceof Error ? err.message : String(err));
     }
 
     if (failure) {
