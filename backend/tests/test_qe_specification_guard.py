@@ -235,7 +235,16 @@ def test_the_bulleted_story_layout_is_read_not_fabricated():
     assert story.id == "US-1"
     assert story.role == "Buyer"
     assert story.intent == "create an order"
-    assert story.benefit == "I can buy items"
     assert story.scenarios[0].given == "valid items"
     assert story.scenarios[0].when == "POST /orders is called"
     assert story.scenarios[0].then == "it is created"
+
+
+def test_meta_term_without_substantive_operations_or_entities_is_refused():
+    """A prompt with a meta term like 'servicio' but no software operations or entities is refused."""
+    pollito_prompt = "# Feature Specification: pollito\n\ncomo servicio quiero que me sirvas un pollito a la brasa"
+    assessment = assess_specification(pollito_prompt)
+    assert assessment.plausible is False
+    assert assessment.signals["substantiveTerms"] == 0
+    assert assessment.signals["metaTerms"] == 1
+

@@ -77,11 +77,27 @@ export const StudioOverviewView: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setSubmitError(
-        err.response?.data?.message ||
-          err.response?.data?.detail ||
-          'Error al crear la sesión de microservicio'
-      );
+      const detail = err.response?.data?.detail;
+      let errorMsg = 'Error al crear la sesión de microservicio';
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (detail && typeof detail === 'object') {
+        if (detail.message) {
+          errorMsg = detail.message;
+          if (Array.isArray(detail.reasons) && detail.reasons.length > 0) {
+            errorMsg += `: ${detail.reasons.join(', ')}`;
+          }
+        } else if (Array.isArray(detail.reasons) && detail.reasons.length > 0) {
+          errorMsg = detail.reasons.join(', ');
+        } else {
+          errorMsg = JSON.stringify(detail);
+        }
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      setSubmitError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -140,7 +156,7 @@ export const StudioOverviewView: React.FC = () => {
         session_id: activeSessionId,
         api_key: apiKey,
         provider: provider,
-        force: true,
+        force: false,
       });
       await Promise.all([reloadCurrentOverview(), refreshSessions()]);
       setActiveTab('monitor');

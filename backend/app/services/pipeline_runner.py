@@ -226,6 +226,8 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
 
     draft = None
     if api_key and not LLMFactory.is_mock(api_key, provider):
+        from app.services.injection_guard import PromptInjectionError
+        from app.services.specification_guard import UnlikelySpecificationError
         try:
             draft = transform_requirements(
                 RequirementsTransformRequest(rawText=raw_prompt, serviceName=spec_name),
@@ -233,10 +235,17 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
                 chosen_provider=provider,
                 chosen_model=model_name,
             )
-        except Exception:
-            draft = None
-
+        except (PromptInjectionError, UnlikelySpecificationError):
+            raise
+        except Exception as exc:
+            print(f"[WARN] transform_requirements failed in pipeline: {exc}")
     if draft is None:
+        from app.services.injection_guard import assert_no_injection
+        assert_no_injection(raw_prompt, field="rawText")
+        if spec_file.exists() and raw_prompt != spec_name:
+            from app.services.specification_guard import assert_looks_like_specification
+            assert_looks_like_specification(raw_prompt, field="rawText")
+
         decomp = _generate_mock_decomposition(raw_text=raw_prompt, service_name=spec_name)
         entities = []
         for ent in decomp.entities:
@@ -293,6 +302,7 @@ def _execute_pipeline_steps(
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     model_name: Optional[str] = None,
+    force: bool = False,
 ):
     """Executes each lifecycle phase sequentially in the background."""
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
@@ -365,7 +375,7 @@ def _execute_pipeline_steps(
         if not spec_file.exists():
             with open(spec_file, "w", encoding="utf-8") as f:
                 f.write(draft.markdownSpec)
-        transition_phase(session_id, LifecyclePhase.REQUIREMENTS, force=True)
+        transition_phase(session_id, LifecyclePhase.REQUIREMENTS, force=force)
         time.sleep(0.2)
 
         # Step 2: User Stories
@@ -377,7 +387,7 @@ def _execute_pipeline_steps(
             stories_data = [story.model_dump() for story in draft.userStories]
             with open(stories_file, "w", encoding="utf-8") as f:
                 json.dump(stories_data, f, indent=2)
-        transition_phase(session_id, LifecyclePhase.STORIES, force=True)
+        transition_phase(session_id, LifecyclePhase.STORIES, force=force)
         time.sleep(0.2)
 
         # Step 3: Architecture Blueprint
@@ -390,7 +400,9 @@ def _execute_pipeline_steps(
                 arch_req = ArchitectureDesignRequest(draft=draft, apiKey=api_key or "mock-key", provider=provider or "mock")
                 arch_resp = design_architecture(arch_req, api_key=api_key or "mock-key", provider=provider or "mock")
                 arch_data = arch_resp.model_dump()
-            except Exception:
+            except Exception as exc:
+                if generation_mode == generation_journal.GENERATION_MODE_MODEL:
+                    raise
                 arch_data = {
                     "serviceName": draft.serviceName,
                     "packageName": draft.packageName,
@@ -402,7 +414,7 @@ def _execute_pipeline_steps(
             arch_md = ws_path / "architecture.md"
             if not arch_md.exists() and "mermaidDiagram" in arch_data:
                 arch_md.write_text(f"# Arquitectura: {spec_name}\n\n```mermaid\n{arch_data.get('mermaidDiagram', '')}\n```\n", encoding="utf-8")
-        transition_phase(session_id, LifecyclePhase.ARCHITECTURE, force=True)
+        transition_phase(session_id, LifecyclePhase.ARCHITECTURE, force=force)
         time.sleep(0.2)
 
         # Step 4: Data Models & SQL
@@ -457,7 +469,7 @@ def _execute_pipeline_steps(
                 fallback_ddl = schema_sql_from_draft(draft)
                 with open(sql_file, "w", encoding="utf-8") as f:
                     f.write(fallback_ddl)
-        transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
+        transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=force)
         time.sleep(0.2)
 
         # Step 5: Code & Tests
@@ -506,6 +518,19 @@ def _execute_pipeline_steps(
                 f"artifacts={generated_count}, "
                 f"requests={(agent_state.get('generation_journal') or {}).get('total_requests', 0)}"
             )
+            # Apply assisted mode post-generation normalisations
+            try:
+                from app.services.generated_code_fixes import (
+                    normalise_generated_entities,
+                    normalise_generated_tests,
+                    ensure_not_found_handler,
+                )
+                normalise_generated_entities(ws_path)
+                normalise_generated_tests(ws_path)
+                ensure_not_found_handler(ws_path)
+            except Exception as fix_exc:
+                print(f"[WARN] code normalisation check encountered: {fix_exc}")
+
             if agent_state.get("status") == SessionStatus.BLOCKED.value:
                 _emit_event(
                     session_id,
@@ -519,7 +544,7 @@ def _execute_pipeline_steps(
                 _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
                 _finalise_blocked_session(session_id, agent_state)
                 return
-        transition_phase(session_id, LifecyclePhase.CODE_TESTS, force=True)
+        transition_phase(session_id, LifecyclePhase.CODE_TESTS, force=force)
         time.sleep(0.2)
 
         # Step 5b: HERMETIC VERIFICATION.
@@ -627,7 +652,7 @@ def _execute_pipeline_steps(
             _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
             return
 
-        transition_phase(session_id, LifecyclePhase.SECURITY_AUDIT, force=True)
+        transition_phase(session_id, LifecyclePhase.SECURITY_AUDIT, force=not stop_on_gate or force)
         time.sleep(0.3)
 
         # Step 7: DevOps & Deploy
@@ -640,7 +665,7 @@ def _execute_pipeline_steps(
             _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "Despliegue Local", 98.0, "Orquestando contenedores en Docker local...", PhaseStatus.IN_PROGRESS)
             deploy_local(session_id, str(ws_path))
 
-        transition_phase(session_id, LifecyclePhase.DEVOPS_DEPLOY, force=True)
+        transition_phase(session_id, LifecyclePhase.DEVOPS_DEPLOY, force=force)
         clear_outdated_phases(session_id)
 
         _emit_event(session_id, LifecyclePhase.COMPLETED, "Finalizado", 100.0, "🎉 ¡Pipeline completado con éxito! Todos los artefactos están listos.", PhaseStatus.COMPLETED)
@@ -746,7 +771,7 @@ def run_pipeline(
 
     thread = threading.Thread(
         target=_execute_pipeline_steps,
-        args=(session_id, target_phase, stop_on_gate, auto_deploy, api_key, provider, model_name),
+        args=(session_id, target_phase, stop_on_gate, auto_deploy, api_key, provider, model_name, force),
         daemon=True,
     )
     _active_threads[session_id] = thread

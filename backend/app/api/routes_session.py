@@ -470,14 +470,34 @@ async def quick_start_session(payload: QuickStartSessionRequest):
     if not spec_name:
         spec_name = "app-service"
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
-    ws_path.mkdir(parents=True, exist_ok=True)
+    text_content = (payload.raw_text or payload.prompt or "").strip()
+    if text_content:
+        from app.services.injection_guard import scan_text, has_blocking_finding
+        from app.services.specification_guard import assert_looks_like_specification, UnlikelySpecificationError
 
-    text_content = payload.raw_text or payload.prompt or ""
-    if text_content.strip():
+        findings = scan_text(text_content, "prompt")
+        if has_blocking_finding(findings):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "message": "The requirements narrative contains text that tries to instruct the model rather than describe a service. Rewrite it as a description of the business behaviour you want.",
+                    "findings": [f.to_dict() for f in findings],
+                },
+            )
+
+        try:
+            assert_looks_like_specification(text_content, field="prompt")
+        except UnlikelySpecificationError as unlikely:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=unlikely.to_dict(),
+            )
+
+        ws_path = Path(settings.WORKSPACE_DIR) / session_id
+        ws_path.mkdir(parents=True, exist_ok=True)
         spec_file = ws_path / "spec.md"
         with open(spec_file, "w", encoding="utf-8") as f:
-            f.write(f"# Feature Specification: {spec_name}\n\n{text_content.strip()}\n")
+            f.write(f"# Feature Specification: {spec_name}\n\n{text_content}\n")
 
     db = SessionLocal()
     try:

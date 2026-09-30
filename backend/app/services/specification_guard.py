@@ -40,9 +40,13 @@ MIN_WORDS = 15
 #: almost always uses, and that small talk almost never does. Deliberately excludes generic
 #: computing words like "application" or "system", which appear in questions too
 #: ("I need it for my application") and would defeat the check.
+_META_TERMS = (
+    "api", "endpoint", "rest", "servicio", "service", "microservicio", "microservice",
+)
+
 _DOMAIN_TERMS = (
     # structure and artifacts
-    "api", "endpoint", "rest", "servicio", "service", "microservicio", "microservice",
+    *_META_TERMS,
     "entidad", "entity", "modelo", "model", "tabla", "table", "columna", "column",
     "campo", "field", "atributo", "attribute", "esquema", "schema", "base de datos",
     "database", "repositorio", "repository", "persistencia", "persistence", "crud",
@@ -64,6 +68,8 @@ _DOMAIN_TERMS = (
     "validación", "validation", "estado", "status", "rol", "role", "permiso",
     "permission", "autenticación", "authentication", "seguridad", "security",
 )
+
+_SUBSTANTIVE_TERMS = tuple(t for t in _DOMAIN_TERMS if t not in _META_TERMS)
 
 #: A question, or small talk, rather than a description of something to build.
 _INTERROGATIVE_START = re.compile(
@@ -136,13 +142,17 @@ def assess_specification(text: str) -> SpecAssessment:
 
     words = len(re.findall(r"\w+", stripped))
     lowered = stripped.lower()
-    terms = sum(1 for term in _DOMAIN_TERMS if term in lowered)
+    substantive_terms = sum(1 for term in _SUBSTANTIVE_TERMS if term in lowered)
+    meta_terms = sum(1 for term in _META_TERMS if term in lowered)
+    terms = substantive_terms + meta_terms
     structure = len(_STRUCTURE_MARKERS.findall(raw))
     is_question = bool(stripped.endswith("?")) or bool(_INTERROGATIVE_START.match(raw))
 
     signals = {
         "words": words,
         "domainTerms": terms,
+        "substantiveTerms": substantive_terms,
+        "metaTerms": meta_terms,
         "structureMarkers": structure,
         "readsAsQuestion": int(is_question),
     }
@@ -150,9 +160,23 @@ def assess_specification(text: str) -> SpecAssessment:
     if not stripped:
         return SpecAssessment(False, ["the text is empty"], signals)
 
-    # Any domain vocabulary, or the shape of a specification, is enough to proceed. Only
-    # text with NONE of them, that is also short and conversational, is refused.
-    if terms > 0 or structure > 0 or words >= MIN_WORDS:
+    # A solitary meta-term like "servicio" or "service" without any substantive operations,
+    # domain entities, or specification structure is not a specification (e.g. "como servicio quiero que me sirvas un pollito a la brasa").
+    if substantive_terms == 0 and structure == 0 and words < MIN_WORDS:
+        reasons = []
+        if is_question:
+            reasons.append(
+                "it reads as a question or conversational request rather than a description of a service to build"
+            )
+        reasons.append(
+            "it names no entities, operations or fields, and has no structure (headings, "
+            "lists, Given/When/Then)"
+        )
+        reasons.append(f"it is {words} word(s) long")
+        return SpecAssessment(False, reasons, signals)
+
+    # Substantive domain vocabulary, specification structure, or sufficient prose length
+    if substantive_terms > 0 or structure > 0 or words >= MIN_WORDS:
         return SpecAssessment(True, [], signals)
 
     reasons = []
