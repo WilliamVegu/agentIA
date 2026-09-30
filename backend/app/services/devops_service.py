@@ -155,7 +155,6 @@ services:
       - MYSQL_DATABASE={service_name}_db
     volumes:
       - mysqldata:/var/lib/mysql
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -193,7 +192,22 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${{DB_PASSWORD:-postgres}}
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      # The schema is applied by Spring Boot from the classpath
+      # (src/main/resources/schema.sql, mounted into the image at build time), NOT by
+      # mounting schema.sql into the database container's init directory.
+      #
+      # That bind mount is gone because it failed on a real host: the source path is
+      # created as a DIRECTORY by `docker compose up` when missing, and even once it
+      # was a 0644 regular file the container could not read it -- root inside the
+      # container got "Permission denied" with SELinux disabled, no ACLs, XFS, and on
+      # a fresh volume with --force-recreate. Rather than leave database initialisation
+      # dependent on a mount that a real environment refused, it now depends on
+      # nothing but the artifact itself.
+      - SPRING_SQL_INIT_MODE=always
+      # `none`, not `update`: the schema is authored and shipped, so Hibernate must not
+      # silently alter it. `update` was hiding every schema defect, and `create-drop`
+      # (the base config) dropped the schema on every shutdown.
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
     depends_on:
       db:
         condition: service_healthy
@@ -212,7 +226,6 @@ services:
       - POSTGRES_PASSWORD=${{DB_PASSWORD:-postgres}}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d {service_name}_db"]
       interval: 5s

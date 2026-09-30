@@ -643,7 +643,7 @@ _SQL_TYPE_FROM_JAVA = {
     "boolean": "BOOLEAN",
     "LocalDate": "DATE",
     "LocalDateTime": "TIMESTAMP",
-    "Instant": "TIMESTAMP",
+    "Instant": "TIMESTAMP WITH TIME ZONE",
     "UUID": "UUID",
     "List<String>": "TEXT",
 }

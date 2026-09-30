@@ -284,7 +284,16 @@ def ensure_lifecycle_artifacts(workspace: str | Path, blueprint: Mapping[str, An
     _write_if_absent(
         ws / "architecture.json", json.dumps(_architecture(blueprint), indent=2), written=written, skipped=skipped
     )
-    _write_if_absent(ws / "schema.sql", _schema_sql(blueprint), written=written, skipped=skipped)
+    schema = _schema_sql(blueprint)
+    _write_if_absent(ws / "schema.sql", schema, written=written, skipped=skipped)
+
+    # Also place it on the classpath so it travels inside the built artifact. Spring
+    # Boot applies it at startup (SPRING_SQL_INIT_MODE=always), which is what lets the
+    # deployment stop depending on a host bind mount into the database container's init
+    # directory -- the mechanism that failed on a real host.
+    resources = ws / "src" / "main" / "resources"
+    resources.mkdir(parents=True, exist_ok=True)
+    _write_if_absent(resources / "schema.sql", schema, written=written, skipped=skipped)
 
     return {"written": written, "skipped": skipped}
 
