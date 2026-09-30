@@ -194,6 +194,8 @@ export const CodeExplorerView: React.FC = () => {
   const finalState =
     repairData?.finalState ?? (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : null);
   const totalIters = repairData?.totalIterations ?? (Array.isArray(repairs) ? repairs.length : 0);
+  // From the report when the server states it; the same cap the monitor's counter uses.
+  const repairLimit = (repairData as { maxIterations?: number } | null)?.maxIterations ?? 5;
   const isBlocked = finalState === 'BLOCKED';
 
   const testArtifacts = (artifacts || []).filter(
@@ -274,7 +276,10 @@ export const CodeExplorerView: React.FC = () => {
           {[
             { id: 0, label: '📂 Artefactos del Microservicio', icon: Folder },
             { id: 1, label: '🧪 Suites de Pruebas & Cobertura', icon: FlaskConical },
-            { id: 2, label: `🔄 Historial de Auto-Reparaciones (${totalIters}/3)`, icon: History },
+            // Was `(${totalIters}/3)`. The configured cap is 5, so the header read
+            // "(5/3)" -- a ratio that cannot exist -- while the banner above it said 5 and
+            // the manual-intervention panel said 3. The cap comes from the report now.
+            { id: 2, label: `🔄 Historial de Auto-Reparaciones (${totalIters}/${repairLimit})`, icon: History },
             { id: 3, label: '🛠️ Intervención Manual (Desbloqueo)', icon: Wrench },
             { id: 4, label: '🛡️ Auditoría de Seguridad & Calidad', icon: ShieldCheck },
           ].map((tab) => {
@@ -440,7 +445,9 @@ export const CodeExplorerView: React.FC = () => {
       {activeSubtab === 2 && (
         <div className="space-y-4">
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            Visualice los diagnósticos estructurados del compilador y los parches quirúrgicos aplicados a nivel de método o bloque a lo largo de las hasta 3 iteraciones permitidas por la Constitución.
+            Visualice los diagnósticos estructurados del compilador y los parches
+            quirúrgicos aplicados a nivel de método o bloque a lo largo de las hasta{' '}
+            {repairLimit} iteraciones permitidas por la Constitución.
           </p>
 
           {repairs.length === 0 ? (
@@ -510,7 +517,8 @@ export const CodeExplorerView: React.FC = () => {
               <span>Intervención Manual y Desbloqueo de Sesión</span>
             </h4>
             <p className="text-slate-600 dark:text-slate-400">
-              Cuando la auto-reparación autónoma agota sus 3 iteraciones permitidas, la sesión entra en estado <strong>BLOCKED</strong>. Desde este editor en línea puede inspeccionar el archivo causante, aplicar una corrección manual directa o proporcionar una sugerencia en lenguaje natural al agente para reanudar la verificación.
+              Cuando la auto-reparación autónoma agota sus {repairLimit} iteraciones
+              permitidas, la sesión entra en estado <strong>BLOCKED</strong>. Desde este editor en línea puede inspeccionar el archivo causante, aplicar una corrección manual directa o proporcionar una sugerencia en lenguaje natural al agente para reanudar la verificación.
             </p>
           </div>
 

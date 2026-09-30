@@ -143,6 +143,8 @@ export const GenerationMonitorView: React.FC = () => {
   const currentStatus = activeSession?.status || 'IDLE';
   const currentPhase = livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || 'INITIALIZATION';
   const repairs = activeSession?.repairAttempts || 0;
+  // The configured cap, shared with the repair history header so the two cannot disagree.
+  const repairAttemptsLimit = (lastEvent as { maxIterations?: number } | null)?.maxIterations ?? 5;
   const isCompleted = currentStatus === 'COMPLETED';
   const isBlocked = currentStatus === 'BLOCKED';
   const isActiveRunning = currentStatus === 'RUNNING' || currentStatus === 'QUEUED';
@@ -257,7 +259,7 @@ export const GenerationMonitorView: React.FC = () => {
         <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 font-medium">Iteración Auto-Reparación</span>
           <div className="text-sm font-bold font-mono text-slate-900 dark:text-white mt-1">
-            {repairs} / 5 intentos
+            {repairs} / {repairAttemptsLimit} intentos
           </div>
         </div>
 
@@ -391,7 +393,8 @@ export const GenerationMonitorView: React.FC = () => {
             </h4>
           </div>
           <p className="text-xs">
-            Se agotaron los 5 intentos permitidos de auto-reparación adaptativa sin resolver todos los fallos de compilación detectados.
+            Se agotaron los {repairAttemptsLimit} intentos permitidos de auto-reparación
+            adaptativa sin resolver todos los fallos de compilación detectados.
           </p>
           <button
             onClick={() => setActiveTab('code')}
