@@ -42,10 +42,34 @@ def test_generate_docker_compose_postgresql():
     assert "version: '3.8'" in compose
     assert "image: postgres:16-alpine" in compose
     assert "5432:5432" in compose
-    assert "schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro" in compose
     assert "pgdata:/var/lib/postgresql/data" in compose
     assert "condition: service_healthy" in compose
     assert "SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/order-service_db" in compose
+
+
+def test_the_compose_file_does_not_initialise_the_schema_from_a_bind_mount():
+    """The schema travels inside the artifact; the database container is not told about it.
+
+    This asserted the opposite until the bind mount was removed, because the mount
+    failed on a real host: `docker compose up` creates a missing mount source as a
+    DIRECTORY, and even once it was a 0644 regular file the container was refused it --
+    root inside the container, SELinux disabled, no ACLs, XFS, fresh volume and
+    --force-recreate. Reproduced by the user, so it was not an artefact of one shell.
+
+    The replacement contract is stronger: the schema is on the classpath, Spring applies
+    it (SPRING_SQL_INIT_MODE=always), and Hibernate is told `none` so it cannot silently
+    alter a schema the platform authored.
+    """
+    compose = generate_docker_compose("order-service", "POSTGRESQL", 8080)
+
+    assert "docker-entrypoint-initdb.d" not in compose, (
+        "database initialisation depends on a host bind mount again"
+    )
+    assert "SPRING_SQL_INIT_MODE=always" in compose
+    assert "SPRING_JPA_HIBERNATE_DDL_AUTO=none" in compose
+    assert "ddl_auto=update" not in compose, (
+        "`update` silently alters the authored schema and hides schema defects"
+    )
 
 
 def test_generate_docker_compose_mysql():

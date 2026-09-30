@@ -161,6 +161,16 @@ def test_deploy_without_a_daemon_enters_export_only_mode_without_starting_anythi
 
     monkeypatch.setattr(ds.subprocess, "Popen", explode)
 
+    # `get_deployment_status` probes http://localhost:<port>/actuator/health for real
+    # when a session is not marked BUILDING. Without this the test silently depends on
+    # the host: it passed only while nothing was deployed, and started failing as soon
+    # as a generated service was running on port 8080 -- the probe found a healthy
+    # container and reported HEALTHY for a session the daemon had refused.
+    def refuse(*args, **kwargs):
+        raise ds.requests.exceptions.ConnectionError("no daemon, nothing listening")
+
+    monkeypatch.setattr(ds.requests, "get", refuse)
+
     session = ds.deploy_local(SESSION_ID, str(tmp_path))
 
     assert session.status == DeploymentStatus.DOCKER_UNAVAILABLE

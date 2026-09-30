@@ -23,6 +23,7 @@ from app.models.session import (
 from app.services.spec_service import get_specification
 from app.services.queue_service import queue_manager
 from app.orchestrator.graph import generation_graph
+from app.services.generated_code_fixes import normalise_generated_entities
 from app.services.lifecycle_artifacts import ensure_lifecycle_artifacts
 from app.orchestrator.stages.runner import select_generation_mode
 from app.services.conformance_diagnostics import record_session_diagnostics
@@ -232,6 +233,22 @@ async def execute_generation_pipeline(
                 node_name = list(step.keys())[0]
                 node_output = step[node_name]
                 accumulated_state.update(node_output)
+
+                # The entity classes now exist; correct the one defect that is
+                # structurally predictable before anything compiles them.
+                #
+                # A generated `@NotNull` on a `@GeneratedValue` id makes Hibernate's
+                # pre-insert Bean Validation reject every entity, because the id is
+                # still null when it runs. Nothing reaches the database, so the
+                # failure is silent at the SQL layer, and the generated service
+                # returned 500 on every POST while GET worked and the build was green.
+                if node_name == "domain":
+                    try:
+                        corrected = normalise_generated_entities(ws_path)
+                        for path, fields in corrected.items():
+                            print(f"[FIX] removed @NotNull from generated id(s) in {path}: {', '.join(fields)}")
+                    except Exception as exc:  # noqa: BLE001
+                        print(f"[WARN] entity normalisation failed: {type(exc).__name__}: {exc}")
 
                 # Determine target phase
                 next_phase = current_phase
