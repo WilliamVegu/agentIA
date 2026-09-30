@@ -107,8 +107,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const startNewService = () => {
     setActiveSessionId(null);
-    // Ingestion is the first tab, so a new service starts where a specification enters.
-    setActiveTab('blueprints');
+    // Resumen, because that is where the new-service form is (name, description,
+    // database). This read `setActiveTab(0)` when 0 was Resumen, and the reorder turned
+    // that into "the first tab" -- which is now Blueprints -- so the button navigated away
+    // from the form it exists to open. Worse, the copy of this button *inside* Resumen
+    // took you off the page you were already on. A refactor has to preserve what a control
+    // does; pointing at the first tab preserved the number instead.
+    setActiveTab('overview');
     setProjectOverview(null);
     setLifecycle(null);
     setCurrentDraft(null);

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, status
 from app.models.blueprint import ArchitectureBlueprint, SpecificationSummary
+from app.services.injection_guard import PromptInjectionError
 from app.services.spec_service import parse_spec_markdown, save_specification, get_specification
 
 router = APIRouter(prefix="/specifications", tags=["Specifications"])
@@ -26,6 +27,8 @@ async def submit_specification_json(payload: ArchitectureBlueprint):
     try:
         summary = save_specification(payload)
         return summary
+    except PromptInjectionError as injected:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=injected.to_dict())
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
 

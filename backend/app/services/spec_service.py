@@ -1,6 +1,7 @@
 import re
 import uuid
 from typing import Dict, List, Tuple
+from app.services.injection_guard import assert_no_injection
 from app.models.blueprint import (
     ArchitectureBlueprint,
     DomainEntity,
@@ -170,6 +171,12 @@ def validate_blueprint(blueprint: ArchitectureBlueprint) -> List[str]:
     return warnings
 
 def save_specification(blueprint: ArchitectureBlueprint) -> SpecificationSummary:
+    # Blueprint ingestion is an untrusted-input path: the document comes from the user and
+    # is carried into generation. Guarded here rather than in the routes because BOTH
+    # endpoints -- JSON submission and markdown upload -- converge on this function, so a
+    # route-level check would have covered one of them.
+    assert_no_injection(blueprint.model_dump(), field="blueprint")
+
     spec_id = str(uuid.uuid4())
     warnings = validate_blueprint(blueprint)
     SPECIFICATIONS_STORE[spec_id] = blueprint
