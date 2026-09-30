@@ -200,6 +200,31 @@ se ha capturado aquí, y es exactamente la brecha que este diseño cierra. Los c
 de tests se leen de la propia salida de la compilación, nunca se fabrican, y una
 compilación que reporta éxito sin ejecutar ningún test se registra como no verificada.
 
+\subsection{Los prompts, la habilidad y el reflector}
+
+Tres piezas de texto autorado conducen al modelo, y merece nombrarlas porque son el
+``programa'' real y revisable de la plataforma:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Los cinco prompts de etapa} (\texttt{resources/instructions/*.md}).
+  Uno por etapa, cada uno en cuatro secciones fijas --- \emph{Contrato tecnológico},
+  \emph{Reglas}, \emph{Contrato de salida}, \emph{Prohibiciones}. Se inyectan
+  textualmente antes de cada petición al modelo y se versionan por contenido, de modo
+  que un artefacto registra exactamente qué texto de instrucción lo produjo.
+  \item \textbf{La habilidad} (\texttt{resources/skills/layer\_architecture.md}). Un
+  único documento que codifica la disciplina de capas: una clase por capa; depender
+  solo de la capa inmediatamente inferior; nunca importar un repositorio desde un
+  controlador. El slot de habilidad actualmente no apunta a nada --- dos archivos de
+  habilidad más están vacíos y el puntero activo no existe --- así que la habilidad
+  está definida pero aún no conectada.
+  \item \textbf{El prompt del reflector} (\texttt{scripts/skillopt/prompts/analyst\_error.md},
+  adaptado de SkillOpt, Apéndice C.2.1). Es el texto que convertiría diagnósticos
+  registrados en ediciones de habilidad: consume el histograma de reglas, la
+  atribución por etapa, el código de salida de la compilación, el estado terminal y la
+  bandera de fallback de verificación --- el canal de diagnóstico, no un veredicto
+  binario.
+\end{itemize}
+
 \section{Orquestación}
 
 \subsection{Dos puntos de entrada, un producto}
@@ -413,6 +438,33 @@ Las 1172 llamadas fueron \texttt{deepseek-flash}. Total de tokens de entrada 6.4
 de salida 12.28M. El coste dominante es el experimento de polaridad de instrucciones,
 que es una medición terminada (un nulo), no un drenaje continuo.
 
+\subsection{Por tarea y por etapa (mediciones reales)}
+
+En el corpus de diez servicios ``difíciles'', un servicio generado cuesta
+\textbf{\$0.052--\$0.077}, para un total de corpus de \textbf{\$0.6357} sobre 50
+llamadas --- aproximadamente \textbf{\$0.005 por llamada al modelo}, y el coste escala
+con la complejidad del blueprint (tokens de entrada y salida), no con los reintentos.
+
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Etapa (un servicio)} & \textbf{Tok entr.} & \textbf{Tok sal.} & \textbf{Coste} \\
+\midrule
+Scaffolder & 2{,}200 & 6{,}620 & \$0.0040 \\
+Dominio & 2{,}669 & 1{,}759 & \$0.0012 \\
+Servicio & 3{,}250 & 5{,}166 & \$0.0034 \\
+Controlador & 3{,}925 & 4{,}210 & \$0.0029 \\
+Test & 5{,}711 & 9{,}108 & \$0.0061 \\
+\midrule
+\textbf{Total} & 17{,}755 & 26{,}863 & \textbf{\$0.0176} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La etapa de test es la más cara porque su salida es la mayor; las de scaffolder y
+dominio son las más baratas. Ninguna etapa domina, así que el coste es predecible y
+lineal en el tamaño del servicio.
+
 \subsection{Espejo MLflow (y dónde se ha desviado)}
 
 \begin{center}
@@ -438,6 +490,18 @@ métricas por llamada (faltan los agregados de sesión). La afirmación anterior
 se repare el sink, el almacén local es la única cifra a citar, y un informe de coste
 generado solo desde MLflow subestimaría el gasto.
 \end{notebox}
+
+\subsection{Por qué la UI de MLflow puede verse vacía}
+
+Dos causas independientes. Primera, los datos viven en \texttt{mlflow.db} (SQLite); el
+almacén de archivos \texttt{mlruns/} --- que \texttt{mlflow ui} abre \emph{por
+defecto} --- está vacío, de modo que un \texttt{mlflow ui} a secas no muestra nada. El
+servidor debe arrancarse con \texttt{--backend-store-uri sqlite:///mlflow.db}. Segunda,
+incluso en el almacén correcto los registros están en el experimento equivocado: los
+168 agregados de sesión y 623 de las ejecuciones por llamada están en el experimento
+legado \texttt{Default}, mientras que el experimento \texttt{agentia} (que nombra la
+configuración) guarda 0 registros de sesión y 119 por llamada. El targeting de
+experimento del sink no alcanza a los registros de sesión.
 
 \section{Hallazgos y próximos pasos}
 \label{sec:findings}

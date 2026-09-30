@@ -187,6 +187,29 @@ exactly the gap this design closes. Test counts are read from the build's own ou
 never fabricated, and a build that reports success without running any test is
 recorded as not verified.
 
+\subsection{The prompts, the skill, and the reflector}
+
+Three pieces of authored text drive the model, and they are worth naming because they
+are the platform's real, reviewable ``program'':
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{The five stage prompts} (\texttt{resources/instructions/*.md}). One
+  per stage, each in four fixed sections --- \emph{Technology contract}, \emph{Rules},
+  \emph{Output contract}, \emph{Prohibitions}. They are injected verbatim ahead of
+  every model request and versioned content-addressed, so an artifact records exactly
+  which instruction text produced it.
+  \item \textbf{The skill} (\texttt{resources/skills/layer\_architecture.md}). A
+  single document encoding the layering discipline: one class per layer; depend only
+  on the layer immediately below; never import a repository from a controller. The
+  skill slot currently points at nothing --- two further skill files are empty and the
+  active pointer is absent --- so the skill is defined but not yet wired in.
+  \item \textbf{The reflector prompt} (\texttt{scripts/skillopt/prompts/analyst\_error.md},
+  adapted from SkillOpt, Appendix C.2.1). This is the text that would turn recorded
+  diagnostics into skill edits: it consumes the rule histogram, per-stage attribution,
+  the build exit code, the terminal status and the verification-fallback flag --- the
+  diagnostic channel, not a binary verdict.
+\end{itemize}
+
 \section{Orchestration}
 
 \subsection{Two entry points, one product}
@@ -392,6 +415,33 @@ All 1172 calls were \texttt{deepseek-flash}. Total input tokens 6.45M, output to
 12.28M. The single dominant cost is the instruction-polarity experiment, which is a
 finished measurement (a null), not an ongoing drain.
 
+\subsection{Per-task and per-stage (real measurements)}
+
+Across the ten-service ``hard'' corpus, a generated service costs \textbf{\$0.052--\$0.077},
+for a corpus total of \textbf{\$0.6357} over 50 calls --- roughly \textbf{\$0.005 per
+model call}, and cost scales with blueprint complexity (payload and output tokens),
+not with retries.
+
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Stage (one service)} & \textbf{In tok} & \textbf{Out tok} & \textbf{Cost} \\
+\midrule
+Scaffolder & 2{,}200 & 6{,}620 & \$0.0040 \\
+Domain & 2{,}669 & 1{,}759 & \$0.0012 \\
+Service & 3{,}250 & 5{,}166 & \$0.0034 \\
+Controller & 3{,}925 & 4{,}210 & \$0.0029 \\
+Test & 5{,}711 & 9{,}108 & \$0.0061 \\
+\midrule
+\textbf{Total} & 17{,}755 & 26{,}863 & \textbf{\$0.0176} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The test stage is the most expensive because its output is the largest; the scaffold
+and domain stages are the cheapest. No single stage dominates, so cost is predictable
+and linear in service size.
+
 \subsection{MLflow mirror (and where it has drifted)}
 
 \begin{center}
@@ -416,6 +466,17 @@ are absent). The earlier ``the mirror works and it agrees'' claim is no longer t
 for the current data. Until the sink is repaired, the local store is the only number
 to quote, and a cost report generated from MLflow alone would understate spend.
 \end{notebox}
+
+\subsection{Why the MLflow UI can look empty}
+
+Two independent causes. First, the data lives in \texttt{mlflow.db} (SQLite); the
+filesystem store \texttt{mlruns/} --- which \texttt{mlflow ui} opens \emph{by
+default} --- is empty, so a bare \texttt{mlflow ui} shows nothing. The server must be
+started with \texttt{--backend-store-uri sqlite:///mlflow.db}. Second, even in the
+right store the records are in the wrong experiment: all 168 session aggregates and
+623 of the per-call runs are in the legacy \texttt{Default} experiment, while the
+\texttt{agentia} experiment (which the configuration names) holds 0 session records
+and 119 per-call runs. The sink's experiment targeting does not reach session records.
 
 \section{Findings and next steps}
 \label{sec:findings}
