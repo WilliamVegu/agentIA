@@ -49,6 +49,7 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
     logs.append(f"[SCAFFOLDER] Generating project scaffolding for {service_name}")
     pascal_name = _to_pascal_case(service_name)
     pkg_path = package_name.replace(".", "/")
+    plan = _architecture_plan(state)
 
     # 1. pom.xml with Java 21, Spring Boot 3.2.3, Mockito
     pom_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -152,6 +153,27 @@ public class {pascal_name}Application {{
 }}
 """
 
+    # 3b. Production datasource, externalized as a Spring profile. The hermetic
+    # offline build always runs against H2 (in-memory); the durable target the
+    # inference chose is materialized here so credentials stay OUT of code and OUT
+    # of the default config (Constitution VI / "credenciales en archivo externo").
+    if plan is not None and plan["databaseType"] == "postgresql":
+        prod_yml = f"""spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://localhost:5432/{service_name}
+    driverClassName: org.postgresql.Driver
+    username: ${{DB_USERNAME}}
+    password: ${{DB_PASSWORD}}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+"""
+        generated_files["src/main/resources/application-prod.yml"] = prod_yml
+
     generated_files["pom.xml"] = pom_xml
     generated_files["src/main/resources/application.yml"] = app_yml
     generated_files[f"src/main/java/{pkg_path}/{pascal_name}Application.java"] = app_java
@@ -165,7 +187,6 @@ public class {pascal_name}Application {{
 
     logs.append(f"[SCAFFOLDER] Created pom.xml, application.yml, and {pascal_name}Application.java")
 
-    plan = _architecture_plan(state)
     result: Dict[str, Any] = {
         "current_phase": SessionPhase.CODE_GENERATION.value,
         "generated_files": generated_files,

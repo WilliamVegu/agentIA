@@ -55,3 +55,18 @@ def test_emitted_bytes_unchanged_without_interface(tmp_path):
     pom = result["generated_files"]["pom.xml"]
     assert "<artifactId>h2</artifactId>" in pom           # still H2 (cache-safe)
     assert "org.postgresql" not in pom
+
+
+def test_high_volume_materializes_postgres_profile(tmp_path):
+    result = emit(_state(_blueprint({"requestVolume": "high"}), str(tmp_path)))
+    files = result["generated_files"]
+    assert "src/main/resources/application-prod.yml" in files
+    prod = files["src/main/resources/application-prod.yml"]
+    assert "jdbc:postgresql://" in prod
+    assert "${DB_USERNAME}" in prod and "${DB_PASSWORD}" in prod   # credentials externalized
+    assert "postgresql" not in files["pom.xml"]            # offline build stays H2
+
+
+def test_low_volume_does_not_materialize_postgres(tmp_path):
+    result = emit(_state(_blueprint({"requestVolume": "low"}), str(tmp_path)))
+    assert "src/main/resources/application-prod.yml" not in result["generated_files"]

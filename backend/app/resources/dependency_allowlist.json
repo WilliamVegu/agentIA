@@ -36,6 +36,12 @@
       "why": "In-memory datasource so a freshly generated project runs and tests without provisioning."
     },
     {
+      "groupId": "org.postgresql",
+      "artifactId": "postgresql",
+      "scope": "runtime",
+      "why": "Durable relational driver for the inferred production datasource (high/medium volume). NOTE: the hermetic offline build still runs against H2 until this artifact is present in the local Maven cache."
+    },
+    {
       "groupId": "org.springframework.boot",
       "artifactId": "spring-boot-starter-test",
       "scope": "test",
