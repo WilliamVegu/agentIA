@@ -218,7 +218,7 @@ def test_example_unknown_specification_returns_404():
 # Level 4 - LLM-backed endpoints without an API key (mock provider)
 # --------------------------------------------------------------------------- #
 def test_example_requirements_transform_offline_mock():
-    """provider='mock' routes to the deterministic mock engine: no key, no net."""
+    """provider='mock' no longer routes to a mock engine: it is rejected (no key)."""
     payload = {
         "rawText": (
             "Microservicio para gestionar órdenes de compra con email de cliente "
@@ -230,25 +230,16 @@ def test_example_requirements_transform_offline_mock():
 
     response = client.post("/api/v1/requirements/transform", json=payload)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["serviceName"] == "order-service"
-    assert len(body["entities"]) >= 1
-    assert len(body["userStories"]) >= 3
-    for story in body["userStories"]:
-        assert len(story["scenarios"]) >= 2  # happy path + failure path
-    assert "# Feature Specification:" in body["markdownSpec"]
+    assert response.status_code == 401
 
 
 def test_example_llm_verify_mock_provider():
-    """Credential verification short-circuits to READY for the mock provider."""
+    """Credential verification no longer short-circuits to READY for the mock provider."""
     response = client.post("/api/v1/llm/verify", json={"provider": "mock"})
 
     assert response.status_code == 200
     body = response.json()
-    assert body["provider"] == "mock"
-    assert body["status"] == "READY"
-    assert body["latencyMs"] == 0
+    assert body["status"] == "ERROR"
 
 
 def test_example_missing_api_key_is_rejected(monkeypatch):

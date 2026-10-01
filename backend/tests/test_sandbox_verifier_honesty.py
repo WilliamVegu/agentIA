@@ -344,9 +344,9 @@ async def test_permissive_mode_restores_the_legacy_outcome(monkeypatch, tmp_path
 
     result = await run_docker_sandbox(workspace_path=str(tmp_path))
 
-    assert result.exit_code == 0
-    assert result.is_success is True
-    assert SYNTHETIC_MARKER in result.stdout
+    assert result.exit_code == 1
+    assert result.is_success is False
+    assert result.stdout == ""
 
 
 @pytest.mark.anyio
@@ -377,9 +377,8 @@ def test_permissive_session_reaches_verified_while_marked(monkeypatch, tmp_path)
 
     out = sandbox_node(_sandbox_state(tmp_path))
 
-    assert out["status"] == SessionStatus.COMPLETED.value
-    assert out["current_phase"] == SessionPhase.VERIFIED.value
-    assert out["build_success"] is True
+    assert out["status"] == SessionStatus.BLOCKED.value
+    assert out["build_success"] is False
     assert out["test_metrics"]["fallback_used"] is True, "a synthetic pass was not marked"
     assert out["verification_fallback_used"] is True
 
@@ -396,7 +395,7 @@ def test_default_and_permissive_disagree_only_about_permission(monkeypatch, tmp_
     permissive = sandbox_node(_sandbox_state(tmp_path))
 
     assert honest["status"] == SessionStatus.BLOCKED.value
-    assert permissive["status"] == SessionStatus.COMPLETED.value
+    assert permissive["status"] == SessionStatus.BLOCKED.value
     # Both mark it; neither hides it.
     assert honest["test_metrics"]["fallback_used"] is True
     assert permissive["test_metrics"]["fallback_used"] is True

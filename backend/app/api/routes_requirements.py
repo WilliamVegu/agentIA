@@ -38,17 +38,12 @@ def resolve_api_key(
 ) -> str:
     """
     Resolves the ephemeral LLM API key with priority:
-    1. Offline mock if provider is 'mock'
-    2. Payload key
-    3. Header X-LLM-API-Key
-    4. Host environment variables: GEMINI_API_KEY / GOOGLE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY
-    5. Fallback to offline-mock if ALLOW_OFFLINE_MOCK is True
+    1. Payload key
+    2. Header X-LLM-API-Key
+    3. Host environment variables: GEMINI_API_KEY / GOOGLE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY
     Raises HTTP 401 if no valid key is resolved per Constitution Principle VI.
+    The mock/offline fallback is removed: no key means an honest 401, never a fabricated session.
     """
-    clean_provider = (provider or "").strip().lower()
-    if clean_provider == "mock":
-        return "offline-mock"
-
     key = (
         payload_key
         or header_key
@@ -58,16 +53,6 @@ def resolve_api_key(
         or os.environ.get("OPENAI_API_KEY")
     )
     if not key or not key.strip():
-        allow_mock = os.environ.get("ALLOW_OFFLINE_MOCK", "").lower() in ("true", "1", "yes")
-        try:
-            from app.config import settings
-            allow_mock = allow_mock or getattr(settings, "ALLOW_OFFLINE_MOCK", False)
-        except Exception:
-            pass
-
-        if allow_mock:
-            return "offline-mock"
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="LLM API key is required to perform requirements transformation. "
@@ -95,14 +80,14 @@ def transform_requirements_endpoint(
     with Given/When/Then acceptance criteria and extracted Domain Entities.
     """
     provider = request.provider or x_llm_provider
-    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
 
-    # Guardrail: refuse an instruction-shaped narrative before it reaches a model.
+    # Guardrail: refuse an instruction-shaped narrative BEFORE resolving credentials.
     # The narrative is free text from the caller and is rendered straight into the
-    # stage request, so it is the widest injection surface in the product. Only
-    # HIGH-confidence findings refuse the request; MEDIUM ones are reported in the
-    # response headers and the request proceeds, because a guardrail that blocks
-    # valid work gets switched off and then guards nothing.
+    # stage request, so it is the widest injection surface in the product. Refusing it
+    # must not depend on whether a key is present, and must not cost a credential check.
+    # Only HIGH-confidence findings refuse the request; MEDIUM ones are reported in the
+    # response headers and the request proceeds, because a guardrail that blocks valid
+    # work gets switched off and then guards nothing.
     findings = scan_text(request.rawText, "rawText")
     if has_blocking_finding(findings):
         raise HTTPException(
@@ -116,6 +101,8 @@ def transform_requirements_endpoint(
                 "findings": [f.to_dict() for f in findings],
             },
         )
+
+    api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
 
     try:
         draft = transform_requirements(request, api_key, provider=provider)

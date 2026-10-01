@@ -10,10 +10,8 @@ def test_verify_llm_mock_mode():
     response = client.post("/api/v1/llm/verify", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["provider"] == "mock"
-    assert data["status"] == "READY"
-    assert data["latencyMs"] == 0
-    assert "offline" in data["message"].lower()
+    assert data["status"] == "ERROR"          # mock mode is disabled, not "READY"
+    assert "mock" in data["message"].lower()
 
 
 def test_verify_llm_empty_key():
@@ -21,8 +19,7 @@ def test_verify_llm_empty_key():
     response = client.post("/api/v1/llm/verify", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["provider"] == "mock"
-    assert data["status"] == "READY"
+    assert data["status"] == "ERROR"          # empty key no longer fabricates a READY mock
 
 
 def test_verify_llm_connected_mocked():

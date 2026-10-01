@@ -282,127 +282,6 @@ def serialize_architecture_markdown(response: ArchitectureDesignResponse) -> str
 
     return "\n".join(lines)
 
-def _generate_mock_architecture(draft: SpecificationDraft) -> ArchitectureDesignResponse:
-    """Deterministic mock architecture generator for unit tests and offline execution."""
-    service_name = draft.serviceName or "order-service"
-    package_name = draft.packageName or f"com.corp.{service_name.replace('-', '.')}"
-    components: List[ComponentDefinition] = []
-    endpoints: List[ApiEndpointDefinition] = []
-    interactions: List[ComponentInteraction] = []
-
-    # Cross-Cutting Infrastructure
-    infra_comp = ComponentDefinition(
-        name="GlobalExceptionHandler",
-        layer=LayerType.INFRASTRUCTURE,
-        stereotype="@RestControllerAdvice",
-        packageName=f"{package_name}.controller.advice",
-        responsibilities=[
-            "Intercept HTTP exceptions and validation errors",
-            "Format responses as standard RFC 7807 ProblemDetails",
-        ],
-        dependencies=[],
-        mappedStories=["ALL"],
-    )
-    components.append(infra_comp)
-
-    # Generate components per domain entity
-    for ent in (draft.entities or [DomainEntity(name="Order", tableName="orders", attributes=[])]):
-        ent_name = ent.name
-        table_name = ent.tableName or f"{ent_name.lower()}s"
-
-        repo_comp = ComponentDefinition(
-            name=f"{ent_name}Repository",
-            layer=LayerType.REPOSITORY,
-            stereotype="@Repository",
-            packageName=f"{package_name}.repository",
-            responsibilities=[f"Spring Data JPA persistence operations for {ent_name}"],
-            dependencies=[ent_name],
-            mappedStories=["US-1"],
-        )
-
-        service_comp = ComponentDefinition(
-            name=f"{ent_name}Service",
-            layer=LayerType.SERVICE,
-            stereotype="@Service",
-            packageName=f"{package_name}.service",
-            responsibilities=[
-                f"Business logic and transaction boundaries for {ent_name}",
-                "Validation and entity to record mapping",
-            ],
-            dependencies=[repo_comp.name],
-            mappedStories=["US-1"],
-        )
-
-        controller_comp = ComponentDefinition(
-            name=f"{ent_name}Controller",
-            layer=LayerType.CONTROLLER,
-            stereotype="@RestController",
-            packageName=f"{package_name}.controller",
-            responsibilities=[
-                f"REST HTTP endpoints routing for {table_name}",
-                "Request validation trigger with @Valid",
-            ],
-            dependencies=[service_comp.name],
-            mappedStories=["US-1"],
-        )
-
-        model_comp = ComponentDefinition(
-            name=ent_name,
-            layer=LayerType.MODEL,
-            stereotype="@Entity",
-            packageName=f"{package_name}.model",
-            responsibilities=[f"JPA Domain entity mapped to table {table_name}"],
-            dependencies=[],
-            mappedStories=["US-1"],
-        )
-
-        components.extend([controller_comp, service_comp, repo_comp, model_comp])
-
-        # Interactions
-        interactions.append(ComponentInteraction(sourceComponent=controller_comp.name, targetComponent=service_comp.name, interactionType=InteractionType.CALLS))
-        interactions.append(ComponentInteraction(sourceComponent=service_comp.name, targetComponent=repo_comp.name, interactionType=InteractionType.CALLS))
-        interactions.append(ComponentInteraction(sourceComponent=repo_comp.name, targetComponent=model_comp.name, interactionType=InteractionType.PERSISTS))
-        interactions.append(ComponentInteraction(sourceComponent=infra_comp.name, targetComponent=controller_comp.name, interactionType=InteractionType.INTERCEPTS))
-
-        # Endpoints derived from stories / entity
-        endpoints.append(ApiEndpointDefinition(
-            method=HttpMethod.POST,
-            path=f"/api/v1/{table_name}",
-            summary=f"Create a new {ent_name}",
-            requestDto=f"Create{ent_name}Request",
-            responseDto=f"{ent_name}Response",
-            successStatus=201,
-            errorStatuses=[400, 500],
-            mappedScenarioId="AC-1.1",
-        ))
-        endpoints.append(ApiEndpointDefinition(
-            method=HttpMethod.GET,
-            path=f"/api/v1/{table_name}/{{id}}",
-            summary=f"Retrieve {ent_name} by ID",
-            responseDto=f"{ent_name}Response",
-            successStatus=200,
-            errorStatuses=[404, 500],
-            mappedScenarioId="AC-1.2",
-        ))
-
-    mermaid_code = generate_mermaid_flowchart(components, interactions)
-    openapi_str = serialize_to_openapi_yaml(service_name, package_name, endpoints, draft.entities or [])
-
-    resp = ArchitectureDesignResponse(
-        serviceName=service_name,
-        packageName=package_name,
-        basePort=draft.basePort or 8080,
-        components=components,
-        endpoints=endpoints,
-        interactions=interactions,
-        mermaidDiagram=mermaid_code,
-        openapiYaml=openapi_str,
-        entities=draft.entities,
-        userStories=draft.userStories,
-    )
-    resp.architectureMarkdown = serialize_architecture_markdown(resp)
-    return resp
-
 def design_architecture(
     request: ArchitectureDesignRequest,
     api_key: str,
@@ -416,7 +295,9 @@ def design_architecture(
     chosen_model = getattr(request, "modelName", None)
 
     if LLMFactory.is_mock(api_key, chosen_provider):
-        return _generate_mock_architecture(request.draft)
+        raise RuntimeError(
+            "mock/offline generation is disabled: refusing to fabricate an architecture without a real model"
+        )
 
     from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -427,7 +308,9 @@ def design_architecture(
         temperature=0.2,
     )
     if llm is None:
-        return _generate_mock_architecture(request.draft)
+        raise RuntimeError(
+            "no model client available for architecture design; refusing to fabricate a mock architecture"
+        )
 
     system_prompt = (
         "You are an expert Enterprise Software Architect specialized in Spring Boot 3 and Java 21 LTS.\n"

@@ -149,19 +149,6 @@ def build_docker_cmd(
         "mvn", "test", "-o"
     ]
 
-OFFLINE_SANDBOX_STDOUT = (
-    "[INFO] Scanning for projects...\n"
-    "[INFO] -------------------------------------------------------\n"
-    "[INFO] COMPILING & RUNNING TESTS (HERMETIC OFFLINE SANDBOX)\n"
-    "[INFO] -------------------------------------------------------\n"
-    "[INFO] Compiling 6 source files with Java 21\n"
-    "[INFO] Running Mockito unit tests\n"
-    "[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0\n"
-    "[INFO] -------------------------------------------------------\n"
-    "[INFO] BUILD SUCCESS\n"
-    "[INFO] -------------------------------------------------------\n"
-)
-
 # Reasons are written to be self-describing and to avoid implying that the
 # generated code was at fault. A substitution is an environment/verification
 # problem, never a test or compilation failure (FR-003).
@@ -198,35 +185,12 @@ def _build_hermetic_fallback_result(
     The single policy point for all four substitution triggers, so none of them
     can remain a silent success (FR-006).
 
-    * **Permissive** (``ALLOW_HERMETIC_FALLBACK`` true): the pre-change synthetic
-      success is restored for local development -- ``exit_code = 0`` with the
-      synthetic stdout. The marking is still set, because permissive mode changes
-      what is permitted, not what is recorded (FR-007).
-    * **Default**: ``exit_code = 1`` and no synthetic output, so the caller cannot
-      mistake an unverified workspace for a verified one (FR-001). The caller
-      must NOT reach the verified terminal state.
+    Always fail-safe: ``exit_code = 1`` and no synthetic output, so the caller
+    cannot mistake an unverified workspace for a verified one (FR-001). There is
+    no permissive path that fabricates a ``BUILD SUCCESS`` — a fabricated success
+    is exactly the "garbage session" a verification seam must never produce.
     """
     duration_ms = int((time.time() - start_time) * 1000)
-    # `is True` rather than a truthiness test: only an explicit boolean True
-    # enables permissive mode, so a malformed value (a stray string, a non-zero
-    # int, a typo'd env var) fails SAFE to the honest path instead of silently
-    # permitting synthetic verification.
-    permitted = getattr(settings, "ALLOW_HERMETIC_FALLBACK", False) is True
-
-    if permitted:
-        if log_callback:
-            for line in OFFLINE_SANDBOX_STDOUT.splitlines(keepends=True):
-                log_callback(line)
-        return DockerExecutionResult(
-            exit_code=0,
-            stdout=OFFLINE_SANDBOX_STDOUT,
-            stderr="",
-            duration_ms=duration_ms,
-            fallback_used=True,
-            fallback_reason=reason,
-            matched_pattern=matched_pattern,
-            attribution_ambiguous=attribution_ambiguous,
-        )
 
     notice = f"[SANDBOX] Verification could not be performed: {reason}\n"
     if log_callback:
