@@ -107,6 +107,10 @@ export const DomainModelsView: React.FC = () => {
   const updateDesign = (newDesign: any) => {
     setDesign(newDesign);
     setDataModelDesign(newDesign);
+    // Persist the tuned model/SQL so it survives tab navigation / reload / resume.
+    if (activeSessionId) {
+      modelsService.saveDesign(activeSessionId, newDesign).catch(() => {});
+    }
   };
 
   const handleSynthesizeAi = async () => {

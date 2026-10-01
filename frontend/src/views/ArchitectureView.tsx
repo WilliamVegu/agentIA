@@ -101,6 +101,11 @@ export const ArchitectureView: React.FC = () => {
   const updateDesign = (newDesign: any) => {
     setDesign(newDesign);
     setArchitectureDesign(newDesign);
+    // Persist the tuned design so it survives tab navigation / reload / resume —
+    // this is the tuning result, not the mechanical derivation written at build time.
+    if (activeSessionId) {
+      architectureService.saveDesign(activeSessionId, newDesign).catch(() => {});
+    }
   };
 
   const handleGenerateAi = async () => {

@@ -25,4 +25,9 @@ export const modelsService = {
     const response = await apiClient.post('/models/refine', payload);
     return response.data;
   },
+
+  async saveDesign(sessionId: string, design: any) {
+    const response = await apiClient.post(`/models/sessions/${sessionId}/save`, design);
+    return response.data;
+  },
 };

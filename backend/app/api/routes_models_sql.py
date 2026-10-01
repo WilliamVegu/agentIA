@@ -88,3 +88,21 @@ def refine_models_and_sql_endpoint(
             detail=f"Failed to refine domain models and SQL schema: {str(e)}",
         )
 
+@router.post("/sessions/{session_id}/save", status_code=status.HTTP_200_OK)
+async def save_models_design(session_id: str, payload: dict):
+    """Persist the LLM-designed domain models + SQL so the tab retrieves them later.
+
+    This is the tuning result (entities, DTOs, schema.sql, ER diagram), written to
+    ``domain_model.json``, which the Models & SQL tab reads back on mount.
+    """
+    import json
+    from pathlib import Path
+    from app.config import settings
+
+    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    ws_path.mkdir(parents=True, exist_ok=True)
+    (ws_path / "domain_model.json").write_text(
+        json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8"
+    )
+    return {"sessionId": session_id, "status": "SAVED"}
+

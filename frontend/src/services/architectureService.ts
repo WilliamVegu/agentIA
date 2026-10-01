@@ -24,4 +24,9 @@ export const architectureService = {
     const response = await apiClient.post('/architecture/refine', payload);
     return response.data;
   },
+
+  async saveDesign(sessionId: string, design: any) {
+    const response = await apiClient.post(`/architecture/sessions/${sessionId}/save`, design);
+    return response.data;
+  },
 };
