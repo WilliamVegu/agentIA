@@ -51,6 +51,7 @@ def resolve_api_key(
         or os.environ.get("GOOGLE_API_KEY")
         or os.environ.get("GROQ_API_KEY")
         or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("DEEPSEEK_API_KEY")
     )
     if not key or not key.strip():
         raise HTTPException(
