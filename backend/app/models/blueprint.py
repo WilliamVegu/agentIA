@@ -32,11 +32,27 @@ class UserStoryRecord(BaseModel):
     benefit: str = Field(..., min_length=3)
     scenarios: List[AcceptanceScenarioRecord] = Field(..., min_length=1)
 
+class InputInterface(BaseModel):
+    """Interfaz de entrada (feature 'levantando_observaciones'): lo que impulsa la
+    inferencia de arquitectura. Campos de entrada + preferencias elegibles."""
+    requestVolume: str = Field(default="low", description="low | medium | high (throughput tier)")
+    expectedQps: Optional[int] = Field(default=None, ge=0, description="Expected requests per second")
+    dataNeeds: List[str] = Field(default_factory=list, description="relational | document | cache | fulltext | blob")
+    integrations: List[str] = Field(default_factory=list, description="messaging | external-http | scheduler | none")
+    consistency: str = Field(default="strong", description="strong | eventual")
+    architecturePreference: Optional[str] = Field(default=None, description="layered | hexagonal | hexagonal-ddd (None = infer)")
+    buildToolPreference: Optional[str] = Field(default=None, description="maven | gradle (None = default del perfil)")
+
+
 class ArchitectureBlueprint(BaseModel):
     serviceName: str = Field(..., pattern="^[a-z0-9-]+$")
     packageName: str = Field(..., description="Base Java package, e.g. com.corp.order")
     basePort: int = Field(default=8080, ge=1024, le=65535)
     databaseMode: str = Field(default="PostgreSQL")
+    inputInterface: Optional[InputInterface] = Field(
+        default=None,
+        description="Interfaz de entrada que decide arquitectura, DB, build tool y librerías",
+    )
     layers: List[LayerDefinition] = Field(
         default_factory=lambda: [
             LayerDefinition(name="controller", packageNameSuffix=".controller"),
