@@ -57,13 +57,33 @@ _H2_IDENTITY_IN_SCHEMA_RE = re.compile(
 
 
 def _iter_java(workspace: Path, kind: str) -> List[Path]:
-    """Java sources under a ``<kind>`` package directory, deterministically ordered."""
-    root = workspace / "src" / "main" / "java"
-    if not root.is_dir():
-        return []
-    return sorted(
-        path for path in root.rglob("*.java") if path.parent.name == kind
-    )
+    """Java sources under a ``<kind>`` package directory, in any module, deterministically ordered.
+
+    Multi-module aware: the workspace may be a Maven reactor, so ``src/main/java``
+    appears under each module directory rather than only at the workspace root.
+    """
+    results: List[Path] = []
+    for root in workspace.rglob("src/main/java"):
+        results.extend(path for path in root.rglob("*.java") if path.parent.name == kind)
+    return sorted(results)
+
+
+def _find_application(workspace: Path) -> Optional[Tuple[str, str]]:
+    """``(module_prefix, package)`` of the generated application entry point.
+
+    The entry point may sit at the workspace root (single-module) or inside a module
+    directory (multi-module). The prefix is ``"<module>/"`` in the latter case and
+    ``""`` in the former, so the injected test lands in the module whose classpath
+    actually carries the application class.
+    """
+    for path in sorted(workspace.rglob("*Application.java")):
+        match = _PACKAGE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+        if not match:
+            continue
+        parts = path.relative_to(workspace).parts
+        prefix = f"{parts[0]}/" if len(parts) > 1 and parts[1] == "src" else ""
+        return prefix, match.group(1)
+    return None
 
 
 def base_package(workspace: Path) -> Optional[str]:
@@ -74,11 +94,8 @@ def base_package(workspace: Path) -> Optional[str]:
     would place the injected test where component scanning cannot see the
     application class.
     """
-    for path in sorted((workspace / "src" / "main" / "java").rglob("*Application.java")):
-        match = _PACKAGE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
-        if match:
-            return match.group(1)
-    return None
+    found = _find_application(workspace)
+    return found[1] if found else None
 
 
 def repository_types(workspace: Path) -> List[Tuple[str, str]]:
@@ -103,9 +120,10 @@ def render_contract_test(workspace: Path) -> Optional[Tuple[str, str]]:
     verification ran rather than let a missing precondition look like success
     (the feature-012 rule, applied one level down).
     """
-    package = base_package(workspace)
-    if package is None:
+    found = _find_application(workspace)
+    if found is None:
         return None
+    module_prefix, package = found
 
     schema_path = workspace / "schema.sql"
     if not schema_path.is_file():
@@ -122,7 +140,7 @@ def render_contract_test(workspace: Path) -> Optional[Tuple[str, str]]:
         return None
 
     package_path = package.replace(".", "/")
-    rel_path = f"src/test/java/{package_path}/{PLATFORM_TEST_CLASS}.java"
+    rel_path = f"{module_prefix}src/test/java/{package_path}/{PLATFORM_TEST_CLASS}.java"
 
     imports = "\n".join(
         sorted({f"import {repo_package}.{name};" for name, repo_package in repositories})

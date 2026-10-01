@@ -2,6 +2,7 @@
 from app.orchestrator.stages.deterministic import module_layout
 from app.orchestrator.stages.deterministic.scaffolder import emit as scaffold_emit
 from app.orchestrator.stages.deterministic.domain import emit as domain_emit
+from app.services.platform_verification import base_package, repository_types, _find_application
 
 HEX = {"profile": "hexagonal", "buildTool": "maven", "databaseType": "h2",
        "modules": ["domain", "application", "infrastructure", "adapter-in/rest", "adapter-out/db"],
@@ -71,6 +72,16 @@ def test_reactor_module_dependency_graph():
         assert f"order-service-{other}" not in poms["model/pom.xml"]
 
 
+def test_h2_uses_correct_group_id():
+    poms = module_layout.render_reactor_poms("order-service", "com.corp.order", HEX)
+    bootstrap = poms["bootstrap/pom.xml"]
+    # H2 lives under com.h2database, not org.springframework.boot (regression guard:
+    # the wrong groupId made Maven fail with "version for h2:jar is missing").
+    assert "<groupId>com.h2database</groupId>" in bootstrap
+    assert "<artifactId>h2</artifactId>" in bootstrap
+    assert "<groupId>org.springframework.boot</groupId>\n            <artifactId>h2</artifactId>" not in bootstrap
+
+
 # --- scaffolder wiring ---
 
 def test_scaffolder_emits_reactor_for_hexagonal(tmp_path):
@@ -102,3 +113,33 @@ def test_domain_stage_writes_into_model_module(tmp_path):
     result = domain_emit(state)
     paths = list(result["generated_files"].keys())
     assert all(p.startswith("model/src/main/java/") for p in paths), paths
+
+
+# --- platform verification module-awareness ---
+
+def test_base_package_finds_application_in_module(tmp_path):
+    app_dir = tmp_path / "bootstrap/src/main/java/com/corp/order"
+    app_dir.mkdir(parents=True)
+    (app_dir / "OrderServiceApplication.java").write_text(
+        "package com.corp.order;\npublic class OrderServiceApplication {}", encoding="utf-8")
+    assert base_package(tmp_path) == "com.corp.order"
+
+
+def test_find_application_returns_module_prefix(tmp_path):
+    app_dir = tmp_path / "bootstrap/src/main/java/com/corp/order"
+    app_dir.mkdir(parents=True)
+    (app_dir / "OrderServiceApplication.java").write_text(
+        "package com.corp.order;\npublic class OrderServiceApplication {}", encoding="utf-8")
+    prefix, package = _find_application(tmp_path)
+    assert prefix == "bootstrap/"
+    assert package == "com.corp.order"
+
+
+def test_repository_types_finds_repo_in_service_module(tmp_path):
+    repo_dir = tmp_path / "service/src/main/java/com/corp/order/repository"
+    repo_dir.mkdir(parents=True)
+    (repo_dir / "OrderRepository.java").write_text(
+        "package com.corp.order.repository;\n"
+        "public interface OrderRepository extends JpaRepository<Order, Long> {}", encoding="utf-8")
+    repos = repository_types(tmp_path)
+    assert any(name == "OrderRepository" for name, _ in repos)

@@ -59,13 +59,15 @@ def module_prefix_for(stage: str, plan: Optional[Dict[str, Any]]) -> str:
     return STAGE_MODULE[stage] + "/"
 
 
-def _dependency_block(group_id: str, artifact_id: str, version: str = "") -> str:
+def _dependency_block(group_id: str, artifact_id: str, version: str = "", scope: str = "") -> str:
     v = f"<version>{version}</version>" if version else ""
+    sc = f"<scope>{scope}</scope>" if scope else ""
     return (
         "        <dependency>\n"
         f"            <groupId>{group_id}</groupId>\n"
         f"            <artifactId>{artifact_id}</artifactId>\n"
         f"{v}"
+        f"{sc}"
         "        </dependency>"
     )
 
@@ -136,10 +138,12 @@ def render_reactor_poms(
         for dep_module in MODULE_DEPS[module]:
             deps.append(_dependency_block(package_name, f"{service_name}-{dep_module}", version))
         for boot_artifact in MODULE_MAVEN_DEPS[module]:
-            scope = "test" if boot_artifact == "spring-boot-starter-test" else ""
             if boot_artifact == "h2":
-                scope = "runtime"
-            deps.append(_boot_dependency_block(boot_artifact, scope))
+                # H2 lives under com.h2database, not org.springframework.boot.
+                deps.append(_dependency_block("com.h2database", "h2", scope="runtime"))
+            else:
+                scope = "test" if boot_artifact == "spring-boot-starter-test" else ""
+                deps.append(_boot_dependency_block(boot_artifact, scope))
         deps_xml = "\n".join(deps)
 
         # bootstrap is the runnable module: it carries the Spring Boot plugin.
