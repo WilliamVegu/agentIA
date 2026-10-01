@@ -495,6 +495,9 @@ class ModelSqlService:
         model_name: Optional[str] = None,
     ) -> DataModelSynthesisResponse:
         """Synthesize JPA entity models, schema.sql, data.sql, and Mermaid ER diagram."""
+        from app.services.injection_guard import assert_no_injection
+        assert_no_injection(draft.model_dump(), field="domain model draft")
+
         if LLMFactory.is_mock(api_key, provider):
             return _mock_domain_model_response(draft)
 
@@ -520,6 +523,9 @@ class ModelSqlService:
         model_name: Optional[str] = None,
     ) -> DataModelSynthesisResponse:
         """Apply user feedback to adjust models, attributes, constraints, or relationships."""
+        from app.services.injection_guard import assert_no_injection
+        assert_no_injection(feedback_prompt, field="domain model refinement feedback")
+
         entities = [DomainEntityDefinition(**e.model_dump()) for e in current_response.entities]
 
         prompt_lower = feedback_prompt.lower()

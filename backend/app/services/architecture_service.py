@@ -299,6 +299,10 @@ def design_architecture(
             "mock/offline generation is disabled: refusing to fabricate an architecture without a real model"
         )
 
+    # Guardrail: the draft is untrusted user input rendered into the model request.
+    from app.services.injection_guard import assert_no_injection
+    assert_no_injection(request.draft.model_dump(), field="architecture draft")
+
     from langchain_core.messages import SystemMessage, HumanMessage
 
     llm = LLMFactory.get_chat_model(
@@ -409,36 +413,13 @@ def refine_architecture(
     chosen_model = getattr(request, "modelName", None)
 
     if LLMFactory.is_mock(api_key, chosen_provider):
-        updated_comps = list(request.currentDesign.components)
-        updated_interactions = list(request.currentDesign.interactions)
+        raise RuntimeError(
+            "mock/offline generation is disabled: refusing to fabricate a refinement without a real model"
+        )
 
-        # Add refined component in service layer
-        new_comp_name = "AuditNotificationService"
-        if not any(c.name == new_comp_name for c in updated_comps):
-            new_comp = ComponentDefinition(
-                name=new_comp_name,
-                layer=LayerType.SERVICE,
-                stereotype="@Service",
-                packageName=f"{request.currentDesign.packageName}.service",
-                responsibilities=[f"Refined service based on prompt: {request.feedbackPrompt[:30]}"],
-                dependencies=[],
-                mappedStories=["US-1"],
-            )
-            updated_comps.append(new_comp)
-            # Find a service to connect
-            services = [c for c in updated_comps if c.layer == LayerType.SERVICE and c.name != new_comp_name]
-            if services:
-                services[0].dependencies.append(new_comp_name)
-                updated_interactions.append(ComponentInteraction(sourceComponent=services[0].name, targetComponent=new_comp_name, interactionType=InteractionType.CALLS))
-
-        mermaid_code = generate_mermaid_flowchart(updated_comps, updated_interactions)
-        resp = request.currentDesign.model_copy(update={
-            "components": updated_comps,
-            "interactions": updated_interactions,
-            "mermaidDiagram": mermaid_code,
-        })
-        resp.architectureMarkdown = serialize_architecture_markdown(resp)
-        return resp
+    # Guardrail: the refinement feedback is untrusted user input rendered into the request.
+    from app.services.injection_guard import assert_no_injection
+    assert_no_injection(request.feedbackPrompt, field="architecture refinement feedback")
 
     from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -449,7 +430,10 @@ def refine_architecture(
         temperature=0.2,
     )
     if llm is None:
-        return request.currentDesign
+        raise RuntimeError(
+            "no model client available for architecture refinement; refusing to return an unrefined design"
+        )
+
 
     system_prompt = (
         "You are an Enterprise Software Architect. You are given an existing architecture design and feedback prompt. "

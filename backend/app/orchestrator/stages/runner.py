@@ -935,6 +935,15 @@ def _run_model_stage(
     journal: Dict[str, Any],
     api_key: Optional[str] = None,
 ) -> Dict[str, Any]:
+    # Guardrail 0: the blueprint is untrusted user input rendered into every stage
+    # request. `save_specification` already refuses injection at ingestion, but a
+    # session can be assembled by other callers, so the stage boundary re-checks it
+    # before any model sees it. This is the deepest, most consistent enforcement point.
+    from app.services.injection_guard import assert_no_injection
+    blueprint = state.get("blueprint") or {}
+    if isinstance(blueprint, dict) and blueprint:
+        assert_no_injection(blueprint, field="blueprint")
+
     ensure_model_stages_registered()
     implementation = MODEL_STAGE_IMPLEMENTATIONS.get(stage)
 
