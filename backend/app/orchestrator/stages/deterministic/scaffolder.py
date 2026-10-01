@@ -16,6 +16,7 @@ from app.orchestrator.state import GenerationAgentState
 from app.models.session import SessionPhase
 from app.models.blueprint import ArchitectureBlueprint
 from app.services.inference_engine import infer_architecture
+from app.orchestrator.stages.deterministic import module_layout
 
 def _to_pascal_case(text: str) -> str:
     cleaned = text.replace("-", " ").replace("_", " ")
@@ -50,6 +51,8 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
     pascal_name = _to_pascal_case(service_name)
     pkg_path = package_name.replace(".", "/")
     plan = _architecture_plan(state)
+    multi = module_layout.is_multi_module(plan)
+    prefix = module_layout.module_prefix_for("SCAFFOLDER", plan)
 
     # 1. pom.xml with Java 21, Spring Boot 3.2.3, Mockito
     pom_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -172,11 +175,15 @@ public class {pascal_name}Application {{
     hibernate:
       ddl-auto: validate
 """
-        generated_files["src/main/resources/application-prod.yml"] = prod_yml
+        generated_files[f"{prefix}src/main/resources/application-prod.yml"] = prod_yml
 
-    generated_files["pom.xml"] = pom_xml
-    generated_files["src/main/resources/application.yml"] = app_yml
-    generated_files[f"src/main/java/{pkg_path}/{pascal_name}Application.java"] = app_java
+    if multi:
+        # "capa X en proyecto Y": one Maven module per layer.
+        generated_files.update(module_layout.render_reactor_poms(service_name, package_name, plan))
+    else:
+        generated_files["pom.xml"] = pom_xml
+    generated_files[f"{prefix}src/main/resources/application.yml"] = app_yml
+    generated_files[f"{prefix}src/main/java/{pkg_path}/{pascal_name}Application.java"] = app_java
 
     # Write files to disk
     base_dir = Path(workspace_path)

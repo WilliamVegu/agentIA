@@ -12,12 +12,14 @@ boundary, which dispatches here for DETERMINISTIC sessions.
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
+from app.orchestrator.stages.deterministic import module_layout
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
     blueprint = state.get("blueprint", {})
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
+    prefix = module_layout.module_prefix_for("SERVICE", state.get("architecture_plan"))
     logs = state.get("logs", [])
 
     pkg_path = package_name.replace(".", "/")
@@ -33,7 +35,7 @@ public class ResourceNotFoundException extends RuntimeException {{
     }}
 }}
 """
-    ex_path = f"src/main/java/{pkg_path}/exception/ResourceNotFoundException.java"
+    ex_path = f"{prefix}src/main/java/{pkg_path}/exception/ResourceNotFoundException.java"
     generated_files[ex_path] = not_found_ex
     fp = base_dir / ex_path
     fp.parent.mkdir(parents=True, exist_ok=True)
@@ -55,7 +57,7 @@ import org.springframework.stereotype.Repository;
 public interface {ent_name}Repository extends JpaRepository<{ent_name}, Long> {{
 }}
 """
-        repo_path = f"src/main/java/{pkg_path}/repository/{ent_name}Repository.java"
+        repo_path = f"{prefix}src/main/java/{pkg_path}/repository/{ent_name}Repository.java"
         generated_files[repo_path] = repo_src
 
         # 3. Service Interface
@@ -72,7 +74,7 @@ public interface {ent_name}Service {{
     void delete(Long id);
 }}
 """
-        service_path = f"src/main/java/{pkg_path}/service/{ent_name}Service.java"
+        service_path = f"{prefix}src/main/java/{pkg_path}/service/{ent_name}Service.java"
         generated_files[service_path] = service_iface
 
         # 4. Service Implementation
@@ -142,7 +144,7 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
     }}
 }}
 """
-        impl_path = f"src/main/java/{pkg_path}/service/impl/{ent_name}ServiceImpl.java"
+        impl_path = f"{prefix}src/main/java/{pkg_path}/service/impl/{ent_name}ServiceImpl.java"
         generated_files[impl_path] = service_impl
 
         # Write files to disk

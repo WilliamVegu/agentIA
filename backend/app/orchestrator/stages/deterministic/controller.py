@@ -12,6 +12,7 @@ boundary, which dispatches here for DETERMINISTIC sessions.
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
+from app.orchestrator.stages.deterministic import module_layout
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
     blueprint = state.get("blueprint", {})
@@ -19,6 +20,7 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
+    prefix = module_layout.module_prefix_for("CONTROLLER", state.get("architecture_plan"))
     logs = state.get("logs", [])
 
     pkg_path = package_name.replace(".", "/")
@@ -100,7 +102,7 @@ public class GlobalExceptionHandler {{
     }}
 }}
 """
-    handler_path = f"src/main/java/{pkg_path}/controller/GlobalExceptionHandler.java"
+    handler_path = f"{prefix}src/main/java/{pkg_path}/controller/GlobalExceptionHandler.java"
     generated_files[handler_path] = handler_src
     h_fp = base_dir / handler_path
     h_fp.parent.mkdir(parents=True, exist_ok=True)
@@ -201,7 +203,7 @@ public class HomeController {{
     }}
 }}
 """
-    home_path = f"src/main/java/{pkg_path}/controller/HomeController.java"
+    home_path = f"{prefix}src/main/java/{pkg_path}/controller/HomeController.java"
     generated_files[home_path] = home_src
     home_fp = base_dir / home_path
     home_fp.write_text(home_src, encoding="utf-8")
@@ -260,7 +262,7 @@ public class {ent_name}Controller {{
     }}
 }}
 """
-        ctrl_path = f"src/main/java/{pkg_path}/controller/{ent_name}Controller.java"
+        ctrl_path = f"{prefix}src/main/java/{pkg_path}/controller/{ent_name}Controller.java"
         generated_files[ctrl_path] = ctrl_src
         c_fp = base_dir / ctrl_path
         c_fp.parent.mkdir(parents=True, exist_ok=True)

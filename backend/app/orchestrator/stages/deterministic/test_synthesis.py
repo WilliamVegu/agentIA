@@ -12,6 +12,7 @@ boundary, which dispatches here for DETERMINISTIC sessions.
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
+from app.orchestrator.stages.deterministic import module_layout
 from app.models.session import SessionPhase
 
 __test__ = False
@@ -47,6 +48,7 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
     service_name = blueprint.get("serviceName") or blueprint.get("service_name", "sample-service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
+    prefix = module_layout.module_prefix_for("TEST", state.get("architecture_plan"))
     logs = state.get("logs", [])
 
     pkg_path = package_name.replace(".", "/")
@@ -68,7 +70,7 @@ class {pascal_name}ApplicationTests {{
     }}
 }}
 """
-    app_test_path = f"src/test/java/{pkg_path}/{pascal_name}ApplicationTests.java"
+    app_test_path = f"{prefix}src/test/java/{pkg_path}/{pascal_name}ApplicationTests.java"
     generated_files[app_test_path] = app_test
     at_fp = base_dir / app_test_path
     at_fp.parent.mkdir(parents=True, exist_ok=True)
@@ -196,7 +198,7 @@ class {ent_name}ServiceTest {{
     }}
 }}
 """
-        test_path = f"src/test/java/{pkg_path}/service/{ent_name}ServiceTest.java"
+        test_path = f"{prefix}src/test/java/{pkg_path}/service/{ent_name}ServiceTest.java"
         generated_files[test_path] = test_src
         t_fp = base_dir / test_path
         t_fp.parent.mkdir(parents=True, exist_ok=True)
@@ -255,7 +257,7 @@ class {ent_name}RepositoryTest {{
     }}
 }}
 """
-            repo_path = f"src/test/java/{pkg_path}/repository/{ent_name}RepositoryTest.java"
+            repo_path = f"{prefix}src/test/java/{pkg_path}/repository/{ent_name}RepositoryTest.java"
             generated_files[repo_path] = repo_test
             r_fp = base_dir / repo_path
             r_fp.parent.mkdir(parents=True, exist_ok=True)
@@ -297,7 +299,7 @@ class {ent_name}ControllerTest {{
     }}
 }}
 """
-        ctrl_path = f"src/test/java/{pkg_path}/controller/{ent_name}ControllerTest.java"
+        ctrl_path = f"{prefix}src/test/java/{pkg_path}/controller/{ent_name}ControllerTest.java"
         generated_files[ctrl_path] = controller_test
         c_fp = base_dir / ctrl_path
         c_fp.parent.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,7 @@ boundary, which dispatches here for DETERMINISTIC sessions.
 from pathlib import Path
 from typing import Dict, Any, List
 from app.orchestrator.state import GenerationAgentState
+from app.orchestrator.stages.deterministic import module_layout
 
 def _map_java_type(attr_type: str) -> str:
     t = attr_type.lower()
@@ -42,6 +43,7 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
 
     pkg_path = package_name.replace(".", "/")
     entities = blueprint.get("entities", [])
+    prefix = module_layout.module_prefix_for("DOMAIN", state.get("architecture_plan"))
 
     logs.append(f"[DOMAIN] Synthesizing {len(entities)} JPA entities and Record DTOs")
 
@@ -170,9 +172,9 @@ public record {ent_name}Response(
 """
 
         # Record files in map
-        entity_path = f"src/main/java/{pkg_path}/model/entity/{ent_name}.java"
-        create_dto_path = f"src/main/java/{pkg_path}/model/dto/Create{ent_name}Request.java"
-        resp_dto_path = f"src/main/java/{pkg_path}/model/dto/{ent_name}Response.java"
+        entity_path = f"{prefix}src/main/java/{pkg_path}/model/entity/{ent_name}.java"
+        create_dto_path = f"{prefix}src/main/java/{pkg_path}/model/dto/Create{ent_name}Request.java"
+        resp_dto_path = f"{prefix}src/main/java/{pkg_path}/model/dto/{ent_name}Response.java"
 
         generated_files[entity_path] = entity_src
         generated_files[create_dto_path] = create_dto_src
