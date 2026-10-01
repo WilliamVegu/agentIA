@@ -11,13 +11,32 @@ boundary, which dispatches here for DETERMINISTIC sessions.
 
 import os
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.orchestrator.state import GenerationAgentState
 from app.models.session import SessionPhase
+from app.models.blueprint import ArchitectureBlueprint
+from app.services.inference_engine import infer_architecture
 
 def _to_pascal_case(text: str) -> str:
     cleaned = text.replace("-", " ").replace("_", " ")
     return "".join(word.capitalize() for word in cleaned.split())
+
+def _architecture_plan(state: GenerationAgentState) -> Optional[Dict[str, Any]]:
+    """Infer the ArchitecturePlan when the blueprint carries an inputInterface.
+
+    Returns None when there is no interface (or it cannot be validated), so the
+    emitted scaffolding is byte-identical to the pre-reframing output in that
+    case. The plan is recorded in state for downstream stages and the API; it does
+    not, by itself, change the emitted files (see the follow-up for DB/libraries).
+    """
+    blueprint = state.get("blueprint") or {}
+    if not isinstance(blueprint, dict) or not blueprint.get("inputInterface"):
+        return None
+    try:
+        validated = ArchitectureBlueprint.model_validate(blueprint)
+        return infer_architecture(validated).model_dump()
+    except Exception:  # noqa: BLE001 — a partial/untrusted blueprint must not break scaffolding
+        return None
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
     blueprint = state.get("blueprint", {})
@@ -146,8 +165,13 @@ public class {pascal_name}Application {{
 
     logs.append(f"[SCAFFOLDER] Created pom.xml, application.yml, and {pascal_name}Application.java")
 
-    return {
+    plan = _architecture_plan(state)
+    result: Dict[str, Any] = {
         "current_phase": SessionPhase.CODE_GENERATION.value,
         "generated_files": generated_files,
-        "logs": logs
+        "logs": logs,
     }
+    if plan is not None:
+        result["architecture_plan"] = plan
+        logs.append(f"[SCAFFOLDER] architecture inferred: {plan['profile']} / {plan['buildTool']} / {plan['databaseType']}")
+    return result

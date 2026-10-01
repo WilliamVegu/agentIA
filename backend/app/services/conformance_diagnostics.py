@@ -47,6 +47,9 @@ RULE_SCHEMA_ENTITY_MISMATCH = "SCHEMA_ENTITY_MISMATCH"
 #: A table exists but is missing a column an entity explicitly maps, or lacks the
 #: primary key an @Id requires. The table-name check above cannot see either.
 RULE_SCHEMA_COLUMN_MISMATCH = "SCHEMA_COLUMN_MISMATCH"
+#: Naming conventions (levantando_observaciones): entities PascalCase singular, DTOs
+#: with Request/Response suffix, fields camelCase. Non-blocking quality signal.
+RULE_NAMING_CONVENTION = "NAMING_CONVENTION"
 
 #: Penalty per finding, identical to the weights in
 #: ``security_service.evaluate_quality_gate``. Reusing the established weights
@@ -294,6 +297,95 @@ def stage_attribution(journal: Optional[Mapping[str, Any]]) -> List[Dict[str, An
             "passed": passed,
         })
     return attributed
+
+
+_ENTITY_PATH_RE = re.compile(r"/model/entity/[^/]+\.java$")
+_DTO_PATH_RE = re.compile(r"/model/dto/[^/]+\.java$")
+_CLASS_NAME_RE = re.compile(r"\b(?:class|record|interface|enum)\s+([A-Za-z0-9_]+)")
+_INSTANCE_FIELD_RE = re.compile(
+    r"\bprivate\s+(?!static\s+)(?!final\s+)[A-Za-z0-9_<>,\.\[\]\s]+\s+([a-zA-Z_][A-Za-z0-9_]*)\s*(?:=[^;]*)?;"
+)
+#: Words that end in 's' but are singular nouns; the plural heuristic must not flag them.
+_SINGULAR_S_ALLOWLIST = frozenset(
+    {"Address", "Process", "Status", "Business", "Access", "Progress", "Basis", "Analysis", "Success"}
+)
+
+
+def check_naming_conventions(files: Mapping[str, str]) -> list:
+    """Flag naming-convention breaks in generated entities and DTOs (item 5).
+
+    Three rules, all non-blocking (SEVERITY_LOW) and attributed ACCUMULATED because
+    the diagnostic has no stage context:
+
+    1. entity classes must be PascalCase and singular;
+    2. DTO records/classes must end in ``Request`` or ``Response``;
+    3. instance fields must be camelCase (no underscores, lowercase start).
+
+    Constants and ``serialVersionUID`` are exempt by construction: the field regex
+    skips ``static``/``final`` declarations, which is where those live.
+    """
+    violations = []
+    for path, content in files.items():
+        if not path.endswith(".java"):
+            continue
+        name_match = _CLASS_NAME_RE.search(content)
+        if not name_match:
+            continue
+        class_name = name_match.group(1)
+        is_entity = _ENTITY_PATH_RE.search(path) is not None
+        is_dto = _DTO_PATH_RE.search(path) is not None
+        if not (is_entity or is_dto):
+            continue
+
+        if is_entity:
+            if not re.fullmatch(r"[A-Z][A-Za-z0-9]*", class_name):
+                violations.append(ComplianceViolation(
+                    artifact_path=path,
+                    rule_id=RULE_NAMING_CONVENTION,
+                    severity=SEVERITY_LOW,
+                    message=f"Entity class '{class_name}' is not PascalCase.",
+                    suggested_fix=f"Rename the class to PascalCase (e.g. {class_name.title()}).",
+                    attribution=ATTRIBUTION_ACCUMULATED,
+                    contributing_sources=("conformance_diagnostics.check_naming_conventions",),
+                ))
+            elif class_name.endswith("s") and not class_name.endswith("ss") \
+                    and class_name not in _SINGULAR_S_ALLOWLIST:
+                violations.append(ComplianceViolation(
+                    artifact_path=path,
+                    rule_id=RULE_NAMING_CONVENTION,
+                    severity=SEVERITY_LOW,
+                    message=f"Entity class '{class_name}' looks plural; entities are singular.",
+                    suggested_fix=f"Use the singular form (e.g. {class_name[:-1]}).",
+                    attribution=ATTRIBUTION_ACCUMULATED,
+                    contributing_sources=("conformance_diagnostics.check_naming_conventions",),
+                ))
+
+        if is_dto and not (class_name.endswith("Request") or class_name.endswith("Response")):
+            violations.append(ComplianceViolation(
+                artifact_path=path,
+                rule_id=RULE_NAMING_CONVENTION,
+                severity=SEVERITY_LOW,
+                message=f"DTO '{class_name}' must end in 'Request' or 'Response'.",
+                suggested_fix=f"Rename to {class_name}Request or {class_name}Response.",
+                attribution=ATTRIBUTION_ACCUMULATED,
+                contributing_sources=("conformance_diagnostics.check_naming_conventions",),
+            ))
+
+        bad_fields = sorted({
+            fname for fname in _INSTANCE_FIELD_RE.findall(content)
+            if "_" in fname or not fname[:1].islower()
+        })
+        if bad_fields:
+            violations.append(ComplianceViolation(
+                artifact_path=path,
+                rule_id=RULE_NAMING_CONVENTION,
+                severity=SEVERITY_LOW,
+                message=f"Fields not camelCase: {', '.join(bad_fields)}.",
+                suggested_fix="Rename fields to camelCase (lowercase first letter, no underscores).",
+                attribution=ATTRIBUTION_ACCUMULATED,
+                contributing_sources=("conformance_diagnostics.check_naming_conventions",),
+            ))
+    return violations
 
 
 def check_schema_matches_entities(files: Mapping[str, str]) -> list:
@@ -561,6 +653,7 @@ def diagnose(
     # families because it compares two generated files rather than applying a rule.
     extra_violations.extend(check_schema_matches_entities(files))
     extra_violations.extend(check_schema_columns_match_entities(files))
+    extra_violations.extend(check_naming_conventions(files))
 
     verdict = normalize_verdict(files, extra_violations=extra_violations)
     violations = verdict.violations
