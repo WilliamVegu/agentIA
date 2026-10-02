@@ -316,6 +316,13 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
         except Exception:
             pass
 
+    import re
+    from app.services.specification_guard import assert_looks_like_specification
+    # Strip synthetic heading so the prompt check evaluates actual user requirement
+    clean_check = re.sub(r"^\s*#+\s*(?:Feature\s+)?Specification:[^\n]*\n?", "", raw_prompt, flags=re.IGNORECASE).strip()
+    target_to_check = clean_check if clean_check else raw_prompt
+    assert_looks_like_specification(target_to_check, field="spec")
+
     draft = None
     if api_key and not LLMFactory.is_mock(api_key, provider):
         # A real key was supplied: the LLM MUST produce the draft. A silent fallback

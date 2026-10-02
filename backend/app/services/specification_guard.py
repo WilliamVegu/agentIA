@@ -86,6 +86,70 @@ _STRUCTURE_MARKERS = re.compile(
     re.IGNORECASE,
 )
 
+#: Explicit out-of-scope patterns: requests that describe culinary tasks, cooking recipes,
+#: creative entertainment (jokes, poems), or everyday non-software physical chores.
+#: An enterprise microservice generator must not attempt to fabricate an API or domain model
+#: around these.
+_OUT_OF_SCOPE_PATTERNS: Tuple[Tuple[re.Pattern[str], str], ...] = (
+    # Culinary / Food / Recipe actions (cooking, baking, preparing dishes)
+    (
+        re.compile(
+            r"\b(?:haga|hacer|haz(?:me)?|prepar(?:ar|a|ame)?|cocin(?:ar|a|ame)?|elaborar|sirv(?:a|e|eme)?)\s+"
+            r"(?:un|una|el|la|los|las|de|me\s+un)?\s*"
+            r"(?:ceviche|comida|receta|almuerzo|cena|desayuno|café|postre|pizza|tacos|sopa|pastel|arroz|plato|hamburguesa|sándwich|sandwich)\b",
+            re.IGNORECASE,
+        ),
+        "solicitud culinaria o preparación física de alimentos ('hacer/cocinar/preparar comida')",
+    ),
+    (
+        re.compile(
+            r"\b(?:receta|ingredientes|como\s+cocinar|como\s+preparar)\s+de\b",
+            re.IGNORECASE,
+        ),
+        "solicitud de receta gastronómica",
+    ),
+    (
+        re.compile(
+            r"\b(?:make|cook|prepare|bake|brew)\s+(?:me\s+)?(?:a|an|the|some)?\s*"
+            r"(?:ceviche|coffee|meal|food|lunch|dinner|breakfast|dish|pizza|soup|cake|burger|sandwich|recipe)\b",
+            re.IGNORECASE,
+        ),
+        "culinary or food preparation command",
+    ),
+    # Creative writing, entertainment, humor
+    (
+        re.compile(
+            r"\b(?:cu[ée]nta(?:me)?|dime|escribe|escr[íi]beme|genera|canta)\s+(?:un|una|el|la)?\s*"
+            r"(?:chiste|broma|poema|poes[íi]a|canci[óo]n|cuento|historia\s+de\s+terror|adivinanza)\b",
+            re.IGNORECASE,
+        ),
+        "solicitud de entretenimiento o escritura creativa ('chistes, poemas o canciones')",
+    ),
+    (
+        re.compile(
+            r"\b(?:tell|write|sing)\s+(?:me\s+)?(?:a\s+)?(?:joke|poem|story|song|riddle)\b",
+            re.IGNORECASE,
+        ),
+        "creative entertainment request ('joke, poem or song')",
+    ),
+    # Physical / household chores / personal tasks
+    (
+        re.compile(
+            r"\b(?:limpi(?:a|ar|ame)|lav(?:a|ar|ame)|conduc(?:ir|e)|manej(?:ar|a))\s+(?:la|el|mi|tu|los|las)\b",
+            re.IGNORECASE,
+        ),
+        "solicitud de tarea física del mundo real",
+    ),
+    # General trivia or personal queries with no software/business context
+    (
+        re.compile(
+            r"\b(?:dame\s+un\s+consejo\s+de\s+amor|c[óo]mo\s+conquistar|rutina\s+de\s+ejercicios?)\b",
+            re.IGNORECASE,
+        ),
+        "consulta personal fuera del ámbito de software",
+    ),
+)
+
 
 @dataclass(frozen=True)
 class SpecAssessment:
@@ -117,10 +181,19 @@ class UnlikelySpecificationError(ValueError):
         super().__init__(f"{field} does not look like a specification: {joined}")
 
     def to_dict(self) -> Dict[str, object]:
+        friendly_message = (
+            "La solicitud no describe un requerimiento de microservicio o arquitectura de software válido. "
+            "Por favor, describa un objetivo de negocio o funcionalidad backend "
+            "(ej. gestión de pedidos, clientes, inventario, procesamiento de pagos o catálogo de productos)."
+        )
+        if self.assessment.reasons:
+            friendly_message += f" Motivo detectado: {'; '.join(self.assessment.reasons)}."
+
         return {
             "error": "UNLIKELY_SPECIFICATION",
             "field": self.field,
-            "message": str(self),
+            "message": friendly_message,
+            "detailMessage": str(self),
             **self.assessment.to_dict(),
         }
 
@@ -134,25 +207,55 @@ def assess_specification(text: str) -> SpecAssessment:
     raw = text or ""
     stripped = raw.strip()
 
-    words = len(re.findall(r"\w+", stripped))
-    lowered = stripped.lower()
+    # Strip synthetic markdown headers (e.g. "# Feature Specification: app-service")
+    # so that labels prepended by internal templates do not fool domain term checks with "servicio" or "service".
+    clean_text = re.sub(
+        r"^\s*#+\s*(?:Feature\s+)?Specification:[^\n]*\n?",
+        "",
+        raw,
+        flags=re.IGNORECASE,
+    ).strip()
+    content_to_check = clean_text if clean_text else stripped
+
+    words = len(re.findall(r"\w+", content_to_check))
+    lowered = content_to_check.lower()
     terms = sum(1 for term in _DOMAIN_TERMS if term in lowered)
     structure = len(_STRUCTURE_MARKERS.findall(raw))
-    is_question = bool(stripped.endswith("?")) or bool(_INTERROGATIVE_START.match(raw))
+    is_question = bool(content_to_check.endswith("?")) or bool(_INTERROGATIVE_START.match(content_to_check))
+
+    out_of_scope_reasons: List[str] = []
+    for pattern, desc in _OUT_OF_SCOPE_PATTERNS:
+        match = pattern.search(content_to_check)
+        if match:
+            out_of_scope_reasons.append(f"{desc} ('{match.group(0)}')")
 
     signals = {
         "words": words,
         "domainTerms": terms,
         "structureMarkers": structure,
         "readsAsQuestion": int(is_question),
+        "outOfScopeMatches": len(out_of_scope_reasons),
     }
 
-    if not stripped:
+    if not stripped or not content_to_check:
         return SpecAssessment(False, ["the text is empty"], signals)
 
-    # Any domain vocabulary, or the shape of a specification, is enough to proceed. Only
-    # text with NONE of them, that is also short and conversational, is refused.
-    if terms > 0 or structure > 0 or words >= MIN_WORDS:
+    # 1. Out-of-scope triggers (culinary, entertainment, physical chores):
+    # Unless formal BDD structure and technical domain operations are present, reject immediately.
+    if out_of_scope_reasons and structure == 0:
+        reasons = list(out_of_scope_reasons)
+        reasons.append(
+            "it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then)"
+        )
+        return SpecAssessment(False, reasons, signals)
+
+    # 2. Positive domain vocabulary or structure markers
+    if terms > 0 or structure > 0:
+        return SpecAssessment(True, [], signals)
+
+    # 3. Text without domain vocabulary or structure:
+    # If conversational or a question, refuse:
+    if words >= MIN_WORDS and not is_question and not out_of_scope_reasons:
         return SpecAssessment(True, [], signals)
 
     reasons = []
@@ -178,3 +281,56 @@ def assert_looks_like_specification(text: str, field: str = "rawText") -> SpecAs
     if not assessment.plausible:
         raise UnlikelySpecificationError(assessment, field=field)
     return assessment
+
+
+def verify_domain_relevance_llm(
+    text: str,
+    api_key: Optional[str] = None,
+    provider: Optional[str] = None,
+    model_name: Optional[str] = None,
+) -> Tuple[bool, Optional[str]]:
+    """Fast semantic check using the active LLM if available, to catch subtle out-of-scope requests."""
+    try:
+        from app.services.llm_factory import LLMFactory
+        if not api_key or LLMFactory.is_mock(api_key, provider):
+            return True, None
+
+        llm = LLMFactory.get_chat_model(
+            api_key=api_key,
+            provider=provider,
+            model_name=model_name,
+            temperature=0.0,
+        )
+        if not llm:
+            return True, None
+
+        from langchain_core.messages import SystemMessage, HumanMessage
+        import json
+
+        sys_msg = SystemMessage(
+            content=(
+                "You are an enterprise software domain gatekeeper for a Spring Boot 3 microservice studio. "
+                "Evaluate whether the user's input describes a legitimate software system, microservice, "
+                "REST API, database entity model, or business transactional domain (e.g. e-commerce, banking, logistics, reservations). "
+                "Reject requests that are out-of-scope: cooking recipes, preparing food, casual chitchat, jokes, poems, "
+                "physical tasks, or absurd non-software requests.\n"
+                "Respond ONLY with a JSON object: {\"valid\": true/false, \"reason\": \"Explicación breve en español\"}"
+            )
+        )
+        usr_msg = HumanMessage(content=f"Requerimiento del usuario:\n{text.strip()}")
+
+        response = llm.invoke([sys_msg, usr_msg])
+        content = getattr(response, "content", "") or ""
+        clean_json = content.strip()
+        if "```json" in clean_json:
+            clean_json = clean_json.split("```json", 1)[1].split("```", 1)[0].strip()
+        elif "```" in clean_json:
+            clean_json = clean_json.split("```", 1)[1].split("```", 1)[0].strip()
+
+        data = json.loads(clean_json)
+        is_valid = bool(data.get("valid", True))
+        reason = data.get("reason", "")
+        return is_valid, reason
+    except Exception:
+        # Fail-open if the external LLM check times out so network latency doesn't disrupt valid workflows
+        return True, None

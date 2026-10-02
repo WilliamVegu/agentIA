@@ -89,11 +89,12 @@ export const StudioOverviewView: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setSubmitError(
+      const errorMsg =
+        err.response?.data?.detail?.message ||
+        (typeof err.response?.data?.detail === 'string' ? err.response?.data?.detail : null) ||
         err.response?.data?.message ||
-          err.response?.data?.detail ||
-          'Error al crear la sesión de microservicio'
-      );
+        'Error al crear la sesión de microservicio';
+      setSubmitError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -211,8 +212,12 @@ export const StudioOverviewView: React.FC = () => {
 
             <div className="space-y-4 pt-2">
               {submitError && (
-                <div className="p-3 rounded-lg bg-rose-950/60 border border-rose-800 text-xs text-rose-200">
-                  {submitError}
+                <div className="p-3.5 rounded-lg bg-rose-950/70 border border-rose-700/80 text-xs text-rose-200 flex items-start gap-2.5 shadow-md">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <strong className="block text-rose-300 font-semibold">Validación del Requerimiento</strong>
+                    <p className="leading-relaxed">{submitError}</p>
+                  </div>
                 </div>
               )}
 

@@ -526,20 +526,64 @@ async def list_sessions(limit: int = 50):
 @router.post("/quick-start", response_model=QuickStartSessionResponse, status_code=status.HTTP_201_CREATED)
 async def quick_start_session(payload: QuickStartSessionRequest):
     """Creates a new generation session immediately from natural language input or service name."""
-    session_id = str(uuid.uuid4())
-    spec_id = str(uuid.uuid4())
     spec_name = (payload.service_name or payload.spec_name or "app-service").strip()
     if not spec_name:
         spec_name = "app-service"
 
+    text_content = (payload.raw_text or payload.prompt or "").strip()
+    validate_target = text_content if text_content else spec_name
+
+    if not validate_target:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Por favor proporcione una descripción de requisitos o un nombre de microservicio.",
+        )
+
+    # Pre-flight Domain & Relevance Guardrail:
+    # Verifies that the input request makes sense as a software microservice requirement
+    # BEFORE creating workspace, database records, or starting background pipeline threads.
+    try:
+        from app.services.injection_guard import assert_no_injection, PromptInjectionError
+        from app.services.specification_guard import (
+            assert_looks_like_specification,
+            UnlikelySpecificationError,
+            verify_domain_relevance_llm,
+            SpecAssessment,
+        )
+
+        assert_no_injection(validate_target, field="prompt")
+        assert_looks_like_specification(validate_target, field="prompt")
+
+        # If LLM credentials are provided and not mock, run fast semantic gate check
+        if payload.api_key:
+            is_valid, llm_reason = verify_domain_relevance_llm(
+                validate_target,
+                api_key=payload.api_key,
+                provider=payload.llm_provider,
+                model_name=payload.model_name,
+            )
+            if not is_valid:
+                assessment = SpecAssessment(
+                    plausible=False,
+                    reasons=[llm_reason or "la solicitud no corresponde a un dominio de microservicio de software"],
+                )
+                raise UnlikelySpecificationError(assessment, field="prompt")
+
+    except PromptInjectionError as injected:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=injected.to_dict())
+    except UnlikelySpecificationError as unlikely:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=unlikely.to_dict())
+
+    session_id = str(uuid.uuid4())
+    spec_id = str(uuid.uuid4())
+
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
     ws_path.mkdir(parents=True, exist_ok=True)
 
-    text_content = payload.raw_text or payload.prompt or ""
-    if text_content.strip():
+    if text_content:
         spec_file = ws_path / "spec.md"
         with open(spec_file, "w", encoding="utf-8") as f:
-            f.write(f"# Feature Specification: {spec_name}\n\n{text_content.strip()}\n")
+            f.write(f"# Feature Specification: {spec_name}\n\n{text_content}\n")
 
     db = SessionLocal()
     try:

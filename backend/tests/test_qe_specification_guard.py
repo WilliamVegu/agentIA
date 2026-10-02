@@ -146,10 +146,16 @@ def test_the_upload_entrance_no_longer_invents_a_domain():
     file was unreadable. That is why the round trip appeared to work.
     """
     from fastapi.testclient import TestClient
-
     from app.main import app
+    from app.services.auth_service import COOKIE, _sessions, _lock
+    import hashlib, time
 
-    client = TestClient(app, raise_server_exceptions=False)
+    token = "test-token-spec-upload"
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    with _lock:
+        _sessions[digest] = (time.time() + 3600, {"email": "test@example.com", "name": "Tester", "role": "Architect"})
+
+    client = TestClient(app, raise_server_exceptions=False, cookies={COOKIE: token})
     response = client.post(
         "/api/v1/specifications/upload",
         files={"file": ("spec.md", NONSENSE_MARKDOWN.encode(), "text/markdown")},
@@ -239,3 +245,80 @@ def test_the_bulleted_story_layout_is_read_not_fabricated():
     assert story.scenarios[0].given == "valid items"
     assert story.scenarios[0].when == "POST /orders is called"
     assert story.scenarios[0].then == "it is created"
+
+
+@pytest.mark.parametrize("culinary_prompt", [
+    "que me haga un ceviche",
+    "hazme un ceviche",
+    "prepara un ceviche",
+    "quiero que me hagas un ceviche con pescado y limon",
+    "cocinar un ceviche de mariscos",
+    "# Feature Specification: servicio\n\nque me haga un ceviche",
+    "make me a ceviche",
+    "cook a ceviche for dinner",
+])
+def test_culinary_and_absurd_food_requests_are_refused(culinary_prompt):
+    assessment = assess_specification(culinary_prompt)
+    assert assessment.plausible is False
+    assert assessment.signals["outOfScopeMatches"] > 0 or assessment.signals["domainTerms"] == 0
+
+
+@pytest.mark.parametrize("creative_prompt", [
+    "cuéntame un chiste",
+    "escribe un poema",
+    "tell me a joke",
+    "write a poem about spring",
+])
+def test_entertainment_and_creative_requests_are_refused(creative_prompt):
+    assessment = assess_specification(creative_prompt)
+    assert assessment.plausible is False
+
+
+def test_legitimate_restaurant_microservice_referencing_ceviche_is_allowed():
+    text = (
+        "Microservicio de restaurante para gestionar pedidos, "
+        "clientes y catálogo de platos típicos como ceviches y bebidas."
+    )
+    assessment = assess_specification(text)
+    assert assessment.plausible is True
+    assert assessment.signals["domainTerms"] > 0
+
+
+def test_quick_start_endpoint_blocks_ceviche_before_creating_session():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.models.session import GenerationSessionDB, SessionLocal
+    from app.services.auth_service import COOKIE, _sessions, _lock
+    import hashlib, time
+
+    token = "test-token-quick-start"
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    with _lock:
+        _sessions[digest] = (time.time() + 3600, {"email": "test@example.com", "name": "Tester", "role": "Architect"})
+
+    client = TestClient(app, raise_server_exceptions=False, cookies={COOKIE: token})
+    response = client.post(
+        "/api/v1/sessions/quick-start",
+        json={
+            "serviceName": "servicio-absurdo",
+            "prompt": "que me haga un ceviche",
+            "autoRun": False,
+        },
+    )
+
+    assert response.status_code == 400
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"]["error"] == "UNLIKELY_SPECIFICATION"
+    assert "ceviche" in data["detail"]["message"].lower() or "ceviche" in str(data["detail"]).lower()
+
+    # Verify no session was created in database
+    db = SessionLocal()
+    try:
+        found = db.query(GenerationSessionDB).filter(
+            GenerationSessionDB.spec_name == "servicio-absurdo"
+        ).first()
+        assert found is None, "A session must not be created for an out-of-scope request"
+    finally:
+        db.close()
+
