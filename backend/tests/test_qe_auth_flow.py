@@ -43,13 +43,21 @@ PROTECTED = "/api/v1/sessions"
 
 
 @pytest.fixture(autouse=True)
-def clean_auth_state():
-    """The session store and the login-attempt window are process-global by design."""
-    auth_service._sessions.clear()
-    auth_service._attempts.clear()
-    yield
-    auth_service._sessions.clear()
-    auth_service._attempts.clear()
+def isolated_auth_state(monkeypatch):
+    """Swap the process-global stores for throwaway ones -- do not clear them.
+
+    The session store is process-global by design, and so is the consequence of clearing
+    it: every other test module builds its ``TestClient`` at *import* time, and that client
+    already holds a session cookie by the time this file runs. ``_sessions.clear()``
+    invalidated those cookies, so 52 tests in unrelated files started answering 401 in a
+    full-suite run while passing perfectly in isolation.
+
+    Replacing the objects instead isolates this file just as well -- the auth tests get an
+    empty store -- and ``monkeypatch`` puts the originals back untouched, so nobody else's
+    session is disturbed.
+    """
+    monkeypatch.setattr(auth_service, "_sessions", {})
+    monkeypatch.setattr(auth_service, "_attempts", {})
 
 
 @pytest.fixture
