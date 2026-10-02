@@ -135,9 +135,49 @@ def _fast_stages(state, stages=None, api_key=None, **kwargs):
     return state
 
 
+def _live_worker():
+    """A running thread to register as a session's Auto-Pilot worker.
+
+    ``pause_pipeline`` refuses to signal a session that has no live worker -- the route
+    turns that refusal into a 400 -- so a test that wants a successful pause must have
+    something running to pause.
+    """
+    stop = threading.Event()
+    thread = threading.Thread(target=stop.wait, daemon=True)
+    thread.start()
+    return stop, thread
+
+
+def _verified_workspace_verification():
+    """The shape of a hermetic build that really passed.
+
+    Step 5b (feature 011) gates everything after code generation on a verification result:
+    a substituted result and a build that printed no surefire summary both count as
+    not-passed. These tests are about pause, cancel, the quality gate and DevOps, so the
+    boundary is stubbed with a genuine pass -- parsed counts and ``fallback_used=False``.
+    """
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+
+    return WorkspaceVerification(
+        result=DockerExecutionResult(
+            exit_code=0,
+            stdout="Tests run: 3, Failures: 0, Errors: 0, Skipped: 0\n",
+            fallback_used=False,
+            fallback_reason=None,
+        ),
+        platform_test_path="src/test/java/com/corp/PlatformContractTest.java",
+    )
+
+
 def _stub_heavy_steps(monkeypatch, audit=None):
     monkeypatch.setattr(pr, "run_generation_stages", _fast_stages)
     monkeypatch.setattr(pr, "audit_workspace", lambda *a, **k: audit or _Audit())
+    monkeypatch.setattr(
+        pr,
+        "run_workspace_verification",
+        lambda path, log_callback=None: _verified_workspace_verification(),
+    )
 
 
 # ===========================================================================
@@ -149,7 +189,11 @@ STEP_ARTIFACTS = [
     (LifecyclePhase.ARCHITECTURE, "schema.sql"),
     (LifecyclePhase.DATA_MODEL, "pom.xml"),
     (LifecyclePhase.CODE_TESTS, "docker-compose.yml"),
-    (LifecyclePhase.SECURITY_AUDIT, "docker-compose.yml"),
+    # The last boundary has no artifact of its own left: ``docker-compose.yml`` is now
+    # written earlier, in step 5b, because the hermetic build needs the DevOps assets'
+    # pom.xml dependencies (actuator, database driver). The proof that the step after
+    # SECURITY_AUDIT did not run is its event, asserted in the test body instead.
+    (LifecyclePhase.SECURITY_AUDIT, None),
 ]
 
 
@@ -160,9 +204,10 @@ def test_pausing_after_a_step_stops_before_the_next_one(session, monkeypatch,
     """A pause must take effect at the *next* boundary, not after the whole run.
 
     Cooperative pausing is only honest if it stops between steps: the operator pressed
-    pause to inspect what exists so far, and the artifact of the step they interrupted must
-    not be there. Each case drives one specific boundary check, which is why they are
-    parametrized rather than collapsed into one run.
+    pause to inspect what exists so far, and the step they interrupted must not have run.
+    Each case drives one specific boundary check, which is why they are parametrized
+    rather than collapsed into one run. The artifact is the marker for every boundary that
+    owns one; the last boundary is checked through its event instead.
     """
     session_id, ws = session
     _prepare_events(session_id)
@@ -181,9 +226,15 @@ def test_pausing_after_a_step_stops_before_the_next_one(session, monkeypatch,
                                stop_on_gate=True, auto_deploy=False)
 
     assert pr._pipeline_statuses[session_id] == PipelineRunStatus.PAUSED
-    assert not (ws / next_artifact).exists(), (
-        f"the step after {pause_after.value} ran despite the pause"
-    )
+    if next_artifact is None:
+        phases = [event.phase for event in list(pr._event_queues[session_id].queue)]
+        assert LifecyclePhase.DEVOPS_DEPLOY not in phases, (
+            f"the step after {pause_after.value} ran despite the pause"
+        )
+    else:
+        assert not (ws / next_artifact).exists(), (
+            f"the step after {pause_after.value} ran despite the pause"
+        )
 
 
 def test_a_pause_emits_its_own_event_and_keeps_the_progress_made(session, monkeypatch):
@@ -246,11 +297,20 @@ def test_cancel_marks_the_row_signals_the_threads_and_emits_an_event(session):
 
 
 def test_pause_switches_the_session_to_guided_step(session):
-    """Pause is a mode change, not just a flag: the operator takes over by hand."""
+    """Pause is a mode change, not just a flag: the operator takes over by hand.
+
+    A pause is a signal to a running worker, so the session needs one for the call to
+    succeed; the guard that refuses a session with no live worker is pinned below.
+    """
     session_id, _ = session
     _prepare_events(session_id)
-
-    assert pr.pause_pipeline(session_id) is True
+    stop, worker = _live_worker()
+    pr._active_threads[session_id] = worker
+    try:
+        assert pr.pause_pipeline(session_id) is True
+    finally:
+        stop.set()
+        worker.join(timeout=2)
 
     row = _row(session_id)
     assert row.status == SessionStatus.PAUSED
@@ -259,22 +319,35 @@ def test_pause_switches_the_session_to_guided_step(session):
 
 
 def test_pausing_a_session_that_was_never_started_reports_whether_it_is_paused(session):
-    """The return value is the answer to "is this paused?", not "did I touch a row?".
+    """The return value is the answer to "is this paused?" -- and only a live worker can be.
 
-    A session with an event but no database row is still paused; one with neither is not,
-    and claiming otherwise would tell the UI to show a pause that never happened.
+    Pausing signals a worker, so a session with no live thread has nothing to pause and the
+    call must report False rather than flip a status the UI would then show as paused. A
+    session with a live worker but no database row is still paused, because the signal --
+    not the row -- is what the run obeys.
     """
     pr._pause_events["qe-orphan"] = threading.Event()
+    pr._pause_events["qe-never-existed"] = threading.Event()
 
-    assert pr.pause_pipeline("qe-orphan") is True
     assert pr.pause_pipeline("qe-never-existed") is False
+
+    stop, worker = _live_worker()
+    pr._active_threads["qe-orphan"] = worker
+    try:
+        assert pr.pause_pipeline("qe-orphan") is True
+    finally:
+        stop.set()
+        worker.join(timeout=2)
 
 
 def test_resume_replays_the_session_credentials_and_waits_for_the_old_thread(session, monkeypatch):
-    """Resuming must reuse the credentials the run started with.
+    """Resuming must let the previous worker unwind, then reuse the credentials.
 
-    They are held in memory only (Principle VI), so a resume that did not replay them would
-    silently drop the session to offline mock mode mid-project.
+    Resume waits up to a second for the old thread and refuses if it is still alive (that
+    refusal is pinned at the ``run_pipeline`` guard). Here the old worker unwinds inside
+    the window, so resume must wait for it and then start the new run. The credentials are
+    held in memory only (Principle VI), so a resume that did not replay them would silently
+    drop the session to offline mock mode mid-project.
     """
     session_id, _ = session
     _prepare_events(session_id)
@@ -283,7 +356,8 @@ def test_resume_replays_the_session_credentials_and_waits_for_the_old_thread(ses
     }
 
     unwinding = threading.Event()
-    old_thread = threading.Thread(target=lambda: unwinding.wait(5), daemon=True)
+    # Exits after 0.2 s: inside resume's 1 s join window, so resume waits for it.
+    old_thread = threading.Thread(target=lambda: unwinding.wait(0.2), daemon=True)
     old_thread.start()
     pr._active_threads[session_id] = old_thread
 
@@ -653,8 +727,14 @@ def test_auto_deploy_is_skipped_when_not_requested(session, monkeypatch):
 
 
 def test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy(session, monkeypatch):
-    """``stop_on_gate`` outranks ``auto_deploy``: a blocked gate must not reach deployment."""
-    session_id, ws = session
+    """``stop_on_gate`` outranks ``auto_deploy``: a blocked gate must not reach deployment.
+
+    ``docker-compose.yml`` can no longer be the marker: step 5b writes the DevOps assets
+    before the hermetic build so its pom.xml carries the actuator and database-driver
+    dependencies. What must not happen is the DevOps *step* (its manifests event and the
+    ``deploy_local`` call), so both are asserted directly.
+    """
+    session_id, _ = session
     _prepare_events(session_id)
     _stub_heavy_steps(monkeypatch, audit=_Audit(_Gate("BLOCKED", "hardcoded secret")))
     deployed = []
@@ -664,7 +744,10 @@ def test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy(sessi
                                stop_on_gate=True, auto_deploy=True)
 
     assert deployed == []
-    assert not (ws / "docker-compose.yml").exists()
+    phases = [event.phase for event in list(pr._event_queues[session_id].queue)]
+    assert LifecyclePhase.DEVOPS_DEPLOY not in phases, (
+        "a gate-blocked run continued into the DevOps step"
+    )
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
 
 

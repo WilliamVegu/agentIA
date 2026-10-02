@@ -38,6 +38,7 @@ sys.path.insert(0, str(REPO_ROOT / "backend"))
 
 import app.api.routes_session as rs  # noqa: E402
 import app.services.lifecycle_service as lifecycle  # noqa: E402
+from app.services.verification_policy import workspace_fingerprint  # noqa: E402
 from app.models.session import (  # noqa: E402
     GenerationSessionDB,
     QuickStartSessionRequest,
@@ -426,7 +427,28 @@ def test_an_idle_stream_emits_a_keepalive(workspace):
 # list_sessions
 # ---------------------------------------------------------------------------
 def test_a_completed_session_is_listed_at_one_hundred_percent(workspace):
-    _make_session(SESSION_ID, status=SessionStatus.COMPLETED, phase=SessionPhase.VERIFIED)
+    """Successfully generating is not the same as verifying, so the row must carry evidence.
+
+    ``list_sessions`` asks ``session_is_verified``: status COMPLETED, phase VERIFIED, and a
+    real test result whose workspace fingerprint still matches what is on disk. This session
+    has that evidence, so it is the one that lists at 100%.
+    """
+    ws = workspace / SESSION_ID
+    ws.mkdir(parents=True, exist_ok=True)
+    (ws / "pom.xml").write_text("<project/>", encoding="utf-8")
+    _make_session(
+        SESSION_ID,
+        status=SessionStatus.COMPLETED,
+        phase=SessionPhase.VERIFIED,
+        verification_metrics_json=json.dumps({
+            "totalTests": 3,
+            "passedTests": 3,
+            "failedTests": 0,
+            "allPassed": True,
+            "fallback_used": False,
+            "workspaceFingerprint": workspace_fingerprint(ws),
+        }),
+    )
 
     items = asyncio.run(rs.list_sessions(limit=10))
 
@@ -443,14 +465,22 @@ def test_a_session_with_no_artifacts_is_listed_at_zero_percent(workspace):
     assert listed.completion_percentage == 0.0
 
 
-def test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed(workspace):
-    """Repair for a session that finished before the status column was updated.
+def test_listing_sessions_never_mutates_the_session_row(workspace):
+    """The list used to promote a run whose lifecycle reached 100%; a read must not write.
 
-    The promotion is the only place ``list_sessions`` writes, so it is the one worth
-    pinning -- a read endpoint mutating the row is exactly the kind of thing that breaks
-    quietly.
+    ``list_sessions`` used to set ``status = COMPLETED`` and ``current_lifecycle_phase =
+    "COMPLETED"`` whenever the derived lifecycle hit 100%. Execution status is now owned by
+    the writers (the pipeline and its finalisers) and the read endpoint only reports:
+    "Reading progress must never mutate execution status". This session's artifacts build
+    phases 1-4, but phase 5 is unverified without current evidence and phase 7 is not a
+    HEALTHY deployment, so the derived figure is 4/7 and both stored fields stay untouched.
     """
-    _make_session(SESSION_ID, status=SessionStatus.RUNNING, phase=SessionPhase.SANDBOX_BUILD)
+    _make_session(
+        SESSION_ID,
+        status=SessionStatus.RUNNING,
+        phase=SessionPhase.SANDBOX_BUILD,
+        current_lifecycle_phase="SANDBOX_BUILD",
+    )
     ws = workspace / SESSION_ID
     (ws / "src" / "main" / "java").mkdir(parents=True, exist_ok=True)
     (ws / "spec.md").write_text("# Spec", encoding="utf-8")
@@ -466,9 +496,11 @@ def test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed(workspac
     items = asyncio.run(rs.list_sessions(limit=10))
 
     listed = next(i for i in items if i.session_id == SESSION_ID)
-    assert listed.completion_percentage == 100.0
-    assert listed.status == SessionStatus.COMPLETED
-    assert _row(SESSION_ID).current_lifecycle_phase == "COMPLETED"
+    assert listed.completion_percentage == round(4 / 7 * 100.0, 1)
+    assert listed.status == SessionStatus.RUNNING
+    row = _row(SESSION_ID)
+    assert row.status == SessionStatus.RUNNING, "reading the list mutated the execution status"
+    assert row.current_lifecycle_phase == "SANDBOX_BUILD"
 
 
 def test_a_failing_lifecycle_calculation_does_not_break_the_session_list(workspace, monkeypatch):
@@ -606,21 +638,32 @@ def test_cancelling_an_unknown_session_is_a_404(workspace):
     assert excinfo.value.status_code == 404
 
 
-def test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot(workspace):
+def test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot(workspace, monkeypatch):
+    """A cancelled session must not keep a place in the queue, nor ever claim a worker.
+
+    Cancelling no longer reaches for ``release_slot``: an active worker releases its own
+    slot in its ``finally`` when the cancellation signal unwinds it, and a *waiting*
+    session is taken out of the queue by ``cancel_waiting`` and marked cancelled so
+    ``acquire_slot`` refuses it. A real queue manager is used here so both halves of that
+    contract are exercised rather than a mock call being asserted.
+    """
+    from app.services.queue_service import ConcurrencyQueueManager
+
     _make_session(SESSION_ID, status=SessionStatus.RUNNING)
-    released = []
+    queue_manager = ConcurrencyQueueManager(max_concurrent=1)
+    monkeypatch.setattr(rs, "queue_manager", queue_manager)
+    asyncio.run(queue_manager.enqueue(SESSION_ID))
+    assert SESSION_ID in queue_manager.waiting_queue
 
-    async def fake_release(session_id):
-        released.append(session_id)
-
-    rs.queue_manager.release_slot = fake_release
-    try:
-        asyncio.run(rs.cancel_session(SESSION_ID))
-    finally:
-        del rs.queue_manager.release_slot
+    asyncio.run(rs.cancel_session(SESSION_ID))
 
     assert _row(SESSION_ID).status == SessionStatus.CANCELLED
-    assert released == [SESSION_ID], "a cancelled session must not hold a worker slot"
+    assert SESSION_ID not in queue_manager.waiting_queue, (
+        "a cancelled session must not hold a worker slot"
+    )
+    assert asyncio.run(queue_manager.acquire_slot(SESSION_ID)) is False, (
+        "a cancelled session claimed a worker slot"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -629,7 +672,9 @@ def test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot(workspace):
 def _blocking_stubs(monkeypatch, steps, diagnostics_calls=None):
     """Neutralise the queue, the mode decision and the diagnostics writer."""
     async def acquire(session_id):
-        return None
+        # ``acquire_slot`` answers whether the worker got a slot; the pipeline now
+        # returns early when it does not. ``None`` is a refusal, not "no answer".
+        return True
 
     async def release(session_id):
         return None
@@ -853,7 +898,7 @@ def test_the_worker_slot_is_released_even_when_the_run_crashes(workspace, monkey
     released = []
 
     async def acquire(session_id):
-        return None
+        return True
 
     async def release(session_id):
         released.append(session_id)

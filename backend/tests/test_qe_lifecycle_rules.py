@@ -38,6 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
 import app.services.lifecycle_service as lifecycle  # noqa: E402
+from app.models.devops import DeploymentStatus, LocalDeploymentSession  # noqa: E402
 from app.models.orchestrator import (  # noqa: E402
     LifecyclePhase,
     PhaseStatus,
@@ -50,6 +51,7 @@ from app.models.session import (  # noqa: E402
     SessionPhase,
     SessionStatus,
 )
+from app.services.verification_policy import workspace_fingerprint  # noqa: E402
 
 
 class _QualityGate:
@@ -88,10 +90,12 @@ def session(tmp_path, monkeypatch):
     db.close()
 
 
-def _stub_deploy():
-    from app.models.devops import DeploymentStatus, LocalDeploymentSession
-
-    return LocalDeploymentSession(sessionId="stub", status=DeploymentStatus.IDLE)
+def _stub_deploy(status=None):
+    """An idle deployment unless a test asks for another status."""
+    return LocalDeploymentSession(
+        sessionId="stub",
+        status=DeploymentStatus.IDLE if status is None else status,
+    )
 
 
 def _make_session(session_id, **overrides):
@@ -127,6 +131,32 @@ def _complete_phase_5(ws: Path):
     (ws / "pom.xml").write_text("<project/>", encoding="utf-8")
     (ws / "src" / "main" / "java").mkdir(parents=True, exist_ok=True)
     (ws / "src" / "main" / "java" / "App.java").write_text("class App {}", encoding="utf-8")
+
+
+def _verified_metrics(ws: Path) -> str:
+    """Verification evidence that ``session_is_verified`` accepts for this workspace.
+
+    The restructured lifecycle only marks phase 5 COMPLETED for a *verified* session: a
+    nonempty suite that fully passed with no fallback, tied to the artifacts on disk by
+    their fingerprint. The fingerprint is computed with the production function over what
+    the test has just written, so the real gate is exercised rather than bypassed.
+    """
+    return json.dumps({
+        "totalTests": 4,
+        "passedTests": 4,
+        "failedTests": 0,
+        "allPassed": True,
+        "fallback_used": False,
+        "workspaceFingerprint": workspace_fingerprint(ws),
+    })
+
+
+def _make_verified_session(session_id, ws: Path, **overrides):
+    """A session whose code/tests phase is complete: verified, with current evidence."""
+    overrides.setdefault("status", SessionStatus.COMPLETED)
+    overrides.setdefault("phase", SessionPhase.VERIFIED)
+    overrides["verification_metrics_json"] = _verified_metrics(ws)
+    _make_session(session_id, **overrides)
 
 
 # ---------------------------------------------------------------------------
@@ -298,7 +328,13 @@ def test_a_blocked_repair_loop_blocks_phase_five_and_the_whole_session(session):
 
 
 def test_two_failed_repairs_do_not_block_phase_five(session):
-    """The boundary is 3 attempts, not "any failure"."""
+    """The boundary is 3 attempts, not "any failure".
+
+    Two attempts with the code built leaves the phase pending *verification* rather than
+    BLOCKED. Phase 5 is only COMPLETED once the suite is verified, so IN_PROGRESS is the
+    contract here -- and the point of the test is that two failures do not stop the
+    pipeline: the phase is not BLOCKED and the session can still advance.
+    """
     session_id, ws = session
     _make_session(session_id, status=SessionStatus.RUNNING, repair_attempts=2)
     _complete_through_phase_4(ws)
@@ -306,7 +342,9 @@ def test_two_failed_repairs_do_not_block_phase_five(session):
 
     state = lifecycle.get_session_lifecycle(session_id)
 
-    assert state.phases[4].status == PhaseStatus.COMPLETED
+    assert state.phases[4].status != PhaseStatus.BLOCKED, "two attempts is below the limit"
+    assert state.phases[4].status == PhaseStatus.IN_PROGRESS
+    assert "pruebas reales pendientes" in state.phases[4].blocking_reason
     assert state.can_advance is True
 
 
@@ -315,9 +353,9 @@ def test_two_failed_repairs_do_not_block_phase_five(session):
 # ---------------------------------------------------------------------------
 def test_a_blocked_quality_gate_blocks_phase_six_and_reports_why(session):
     session_id, ws = session
-    _make_session(session_id)
     _complete_through_phase_4(ws)
     _complete_phase_5(ws)
+    _make_verified_session(session_id, ws)
     lifecycle.audit_workspace = lambda *a, **k: _Audit(
         gate=_QualityGate(status="BLOCKED", can_export=False, message="secrets found in App.java")
     )
@@ -334,11 +372,14 @@ def test_a_quality_gate_that_raises_leaves_the_phase_not_started(session):
     """A crashed audit is not a passed audit.
 
     The module swallows the exception; the risk is that the swallow is written as a pass.
+    The session is verified so that phase 5 is COMPLETED and the audit is genuinely
+    reached -- otherwise phase 6 fails as "phase 5 unfinished" and the swallow is never
+    exercised.
     """
     session_id, ws = session
-    _make_session(session_id)
     _complete_through_phase_4(ws)
     _complete_phase_5(ws)
+    _make_verified_session(session_id, ws)
 
     def explode(*args, **kwargs):
         raise RuntimeError("sast engine unavailable")
@@ -347,15 +388,16 @@ def test_a_quality_gate_that_raises_leaves_the_phase_not_started(session):
 
     state = lifecycle.get_session_lifecycle(session_id)
 
+    assert state.phases[4].status == PhaseStatus.COMPLETED, "the audit path was never reached"
     assert state.phases[5].status == PhaseStatus.NOT_STARTED
     assert state.phases[5].status != PhaseStatus.COMPLETED
 
 
 def test_the_quality_gate_verdict_and_finding_count_reach_the_summary(session):
     session_id, ws = session
-    _make_session(session_id)
     _complete_through_phase_4(ws)
     _complete_phase_5(ws)
+    _make_verified_session(session_id, ws)
     lifecycle.audit_workspace = lambda *a, **k: _Audit(
         gate=_QualityGate(status="APPROVED"),
         vulnerabilities=[1, 2],
@@ -383,18 +425,44 @@ def test_phase_six_is_locked_while_phase_five_is_unfinished(session):
 # ---------------------------------------------------------------------------
 # Phase 7: deploy
 # ---------------------------------------------------------------------------
-def test_a_compose_file_completes_phase_seven_and_surfaces_the_deploy_status(session):
+def test_a_compose_file_and_a_healthy_deployment_complete_phase_seven(monkeypatch, session):
+    """Phase 7 completes on a healthy deployment, not on the manifests alone.
+
+    It used to complete the moment ``docker-compose.yml`` existed, so a project that had
+    never been deployed -- or whose container was down -- reported 100% and "completamente
+    sintetizado". The manifests are now the precondition and HEALTHY is the completion.
+    """
     session_id, ws = session
-    _make_session(session_id)
     _complete_through_phase_4(ws)
     _complete_phase_5(ws)
     (ws / "docker-compose.yml").write_text("services: {}", encoding="utf-8")
+    _make_verified_session(session_id, ws)
+    monkeypatch.setattr(
+        lifecycle,
+        "get_deployment_status",
+        lambda sid, host_port=8080: _stub_deploy(DeploymentStatus.HEALTHY),
+    )
 
     state = lifecycle.get_session_lifecycle(session_id)
 
     assert state.phases[6].status == PhaseStatus.COMPLETED
     assert "deploymentStatus" in state.phases[6].artifact_summary
     assert state.completion_percentage == 100.0
+
+
+def test_a_compose_file_without_a_healthy_deployment_leaves_phase_seven_in_progress(session):
+    """The other half of the contract above: manifests are progress, not completion."""
+    session_id, ws = session
+    _complete_through_phase_4(ws)
+    _complete_phase_5(ws)
+    (ws / "docker-compose.yml").write_text("services: {}", encoding="utf-8")
+    _make_verified_session(session_id, ws)
+
+    state = lifecycle.get_session_lifecycle(session_id)
+
+    assert state.phases[6].status == PhaseStatus.IN_PROGRESS
+    assert state.phases[6].artifact_summary["deploymentStatus"] == DeploymentStatus.IDLE
+    assert "despliegue saludable pendiente" in state.phases[6].blocking_reason
 
 
 # ---------------------------------------------------------------------------
@@ -636,15 +704,22 @@ def test_a_partially_complete_session_reports_a_partial_percentage(session):
     assert state.completion_percentage == round(3 / 7 * 100.0, 1)
 
 
-def test_a_fully_complete_session_reports_completion(session):
+def test_a_fully_complete_session_reports_completion(monkeypatch, session):
     session_id, ws = session
-    _make_session(session_id)
     _complete_through_phase_4(ws)
     _complete_phase_5(ws)
     (ws / "src" / "main" / "java" / "GlobalExceptionHandler.java").write_text(
         "@RestControllerAdvice class GlobalExceptionHandler {}", encoding="utf-8"
     )
     (ws / "docker-compose.yml").write_text("services: {}", encoding="utf-8")
+    # Verification evidence is tied to the workspace fingerprint, so the session row is
+    # created only once every artifact above has been written.
+    _make_verified_session(session_id, ws)
+    monkeypatch.setattr(
+        lifecycle,
+        "get_deployment_status",
+        lambda sid, host_port=8080: _stub_deploy(DeploymentStatus.HEALTHY),
+    )
 
     state = lifecycle.get_session_lifecycle(session_id)
 

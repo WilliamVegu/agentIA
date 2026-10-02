@@ -218,6 +218,28 @@ def cancel_pipeline(session_id: str) -> bool:
     return True
 
 
+
+def describe_block_reason(*, fallback_used: bool, fallback_reason: str = "") -> str:
+    """Why the session is blocked, in the caller's terms.
+
+    The distinction this exists to preserve: **the code failed** versus **the code was never
+    measured**. They call for opposite responses -- fix the code, or fix the environment --
+    and a single hardcoded sentence conflated them:
+
+        "La compilación o pruebas unitarias fallaron en el sandbox hermético."
+
+    That was emitted for every block, including runs where the sandbox never executed a
+    build. Reported from a real session whose recorded reason was an unresolvable offline
+    Maven cache; the operator was told to look at their generated code.
+    """
+    if fallback_used:
+        detail = f" Motivo: {fallback_reason}" if fallback_reason else ""
+        return (
+            "No se pudo verificar el código: el sandbox hermético no llegó a ejecutar la "
+            f"compilación, así que no hay resultado de pruebas.{detail}"
+        )
+    return "La compilación o las pruebas unitarias fallaron en el sandbox hermético."
+
 def _record_pipeline_cost(
     session_id: str,
     terminal_status: str,
@@ -715,6 +737,19 @@ def _execute_pipeline_steps(
         time.sleep(0.2)
 
         if not build_success:
+            # The reason below is the one the caller actually acted on, and it used to be a
+            # hardcoded constant: "La compilación o pruebas unitarias fallaron en el sandbox
+            # hermético." That was false whenever the sandbox could not run at all -- a
+            # missing local dependency, an unreachable daemon, a cold offline cache -- and it
+            # accused the generated code of a failure that had never been measured. A run
+            # whose verification was never performed must say so, because the operator's next
+            # move is completely different: fix the environment, not the code.
+            _fallback = bool(verification and verification.result.fallback_used)
+            _reason = (verification.result.fallback_reason if verification else None) or ""
+            blocked_reason = describe_block_reason(
+                fallback_used=_fallback, fallback_reason=_reason
+            )
+
             _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
             db_fail = SessionLocal()
             try:
@@ -722,7 +757,8 @@ def _execute_pipeline_steps(
                 if s:
                     s.status = SessionStatus.BLOCKED
                     s.phase = SessionPhase.FAILED
-                    s.error_message = "Hermetic verification failed in sandbox"
+                    # Recorded truthfully: this column is read back by the session view.
+                    s.error_message = blocked_reason
                     db_fail.commit()
             finally:
                 db_fail.close()
@@ -735,7 +771,11 @@ def _execute_pipeline_steps(
                     "sessionId": session_id,
                     "attempt": 0,
                     "maxAttempts": settings.MAX_REPAIR_ATTEMPTS,
-                    "failureReason": "La compilación o pruebas unitarias fallaron en el sandbox hermético.",
+                    "failureReason": blocked_reason,
+                    # Distinguishes "your code failed" from "we could not check". The UI
+                    # needs it to avoid sending the operator to debug code that never ran.
+                    "verificationPerformed": not _fallback,
+                    "verificationFallbackReason": _reason or None,
                     "status": "BLOCKED",
                 })
             except Exception:

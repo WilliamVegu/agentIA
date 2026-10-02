@@ -131,6 +131,16 @@ public class OrderServiceImpl {
     assert "+import java.math.BigDecimal;" in diff
 
 def test_execute_repair_iteration_and_cap_at_5():
+    """The planner's outcome is now honest: a proposed patch is not a passing suite.
+
+    ``execute_repair_iteration`` used to map "I produced a patch" to
+    ``RepairOutcome.SUCCESS``. That reported tests as fixed although nothing was ever
+    compiled or executed, and the passed/failed counts were invented
+    (``passedTestsAfter=5``). The service now returns ``FAILED_CONTINUE`` until the cap
+    and leaves the counts at 0; the API persists the patch and runs the sandbox before
+    any session may be called verified. The patch itself is still produced, which is
+    what this test pins alongside the cap.
+    """
     source_files = {
         "src/main/java/com/corp/order/service/OrderServiceImpl.java": "public class OrderServiceImpl { public String val() { return \"90.00\"; } }"
     }
@@ -138,7 +148,7 @@ def test_execute_repair_iteration_and_cap_at_5():
     raw_logs = "[ERROR]   OrderServiceTest.shouldMatch:45 expected: <80.00> but was: <90.00>"
     analysis = test_analysis_service.analyze_execution_and_code(raw_logs, source_files)
 
-    # Iteration 1
+    # Iteration 1: a patch is planned and applied, but unverified -- not a success.
     iter1 = test_analysis_service.execute_repair_iteration(
         session_id="session-1",
         iteration_number=1,
@@ -146,11 +156,14 @@ def test_execute_repair_iteration_and_cap_at_5():
         source_files=source_files
     )
     assert iter1.iterationNumber == 1
-    assert iter1.outcome == RepairOutcome.SUCCESS
+    assert iter1.outcome == RepairOutcome.FAILED_CONTINUE
     assert len(iter1.patchesApplied) >= 1
     assert "80.00" in iter1.diffSummary
+    # No suite ran, so no test outcome may be claimed.
+    assert iter1.passedTestsAfter == 0
+    assert iter1.failedTestsAfter == 0
 
-    # Iteration 3 (Permitted and succeeds)
+    # Iteration 3 (Permitted; still unverified because nothing executed it)
     iter3 = test_analysis_service.execute_repair_iteration(
         session_id="session-1",
         iteration_number=3,
@@ -158,7 +171,8 @@ def test_execute_repair_iteration_and_cap_at_5():
         source_files=source_files
     )
     assert iter3.iterationNumber == 3
-    assert iter3.outcome == RepairOutcome.SUCCESS
+    assert iter3.outcome == RepairOutcome.FAILED_CONTINUE
+    assert len(iter3.patchesApplied) >= 1
 
     # Iteration 5 (Exhaustion cap)
     iter5 = test_analysis_service.execute_repair_iteration(

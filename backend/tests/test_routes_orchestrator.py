@@ -110,6 +110,52 @@ def test_export_bundle_endpoint(client_with_session):
     (ws_path / "spec.md").write_text("# Spec Content", encoding="utf-8")
     (ws_path / "docker-compose.yml").write_text("version: '3.8'", encoding="utf-8")
 
+    # The bundle is gated on (a) verification evidence and (b) a Quality Gate that
+    # passed. The fixture's session is QUEUED and its workspace is empty, so both
+    # preconditions are established here: compliant sources for the gate, and the
+    # persisted metrics with a matching fingerprint for the verification policy.
+    (ws_path / "pom.xml").write_text(
+        "<project><dependencies></dependencies></project>", encoding="utf-8"
+    )
+    clean_sources = {
+        "src/main/java/com/corp/payment/dto/PaymentRequest.java": (
+            "package com.corp.payment.dto;\n"
+            "import jakarta.validation.constraints.NotNull;\n"
+            "import java.math.BigDecimal;\n\n"
+            "public record PaymentRequest(@NotNull BigDecimal amount) {}\n"
+        ),
+        "src/main/java/com/corp/payment/advice/GlobalExceptionHandler.java": (
+            "package com.corp.payment.advice;\n"
+            "import org.springframework.web.bind.annotation.RestControllerAdvice;\n\n"
+            "@RestControllerAdvice\n"
+            "public class GlobalExceptionHandler {}\n"
+        ),
+    }
+    for relative, content in clean_sources.items():
+        target = ws_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    from app.services.verification_policy import workspace_fingerprint
+
+    db = SessionLocal()
+    try:
+        row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        row.status = SessionStatus.COMPLETED
+        row.phase = SessionPhase.VERIFIED
+        row.error_message = None
+        row.verification_metrics_json = json.dumps({
+            "totalTests": 5,
+            "passedTests": 5,
+            "failedTests": 0,
+            "allPassed": True,
+            "fallback_used": False,
+            "workspaceFingerprint": workspace_fingerprint(ws_path),
+        })
+        db.commit()
+    finally:
+        db.close()
+
     resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/export-bundle")
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/zip"

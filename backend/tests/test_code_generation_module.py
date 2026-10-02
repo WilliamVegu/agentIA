@@ -552,6 +552,30 @@ def test_api_artifact_listing_and_export_zip(clean_workspace):
         }
         generation_graph.invoke(state)
 
+        # Export now requires verification evidence whose workspace fingerprint still
+        # matches the generated tree. The graph was invoked directly, so no sandbox
+        # metrics were persisted; record them here. The assertions about the generated
+        # artifacts and the ZIP contents are unchanged.
+        from app.services.verification_policy import workspace_fingerprint
+
+        db = SessionLocal()
+        try:
+            row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+            row.status = SessionStatus.COMPLETED
+            row.phase = SessionPhase.VERIFIED
+            row.error_message = None
+            row.verification_metrics_json = json.dumps({
+                "totalTests": 4,
+                "passedTests": 4,
+                "failedTests": 0,
+                "allPassed": True,
+                "fallback_used": False,
+                "workspaceFingerprint": workspace_fingerprint(session_ws),
+            })
+            db.commit()
+        finally:
+            db.close()
+
         # 1. Test listing artifacts via API
         resp = client.get(f"/api/v1/sessions/{session_id}/artifacts")
         assert resp.status_code == 200

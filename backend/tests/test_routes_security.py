@@ -1,3 +1,4 @@
+import json
 import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -113,6 +114,27 @@ def test_session_audit_and_export_blocking():
             repair_attempts=0,
         )
         db.merge(sess)
+        db.commit()
+    finally:
+        db.close()
+
+    # Export first consults the verification policy, which requires persisted metrics
+    # whose workspace fingerprint still matches. Seeding that evidence keeps this test
+    # about what it is about -- a *verified* project whose secret still blocks the
+    # Quality Gate -- rather than about an unverified session being rejected earlier.
+    from app.services.verification_policy import workspace_fingerprint
+
+    db = SessionLocal()
+    try:
+        row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        row.verification_metrics_json = json.dumps({
+            "totalTests": 3,
+            "passedTests": 3,
+            "failedTests": 0,
+            "allPassed": True,
+            "fallback_used": False,
+            "workspaceFingerprint": workspace_fingerprint(ws_path),
+        })
         db.commit()
     finally:
         db.close()

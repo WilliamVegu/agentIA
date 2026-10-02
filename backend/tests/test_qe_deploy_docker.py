@@ -21,6 +21,7 @@ flaky in exactly the way that makes a suite untrustworthy.
 
 from __future__ import annotations
 
+import json
 import queue
 import subprocess
 import sys
@@ -91,6 +92,44 @@ class _FakeResponse:
         if self._raise_json:
             raise ValueError("not JSON")
         return self._payload
+
+
+def _no_port_conflict(monkeypatch):
+    """Setup: no other deployment holds the port.
+
+    ``deploy_local`` now refuses to start when another session already publishes the port,
+    and it asks the daemon through ``_port_holder``. That lookup has its own coverage in
+    ``test_qe_deployment_identity.py``; here it is a precondition, so it is stubbed rather
+    than allowed to shell out to whatever containers this host happens to be running --
+    the same host-dependence the daemon-down test below was fixed for.
+    """
+    monkeypatch.setattr(ds, "_port_holder", lambda host_port: None)
+
+
+def _compose_ps(monkeypatch, host_port):
+    """Setup: the ``docker compose ps --format json`` answer that follows a successful ``up``.
+
+    The service no longer reads container ids off the compose log lines; it asks compose
+    which container publishes 8080 and fails the deployment when none does. A test of the
+    happy path therefore has to answer that question, or the deploy ends FAILED with
+    "Compose did not report this project's application container and published port".
+    """
+    payload = json.dumps([
+        {
+            "ID": "app-container-id",
+            "Service": "app",
+            "Publishers": [{"TargetPort": 8080, "PublishedPort": host_port}],
+        },
+        {"ID": "db-container-id", "Service": "postgres", "Publishers": []},
+    ])
+    real_run = ds.subprocess.run
+
+    def fake_run(cmd, **kwargs):
+        if "ps" in cmd:
+            return subprocess.CompletedProcess(cmd, 0, stdout=payload, stderr="")
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr(ds.subprocess, "run", fake_run)
 
 
 @pytest.fixture(autouse=True)
@@ -192,6 +231,8 @@ def test_deploy_without_a_daemon_enters_export_only_mode_without_starting_anythi
 def test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up(monkeypatch, tmp_path):
     """The happy path, and the only path allowed to report HEALTHY."""
     monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    _no_port_conflict(monkeypatch)
+    _compose_ps(monkeypatch, 18080)
 
     seen = {}
 
@@ -216,7 +257,7 @@ def test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up(monke
 
     session = ds.deploy_local(SESSION_ID, str(tmp_path), host_port=18080)
 
-    assert seen["cmd"] == ["docker", "compose", "up", "-d"], "no rebuild was requested"
+    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "up", "-d"], "no rebuild was requested"
     assert seen["cwd"] == str(tmp_path), "compose must run inside the session workspace"
     assert session.status == DeploymentStatus.HEALTHY
     assert session.healthStatus == "UP"
@@ -229,6 +270,8 @@ def test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up(monke
 
 def test_rebuild_is_forwarded_to_compose(monkeypatch, tmp_path):
     monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    _no_port_conflict(monkeypatch)
+    _compose_ps(monkeypatch, 8080)
     seen = {}
 
     def fake_popen(cmd, **kwargs):
@@ -242,7 +285,7 @@ def test_rebuild_is_forwarded_to_compose(monkeypatch, tmp_path):
 
     ds.deploy_local(SESSION_ID, str(tmp_path), rebuild=True)
 
-    assert seen["cmd"] == ["docker", "compose", "up", "-d", "--build"]
+    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "up", "-d", "--build"]
 
 
 def test_the_deploy_returns_building_before_the_worker_finishes(monkeypatch, tmp_path):
@@ -253,6 +296,7 @@ def test_the_deploy_returns_building_before_the_worker_finishes(monkeypatch, tmp
     image build.
     """
     monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    _no_port_conflict(monkeypatch)
     captured = {}
 
     class _CapturingThread:
@@ -274,6 +318,8 @@ def test_the_deploy_returns_building_before_the_worker_finishes(monkeypatch, tmp
 def test_blank_compose_output_lines_are_not_logged(monkeypatch, tmp_path):
     """Compose emits blank separators; they would render as empty rows in the log pane."""
     monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    _no_port_conflict(monkeypatch)
+    _compose_ps(monkeypatch, 8080)
     monkeypatch.setattr(ds.subprocess, "Popen", lambda cmd, **kw: _FakeProcess(0, ["", "  ", "real line"]))
     monkeypatch.setattr(ds, "run_smoke_test", lambda *a, **k: SmokeTestResult(passed=True, testUrl="u"))
 
@@ -289,6 +335,7 @@ def test_blank_compose_output_lines_are_not_logged(monkeypatch, tmp_path):
 def test_a_compose_failure_carries_the_exit_code(monkeypatch, tmp_path):
     """The exit code is the one fact a support ticket needs; a generic string is not."""
     monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    _no_port_conflict(monkeypatch)
     monkeypatch.setattr(ds.subprocess, "Popen", lambda cmd, **kw: _FakeProcess(17))
 
     session = ds.deploy_local(SESSION_ID, str(tmp_path))
@@ -305,6 +352,8 @@ def test_a_container_that_never_becomes_healthy_is_failed_not_healthy(monkeypatc
     be reported as a successful deployment.
     """
     monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    _no_port_conflict(monkeypatch)
+    _compose_ps(monkeypatch, 8080)
     monkeypatch.setattr(ds.subprocess, "Popen", lambda cmd, **kw: _FakeProcess(0))
     monkeypatch.setattr(
         ds,
@@ -329,6 +378,7 @@ def test_an_exception_in_the_worker_marks_the_session_failed(monkeypatch, tmp_pa
     silently and leave the UI polling BUILDING forever.
     """
     monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    _no_port_conflict(monkeypatch)
 
     def fake_popen(cmd, **kwargs):
         raise OSError("docker socket closed")
@@ -593,7 +643,11 @@ def test_stopping_runs_compose_down_and_records_the_stop(monkeypatch, tmp_path):
 
     session = ds.stop_deployment(SESSION_ID, str(tmp_path))
 
-    assert seen["cmd"] == ["docker", "compose", "down", "-v"], "volumes must go too"
+    # Teardown targets the session's own compose project: `-p <session_id>` names it
+    # explicitly, so a stop cannot reach another session's containers, networks or
+    # volumes. `-v` is gone, so the project-namespaced volumes are kept rather than
+    # having the session's database wiped by a stop.
+    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "down"]
     assert seen["cwd"] == str(tmp_path)
     assert session.status == DeploymentStatus.STOPPED
     assert any("[STOPPED]" in line for line in ds.get_deployment_logs(SESSION_ID))

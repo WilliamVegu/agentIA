@@ -6,6 +6,14 @@ from sqlalchemy import create_engine
 import app.models.session as session_module
 from app.models.session import Base, SessionLocal
 
+# Installed at import time, which pytest performs before collecting any test module. The
+# test modules build their clients at module level with `from fastapi.testclient import
+# TestClient`, so patching the class here is what makes those 26 call sites authenticated
+# without editing a single one of them. See tests/auth_client.py.
+from tests.auth_client import install_authenticated_default  # noqa: E402
+
+install_authenticated_default()
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
     """

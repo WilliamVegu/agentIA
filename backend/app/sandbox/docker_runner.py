@@ -182,6 +182,56 @@ def _environment_pattern_reason(matched_pattern: str) -> str:
     )
 
 
+
+#: "Could not resolve dependencies for project ...: The following artifacts could not be
+#: resolved: org.postgresql:postgresql:jar:42.7.1 (...), org.projectlombok:lombok:jar:..."
+_MISSING_ARTIFACT = re.compile(r"([\w.\-]+:[\w.\-]+:(?:jar|pom|zip):[\w.\-]+)")
+
+#: Where the local repository may live inside the container, for the message below.
+_CONTAINER_M2 = "/root/.m2/repository"
+
+
+def describe_missing_dependencies(output: str, limit: int = 6) -> Optional[str]:
+    """Name the artifacts the offline build could not resolve, if any.
+
+    A cold or partial Maven cache is the most common reason the hermetic sandbox cannot
+    verify anything, and the raw Maven text scrolls past in a log panel while saying
+    nothing about what to do. Naming the coordinates makes the remedy obvious: prime the
+    cache, or add the dependency.
+
+    Measured on a real run: the host cache held spring-boot-starter-web, data-jpa,
+    validation, test and h2, and was missing `spring-boot-starter-actuator`, `postgresql`
+    and `lombok` -- all three required by the generated `pom.xml`. Every session blocked
+    with "la compilación o las pruebas unitarias fallaron", which was never measured.
+    """
+    # Only the list AFTER the marker. The same sentence contains the project's own
+    # coordinates before it ("Could not resolve dependencies for project
+    # com.corp.helpdesk:help-desk:jar:1.0.0"), which are not a missing dependency and were
+    # reported as one by the first version of this function.
+    marker = "the following artifacts could not be resolved"
+    lowered = (output or "").lower()
+    tail = (output or "")[lowered.index(marker) + len(marker):] if marker in lowered else ""
+    if not tail:
+        return None
+
+    found = _MISSING_ARTIFACT.findall(tail)
+    if not found:
+        return None
+
+    unique: List[str] = []
+    for coordinate in found:
+        if coordinate not in unique:
+            unique.append(coordinate)
+    shown = unique[:limit]
+    remainder = len(unique) - len(shown)
+    listed = ", ".join(shown) + (f" (+{remainder} more)" if remainder > 0 else "")
+    return (
+        f"the offline Maven cache is missing {len(unique)} artifact(s) required by this "
+        f"project: {listed}. Prime the cache with an online build of this workspace "
+        f"(mvn -B test-compile with network access and {_CONTAINER_M2} mounted), or remove "
+        f"the dependency. Verification did NOT run, so the generated code is unmeasured."
+    )
+
 def _build_hermetic_fallback_result(
     start_time: float,
     log_callback: Optional[Callable[[str], None]] = None,
@@ -350,10 +400,19 @@ async def run_docker_sandbox(
                 "[SANDBOX] Docker offline cache cold or container environment error. "
                 "Verification could not be performed."
             )
+        # Prefer the specific cause over the generic one. "the output matches the
+        # environment pattern 'cannot access central'" is accurate and useless; naming the
+        # artifacts that could not be resolved turns a blocked session into a one-command
+        # remedy. Falls back to the pattern reason when the output names nothing.
+        reason = describe_missing_dependencies(combined) or _environment_pattern_reason(
+            matched_pattern
+        )
+        if log_callback:
+            log_callback(f"[SANDBOX] {reason}")
         return _build_hermetic_fallback_result(
             start_time,
             log_callback,
-            reason=_environment_pattern_reason(matched_pattern),
+            reason=reason,
             matched_pattern=matched_pattern,
             attribution_ambiguous=True,
         )

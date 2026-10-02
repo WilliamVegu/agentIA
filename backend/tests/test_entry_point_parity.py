@@ -134,7 +134,12 @@ def test_the_worker_decides_the_mode_with_the_credentials_and_states_the_key(wor
         return _Mode()
 
     async def acquire(session_id):
-        return None
+        # `execute_generation_pipeline` now branches on the acquisition result
+        # (`if not await queue_manager.acquire_slot(...): return`), which is what makes
+        # a cancelled waiter actually stop instead of running the graph. A stub that
+        # reports "not acquired" therefore stops the worker before the mode decision;
+        # True is what the real manager returns when it grants the slot.
+        return True
 
     async def release(session_id):
         return None
