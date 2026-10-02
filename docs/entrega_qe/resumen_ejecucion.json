@@ -1,0 +1,86 @@
+{
+  "total": 1194,
+  "por_resultado": {
+    "PASS": 1191,
+    "SKIP": 3
+  },
+  "por_suite": {
+    "backend": 1126,
+    "frontend": 68
+  },
+  "por_flujo": {
+    "F0": {
+      "titulo": "Autenticación y sesión de operador",
+      "total": 28,
+      "PASS": 28
+    },
+    "F1": {
+      "titulo": "Ingesta y validación de especificación (blueprints)",
+      "total": 34,
+      "PASS": 34
+    },
+    "F10": {
+      "titulo": "Orquestación Auto-Pilot y ciclo de vida de la sesión",
+      "total": 180,
+      "PASS": 180
+    },
+    "F11": {
+      "titulo": "Trazabilidad de costos y telemetría",
+      "total": 57,
+      "PASS": 56,
+      "SKIP": 1
+    },
+    "F12": {
+      "titulo": "Playground de API en vivo",
+      "total": 34,
+      "PASS": 34
+    },
+    "F2": {
+      "titulo": "Requisitos → Historias BDD",
+      "total": 13,
+      "PASS": 13
+    },
+    "F3": {
+      "titulo": "Diseño arquitectónico",
+      "total": 10,
+      "PASS": 10
+    },
+    "F4": {
+      "titulo": "Modelos de dominio y esquema SQL",
+      "total": 39,
+      "PASS": 39
+    },
+    "F5": {
+      "titulo": "Generación de código y síntesis de pruebas",
+      "total": 36,
+      "PASS": 36
+    },
+    "F6": {
+      "titulo": "Sandbox hermético y auto-reparación acotada",
+      "total": 82,
+      "PASS": 81,
+      "SKIP": 1
+    },
+    "F7": {
+      "titulo": "Auditoría de seguridad y Quality Gate",
+      "total": 82,
+      "PASS": 82
+    },
+    "F8": {
+      "titulo": "DevOps: manifiestos, contenedores y despliegue local",
+      "total": 68,
+      "PASS": 68
+    },
+    "F9": {
+      "titulo": "Exportación, artefactos y publicación Git",
+      "total": 41,
+      "PASS": 41
+    },
+    "FT": {
+      "titulo": "Transversal: interfaz, tema, contratos de servicio",
+      "total": 490,
+      "PASS": 489,
+      "SKIP": 1
+    }
+  }
+}

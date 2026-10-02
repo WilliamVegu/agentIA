@@ -1,0 +1,682 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.1cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{colortbl}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{good}{RGB}{30,120,70}
+\definecolor{warn}{RGB}{160,60,40}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true, linkcolor=accent, urlcolor=accent,
+  pdftitle={AgentIA --- Flujos del Sistema y Casos de Prueba Ejecutados y Validados},
+  pdfauthor={Equipo de Ingenieria AgentIA}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}AgentIA --- Flujos y Casos de Prueba}
+\fancyhead[R]{\small\color{accent}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{softgray},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+}
+
+\newtcolorbox{finding}[1][]{
+  colback=softgray, colframe=accent, boxrule=0.6pt, arc=2pt,
+  left=6pt, right=6pt, top=5pt, bottom=5pt, breakable, #1
+}
+
+% Long underscores carry no break opportunity in \ttfamily; restore one.
+\newcommand{\code}[1]{{\ttfamily\small\def\_{\textunderscore\allowbreak}#1}}
+\setlength{\emergencystretch}{4em}
+
+% Cifras generadas desde los informes JUnit de las suites (build_matriz.py).
+\input{metricas_generadas}
+
+\title{\vspace{-1.6cm}\textbf{Flujos del Sistema y Casos de Prueba}\\[3pt]
+\large Ejecutados y Validados \\[6pt]
+\normalsize Microservice Code Studio --- AgentIA}
+\author{Equipo de Ingeniería --- Aseguramiento de Calidad (QE)}
+\date{2 de octubre de 2026}
+
+\begin{document}
+\maketitle
+\vspace{-0.7cm}
+
+\begin{finding}
+\textbf{Objeto de este documento.} Documentar los \textbf{flujos} del sistema, explicar
+\textbf{cómo se probaron} y \textbf{exponer los casos de prueba ejecutados y validados}, con
+la evidencia que respalda cada cifra.
+
+Toda cifra de la Sección~\ref{sec:resultados} está \textbf{generada} a partir de los informes
+JUnit que producen las propias suites, no escrita a mano: si una prueba cambia de resultado, la
+tabla cambia. El detalle caso por caso está en
+\code{docs/entrega\_qe/matriz\_casos\_de\_prueba.csv}.
+\end{finding}
+
+\tableofcontents
+\newpage
+
+% ===========================================================================
+\section{Resumen ejecutivo}
+
+El sistema se organiza en \textbf{\QEflows{} flujos} funcionales sobre \textbf{62 endpoints} REST.
+Esta campaña documenta cada flujo, lo prueba y expone el resultado de cada caso.
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+\textbf{Métrica} & \textbf{Valor} \\
+\midrule
+Flujos documentados                        & \QEflows \\
+Endpoints REST cubiertos por la documentación & 62 \\
+Casos de prueba ejecutados                 & \textbf{\QEtot} \\
+\quad Backend (pytest)                     & \QEbackend \\
+\quad Frontend (Vitest + MSW)              & \QEfrontend \\
+Archivos con casos de prueba               & \QEfiles \\
+Defectos encontrados y corregidos          & 9 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Las cifras exactas de resultado --- cuántos casos pasan, cuántos no, y por qué --- se generan
+en la Sección~\ref{sec:resultados}. Se actualizan solas al reejecutar.
+
+\noindent
+Las cifras por módulo de la tabla anterior son el resultado medido al cierre de la campaña. El código ha cambiado desde entonces en paralelo: la medición actual, regenerada con el mismo comando, está en la Sección~\ref{sec:resultados}.
+
+\subsection*{Lo que el lector debe llevarse}
+
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{Los flujos están documentados uno a uno} (Sección~\ref{sec:flujos}): qué los
+      dispara, qué producen, y qué casos de prueba los validan.
+\item \textbf{Las pruebas se ejecutan, no se declaran.} Cada caso lleva su resultado real
+      tomado del informe de la suite (Sección~\ref{sec:casos}).
+\item \textbf{Nueve defectos reales aparecieron durante la campaña} y están corregidos, cada
+      uno con la prueba de regresión que impide que vuelva (Sección~\ref{sec:defectos}).
+\item \textbf{Hay límites, y se declaran} (Sección~\ref{sec:limitaciones}). El más importante:
+      cobertura no es corrección, y la plataforma verifica el código que ella misma genera.
+\end{enumerate}
+
+% ===========================================================================
+\section{Alcance y método}
+\label{sec:metodo}
+
+\subsection{Qué se probó}
+
+La superficie completa del producto: los 13 flujos funcionales, desde la autenticación del
+operador hasta la publicación del microservicio generado, incluyendo la interfaz web.
+
+\subsection{Cómo se probó: el método de cinco pasos}
+
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{Medir antes de tocar nada.} La cobertura de partida se registra sobre el código
+      sin modificar. Sin línea base no hay mejora demostrable.
+\item \textbf{Priorizar por riesgo, no por cobertura.} Se elige primero el módulo cuya
+      decisión duele más si es incorrecta, aunque su porcentaje sea alto.
+\item \textbf{Enunciar la afirmación del módulo.} Antes de escribir una prueba se escribe la
+      frase que el módulo promete: \emph{``\code{HEALTHY} sólo es honesto si un
+      \code{/actuator/health} real respondió \code{UP}''}. La prueba verifica esa frase, no
+      una función.
+\item \textbf{Sustituir la frontera, nunca el sujeto.} Se falsean las dependencias que no
+      son nuestras (Docker, red, hilos, LLM, reloj). Jamás se falsea lo que se está probando.
+\item \textbf{Ver la prueba fallar.} Una prueba que nunca se vio en rojo no es evidencia de
+      nada: puede estar pasando por la razón equivocada.
+\end{enumerate}
+
+\subsection{Evidencia y reproducibilidad}
+
+Todo el material está versionado en \code{reports/qe/entrega/}: salida completa de cada suite,
+cobertura por archivo en formato consumible, e informes JUnit de los que se deriva la matriz de
+casos. La Sección~\ref{sec:reproduccion} contiene los comandos exactos.
+
+% ===========================================================================
+\section{Los flujos del sistema}
+\label{sec:flujos}
+
+Cada flujo se documenta con la misma ficha: \textbf{propósito}, \textbf{entrada},
+\textbf{pasos}, \textbf{artefactos} que produce, y \textbf{validación} (los casos de prueba que
+lo cubren). El identificador \code{F\#} se usa en la matriz de casos.
+
+% ---------------------------------------------------------------- F0
+\subsection{F0 --- Autenticación y sesión de operador}
+
+\begin{finding}
+\textbf{Propósito.} Que sólo un operador con sesión válida pueda usar el estudio.
+\textbf{Entrada.} Credenciales configuradas, o acceso local automático.
+\textbf{Salida.} Cookie de sesión \code{agentia\_session}. \textbf{Endpoints.} 4.
+\end{finding}
+
+\begin{longtable}{p{4.2cm} p{11.2cm}}
+\toprule
+\textbf{Paso} & \textbf{Descripción} \\ \midrule
+\endfirsthead
+\toprule \textbf{Paso} & \textbf{Descripción} \\ \midrule \endhead
+Entrada local & \code{POST /auth/mvp}. Sólo se concede a llamadas desde \emph{loopback} y con
+\code{STUDIO\_AUTO\_LOGIN} activo. Es la comodidad de ``esta máquina'', no de ``cualquiera''. \\
+Entrada con credencial & \code{POST /auth/login}. Exige \code{STUDIO\_USER\_EMAIL} y un token de
+al menos 16 caracteres; si no están configurados responde \code{503}, es decir \textbf{falla
+cerrado} en lugar de aceptar. \\
+Verificación & \code{GET /auth/session} devuelve el operador, o \code{401}. \\
+Protección & Un \emph{middleware} responde \code{401} a toda ruta bajo \code{/api/v1} sin
+cookie válida. Las rutas de autenticación y \code{/healthz} son públicas. \\
+Salida & \code{POST /auth/logout} revoca la sesión \textbf{en el servidor} y borra la cookie. \\
+\bottomrule
+\end{longtable}
+
+\noindent\textbf{Validación.} \code{test\_qe\_auth\_flow.py} (27 casos): cobertura de la guarda
+sobre el prefijo completo, imposibilidad de saltarla con cabeceras, rechazo a llamadas remotas,
+fallo cerrado con credencial corta o ausente, comparación de correo insensible a mayúsculas,
+límite de intentos (\code{429}) y su caducidad, endurecimiento de la cookie
+(\code{HttpOnly}, \code{SameSite=strict}, \code{Path=/api/v1}), token no almacenado en claro,
+rechazo de token falsificado, y revocación efectiva tras \code{logout}.
+
+% ---------------------------------------------------------------- F1
+\subsection{F1 --- Ingesta y validación de especificación (blueprints)}
+
+\begin{finding}
+\textbf{Propósito.} Aceptar una especificación formal ya existente y validarla antes de generar
+nada. \textbf{Entrada.} JSON de blueprint o documento subido.
+\textbf{Salida.} Especificación validada con identificador. \textbf{Endpoints.} 3.
+\end{finding}
+
+\noindent\textbf{Pasos.} \code{POST /specifications} valida el blueprint contra el esquema
+(entidades, atributos, historias, escenarios) y lo persiste; \code{POST /specifications/upload}
+hace lo propio con un documento; \code{GET /specifications/\{id\}} lo recupera.
+
+\noindent\textbf{Validación.} \code{test\_routes\_spec.py}, \code{test\_qe\_specification\_guard.py},
+\code{test\_qe\_specification\_persistence.py}, \code{test\_entry\_point\_parity.py}. Se fija
+que un blueprint malformado no se persiste, que la especificación sobrevive a la sesión, y que
+los dos puntos de entrada (documento y formulario) producen el mismo resultado.
+
+% ---------------------------------------------------------------- F2
+\subsection{F2 --- Requisitos a Historias BDD}
+
+\begin{finding}
+\textbf{Propósito.} Convertir una descripción de negocio en historias de usuario con criterios
+de aceptación \emph{Given/When/Then}. \textbf{Salida.} Historias BDD + entidades de dominio
+inferidas. \textbf{Endpoints.} 4.
+\end{finding}
+
+\noindent\textbf{Pasos.} \code{POST /requirements/transform} descompone el texto;
+\code{POST /requirements/refine} lo ajusta; \code{POST /requirements/sessions/\{id\}/save} y
+\code{GET /requirements/sessions/\{id\}} persisten y leen el borrador.
+
+\noindent\textbf{Validación.} \code{test\_routes\_requirements.py},
+\code{test\_requirements\_service.py}, \code{test\_qe\_api\_surface.py},
+\code{test\_qe\_structured\_output\_fallback.py}. Se fija, entre otros contratos, que cada
+cláusula \code{given}/\code{when}/\code{then} exige al menos 3 caracteres, y que el modo sin
+conexión \textbf{declara} que su descomposición es una plantilla fija en lugar de presentarla
+como respuesta al prompt.
+
+% ---------------------------------------------------------------- F3
+\subsection{F3 --- Diseño arquitectónico}
+
+\begin{finding}
+\textbf{Propósito.} Producir el blueprint en 4 capas (controlador, servicio, repositorio,
+entidad) y el catálogo de DTOs. \textbf{Salida.} \code{architecture.json},
+\code{architecture.md}, diagrama Mermaid. \textbf{Endpoints.} 3.
+\end{finding}
+
+\noindent\textbf{Validación.} \code{test\_routes\_architecture.py},
+\code{test\_architecture\_service.py}, \code{test\_routes\_artifact.py}. Se fija la separación
+estricta de capas, que los DTOs son \emph{records} inmutables (Principio II) y que la
+serialización Mermaid es estable.
+
+% ---------------------------------------------------------------- F4
+\subsection{F4 --- Modelos de dominio y esquema SQL}
+
+\begin{finding}
+\textbf{Propósito.} Derivar entidades JPA y el DDL relacional \emph{del mismo blueprint}.
+\textbf{Salida.} \code{schema.sql}, \code{data.sql}, entidades Jakarta.
+\textbf{Endpoints.} 3.
+\end{finding}
+
+\noindent\textbf{Validación.} \code{test\_routes\_models\_sql.py},
+\code{test\_model\_sql\_service.py}, \code{test\_qe\_schema\_consistency.py},
+\code{test\_qe\_slice\_test\_emission.py}. El caso central es la \textbf{coherencia
+esquema--entidad}: la regla \code{SCHEMA\_ENTITY\_MISMATCH} compara dos artefactos generados
+entre sí, porque un esquema que crea la tabla \code{items} junto a una entidad que mapea
+\code{orders} hace que el servicio no arranque contra su propia base de datos.
+
+% ---------------------------------------------------------------- F5
+\subsection{F5 --- Generación de código y síntesis de pruebas}
+
+\begin{finding}
+\textbf{Propósito.} Sintetizar el microservicio Spring Boot 3 / Java 21 y sus pruebas.
+\textbf{Salida.} Proyecto Maven, fuentes Java, suites Mockito.
+\textbf{Endpoints.} 3 de pruebas + el paso correspondiente del orquestador.
+\end{finding}
+
+\noindent\textbf{Validación.} \code{test\_routes\_tests.py},
+\code{test\_test\_analysis\_service.py}, \code{test\_code\_generation\_module.py},
+\code{test\_qe\_generated\_code\_fixes.py}. Se fija el Principio I (Java 21, Spring Boot 3.x),
+el Principio II (records para DTOs) y el Principio III (manejador centralizado de errores).
+
+% ---------------------------------------------------------------- F6
+\subsection{F6 --- Sandbox hermético y auto-reparación acotada}
+
+\begin{finding}
+\textbf{Propósito.} Compilar y ejecutar las pruebas \emph{sin red}, diagnosticar los fallos y
+reparar hasta 3 veces. \textbf{Salida.} Veredicto de verificación y, si procede, parche.
+\textbf{Endpoints.} 5.
+\end{finding}
+
+\noindent\textbf{Pasos.} \code{POST /tests/analyze} extrae diagnósticos estructurados (archivo,
+línea, tipo, esperado vs.\ obtenido); \code{POST /tests/repair} aplica un parche quirúrgico y
+reejecuta; \code{GET /sessions/\{id\}/repairs} expone el historial;
+\code{POST /sessions/\{id\}/manual-repair} permite la intervención humana.
+
+\noindent\textbf{Validación.} \code{test\_sandbox\_verifier\_honesty.py},
+\code{test\_qe\_environment\_repair.py}, \code{test\_repair\_parser.py},
+\code{test\_sandbox\_mount\_suffix.py}, \code{test\_docker\_runner.py}. El contrato de honestidad
+es el eje: \textbf{una verificación que no se ejecutó no es una sesión verificada}. El sistema
+distingue tres estados que nunca deben confundirse: \emph{verificado}, \emph{verificado con
+hallazgos} y \emph{no evaluable}.
+
+% ---------------------------------------------------------------- F7
+\subsection{F7 --- Auditoría de seguridad y Quality Gate}
+
+\begin{finding}
+\textbf{Propósito.} Auditar el código generado (SAST, secretos, CVE) y decidir si puede salir.
+\textbf{Salida.} Veredicto del Quality Gate y hallazgos. \textbf{Endpoints.} 5.
+\end{finding}
+
+\noindent\textbf{Validación.} \code{test\_routes\_security.py}, \code{test\_security\_service.py},
+\code{test\_qe\_injection\_guard.py}. Este último ataca el sistema con rutas y etiquetas
+hostiles, y comprueba que ninguna se convierte en ejecución o en fuga de información.
+
+% ---------------------------------------------------------------- F8
+\subsection{F8 --- DevOps: manifiestos, contenedores y despliegue local}
+
+\begin{finding}
+\textbf{Propósito.} Generar Dockerfile, Compose, CI/CD y Kubernetes; desplegar localmente y
+comprobar salud. \textbf{Salida.} Manifiestos y estado del contenedor. \textbf{Endpoints.} 9.
+\end{finding}
+
+\noindent\textbf{Validación.} \code{test\_routes\_devops.py}, \code{test\_devops\_service.py},
+\code{test\_qe\_deploy\_docker.py}, \code{test\_qe\_deployment\_identity.py}. El contrato
+central: \code{docker compose up} con código de salida 0 significa ``los contenedores
+arrancaron'', \textbf{nunca} ``el servicio funciona''. Sólo un \code{/actuator/health} real que
+responda \code{UP} autoriza el estado \code{HEALTHY}.
+
+% ---------------------------------------------------------------- F9
+\subsection{F9 --- Exportación, artefactos y publicación Git}
+
+\begin{finding}
+\textbf{Propósito.} Entregar el proyecto (ZIP) y publicarlo en una rama Git.
+\textbf{Endpoints.} 5.
+\end{finding}
+
+\noindent\textbf{Validación.} \code{test\_qe\_publish\_git.py}, \code{test\_git\_service.py},
+\code{test\_routes\_publish.py}, \code{test\_artifact\_retrieval.py},
+\code{test\_export\_service.py}. Principio VI en primer plano: el token de acceso se usa y se
+\textbf{borra} en un bloque \code{finally}, de modo que no sobrevive ni en el caso de
+publicación fallida, y nunca aparece en un mensaje de error.
+
+% ---------------------------------------------------------------- F10
+\subsection{F10 --- Orquestación Auto-Pilot y ciclo de vida de la sesión}
+
+\begin{finding}
+\textbf{Propósito.} Ejecutar la cadena completa sin intervención, con pausa, reanudación y
+cancelación, y exponer el avance en vivo. \textbf{Endpoints.} 13 + 6 de sesiones.
+\textbf{Es el flujo de mayor riesgo}: nadie lo vigila mientras corre.
+\end{finding}
+
+\noindent\textbf{Pasos.} \code{POST /orchestrator/pipeline/run} arranca;\newline
+\code{\{session\_id\}/pause}, \code{/resume} y \code{/cancel} gobiernan la ejecución;
+\code{GET /\{session\_id\}/events} emite el avance por SSE; \code{/lifecycle} y
+\code{/overview} devuelven el estado de las 7 fases; \code{/transition} e \code{/invalidate}
+mueven la máquina de estados; \code{POST /sessions} y \code{/sessions/quick-start} crean
+sesiones y \code{GET /sessions/\{id\}/stream} emite los eventos de sesión.
+
+\noindent\textbf{Validación.} \code{test\_qe\_pipeline\_autopilot.py},
+\code{test\_pipeline\_runner.py}, \code{test\_routes\_orchestrator.py},
+\code{test\_qe\_lifecycle\_rules.py}, \code{test\_qe\_lifecycle\_artifacts.py},
+\code{test\_qe\_outdated\_phases.py}, \code{test\_lifecycle\_service.py},
+\code{test\_qe\_session\_surface.py}, \code{test\_sessions\_api.py},
+\code{test\_routes\_session.py}, \code{test\_e2e\_flow.py}. Se fija que la pausa surte efecto
+en la \emph{siguiente} frontera de paso, que cancelar no se confunde con pausar, que el camino
+de agotamiento escribe estado y diagnóstico juntos, y que un fallo dentro del grafo termina la
+sesión en lugar de dejarla en \code{RUNNING} para siempre.
+
+% ---------------------------------------------------------------- F11
+\subsection{F11 --- Trazabilidad de costos y telemetría}
+
+\begin{finding}
+\textbf{Propósito.} Registrar el costo real de cada llamada al modelo y poder auditarlo.
+\textbf{Salida.} Registros de costo por llamada y por sesión.
+\end{finding}
+
+\noindent\textbf{Validación.} \code{test\_cost\_recording.py}, \code{test\_cost\_pricing.py},
+\code{test\_cost\_report.py}, \code{test\_cost\_seam.py}, \code{test\_cost\_mlflow\_mirror.py},
+\code{test\_qe\_mlflow\_tracing.py}. Se fija que un uso desconocido se registra como
+\emph{no valorado}, nunca como cero; y que el espejo de telemetría es de mejor esfuerzo y
+\textbf{no puede bloquear} la ruta crítica.
+
+% ---------------------------------------------------------------- F12
+\subsection{F12 --- Playground de API en vivo}
+
+\begin{finding}
+\textbf{Propósito.} Permitir invocar el microservicio desplegado desde la interfaz.
+\textbf{Endpoints.} 2. \textbf{Validación.} \code{test\_qe\_playground\_proxy.py},
+\code{test\_qe\_playground\_targeting.py}: sólo se permite apuntar al servicio propio.
+\end{finding}
+
+% ---------------------------------------------------------------- FT
+\subsection{FT --- Flujos transversales de la interfaz}
+
+\begin{finding}
+\textbf{Propósito.} La superficie web: inicio de sesión, navegación entre pestañas, tema,
+exploradores de artefactos y los flujos de usuario de extremo a extremo.
+\textbf{Validación.} \code{workflow\_journeys.test.tsx} (9 casos),
+\code{app\_integration.test.tsx}, \code{layout.test.tsx}, \code{auth.test.tsx},
+\code{llm.test.tsx}, \code{theme.test.tsx}, \code{services.test.ts},
+\code{views\_*.test.tsx}.
+\end{finding}
+
+\noindent\textbf{Los flujos de usuario se prueban contra un backend simulado en la frontera
+HTTP} (MSW), no contra la capa de servicios falseada. Es la diferencia entre comprobar que un
+componente dibuja algo y comprobar que la aplicación \emph{hace la petición correcta}: URL,
+método, parámetros, cuerpo y cabeceras reales.
+
+% ===========================================================================
+\section{Tipos de prueba y estrategia}
+\label{sec:tipos}
+
+\begin{longtable}{p{3.4cm} p{5.3cm} p{6.6cm}}
+\toprule
+\textbf{Tipo} & \textbf{Qué verifica} & \textbf{Dónde se aplica} \\ \midrule
+\endfirsthead
+\toprule \textbf{Tipo} & \textbf{Qué verifica} & \textbf{Dónde se aplica} \\ \midrule \endhead
+Unitaria & Una función o clase, con sus colaboradores falseados & Reglas de fase, precios de costo, parser de reparación \\
+Integración de módulo & Varios colaboradores reales en conjunto & Pipeline Auto-Pilot completo en un solo caso \\
+De contrato & La interfaz entre dos componentes & Los 9 flujos de usuario del frontend; esquemas de petición \\
+De extremo a extremo & Un camino de usuario completo & \code{test\_e2e\_flow.py}; inicio rápido $\rightarrow$ pestaña $\rightarrow$ smoke test \\
+De regresión & Que un defecto concreto no vuelva & Los 6 defectos de la Sección~\ref{sec:defectos} \\
+De caracterización & Fijar el comportamiento actual para que cambiarlo sea deliberado & Modo sin conexión que se declara plantilla \\
+Negativa / inyección de fallo & Que el sistema falle bien & D-04, D-05, smoke test fallido, inyección hostil \\
+De hermetismo & Que la suite no toque la red & Fixture \code{no\_outbound\_telemetry} \\
+\bottomrule
+\end{longtable}
+
+\noindent\textbf{Fuera de alcance, declarado:} no hay pruebas de carga ni de rendimiento, ni de
+accesibilidad, ni de navegador real, ni mutación, ni \emph{fuzzing}.
+
+\subsection*{Sustitución de fronteras}
+
+Regla aplicada en todo el trabajo: \textbf{se falsea la frontera que no es nuestra; jamás el
+sujeto bajo prueba}.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Frontera} & \textbf{Sustituto} & \textbf{Motivo} \\
+\midrule
+\code{subprocess.Popen/run} & proceso falso guionado & sin Docker \\
+\code{requests}             & respuesta falsa o excepción & sin red \\
+\code{threading.Thread}     & ejecución en línea & determinismo, sin esperas \\
+Grafo LangGraph             & grafo guionado & sin LLM \\
+Auditoría SAST              & auditoría falsa & sin motor externo \\
+HTTP (frontend)             & backend simulado con MSW & flujo real sin servidor vivo \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ===========================================================================
+\section{Casos de prueba ejecutados y validados}
+\label{sec:casos}
+
+\subsection*{Qué se ejecutó}
+
+Se ejecutaron las dos suites completas sobre el estado actual del código. Cada caso lleva
+identificador estable por flujo (\code{F6-014}, \code{FT-233}), resultado, duración y, si no
+pasó, el motivo que reportó el propio ejecutor.
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Matriz completa:} \code{docs/entrega\_qe/matriz\_casos\_de\_prueba.csv}
+      (una fila por caso; columnas: id, flujo, suite, archivo, caso, resultado, segundos, motivo).
+\item \textbf{Resumen por flujo:} \code{docs/entrega\_qe/resumen\_ejecucion.json}.
+\item \textbf{Evidencia cruda:} \code{reports/qe/entrega/} --- salida de ambas suites e
+      informes JUnit de origen.
+\end{itemize}
+
+\subsection*{Cómo se lee la validación}
+
+Un caso se considera \textbf{validado} cuando la suite lo reporta como \code{PASS} en la
+ejecución más reciente. Un caso en \code{FAIL} \textbf{no se oculta}: aparece en la tabla de
+casos no superados, con el motivo, y se explica en las limitaciones. Un caso \code{SKIP} está
+omitido de forma deliberada y también se declara.
+
+\begin{finding}
+\textbf{Nota de honestidad sobre estas cifras.} Las pruebas no demuestran que el sistema sea
+correcto. Demuestran que \emph{estos} casos, ejecutados sobre \emph{este} código, producen
+\emph{este} resultado. La cobertura mide qué se ejecutó, no qué es verdad.
+\end{finding}
+
+% ===========================================================================
+\section{Trazabilidad}
+\label{sec:trazabilidad}
+
+Cada principio de la constitución del proyecto y cada requisito funcional relevante tiene al
+menos una prueba que lo fija. Sin esto, una prueba es una afición; con esto, es evidencia.
+
+\begin{longtable}{p{4.4cm} p{9.8cm}}
+\toprule
+\textbf{Principio / requisito} & \textbf{Prueba que lo fija} \\ \midrule
+\endfirsthead
+\toprule \textbf{Principio / requisito} & \textbf{Prueba que lo fija} \\ \midrule \endhead
+I --- Java 21 / Spring Boot 3.x & \code{test\_code\_generation\_module.py}, \code{test\_qe\_generated\_code\_fixes.py} \\
+II --- DTOs como \emph{records} inmutables & \code{test\_architecture\_service.py}, análisis de cumplimiento \\
+III --- Manejo centralizado de errores & \code{test\_qe\_api\_surface.py}, \code{test\_response\_contract.py} \\
+IV --- Compilación hermética y sin red & \code{test\_sandbox\_verifier\_honesty.py}, \code{test\_docker\_runner.py}, \code{no\_outbound\_telemetry} \\
+V --- Auto-reparación acotada a 3 intentos & \code{test\_qe\_lifecycle\_rules.py}, \code{test\_qe\_pipeline\_autopilot.py} \\
+VI --- Cero secretos persistidos & \code{test\_qe\_publish\_git.py}, \code{test\_cost\_recording.py}, \code{workflow\_journeys.test.tsx} \\
+Honestidad de la verificación (012) & \code{test\_sandbox\_verifier\_honesty.py}, \code{test\_qe\_deploy\_docker.py}, \code{workflow\_journeys.test.tsx} \\
+Diagnóstico en todo camino terminal (015) & \code{test\_diagnostic\_record.py}, \code{test\_qe\_pipeline\_autopilot.py} \\
+Aislamiento de sesión (autenticación) & \code{test\_qe\_auth\_flow.py} \\
+Trazabilidad de costos (013) & \code{test\_cost\_*.py}, \code{test\_qe\_mlflow\_tracing.py} \\
+\bottomrule
+\end{longtable}
+
+% ===========================================================================
+\section{Defectos encontrados y corregidos}
+\label{sec:defectos}
+
+Nueve defectos reales. \textbf{Ninguno se descubrió leyendo el código}: todos aparecieron porque
+una prueba falló, se colgó, o ejecutó por primera vez una rama que nunca se había ejecutado.
+
+\begin{longtable}{p{1.1cm} p{5.6cm} p{1.9cm} p{6.0cm}}
+\toprule
+\textbf{ID} & \textbf{Defecto} & \textbf{Severidad} & \textbf{Causa raíz} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Defecto} & \textbf{Severidad} & \textbf{Causa raíz} \\ \midrule \endhead
+D-03 & El espejo de telemetría ``de mejor esfuerzo'' bloqueaba la ruta crítica y colgaba la suite & Crítica & Los valores por defecto de la librería eran 120 s de espera con 7 reintentos; el llamador envuelve \emph{cada} llamada al modelo \\
+D-05 & El respaldo de síntesis del esquema llamaba a un método inexistente & Alta & Función de módulo invocada como método de un objeto; \code{open(...,"w")} trunca antes de evaluar su argumento, así que dejaba el archivo vacío \\
+D-04 & El fallo más ruidoso escapaba del manejador de errores & Alta & El \code{try} del pipeline empezaba \emph{después} de la decisión de modo: la excepción moría con el hilo y la sesión quedaba en \code{RUNNING} \\
+D-02 & La razón del bloqueo se calculaba y se descartaba & Alta & Se asignaba una variable local que nadie leía; el objeto de estado se construye desde otra \\
+D-06 & La autenticación de sesión invalidó 154 pruebas de golpe & Alta & Un control de seguridad nuevo sin prueba propia cambió el contrato de todos los endpoints \\
+D-01 & Dos funciones definidas dos veces en el mismo archivo & Media & La segunda definición sepulta a la primera, que queda como código muerto con contrato distinto \\
+D-08 & Un refactor posterior revirtió el respaldo del esquema y dejó la importación sin usar & Alta & El respaldo derivado del blueprint se sustituyó por un \code{raise}: cualquier fallo de síntesis mataba la sesión, y desaparecía la salvaguarda del defecto D-05 \\
+D-09 & La suite no era independiente del orden: 52 casos pasaban aislados y fallaban en la ejecución completa & Alta & Un archivo de prueba limpiaba el almacén de sesiones global y dejaba sin validez las cookies de los clientes que los demás archivos crean al importarse \\
+D-07 & El parámetro \code{force} de \code{run\_pipeline} dejó de respetarse & Alta & La guarda de concurrencia se cambió a \code{if t and t.is\_alive()}, de modo que \code{resume\_pipeline} -- que llama con \code{force=True} -- fallaba en silencio si el trabajador anterior seguía vivo \\
+\bottomrule
+\end{longtable}
+
+\noindent Cada corrección dejó una \textbf{prueba de regresión} que falla si el defecto vuelve.
+El detalle completo de causa, evidencia y corrección está en el informe técnico
+\code{docs/qe\_plan\_y\_resultados.pdf}, que conserva D-01 a D-05 con su traza.
+
+\begin{finding}
+\textbf{D-06, y por qué importa para este documento.} Al añadirse la autenticación de sesión,
+154 pruebas existentes fallaron a la vez, todas con \code{401}, ninguna equivocada sobre lo que
+probaba. Un control de seguridad \textbf{sin una sola prueba propia} había cambiado el contrato
+de los 62 endpoints, y la suite sólo podía reportarlo como un muro de fallos inconexos. Se
+corrigió en dos partes: un cliente de prueba autenticado que entra por el endpoint real
+(\code{tests/auth\_client.py}, sin saltarse el control), y 27 casos nuevos que prueban el
+control mismo (\code{test\_qe\_auth\_flow.py}).
+\end{finding}
+
+% ===========================================================================
+\section{Resultados de ejecución}
+\label{sec:resultados}
+
+\input{resultados_generados}
+
+\subsection*{Cobertura del backend}
+
+La cobertura se mide sobre \code{backend/app}. Al cierre de la campaña los cuatro módulos
+atacados por riesgo quedaron al 100\,\% de líneas. La tabla siguiente es la medición
+\textbf{actual}, tomada con el mismo comando sobre el código de hoy; las cifras difieren porque
+el código creció bajo la campaña (una sesión de trabajo concurrente añadió del orden de dos mil
+sentencias), no porque se haya perdido cobertura.
+
+\input{cobertura_generada}
+
+\begin{finding}
+\textbf{Cobertura no es corrección.} Un porcentaje alto significa que esas líneas se
+ejecutaron al menos una vez bajo prueba. No significa que sean correctas, y no sustituye a la
+revisión. Las brechas que quedan están listadas en la Sección~\ref{sec:limitaciones}.
+\end{finding}
+
+\subsection*{Reproducción}
+\label{sec:reproduccion}
+
+\begin{lstlisting}
+# Backend: suite completa con cobertura e informe JUnit
+.venv/bin/python -m pytest -q --cov=backend/app --cov-report=term-missing \
+  --junitxml=reports/qe/entrega/junit-backend.xml
+
+# Frontend: suite completa con informe JUnit
+cd frontend && npx vitest run --reporter=default --reporter=junit \
+  --outputFile.junit=../reports/qe/entrega/junit-frontend.xml
+
+# Regenerar la matriz de casos y las tablas de este informe
+.venv/bin/python docs/entrega_qe/build_matriz.py
+\end{lstlisting}
+
+% ===========================================================================
+\section{Limitaciones}
+\label{sec:limitaciones}
+
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{La verificación del código generado es autorreferencial.} La plataforma escribe
+      las pruebas Mockito y después las ejecuta. Un \code{mvn test -o} en verde demuestra que
+      el código hace lo que dicen \emph{las pruebas de la plataforma}, no lo que dicen los
+      escenarios de aceptación del blueprint. Cerrar esa brecha exige pruebas de aceptación HTTP
+      independientes contra el servicio desplegado, y es el siguiente entregable de mayor valor.
+\item \textbf{No hay navegador real.} Los flujos de interfaz corren en \code{jsdom} contra un
+      backend simulado. Un fallo que sólo aparezca en un navegador real (CSS, foco, un evento
+      nativo) no se detectaría.
+\item \textbf{La concurrencia no se prueba: se elimina.} En las pruebas, los hilos se sustituyen
+      por ejecución en línea para garantizar determinismo. Es una decisión de fiabilidad, y deja
+      sin cubrir las condiciones de carrera.
+\item \textbf{Quedan módulos por debajo del 90\,\%.} Principalmente
+      \code{architecture\_service.py} y \code{requirements\_service.py}, que producen artefactos
+      entregables: es el mismo perfil que D-05, código que escribe archivos que nadie comprueba
+      hasta el final.
+\item \textbf{Las omisiones son deliberadas y visibles.} Los casos en \code{SKIP} aparecen en la
+      matriz, no escondidos.
+\end{enumerate}
+
+% ===========================================================================
+\section{Anexo A --- Fragmentos de código representativos}
+
+Los fragmentos completos, comentados, están en
+\code{docs/entrega\_qe/anexo\_snippets.md}. Aquí, la anatomía de un caso:
+
+\begin{lstlisting}
+def test_a_container_that_never_becomes_healthy_is_failed_not_healthy(
+    monkeypatch, tmp_path
+):
+    """El codigo 0 de compose solo dice que los contenedores arrancaron."""
+
+    # ARRANGE -- se falsea la frontera, nunca el sujeto:
+    # el demonio Docker, el proceso, y la sonda de salud.
+    monkeypatch.setattr(ds, "check_docker_daemon", lambda: True)
+    monkeypatch.setattr(ds.subprocess, "Popen",
+                        lambda cmd, **kw: _FakeProcess(0))
+    monkeypatch.setattr(ds, "run_smoke_test", lambda *a, **k: SmokeTestResult(
+        passed=False, statusCode=503, testUrl="u",
+        details="timed out after 20 attempts"))
+
+    # ACT -- una sola llamada.
+    session = ds.deploy_local(SESSION_ID, str(tmp_path))
+
+    # ASSERT -- el contrato, no la implementacion.
+    assert session.status == DeploymentStatus.FAILED
+    assert session.healthStatus is None, (
+        "un smoke test fallido no puede declarar estado de salud")
+    assert "Smoke test failed" in session.errorMessage
+\end{lstlisting}
+
+\noindent Un caso de flujo de usuario, sobre HTTP real simulado:
+
+\begin{lstlisting}
+it('informa que el smoke test NO se ejecuto cuando el backend falla', async () => {
+  server.use(
+    http.get(pathEndsWith('/sessions'), () => HttpResponse.json([SESSION_LIST_ITEM])),
+    http.post(apiPath('/devops/[^/]+/smoke-test'),
+              () => HttpResponse.json({ message: 'connection refused' }, { status: 502 })),
+  );
+  render(<App />);
+  fireEvent.click(await screen.findByTitle('6. DevOps & Demo'));
+  const button = (await screen.findByText('Ejecutar Smoke Test')).closest('button')!;
+  await waitFor(() => expect(button).not.toBeDisabled());
+  fireEvent.click(button);
+  // La tercera via: "no evaluable" nunca se disfraza de exito.
+  await waitFor(() =>
+    expect(screen.getByText(/Smoke test NO ejecutado/i)).toBeInTheDocument());
+  expect(screen.queryByText(/Endpoint de salud verificado/i)).not.toBeInTheDocument();
+});
+\end{lstlisting}
+
+% ===========================================================================
+\section{Anexo B --- Paquete de entrega}
+
+\begin{center}
+\begin{tabular}{p{6.2cm} p{9.7cm}}
+\toprule
+\textbf{Archivo} & \textbf{Contenido} \\ \midrule
+\code{informe\_qe.pdf} & Este documento \\
+\code{anexo\_snippets.md} & Fragmentos de código comentados, por tipo de prueba \\
+\code{plantilla\_presentacion.pptx} & Plantilla de diapositivas para la exposición \\
+\code{matriz\_casos\_de\_prueba.csv} & Un caso por fila: id, flujo, resultado, motivo \\
+\code{resumen\_ejecucion.json} & Totales por flujo y por resultado \\
+\code{reports/qe/entrega/} & Evidencia cruda: salidas e informes JUnit \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}
