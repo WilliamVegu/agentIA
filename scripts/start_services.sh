@@ -5,6 +5,7 @@
 #   ./scripts/start_services.sh              start everything
 #   ./scripts/start_services.sh status       show what is up
 #   ./scripts/start_services.sh stop         stop what THIS script started
+#   ./scripts/start_services.sh restart      stop and restart everything
 #   ./scripts/start_services.sh logs backend follow a log
 #
 # Options: --no-mlflow  --no-backend  --no-frontend
@@ -274,7 +275,7 @@ usage() {
 CMD="start"
 for arg in "$@"; do
   case "$arg" in
-    start|status|stop|logs) CMD="$arg" ;;
+    start|status|stop|restart|logs) CMD="$arg" ;;
     --no-mlflow)   START_MLFLOW=0 ;;
     --no-backend)  START_BACKEND=0 ;;
     --no-frontend) START_FRONTEND=0 ;;
@@ -284,9 +285,10 @@ for arg in "$@"; do
 done
 
 case "$CMD" in
-  status) cmd_status; exit 0 ;;
-  stop)   cmd_stop;   exit 0 ;;
-  logs)   shift || true; cmd_logs "$@" ;;
+  status)  cmd_status; exit 0 ;;
+  stop)    cmd_stop;   exit 0 ;;
+  restart) cmd_stop;   sleep 1 ;;
+  logs)    shift || true; cmd_logs "$@"; exit 0 ;;
 esac
 
 preflight || exit 1
