@@ -15,7 +15,7 @@
  *  * a failing backend produces a failure, not a fabricated success -- the class of defect
  *    `docs/frontend_audit.md` recorded four of.
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse, server, pathEndsWith, apiPath } from './msw/server';
@@ -25,6 +25,7 @@ import { orchestratorService } from '../services/orchestratorService';
 import { exportService } from '../services/exportService';
 import { devopsService } from '../services/devopsService';
 import { setEphemeralLlmCredentials } from '../services/apiClient';
+import { authHandlers } from './msw/auth';
 
 type Captured = {
   method: string;
@@ -91,6 +92,17 @@ afterEach(() => {
   setEphemeralLlmCredentials('', 'mock');
 });
 afterAll(() => server.close());
+
+/**
+ * Every journey starts from an authenticated session.
+ *
+ * The studio authenticates against the server, so `App` shows a boot gate until
+ * `GET /auth/session` answers and refuses every other `/api/v1` call without a cookie.
+ * Registering the session here is what makes the rest of the journey reachable at all.
+ */
+beforeEach(() => {
+  server.use(...authHandlers());
+});
 
 // ===========================================================================
 // The request the frontend actually sends

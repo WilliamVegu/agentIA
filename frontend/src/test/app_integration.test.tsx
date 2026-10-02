@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { App } from '../App';
@@ -7,6 +7,14 @@ import { orchestratorService } from '../services/orchestratorService';
 import { llmService } from '../services/llmService';
 import { ALL_TABS } from '../config/workspaceTabs';
 import { useStudio } from '../context/StudioContext';
+import { server } from './msw/server';
+import { authHandlers, DEMO_USER } from './msw/auth';
+
+// Authentication is a server call now: the app shows a boot gate until GET /auth/session
+// answers. These handlers are the only thing standing in for a real browser session.
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 vi.mock('../services/llmService', () => ({
   llmService: {
@@ -88,26 +96,28 @@ describe('App End-to-End Integration & WorkspaceRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    server.use(...authHandlers());
   });
 
-  it('renders LoginView when user is unauthenticated', () => {
-    localStorage.setItem('agentia_user', 'null');
+  it('renders LoginView when user is unauthenticated', async () => {
+    // Overrides the default above: this is the one case about the absence of a session.
+    server.use(...authHandlers(null));
 
     render(<App />);
 
-    expect(screen.getByText('Acceso Corporativo')).toBeInTheDocument();
+    expect(await screen.findByText('Acceso al estudio')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ingresar al Studio/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Acceso Rápido de Demostración/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Entrar al MVP/i })).toBeInTheDocument();
   });
 
   it('logs in and mounts AppLayout with Header, Sidebar, and WorkspaceRouter', async () => {
     render(<App />);
 
-    // Initial state has default demo user, so it renders AppLayout directly
+    // The session arrives asynchronously, so the shell appears after the boot gate.
     await waitFor(() => {
       expect(screen.getByText('TCS Microservice Code Studio')).toBeInTheDocument();
       expect(screen.getByText('Nuevo Microservicio')).toBeInTheDocument();
-      expect(screen.getByText('Rodrigo Mendoza')).toBeInTheDocument();
+      expect(screen.getByText(DEMO_USER.name)).toBeInTheDocument();
     });
   });
 
@@ -194,14 +204,14 @@ describe('App End-to-End Integration & WorkspaceRouter', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Rodrigo Mendoza')).toBeInTheDocument();
+      expect(screen.getByText(DEMO_USER.name)).toBeInTheDocument();
     });
 
-    const logoutBtn = screen.getByTitle(/Cerrar sesión corporativa/i);
+    const logoutBtn = screen.getByTitle(/Cerrar sesión/i);
     fireEvent.click(logoutBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Acceso Corporativo')).toBeInTheDocument();
+      expect(screen.getByText('Acceso al estudio')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('usuario@tcs.com')).toBeInTheDocument();
     });
   });

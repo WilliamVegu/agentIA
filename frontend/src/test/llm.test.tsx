@@ -33,16 +33,19 @@ describe('LlmContext & SettingsDrawer', () => {
     vi.clearAllMocks();
   });
 
-  it('initializes with mock provider in verified offline state', () => {
+  it('initializes with the DeepSeek provider, unverified', () => {
+    // The default provider is DeepSeek now, not the offline mock: the studio ships with a
+    // real engine selected, and the operator verifies it. Starting in mock produced
+    // template output that looked like a successful generation.
     render(
       <LlmProvider>
         <TestLlmConsumer />
       </LlmProvider>
     );
 
-    expect(screen.getByTestId('provider')).toHaveTextContent('mock');
-    expect(screen.getByTestId('model')).toHaveTextContent('offline-mock');
-    expect(screen.getByTestId('isVerified')).toHaveTextContent('VERIFIED');
+    expect(screen.getByTestId('provider')).toHaveTextContent('deepseek');
+    expect(screen.getByTestId('model')).toHaveTextContent('deepseek-flash');
+    expect(screen.getByTestId('isVerified')).toHaveTextContent('UNVERIFIED');
   });
 
   it('updates provider and resets verification state for external providers', () => {

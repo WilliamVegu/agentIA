@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -11,6 +11,13 @@ import { LifecycleStepper } from '../components/layout/LifecycleStepper';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { sessionService } from '../services/sessionService';
 import { llmService } from '../services/llmService';
+import { server } from './msw/server';
+import { authHandlers, DEMO_USER } from './msw/auth';
+
+// The Header renders the session user, which now arrives from the server.
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 vi.mock('../services/llmService', () => ({
   llmService: {
@@ -86,6 +93,7 @@ describe('Layout Components & ErrorBoundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    server.use(...authHandlers());
   });
 
   it('renders Header with branding, backend health status, and user profile', async () => {
@@ -97,7 +105,7 @@ describe('Layout Components & ErrorBoundary', () => {
     expect(screen.getByText('LangGraph Enterprise Orchestrator')).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText('Rodrigo Mendoza')).toBeInTheDocument();
+      expect(screen.getByText(DEMO_USER.name)).toBeInTheDocument();
     });
 
     const settingsBtn = screen.getByTitle(/Configuración de Motor LLM/i);
