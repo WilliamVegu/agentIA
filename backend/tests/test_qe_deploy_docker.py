@@ -50,14 +50,20 @@ class _InlineThread:
     on a fast machine and fail on a loaded one.
     """
 
-    def __init__(self, target=None, daemon=None, **kwargs):
+    def __init__(self, target=None, args=(), kwargs=None, daemon=None, **extra):
         self._target = target
+        self._args = args
+        self._kwargs = kwargs or {}
 
     def start(self):
-        self._target()
+        if self._target:
+            self._target(*self._args, **self._kwargs)
 
     def join(self, timeout=None):
         return None
+
+    def is_alive(self):
+        return False
 
 
 class _FakeProcess:

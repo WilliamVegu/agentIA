@@ -101,6 +101,7 @@ export const LlmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setModel = (m: string) => {
     setModelState(m);
+    setIsVerified(false);
   };
 
   const verifyConnection = async (

@@ -229,29 +229,24 @@ def transform_requirements(
     request: RequirementsTransformRequest,
     api_key: str,
     provider: Optional[str] = None,
+    model_name: Optional[str] = None,
+    chosen_provider: Optional[str] = None,
+    chosen_model: Optional[str] = None,
+    **kwargs,
 ) -> SpecificationDraft:
     """
     Decomposes unstructured natural language requirements into canonical User Stories,
     BDD Acceptance Criteria (Given/When/Then), and Domain Entities.
-    Supports free providers (Gemini, Groq), OpenAI, and offline mock mode.
+    Supports free providers (Gemini, Groq), DeepSeek, OpenAI, and offline mock mode.
     """
-    # Guard the SERVICE, not only the route. The quick-start and auto-pilot paths
-    # call this function directly (pipeline_runner step 2), so a check placed in
-    # `/requirements/transform` alone would leave the product's main entry point
-    # unguarded -- and the refusal must travel with the call, not with one caller.
+    # Guard the SERVICE, not only the route.
     assert_no_injection(getattr(request, "rawText", "") or "", field="rawText")
-
-    # Then: is this a specification at all? The injection guard answers a different
-    # question and correctly finds nothing wrong with a question like "que dia es hoy?".
-    # That input previously produced three entities and two BDD stories about resolving the
-    # current date, because nothing asked whether the text described a service. Checked
-    # before the model call so a non-specification costs nothing and writes nothing.
     assert_looks_like_specification(getattr(request, "rawText", "") or "", field="rawText")
 
-    chosen_provider = provider or getattr(request, "provider", None)
-    chosen_model = getattr(request, "modelName", None)
+    chosen_prov = chosen_provider or provider or getattr(request, "provider", None)
+    chosen_mod = chosen_model or model_name or getattr(request, "modelName", None)
 
-    if LLMFactory.is_mock(api_key, chosen_provider):
+    if LLMFactory.is_mock(api_key, chosen_prov):
         decomp = _generate_mock_decomposition(request.rawText, request.serviceName)
     else:
         from langchain_core.messages import SystemMessage, HumanMessage

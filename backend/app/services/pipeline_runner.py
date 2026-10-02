@@ -202,6 +202,8 @@ def cancel_pipeline(session_id: str) -> bool:
     finally:
         db.close()
 
+    _record_pipeline_cost(session_id, terminal_status="CANCELLED")
+
     _emit_event(
         session_id,
         LifecyclePhase.COMPLETED,
@@ -211,6 +213,35 @@ def cancel_pipeline(session_id: str) -> bool:
         PhaseStatus.BLOCKED,
     )
     return True
+
+
+def _record_pipeline_cost(
+    session_id: str,
+    terminal_status: str,
+    spec_name: Optional[str] = None,
+    verification_fallback: bool = False,
+) -> None:
+    """Record cost aggregation for pipeline run (H21)."""
+    try:
+        import json
+        from app.cost.aggregate import aggregate_session
+        record = aggregate_session(
+            session_id=session_id,
+            spec_name=spec_name,
+            terminal_status=terminal_status,
+            verification_fallback_used=verification_fallback,
+        )
+        if record:
+            db = SessionLocal()
+            try:
+                s = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+                if s:
+                    s.cost_record_json = json.dumps(record)
+                    db.commit()
+            finally:
+                db.close()
+    except Exception:
+        pass
 
 
 def _derive_architecture_from_draft(draft: SpecificationDraft) -> dict:
@@ -259,10 +290,10 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
         # to a hardcoded decomposition here is exactly the "garbage session" a model-
         # mode autopilot must never fabricate -- let it raise so the pipeline blocks.
         draft = transform_requirements(
-            RequirementsTransformRequest(rawText=raw_prompt, serviceName=spec_name),
+            RequirementsTransformRequest(rawText=raw_prompt, serviceName=spec_name, provider=provider, modelName=model_name),
             api_key=api_key,
-            chosen_provider=provider,
-            chosen_model=model_name,
+            provider=provider,
+            model_name=model_name,
         )
 
     if draft is None:
@@ -344,6 +375,30 @@ def _execute_pipeline_steps(
         active_model = "offline-mock" if is_mock else LLMFactory.resolve_model_name(detected_llm, model_name)
         llm_label = "Modo Mock (Offline)" if is_mock else f"Motor LLM: {detected_llm.upper()} ({active_model})"
 
+        def _phase_reached_or_exceeded(current_p: LifecyclePhase) -> bool:
+            if not target_phase:
+                return False
+            phase_seq = [
+                LifecyclePhase.REQUIREMENTS,
+                LifecyclePhase.STORIES,
+                LifecyclePhase.ARCHITECTURE,
+                LifecyclePhase.DATA_MODEL,
+                LifecyclePhase.CODE_TESTS,
+                LifecyclePhase.SECURITY_AUDIT,
+                LifecyclePhase.DEVOPS_DEPLOY,
+                LifecyclePhase.COMPLETED,
+            ]
+            tgt = target_phase
+            if isinstance(tgt, str):
+                try:
+                    tgt = LifecyclePhase(tgt)
+                except Exception:
+                    return False
+            try:
+                return phase_seq.index(current_p) >= phase_seq.index(tgt)
+            except ValueError:
+                return False
+
         # Feature 011 (T018): the generation mode is decided ONCE, here, before any
         # stage runs, and recorded in the generation state. Deciding per stage would
         # produce hybrid output (some artifacts template-shaped, some model-shaped)
@@ -397,6 +452,10 @@ def _execute_pipeline_steps(
                 f.write(draft.markdownSpec)
         transition_phase(session_id, LifecyclePhase.REQUIREMENTS, force=True)
         time.sleep(0.2)
+        if _phase_reached_or_exceeded(LifecyclePhase.REQUIREMENTS):
+            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
+            _emit_event(session_id, LifecyclePhase.REQUIREMENTS, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            return
 
         # Step 2: User Stories
         if pause_event.is_set() or stop_event.is_set():
@@ -409,6 +468,10 @@ def _execute_pipeline_steps(
                 json.dump(stories_data, f, indent=2)
         transition_phase(session_id, LifecyclePhase.STORIES, force=True)
         time.sleep(0.2)
+        if _phase_reached_or_exceeded(LifecyclePhase.STORIES):
+            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
+            _emit_event(session_id, LifecyclePhase.STORIES, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            return
 
         # Step 3: Architecture Blueprint
         if pause_event.is_set() or stop_event.is_set():
@@ -432,6 +495,10 @@ def _execute_pipeline_steps(
                 arch_md.write_text(f"# Arquitectura: {spec_name}\n\n```mermaid\n{arch_data.get('mermaidDiagram', '')}\n```\n", encoding="utf-8")
         transition_phase(session_id, LifecyclePhase.ARCHITECTURE, force=True)
         time.sleep(0.2)
+        if _phase_reached_or_exceeded(LifecyclePhase.ARCHITECTURE):
+            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
+            _emit_event(session_id, LifecyclePhase.ARCHITECTURE, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            return
 
         # Step 4: Data Models & SQL
         if pause_event.is_set() or stop_event.is_set():
@@ -441,52 +508,27 @@ def _execute_pipeline_steps(
         if not sql_file.exists():
             try:
                 sql_resp = model_sql_service.synthesize_domain_models_and_sql(draft, api_key=api_key or "mock-key", provider=provider or "mock")
-                # The response nests the scripts: DataModelSynthesisResponse.sqlSchema
-                # is a SqlSchemaScript carrying `schemaDdl` / `seedDml`. This read
-                # `sql_resp.schemaSql`, which does not exist -- so it raised
-                # AttributeError on EVERY run, the broad `except` below swallowed it,
-                # and every generated project silently received the fallback table
-                # instead of its own schema. That is the defect an external review
-                # found in generated output; the typo was invisible because a silent
-                # fallback is indistinguishable from a successful synthesis.
                 with open(sql_file, "w", encoding="utf-8") as f:
                     f.write(sql_resp.sqlSchema.schemaDdl)
                 data_sql_file = ws_path / "data.sql"
                 if not data_sql_file.exists() and sql_resp.sqlSchema.seedDml:
                     with open(data_sql_file, "w", encoding="utf-8") as f:
                         f.write(sql_resp.sqlSchema.seedDml)
-                # The domain model itself, so the Models & SQL tab can be reopened. It
-                # previously existed only in the response and in React state, which is why
-                # the tab emptied on a reload while schema.sql sat on disk beside it.
                 model_file = ws_path / "domain_model.json"
                 if not model_file.exists():
                     with open(model_file, "w", encoding="utf-8") as f:
                         json.dump(sql_resp.model_dump(), f, indent=2)
             except Exception as exc:
-                # Derive the DDL from THIS blueprint's entities. The previous
-                # fallback wrote a hardcoded `items` table (id, name, created_at)
-                # whatever the service was about, so a failed synthesis produced a
-                # schema that contradicted the JPA entities it shipped beside -- and
-                # because docker-compose mounts schema.sql into
-                # /docker-entrypoint-initdb.d/, the service then failed to start on a
-                # database that had no table for its own entity. Reported by an
-                # external review of generated output; reproduced by the rule added
-                # to conformance_diagnostics (SCHEMA_ENTITY_MISMATCH).
                 print(f"[WARN] schema synthesis failed ({exc}); deriving DDL from the blueprint")
-                # `schema_sql_from_draft` is a module-level function, not a method on the
-                # `model_sql_service` singleton. The call used to read
-                # `model_sql_service.schema_sql_from_draft(draft)`, so the fallback raised
-                # AttributeError -- and because `open(..., "w")` truncates before its
-                # argument is evaluated, it left an EMPTY schema.sql behind and then took
-                # the whole run down. The fallback that exists to prevent shipping a wrong
-                # schema was itself the thing that broke the run, and no test executed the
-                # branch, so it survived. Derive the content first, then write: a failure
-                # here can no longer truncate the artifact.
                 fallback_ddl = schema_sql_from_draft(draft)
                 with open(sql_file, "w", encoding="utf-8") as f:
                     f.write(fallback_ddl)
         transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
         time.sleep(0.2)
+        if _phase_reached_or_exceeded(LifecyclePhase.DATA_MODEL):
+            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
+            _emit_event(session_id, LifecyclePhase.DATA_MODEL, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            return
 
         # Step 5: Code & Tests
         if pause_event.is_set() or stop_event.is_set():
@@ -631,17 +673,53 @@ def _execute_pipeline_steps(
 
         _emit_event(
             session_id, LifecyclePhase.CODE_TESTS,
-            "Verificación hermética completada" if build_success else "Verificación hermética fallida",
+            "Verificación hermética completada" if build_success else ("Verificación hermética omitida (sandbox inaccesible)" if (verification and verification.result.fallback_used) else "Verificación hermética fallida"),
             80.0,
             (
                 f"BUILD SUCCESS: {test_metrics['passedTests']}/{test_metrics['totalTests']} tests"
                 if build_success
-                else "La compilación o las pruebas fallaron en el sandbox hermético"
+                else ("Sandbox Docker no disponible; verificación no ejecutada" if (verification and verification.result.fallback_used)
+                else "La compilación o las pruebas fallaron en el sandbox hermético")
             ),
-            PhaseStatus.COMPLETED if build_success else PhaseStatus.BLOCKED,
-            error=None if build_success else "Hermetic verification failed.",
+            PhaseStatus.COMPLETED if (build_success or (verification and verification.result.fallback_used)) else PhaseStatus.BLOCKED,
+            error=None if (build_success or (verification and verification.result.fallback_used)) else "Hermetic verification failed.",
         )
         time.sleep(0.2)
+
+        if not build_success and not (verification and verification.result.fallback_used):
+            _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
+            db_fail = SessionLocal()
+            try:
+                s = db_fail.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+                if s:
+                    s.status = SessionStatus.BLOCKED
+                    s.phase = SessionPhase.FAILED
+                    s.error_message = "Hermetic verification failed in sandbox"
+                    db_fail.commit()
+            finally:
+                db_fail.close()
+
+            _record_pipeline_cost(session_id, terminal_status="BLOCKED")
+
+            try:
+                from app.api.routes_session import broadcast_session_event
+                broadcast_session_event(session_id, "session_blocked", {
+                    "sessionId": session_id,
+                    "attempt": 0,
+                    "maxAttempts": settings.MAX_REPAIR_ATTEMPTS,
+                    "failureReason": "La compilación o pruebas unitarias fallaron en el sandbox hermético.",
+                    "status": "BLOCKED",
+                })
+            except Exception:
+                pass
+            return
+
+        transition_phase(session_id, LifecyclePhase.CODE_TESTS, force=True)
+        time.sleep(0.2)
+        if _phase_reached_or_exceeded(LifecyclePhase.CODE_TESTS):
+            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
+            _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            return
 
         # Step 6: Security Audit & Quality Gate
         if pause_event.is_set() or stop_event.is_set():
@@ -663,6 +741,10 @@ def _execute_pipeline_steps(
 
         transition_phase(session_id, LifecyclePhase.SECURITY_AUDIT, force=True)
         time.sleep(0.3)
+        if _phase_reached_or_exceeded(LifecyclePhase.SECURITY_AUDIT):
+            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
+            _emit_event(session_id, LifecyclePhase.SECURITY_AUDIT, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            return
 
         # Step 7: DevOps & Deploy
         if pause_event.is_set() or stop_event.is_set():
@@ -705,6 +787,8 @@ def _execute_pipeline_steps(
         finally:
             db_comp.close()
 
+        _record_pipeline_cost(session_id, terminal_status="COMPLETED")
+
     except Exception as e:
         _emit_event(session_id, LifecyclePhase.INITIAL, "Error", 0.0, f"Error en ejecución de pipeline: {str(e)}", PhaseStatus.BLOCKED, error=str(e))
         _pipeline_statuses[session_id] = PipelineRunStatus.FAILED
@@ -729,10 +813,13 @@ def _execute_pipeline_steps(
                 db_err.commit()
         finally:
             db_err.close()
+
+        _record_pipeline_cost(session_id, terminal_status="FAILED")
     finally:
         if stop_event.is_set():
             _emit_event(session_id, LifecyclePhase.COMPLETED, "Cancel", 0.0, "Pipeline cancelado por el usuario.", PhaseStatus.BLOCKED)
             _pipeline_statuses[session_id] = PipelineRunStatus.CANCELLED
+            _record_pipeline_cost(session_id, terminal_status="CANCELLED")
         elif pause_event.is_set():
             _emit_event(session_id, LifecyclePhase.INITIAL, "Pausa", 0.0, "Pipeline pausado cooperativamente. Se mantiene el progreso alcanzado.", PhaseStatus.IN_PROGRESS)
             _pipeline_statuses[session_id] = PipelineRunStatus.PAUSED

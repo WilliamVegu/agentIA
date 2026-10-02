@@ -171,10 +171,26 @@ def get_session_repairs(sessionId: str):
     """
     Returns the history of repair attempts, applied patches, and diff summaries.
     """
+    from app.models.session import GenerationSessionDB, SessionLocal, SessionPhase, SessionStatus
+
+    db = SessionLocal()
+    sess = None
+    try:
+        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == sessionId).first()
+    finally:
+        db.close()
+
     records = REPAIR_HISTORIES_STORE.get(sessionId, [])
     blocked_info = BLOCKED_SESSIONS_STORE.get(sessionId, {})
 
-    final_state = "VERIFIED"
+    if not sess and not records and not blocked_info:
+        raise HTTPException(status_code=404, detail=f"Session '{sessionId}' not found.")
+
+    is_verified = False
+    if sess:
+        is_verified = sess.phase == SessionPhase.VERIFIED or sess.status == SessionStatus.COMPLETED
+
+    final_state = "VERIFIED" if is_verified else "INITIAL"
     if blocked_info.get("blocked", False) or (records and records[-1].outcome == RepairOutcome.FAILED_BLOCKED):
         final_state = "BLOCKED"
     elif records and records[-1].outcome == RepairOutcome.FAILED_CONTINUE:
@@ -210,28 +226,62 @@ def submit_manual_repair(
             detail="filePath is required for manual repair.",
         )
 
+    from pathlib import Path
+    from app.config import settings
+    from app.models.session import GenerationSessionDB, SessionLocal
+    from app.api.routes_session import SESSION_GENERATION_STATE
+
+    db = SessionLocal()
+    sess = None
+    try:
+        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == sessionId).first()
+    finally:
+        db.close()
+
+    records = REPAIR_HISTORIES_STORE.get(sessionId, [])
+    blocked_info = BLOCKED_SESSIONS_STORE.get(sessionId, {})
+    if not sess and not records and not blocked_info and sessionId not in SESSION_GENERATION_STATE:
+        raise HTTPException(status_code=404, detail=f"Session '{sessionId}' not found.")
+
+    raw_path = Path(request.filePath)
+    if raw_path.is_absolute():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Absolute file paths are not permitted in manual repair.",
+        )
+
+    ws_path = (Path(settings.WORKSPACE_DIR) / sessionId).resolve()
+    ws_file = (ws_path / request.filePath).resolve()
+    if not ws_file.is_relative_to(ws_path):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid path traversal attempt outside session workspace.",
+        )
+
+    ws_path.mkdir(parents=True, exist_ok=True)
+
     # Clear blocked state
     if sessionId in BLOCKED_SESSIONS_STORE:
         del BLOCKED_SESSIONS_STORE[sessionId]
 
-    if request.modifiedCode:
-        from pathlib import Path
-        from app.config import settings
-        from app.api.routes_session import SESSION_GENERATION_STATE
-
-        ws_file = Path(settings.WORKSPACE_DIR) / sessionId / request.filePath
+    if request.modifiedCode is not None:
         try:
-            if ws_file.parent.exists():
-                ws_file.write_text(request.modifiedCode, encoding="utf-8")
-        except Exception:
-            pass
+            ws_file.parent.mkdir(parents=True, exist_ok=True)
+            ws_file.write_text(request.modifiedCode, encoding="utf-8")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to write manual repair file: {str(e)}",
+            )
 
+        rel_key = str(ws_file.relative_to(ws_path)).replace("\\", "/")
         if sessionId in SESSION_GENERATION_STATE and "generated_files" in SESSION_GENERATION_STATE[sessionId]:
-            SESSION_GENERATION_STATE[sessionId]["generated_files"][request.filePath] = request.modifiedCode
+            SESSION_GENERATION_STATE[sessionId]["generated_files"][rel_key] = request.modifiedCode
 
     return ManualRepairResponse(
         sessionId=sessionId,
         status="REPAIR_APPLIED",
-        message=f"Manual modification applied to '{request.filePath}'. Re-running sandbox verification...",
-        diagnosticsResolved=True,
+        message=f"Manual modification applied to '{request.filePath}'. Re-running sandbox verification pending.",
+        diagnosticsResolved=False,
     )
+

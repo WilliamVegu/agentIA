@@ -261,7 +261,10 @@ def generate_java_entity_source(entity: DomainEntityDefinition) -> str:
     for attr in entity.attributes:
         if attr.isPrimaryKey:
             lines.append("    @Id")
-            lines.append("    @GeneratedValue(strategy = GenerationType.IDENTITY)")
+            if attr.javaType == JavaPropertyType.UUID:
+                lines.append("    @GeneratedValue(strategy = GenerationType.UUID)")
+            else:
+                lines.append("    @GeneratedValue(strategy = GenerationType.IDENTITY)")
             lines.append(f'    @Column(name = "{attr.columnName}", nullable = false, updatable = false)')
             lines.append(f"    private {attr.javaType.value} {attr.name};")
             lines.append("")
@@ -343,22 +346,44 @@ def _mock_domain_model_response(draft: SpecificationDraft) -> DataModelSynthesis
         e_name = raw_e.name
         table_name = to_plural_table_name(e_name)
 
-        attrs: List[EntityAttributeDefinition] = [
-            # Primary Key: Long id / BIGINT IDENTITY per Question 1 clarification
-            EntityAttributeDefinition(
-                name="id",
-                columnName="id",
-                javaType=JavaPropertyType.LONG,
-                sqlType=SqlDataType.BIGINT,
-                nullable=False,
-                isPrimaryKey=True,
-                hasIndex=True,
+        raw_attrs = list(getattr(raw_e, "attributes", []))
+        pk_attr = next((a for a in raw_attrs if getattr(a, "isPrimaryKey", False) or a.name.lower() == "id"), None)
+
+        attrs: List[EntityAttributeDefinition] = []
+        if pk_attr:
+            java_pk = JavaPropertyType.LONG
+            for jt in JavaPropertyType:
+                if jt.value.lower() == pk_attr.type.lower():
+                    java_pk = jt
+                    break
+            sql_pk = map_java_to_sql_type(pk_attr.type)
+            attrs.append(
+                EntityAttributeDefinition(
+                    name=pk_attr.name,
+                    columnName=to_snake_case(pk_attr.name),
+                    javaType=java_pk,
+                    sqlType=sql_pk,
+                    nullable=False,
+                    isPrimaryKey=True,
+                    hasIndex=True,
+                )
             )
-        ]
+        else:
+            attrs.append(
+                EntityAttributeDefinition(
+                    name="id",
+                    columnName="id",
+                    javaType=JavaPropertyType.LONG,
+                    sqlType=SqlDataType.BIGINT,
+                    nullable=False,
+                    isPrimaryKey=True,
+                    hasIndex=True,
+                )
+            )
 
         # Domain fields
         for raw_attr in getattr(raw_e, "attributes", []):
-            if raw_attr.name.lower() in ("id", "createdat", "updatedat", "created_at", "updated_at"):
+            if raw_attr.name.lower() in ("id", "createdat", "updatedat", "created_at", "updated_at") or getattr(raw_attr, "isPrimaryKey", False):
                 continue
             sql_type = map_java_to_sql_type(raw_attr.type)
             java_type = JavaPropertyType.STRING
@@ -368,7 +393,13 @@ def _mock_domain_model_response(draft: SpecificationDraft) -> DataModelSynthesis
                     break
 
             col_name = to_snake_case(raw_attr.name)
-            is_unique = "number" in col_name or "code" in col_name or "email" in col_name or "sku" in col_name
+            is_unique = (
+                "number" in col_name
+                or "code" in col_name
+                or "email" in col_name
+                or "sku" in col_name
+                or "isbn" in col_name
+            )
             attrs.append(
                 EntityAttributeDefinition(
                     name=raw_attr.name,
@@ -376,7 +407,7 @@ def _mock_domain_model_response(draft: SpecificationDraft) -> DataModelSynthesis
                     javaType=java_type,
                     sqlType=sql_type,
                     length=255 if sql_type == SqlDataType.VARCHAR else None,
-                    nullable=False,
+                    nullable=getattr(raw_attr, "nullable", False),
                     isPrimaryKey=False,
                     isUnique=is_unique,
                     hasIndex=is_unique or ("status" in col_name),
@@ -508,7 +539,64 @@ class ModelSqlService:
                 model_name=model_name,
                 temperature=0.2,
             )
-            # Deterministic generator provides full compliant models; fallback or mock if LLM is None
+            if llm is not None:
+                from langchain_core.messages import SystemMessage, HumanMessage
+                from app.services.structured_output import invoke_structured
+                from pydantic import BaseModel, Field
+
+                class LLMAttr(BaseModel):
+                    name: str
+                    type: str = "String"
+                    nullable: bool = False
+                    isPrimaryKey: bool = False
+                    isUnique: bool = False
+
+                class LLMEntity(BaseModel):
+                    name: str
+                    tableName: Optional[str] = None
+                    attributes: List[LLMAttr] = Field(default_factory=list)
+
+                class LLMModelPayload(BaseModel):
+                    entities: List[LLMEntity] = Field(default_factory=list)
+
+                system_prompt = (
+                    "You are a Senior Data Architect specializing in Spring Boot 3 JPA and PostgreSQL DDL.\n"
+                    "Analyze the given specification draft and user stories.\n"
+                    "Extract or enrich all domain entities, preserving requested primary key types (e.g. UUID vs Long),\n"
+                    "unique business keys (e.g. ISBN, email, SKU, code), and audit fields."
+                )
+                human_prompt = (
+                    f"Service: {draft.serviceName}\n"
+                    f"Package: {draft.packageName}\n"
+                    f"Draft Entities: {[e.model_dump() for e in draft.entities]}\n"
+                    f"User Stories: {[s.model_dump() for s in draft.userStories]}"
+                )
+
+                llm_res: LLMModelPayload = invoke_structured(
+                    llm,
+                    LLMModelPayload,
+                    [SystemMessage(content=system_prompt), HumanMessage(content=human_prompt)],
+                )
+                if llm_res and llm_res.entities:
+                    enriched_entities = []
+                    for le in llm_res.entities:
+                        attrs = []
+                        for la in le.attributes:
+                            attrs.append(EntityAttribute(
+                                name=la.name,
+                                type=la.type,
+                                nullable=la.nullable,
+                                isPrimaryKey=la.isPrimaryKey,
+                            ))
+                        enriched_entities.append(DomainEntity(
+                            name=le.name,
+                            tableName=le.tableName or to_plural_table_name(le.name),
+                            attributes=attrs,
+                        ))
+                    if enriched_entities:
+                        draft_copy = draft.model_copy(update={"entities": enriched_entities})
+                        return _mock_domain_model_response(draft_copy)
+
             return _mock_domain_model_response(draft)
         except Exception:
             return _mock_domain_model_response(draft)

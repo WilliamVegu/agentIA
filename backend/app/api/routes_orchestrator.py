@@ -195,8 +195,15 @@ async def export_bundle_archive(session_id: str):
     """Downloads all workspace artifacts in a unified ZIP archive."""
     sess = _verify_session_exists(session_id)
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
-    if not ws_path.exists() or not ws_path.is_dir():
-        raise HTTPException(status_code=404, detail="Workspace directory not found")
+    # Enforce Quality Gate guard (H10)
+    from app.services.security_service import audit_workspace
+    from app.models.security_quality import QualityGateStatus
+    audit = audit_workspace(str(ws_path), session_id, sess.spec_name or "microservice")
+    if audit.qualityGate.status == QualityGateStatus.BLOCKED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Cannot export artifact bundle: Quality Gate is BLOCKED. {audit.qualityGate.summaryMessage}"
+        )
 
     zip_bytes = export_full_bundle(str(ws_path))
     filename = f"{sess.spec_name or 'microservice'}-complete-bundle.zip"

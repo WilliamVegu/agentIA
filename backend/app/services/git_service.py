@@ -59,8 +59,9 @@ def publish_to_git(
     except Exception:
         commit_hash = repo.head.commit.hexsha if repo.head.is_valid() else "initial"
 
-    # Push to remote
+    # Push to remote without writing credentials to .git/config on disk (H13)
     remote_name = "origin"
+    remote = None
     try:
         if remote_name in [r.name for r in repo.remotes]:
             remote = repo.remote(remote_name)
@@ -70,18 +71,13 @@ def publish_to_git(
 
         remote.push(refspec=f"{branch_name}:{branch_name}", force=True)
     except Exception as push_err:
-        # Clear authenticated remote to avoid leaking tokens
-        try:
-            repo.remote(remote_name).set_url(clean_url)
-        except Exception:
-            pass
-        raise RuntimeError(f"Git push failed to {clean_url}: {str(push_err)}")
+        err_msg = str(push_err)
+        if git_token and git_token in err_msg:
+            err_msg = err_msg.replace(git_token, "[REDACTED]")
+        raise RuntimeError(f"Git push failed to {clean_url}: {err_msg}")
     finally:
-        # Always sanitize remote URL after push
-        try:
-            repo.remote(remote_name).set_url(clean_url)
-        except Exception:
-            pass
+        if remote is not None:
+            remote.set_url(clean_url)
 
     # Build web URL for branch inspection
     web_base = clean_url.rstrip(".git")

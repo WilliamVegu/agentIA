@@ -1,0 +1,175 @@
+[
+  {
+    "name": "ingest_real_blueprint",
+    "status": 201,
+    "seconds": 1.51,
+    "response": {
+      "specId": "ace7be22-2daa-4987-88f8-ccaca48981d0",
+      "serviceName": "audit-library",
+      "packageName": "com.audit.library",
+      "entityCount": 1,
+      "storyCount": 4,
+      "isValid": true,
+      "validationWarnings": []
+    }
+  },
+  {
+    "name": "start_real_graph",
+    "status": 202,
+    "seconds": 0.02,
+    "response": {
+      "sessionId": "2adaed5f-5695-4bd1-a8e6-68a029f82086",
+      "status": "QUEUED",
+      "queuePosition": 1,
+      "streamUrl": "/api/v1/sessions/2adaed5f-5695-4bd1-a8e6-68a029f82086/stream"
+    }
+  },
+  {
+    "name": "create_security_probe",
+    "status": 201,
+    "seconds": 0.02,
+    "response": {
+      "sessionId": "1fe88126-0c47-45d2-a1ef-d3b5a88840bd",
+      "specId": "fd35a917-f646-4b6d-88fb-5ba51515780b",
+      "specName": "audit-security-probe",
+      "status": "QUEUED",
+      "currentLifecyclePhase": "REQUIREMENTS",
+      "lifecycleMode": "GUIDED_STEP",
+      "pipelineStarted": false,
+      "message": "Sesión creada e inicializada correctamente."
+    }
+  },
+  {
+    "name": "security_probe_audit",
+    "status": 200,
+    "seconds": 0.0,
+    "response": {
+      "sessionId": "1fe88126-0c47-45d2-a1ef-d3b5a88840bd",
+      "serviceName": "audit-security-probe",
+      "qualityGate": {
+        "status": "BLOCKED",
+        "score": 85,
+        "criticalCount": 0,
+        "highCount": 1,
+        "mediumCount": 0,
+        "lowCount": 0,
+        "canExport": false,
+        "summaryMessage": "Quality Gate BLOCKED: 0 Critical and 1 High issues prevent export or publishing."
+      },
+      "metrics": {
+        "averageCyclomaticComplexity": 1.0,
+        "maxCyclomaticComplexity": 1,
+        "totalMethodsAudited": 0,
+        "methodsExceedingThreshold": 0,
+        "totalLinesOfCode": 3,
+        "duplicationPercentage": 0.0,
+        "testAssertionDensity": 0.0,
+        "totalCodeSmells": 0
+      },
+      "vulnerabilities": [],
+      "violations": [
+        {
+          "id": "CONST-VIOL-001",
+          "principle": "PRINCIPLE_III_CENTRALIZED_ERRORS",
+          "severity": "HIGH",
+          "filePath": "src/main/java",
+          "offendingElement": "Missing @RestControllerAdvice",
+          "ruleDescription": "Constitution Principle III Violation: A centralized exception handler annotated with @RestControllerAdvice is required.",
+          "suggestedFix": "Implement a GlobalExceptionHandler class annotated with @RestControllerAdvice returning ProblemDetails (RFC 7807).",
+          "autoFixAvailable": false
+        }
+      ],
+      "auditedAt": "2026-10-02T03:44:26.038537+00:00"
+    }
+  },
+  {
+    "name": "gated_export",
+    "status": 403,
+    "seconds": 0.02,
+    "response": {
+      "detail": "Cannot export artifact: Quality Gate is BLOCKED. Quality Gate BLOCKED: 0 Critical and 1 High issues prevent export or publishing."
+    }
+  },
+  {
+    "name": "bundle_export_bypasses_gate",
+    "status": 200,
+    "seconds": 0.0,
+    "response": {
+      "zipFiles": [
+        "security_audit_report.json",
+        "spec.md",
+        "VulnerableController.java"
+      ]
+    }
+  },
+  {
+    "name": "security_remediate_absolute_read",
+    "status": 200,
+    "seconds": 0.0,
+    "response": {
+      "findingId": "audit-unsupported",
+      "filePath": "C:\\Users\\willi\\Downloads\\agentIA\\reports\\audit-2026-10-01\\runtime\\outside-sentinel.txt",
+      "originalCode": "AUDIT_SENTINEL_AFTER",
+      "remediatedCode": "AUDIT_SENTINEL_AFTER",
+      "diff": "",
+      "applied": false
+    }
+  },
+  {
+    "name": "empty_security_audit",
+    "status": 200,
+    "seconds": 0.0,
+    "response": {
+      "sessionId": "in-memory-audit",
+      "serviceName": "microservice",
+      "qualityGate": {
+        "status": "PASS",
+        "score": 100,
+        "criticalCount": 0,
+        "highCount": 0,
+        "mediumCount": 0,
+        "lowCount": 0,
+        "canExport": true,
+        "summaryMessage": "Quality Gate PASSED: Zero security flaws or constitutional violations. Clean code standards met."
+      },
+      "metrics": {
+        "averageCyclomaticComplexity": 1.0,
+        "maxCyclomaticComplexity": 1,
+        "totalMethodsAudited": 0,
+        "methodsExceedingThreshold": 0,
+        "totalLinesOfCode": 0,
+        "duplicationPercentage": 0.0,
+        "testAssertionDensity": 0.0,
+        "totalCodeSmells": 0
+      },
+      "vulnerabilities": [],
+      "violations": [],
+      "auditedAt": "2026-10-02T03:44:26.057608+00:00"
+    }
+  },
+  {
+    "name": "undeployed_playground",
+    "status": 400,
+    "seconds": 0.16,
+    "response": {
+      "detail": "this session has no container of its own (state: IDLE). A call would go to whichever service is listening on the shared port, which belongs to a different session. Deploy this session before using the playground."
+    }
+  },
+  {
+    "name": "devops_generate_h2",
+    "status": 403,
+    "seconds": 0.0,
+    "response": {
+      "detail": "Cannot generate DevOps manifests: Quality Gate is BLOCKED. Quality Gate BLOCKED: 0 Critical and 1 High issues prevent export or publishing."
+    }
+  },
+  {
+    "name": "unknown_models_save",
+    "status": 200,
+    "seconds": 0.0,
+    "response": {
+      "sessionId": "audit-nonexistent",
+      "status": "SAVED"
+    }
+  }
+]

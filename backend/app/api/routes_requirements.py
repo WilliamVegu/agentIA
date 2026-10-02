@@ -183,9 +183,18 @@ async def get_session_requirements(session_id: str):
             except Exception:
                 pass
 
+    draft_file = ws_path / "specification_draft.json"
     stories_file = ws_path / "user_stories.json"
     draft_data = None
-    if stories_file.exists():
+
+    if draft_file.exists():
+        try:
+            with open(draft_file, "r", encoding="utf-8") as f:
+                draft_data = json.load(f)
+        except Exception:
+            draft_data = None
+
+    if draft_data is None and stories_file.exists():
         try:
             with open(stories_file, "r", encoding="utf-8") as f:
                 stories_json = json.load(f)
@@ -216,20 +225,28 @@ async def save_session_requirements(session_id: str, draft: SpecificationDraft):
     from pathlib import Path
     from app.config import settings
     from app.services.lifecycle_service import transition_phase, LifecyclePhase
+    from app.services.requirements_service import serialize_draft_to_markdown
 
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
     ws_path.mkdir(parents=True, exist_ok=True)
 
+    # 1. Save full draft representation (H14: preserves entities, packageName, assumptions)
+    draft_file = ws_path / "specification_draft.json"
+    with open(draft_file, "w", encoding="utf-8") as f:
+        json.dump(draft.model_dump(), f, indent=2, ensure_ascii=False)
+
+    # 2. Save user stories
     stories_file = ws_path / "user_stories.json"
     with open(stories_file, "w", encoding="utf-8") as f:
-        json.dump([s.model_dump() for s in draft.userStories], f, indent=2)
+        json.dump([s.model_dump() for s in draft.userStories], f, indent=2, ensure_ascii=False)
 
-    spec_file = ws_path / "spec.md"
+    # 3. Save spec markdown
     if draft.markdownSpec:
+        spec_file = ws_path / "spec.md"
         with open(spec_file, "w", encoding="utf-8") as f:
             f.write(draft.markdownSpec)
 
     transition_phase(session_id, LifecyclePhase.STORIES, force=True)
-    return {"sessionId": session_id, "status": "SAVED", "storiesCount": len(draft.userStories)}
+    return {"sessionId": session_id, "status": "SAVED", "storiesCount": len(draft.userStories), "entitiesCount": len(draft.entities)}
 
 

@@ -389,12 +389,23 @@ export const GenerationMonitorView: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <ShieldAlert className="w-5 h-5 text-rose-600" />
             <h4 className="text-base font-bold">
-              🛑 Bloqueo por Intervención Humana Requerida (Principio V de la Constitución)
+              🛑 Bloqueo por Intervención Requerida (Principio V de la Constitución)
             </h4>
           </div>
-          <p className="text-xs">
-            Se agotaron los {repairAttemptsLimit} intentos permitidos de auto-reparación
-            adaptativa sin resolver todos los fallos de compilación detectados.
+          <p className="text-xs leading-relaxed">
+            {repairs >= repairAttemptsLimit ? (
+              `Se agotaron los ${repairAttemptsLimit} intentos permitidos de auto-reparación adaptativa sin resolver todos los fallos detectados.`
+            ) : activeSession?.failureReason || activeSession?.errorMessage || (lastEvent as any)?.error || (lastEvent as any)?.reason ? (
+              <span>
+                <strong>Causa del bloqueo:</strong>{' '}
+                {activeSession?.failureReason || activeSession?.errorMessage || (lastEvent as any)?.error || (lastEvent as any)?.reason}{' '}
+                <span className="text-rose-700 dark:text-rose-300 font-mono text-[11px]">
+                  (auto-reparaciones ejecutadas: {repairs}/{repairAttemptsLimit})
+                </span>
+              </span>
+            ) : (
+              `La sesión requiere intervención para continuar (auto-reparaciones ejecutadas: ${repairs}/${repairAttemptsLimit}).`
+            )}
           </p>
           <button
             onClick={() => setActiveTab('code')}

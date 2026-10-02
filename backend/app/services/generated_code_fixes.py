@@ -138,7 +138,7 @@ def normalise_generated_entities(workspace: str | Path) -> Dict[str, List[str]]:
         corrected, changed = fix_generated_id_not_null(original)
         if changed and corrected != original:
             java_file.write_text(corrected, encoding="utf-8")
-            fixed[str(java_file.relative_to(ws))] = changed
+            fixed[java_file.relative_to(ws).as_posix()] = changed
 
     return fixed
 
@@ -186,7 +186,7 @@ def normalise_generated_tests(workspace: str | Path) -> Dict[str, List[str]]:
         corrected, changed = fix_spring_test_annotations(original)
         if changed and corrected != original:
             java_file.write_text(corrected, encoding="utf-8")
-            fixed[str(java_file.relative_to(ws))] = changed
+            fixed[java_file.relative_to(ws).as_posix()] = changed
 
     return fixed
 
@@ -262,6 +262,6 @@ def ensure_not_found_handler(workspace: str | Path) -> Dict[str, str]:
 
         patched = source[:closing] + _NOT_FOUND_HANDLER + source[closing:]
         java_file.write_text(patched, encoding="utf-8")
-        inserted[str(java_file.relative_to(ws))] = "NoResourceFoundException -> 404"
+        inserted[java_file.relative_to(ws).as_posix()] = "NoResourceFoundException -> 404"
 
     return inserted

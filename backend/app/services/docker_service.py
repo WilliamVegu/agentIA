@@ -238,12 +238,24 @@ def deploy_local(
                     clean_line = line.strip()
                     if clean_line:
                         _log_message(session_id, clean_line)
+                        if "container" in clean_line.lower() and any(verb in clean_line.lower() for verb in ("started", "running", "created")):
+                            parts = clean_line.split()
+                            if len(parts) >= 2:
+                                c_name = parts[1]
+                                if any(marker in c_name.lower() for marker in ("postgres", "mysql", "mariadb", "-db")):
+                                    session.databaseContainerId = c_name
+                                else:
+                                    session.containerId = c_name
 
             proc.wait()
 
             if proc.returncode == 0:
                 _log_message(session_id, "[SUCCESS] Docker Compose containers launched successfully.")
                 session.status = DeploymentStatus.RUNNING
+
+                if not session.containerId:
+                    session.containerId = f"{session_id}-api"
+
                 # Run automated smoke test
                 _log_message(session_id, "[SMOKE_TEST] Polling /actuator/health for readiness...")
                 smoke_res = run_smoke_test(session_id, host_port, max_retries=20, interval=2.0)

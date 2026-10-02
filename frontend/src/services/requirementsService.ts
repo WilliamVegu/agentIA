@@ -5,6 +5,8 @@ export interface TransformRequirementsPayload {
   serviceName?: string;
   apiKey?: string;
   provider?: string;
+  modelName?: string;
+  model?: string;
 }
 
 export interface RefineRequirementsPayload {
@@ -12,6 +14,8 @@ export interface RefineRequirementsPayload {
   refinementPrompt: string;
   apiKey?: string;
   provider?: string;
+  modelName?: string;
+  model?: string;
 }
 
 export const requirementsService = {
@@ -21,6 +25,7 @@ export const requirementsService = {
       serviceName: payload.serviceName,
       apiKey: payload.apiKey,
       provider: payload.provider,
+      modelName: payload.modelName || payload.model,
     });
     return response.data;
   },
@@ -31,6 +36,7 @@ export const requirementsService = {
       feedbackPrompt: payload.refinementPrompt,
       apiKey: payload.apiKey,
       provider: payload.provider,
+      modelName: payload.modelName || payload.model,
     });
     return response.data;
   },

@@ -34,6 +34,17 @@ apiClient.interceptors.request.use((config) => {
   if (ephemeralProvider) {
     config.headers['X-LLM-Provider'] = ephemeralProvider;
   }
+  const userStr = localStorage.getItem('agentia_user');
+  if (userStr) {
+    try {
+      const u = JSON.parse(userStr);
+      if (u?.email) {
+        config.headers['X-User-Email'] = u.email;
+      }
+    } catch {
+      // ignore parsing failure
+    }
+  }
   return config;
 });
 

@@ -93,16 +93,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [activeSessionId, reloadCurrentOverview]);
 
   const selectSession = (sessionId: string | null) => {
-    setActiveSessionId(sessionId);
-    if (!sessionId) {
-      setProjectOverview(null);
-      setLifecycle(null);
+    if (sessionId !== activeSessionId) {
       setCurrentDraft(null);
       setArchitectureDesign(null);
       setDataModelDesign(null);
       setCurrentSpecId(null);
       setParsedSpec(null);
+      setProjectOverview(null);
+      setLifecycle(null);
     }
+    setActiveSessionId(sessionId);
   };
 
   const startNewService = () => {

@@ -7,6 +7,60 @@ interface MermaidViewerProps {
   className?: string;
 }
 
+interface ParsedErEntity {
+  name: string;
+  attributes: Array<{
+    type: string;
+    name: string;
+    key?: string;
+  }>;
+}
+
+function parseErDiagram(chartText: string): ParsedErEntity[] {
+  const entities: ParsedErEntity[] = [];
+  const blockRegex = /([A-Za-z0-9_]+)\s*\{([^}]*)\}/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = blockRegex.exec(chartText)) !== null) {
+    const entName = match[1].trim();
+    if (entName.toLowerCase() === 'erdiagram') continue;
+
+    const body = match[2];
+    const rawLines = body.split('\n');
+    const attributes: Array<{ type: string; name: string; key?: string }> = [];
+
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed || trimmed.startsWith('%%')) continue;
+      const parts = trimmed.split(/\s+/);
+      if (parts.length >= 2) {
+        const type = parts[0];
+        const name = parts[1];
+        const key = parts.slice(2).join(' ') || undefined;
+        attributes.push({ type, name, key });
+      } else if (parts.length === 1) {
+        attributes.push({ type: '', name: parts[0] });
+      }
+    }
+
+    entities.push({ name: entName, attributes });
+  }
+
+  if (entities.length === 0) {
+    const lines = chartText.split('\n').map((l) => l.trim());
+    for (const line of lines) {
+      if (line.includes('{')) {
+        const entName = line.split('{')[0].trim();
+        if (entName && entName.toLowerCase() !== 'erdiagram') {
+          entities.push({ name: entName, attributes: [] });
+        }
+      }
+    }
+  }
+
+  return entities;
+}
+
 export const MermaidViewer: React.FC<MermaidViewerProps> = ({
   chart,
   title = 'Diagrama de Arquitectura / ER',
@@ -25,9 +79,8 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
     }
   };
 
-  // Parse flowchart or ER nodes for visual structural representation
-  const lines = chart.split('\n').filter((l) => l.trim().length > 0);
   const isEr = chart.includes('erDiagram');
+  const parsedEntities = React.useMemo(() => (isEr ? parseErDiagram(chart) : []), [isEr, chart]);
 
   return (
     <div className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 overflow-hidden ${className}`}>
@@ -88,21 +141,24 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
                   Entidades y Relaciones (ER)
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {lines.filter((l) => !l.startsWith('erDiagram') && l.includes('{')).map((line, idx) => {
-                    const entName = line.split('{')[0].trim();
-                    return (
-                      <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white border-b pb-1 mb-2 border-slate-200 dark:border-slate-800">
-                          {entName}
-                        </div>
-                        <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono space-y-0.5">
-                          <div>+ id : Long [PK]</div>
-                          <div>+ createdAt : Instant</div>
-                          <div>+ status : String</div>
-                        </div>
+                  {parsedEntities.map((ent, idx) => (
+                    <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white border-b pb-1 mb-2 border-slate-200 dark:border-slate-800">
+                        {ent.name}
                       </div>
-                    );
-                  })}
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono space-y-0.5">
+                        {ent.attributes.length > 0 ? (
+                          ent.attributes.map((attr, aIdx) => (
+                            <div key={aIdx}>
+                              + {attr.name} {attr.type ? `: ${attr.type}` : ''} {attr.key ? `[${attr.key}]` : ''}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-slate-400 italic">Sin atributos definidos</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : (

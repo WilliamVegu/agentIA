@@ -1,5 +1,6 @@
 import asyncio
 import json
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -96,6 +97,31 @@ def _persist_diagnostics(session_id: str, final_state: dict) -> bool:
     return record_session_diagnostics(session_id, final_state)
 
 
+def _record_session_cost(
+    session_id: str,
+    terminal_status: str,
+    spec_name: Optional[str] = None,
+    verification_fallback: bool = False,
+    db_sess=None,
+    db=None,
+) -> None:
+    """Roll call records into session cost record and persist to DB (H21)."""
+    try:
+        from app.cost.aggregate import aggregate_session
+        record = aggregate_session(
+            session_id=session_id,
+            spec_name=spec_name or (getattr(db_sess, "spec_id", None) if db_sess else None),
+            terminal_status=terminal_status,
+            verification_fallback_used=verification_fallback,
+        )
+        if db_sess and record:
+            db_sess.cost_record_json = json.dumps(record)
+            if db:
+                db.commit()
+    except Exception:
+        pass
+
+
 def broadcast_session_event(session_id: str, event_type: str, data: dict):
     """Stores event in history and broadcasts to all active SSE subscribers."""
     data_with_meta = dict(data)
@@ -127,6 +153,8 @@ def broadcast_session_event(session_id: str, event_type: str, data: dict):
             except Exception:
                 pass
 
+GRAPH_CANCEL_EVENTS: Dict[str, threading.Event] = {}
+
 async def execute_generation_pipeline(
     session_id: str,
     spec_id: str,
@@ -137,6 +165,7 @@ async def execute_generation_pipeline(
     model_name: Optional[str] = None,
 ):
     """Background worker executing the LangGraph pipeline with concurrency controls."""
+    GRAPH_CANCEL_EVENTS[session_id] = threading.Event()
     db = SessionLocal()
     try:
         # 1. Enqueue & await worker slot
@@ -234,6 +263,10 @@ async def execute_generation_pipeline(
             last_log_count = 0
 
             for step in generation_graph.stream(initial_state):
+                if GRAPH_CANCEL_EVENTS.get(session_id) and GRAPH_CANCEL_EVENTS[session_id].is_set():
+                    accumulated_state["status"] = "CANCELLED"
+                    break
+
                 node_name = list(step.keys())[0]
                 node_output = step[node_name]
                 accumulated_state.update(node_output)
@@ -347,6 +380,16 @@ async def execute_generation_pipeline(
         final_status = final_state.get("status", "COMPLETED")
         db_sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
 
+        is_cancelled = (GRAPH_CANCEL_EVENTS.get(session_id) and GRAPH_CANCEL_EVENTS[session_id].is_set()) or (db_sess and db_sess.status == SessionStatus.CANCELLED)
+        if is_cancelled:
+            if db_sess:
+                db_sess.status = SessionStatus.CANCELLED
+                _record_session_cost(session_id, "CANCELLED", db_sess=db_sess, db=db)
+                db.commit()
+            _persist_diagnostics(session_id, final_state)
+            await queue_manager.release_slot(session_id)
+            return
+
         if final_status == "COMPLETED":
             metrics = final_state.get("test_metrics", {})
             if db_sess:
@@ -354,6 +397,13 @@ async def execute_generation_pipeline(
                 db_sess.phase = SessionPhase.VERIFIED
                 db_sess.completed_at = datetime.now(timezone.utc)
                 _persist_verification_metrics(db_sess, final_state)
+                _record_session_cost(
+                    session_id,
+                    "COMPLETED",
+                    verification_fallback=bool(metrics.get("fallback_used", False)),
+                    db_sess=db_sess,
+                    db=db,
+                )
                 db.commit()
 
             # Recorded outside the db_sess guard: the diagnostic is worth keeping
@@ -376,17 +426,24 @@ async def execute_generation_pipeline(
             })
         else:
             # Blocked / Human intervention required
+            blocked_metrics = final_state.get("test_metrics") or {}
             if db_sess:
                 db_sess.status = SessionStatus.BLOCKED
                 db_sess.phase = SessionPhase.FAILED
                 db_sess.error_message = final_state.get("error", "Human intervention required")
                 db_sess.completed_at = datetime.now(timezone.utc)
                 _persist_verification_metrics(db_sess, final_state)
+                _record_session_cost(
+                    session_id,
+                    "BLOCKED",
+                    verification_fallback=bool(blocked_metrics.get("fallback_used", False)),
+                    db_sess=db_sess,
+                    db=db,
+                )
                 db.commit()
 
             _persist_diagnostics(session_id, final_state)
 
-            blocked_metrics = final_state.get("test_metrics") or {}
             broadcast_session_event(session_id, "session_blocked", {
                 "sessionId": session_id,
                 "attempt": final_state.get("repair_attempts", 3),
@@ -403,6 +460,7 @@ async def execute_generation_pipeline(
         if db_sess:
             db_sess.status = SessionStatus.BLOCKED
             db_sess.error_message = str(ex)
+            _record_session_cost(session_id, "BLOCKED", db_sess=db_sess, db=db)
             db.commit()
         broadcast_session_event(session_id, "session_blocked", {
             "sessionId": session_id,
@@ -435,9 +493,8 @@ async def list_sessions(limit: int = 50):
                 try:
                     lifecycle = get_session_lifecycle(s.id)
                     pct = lifecycle.completion_percentage
-                    if pct >= 100.0:
+                    if pct >= 100.0 and s.status not in (SessionStatus.BLOCKED, SessionStatus.CANCELLED) and s.phase != SessionPhase.FAILED:
                         s.status = SessionStatus.COMPLETED
-                        s.phase = SessionPhase.VERIFIED
                         s.current_lifecycle_phase = "COMPLETED"
                         db.commit()
                 except Exception:
@@ -624,9 +681,19 @@ async def cancel_session(session_id: str):
         if not db_sess:
             raise HTTPException(status_code=404, detail="Session not found")
         db_sess.status = SessionStatus.CANCELLED
+        _record_session_cost(session_id, "CANCELLED", db_sess=db_sess, db=db)
         db.commit()
     finally:
         db.close()
+
+    if session_id in GRAPH_CANCEL_EVENTS:
+        GRAPH_CANCEL_EVENTS[session_id].set()
+
+    try:
+        from app.services.pipeline_runner import cancel_pipeline
+        cancel_pipeline(session_id)
+    except Exception:
+        pass
 
     await queue_manager.release_slot(session_id)
     return

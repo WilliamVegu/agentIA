@@ -21,6 +21,8 @@ export interface SessionListItem {
   lifecycleMode: string;
   completionPercentage: number;
   repairAttempts?: number;
+  failureReason?: string;
+  errorMessage?: string;
   createdAt: string;
 }
 

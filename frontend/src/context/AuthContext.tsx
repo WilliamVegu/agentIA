@@ -19,6 +19,10 @@ const DEMO_USER: User = {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
+    const isLoggedOut = localStorage.getItem('agentia_logged_out') === 'true';
+    if (isLoggedOut) {
+      return null;
+    }
     const saved = localStorage.getItem('agentia_user');
     if (saved) {
       try {
@@ -27,13 +31,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
     }
-    // Default to demo user for seamless onboarding
+    // Default to demo user for seamless onboarding on first launch
     return DEMO_USER;
   });
 
   useEffect(() => {
     if (user) {
       localStorage.setItem('agentia_user', JSON.stringify(user));
+      localStorage.removeItem('agentia_logged_out');
     } else {
       localStorage.removeItem('agentia_user');
     }
@@ -71,10 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginDemo = () => {
+    localStorage.removeItem('agentia_logged_out');
     setUser(DEMO_USER);
   };
 
   const logout = () => {
+    localStorage.setItem('agentia_logged_out', 'true');
     setUser(null);
   };
 

@@ -13,7 +13,7 @@ from app.models.orchestrator import (
     PipelineRunStatus,
     ProjectOverviewSummary,
 )
-from app.models.session import GenerationSessionDB, SessionLocal, SessionStatus
+from app.models.session import GenerationSessionDB, SessionLocal, SessionStatus, SessionPhase
 from app.services.security_service import audit_workspace
 from app.services.docker_service import get_deployment_status
 
@@ -166,14 +166,21 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
             # Phase 5: Code & Tests
             elif phase == LifecyclePhase.CODE_TESTS:
                 pom_file = ws_path / "pom.xml"
+                build_file = pom_file.exists() or (ws_path / "build.gradle").exists() or (ws_path / "build.gradle.kts").exists()
                 src_dir = ws_path / "src"
-                if pom_file.exists() and src_dir.exists():
+                if build_file and src_dir.exists():
                     if sess.repair_attempts >= 3 and sess.status == SessionStatus.BLOCKED:
                         status = PhaseStatus.BLOCKED
                         is_blocked = True
-                        # Was assigned to a local `blocked_reason` that nothing ever read,
-                        # so the phase reached the UI as BLOCKED with blockingReason=null.
                         reason = "Límite de 3 auto-reparaciones alcanzado (Principio V)"
+                    elif sess.status == SessionStatus.BLOCKED or sess.phase == SessionPhase.FAILED:
+                        status = PhaseStatus.BLOCKED
+                        is_blocked = True
+                        reason = sess.error_message or "Verificación o compilación de pruebas falló"
+                    elif sess.status == SessionStatus.CANCELLED:
+                        status = PhaseStatus.BLOCKED
+                        is_blocked = True
+                        reason = "Sesión cancelada"
                     else:
                         status = PhaseStatus.COMPLETED
                         summary["pom"] = "pom.xml"
@@ -377,6 +384,17 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
     deploy_info = get_deployment_status(session_id)
     test_url = f"http://localhost:{deploy_info.hostPort}/actuator/health" if deploy_info.hostPort else None
 
+    real_tests_passed = False
+    if sess.phase == SessionPhase.VERIFIED:
+        real_tests_passed = True
+    elif sess.verification_metrics_json:
+        try:
+            vm = json.loads(sess.verification_metrics_json)
+            if vm.get("totalTests", 0) > 0 and vm.get("passedTests", 0) == vm.get("totalTests") and vm.get("allPassed", False):
+                real_tests_passed = True
+        except Exception:
+            pass
+
     return ProjectOverviewSummary(
         sessionId=session_id,
         specName=spec_name,
@@ -385,7 +403,7 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
         databaseEngine=db_engine,
         userStoriesCount=stories_count,
         entitiesCount=entities_count,
-        testsPassed=(lifecycle.phases[4].status == PhaseStatus.COMPLETED) if len(lifecycle.phases) > 4 else False,
+        testsPassed=real_tests_passed,
         securityAuditVerdict=sec_verdict,
         deploymentStatus=deploy_info.status.value if hasattr(deploy_info.status, "value") else str(deploy_info.status),
         deploymentUrl=test_url,

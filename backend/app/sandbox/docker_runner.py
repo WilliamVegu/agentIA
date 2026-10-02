@@ -128,8 +128,8 @@ def build_docker_cmd(
     - Executes `mvn test -o` (offline test)
     """
     # Normalize paths for mounting
-    ws_path = str(Path(workspace_host_path).resolve())
-    m2_path = str(Path(maven_cache_host_path).resolve())
+    ws_path = str(Path(workspace_host_path).resolve()) if Path(workspace_host_path).exists() else str(workspace_host_path)
+    m2_path = str(Path(maven_cache_host_path).resolve()) if Path(maven_cache_host_path).exists() else str(maven_cache_host_path)
 
     # The host may require a mount option (typically ":Z" on rootless podman with
     # SELinux labels). Without it the bind mount is unreadable inside the

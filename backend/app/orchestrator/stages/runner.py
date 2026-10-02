@@ -76,7 +76,15 @@ STAGE_ORDER: Tuple[str, ...] = instructions_mod.STAGE_ORDER
 STAGE_ARTIFACT_SCOPES: Mapping[str, Tuple[str, ...]] = {
     "SCAFFOLDER": (
         "pom.xml",
+        "build.gradle",
+        "build.gradle.kts",
+        "settings.gradle",
+        "settings.gradle.kts",
+        "gradlew",
+        "gradlew.bat",
+        "gradle/**",
         "src/main/resources/application.yml",
+        "src/main/resources/application.properties",
         # The schema ships inside the artifact so Spring Boot applies it at startup
         # (SPRING_SQL_INIT_MODE=always). That replaced a bind mount into the database
         # container's init directory, which a real host refused to read. Declared here
@@ -84,20 +92,31 @@ STAGE_ARTIFACT_SCOPES: Mapping[str, Tuple[str, ...]] = {
         # artifact is an out-of-scope blocking violation -- which is how the omission was
         # caught: export returned 403 and the devops step never ran.
         "src/main/resources/schema.sql",
+        "src/main/resources/data.sql",
         "src/main/java/*Application.java",
     ),
     "DOMAIN": (
         "src/main/java/*/model/entity/*.java",
         "src/main/java/*/model/dto/*.java",
+        "src/main/java/*/domain/**",
     ),
     "SERVICE": (
         "src/main/java/*/repository/*.java",
         "src/main/java/*/service/*.java",
         "src/main/java/*/service/impl/*.java",
         "src/main/java/*/exception/*.java",
+        "src/main/java/*/application/**",
+        "src/main/java/*/infrastructure/**",
     ),
-    "CONTROLLER": ("src/main/java/*/controller/*.java",),
-    "TEST": ("src/test/java/*/*.java",),
+    "CONTROLLER": (
+        "src/main/java/*/controller/*.java",
+        "src/main/java/*/infrastructure/adapter/in/**",
+        "src/main/java/*/adapter/in/**",
+    ),
+    "TEST": (
+        "src/test/java/*/*.java",
+        "src/test/java/**",
+    ),
 }
 
 #: Retained deterministic implementations, keyed by stage. These carry the
@@ -540,6 +559,33 @@ def build_stage_payload(state: Mapping[str, Any], stage: str) -> Dict[str, Any]:
     generated = dict(state.get("generated_files") or {})
     visible = prior_artifact_paths(stage, generated)
 
+    input_interface = (
+        blueprint.get("inputInterface")
+        or blueprint.get("input_interface")
+        or state.get("inputInterface")
+        or state.get("input_interface")
+        or {}
+    )
+    if hasattr(input_interface, "model_dump"):
+        input_interface = input_interface.model_dump()
+    elif hasattr(input_interface, "dict"):
+        input_interface = input_interface.dict()
+
+    arch_pref = (
+        input_interface.get("architecturePreference")
+        or input_interface.get("architecture_preference")
+        or blueprint.get("architecturePreference")
+        or blueprint.get("architecture_preference")
+        or state.get("architecture_preference")
+    )
+    build_pref = (
+        input_interface.get("buildToolPreference")
+        or input_interface.get("build_tool_preference")
+        or blueprint.get("buildToolPreference")
+        or blueprint.get("build_tool_preference")
+        or state.get("build_tool_preference")
+    )
+
     return {
         "stage": stage,
         "instruction_set_revision": state.get("instruction_set_revision", ""),
@@ -548,6 +594,9 @@ def build_stage_payload(state: Mapping[str, Any], stage: str) -> Dict[str, Any]:
         "base_port": blueprint.get("basePort") or blueprint.get("base_port"),
         "entities": entities,
         "user_stories": user_stories,
+        "input_interface": input_interface,
+        "architecture_preference": arch_pref,
+        "build_tool_preference": build_pref,
         "prior_artifacts": {path: generated[path] for path in visible},
     }
 
