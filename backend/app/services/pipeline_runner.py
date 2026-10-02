@@ -213,6 +213,35 @@ def cancel_pipeline(session_id: str) -> bool:
     return True
 
 
+def _derive_architecture_from_draft(draft: SpecificationDraft) -> dict:
+    """Deterministic per-entity 4-layer architecture (offline/no-key path).
+
+    Replaces the removed mock generator: the architecture is DERIVED from the
+    draft's entities (a component per entity per layer), never fabricated.
+    """
+    entities = draft.entities or []
+    components = []
+    edges = []
+    for e in entities:
+        components.append({"name": f"{e.name}Controller", "layer": "controller", "dependencies": [f"{e.name}Service"]})
+        components.append({"name": f"{e.name}Service", "layer": "service", "dependencies": [f"{e.name}Repository"]})
+        components.append({"name": f"{e.name}Repository", "layer": "repository", "dependencies": [e.name]})
+        components.append({"name": e.name, "layer": "model", "dependencies": []})
+        edges.append(f"    {e.name}Controller --> {e.name}Service")
+        edges.append(f"    {e.name}Service --> {e.name}Repository")
+        edges.append(f"    {e.name}Repository --> {e.name}")
+    components.append({"name": "GlobalExceptionHandler", "layer": "infrastructure", "dependencies": []})
+    mermaid = "graph TD\n" + "\n".join(edges) if edges else "graph TD"
+    return {
+        "serviceName": draft.serviceName,
+        "packageName": draft.packageName,
+        "basePort": draft.basePort,
+        "components": components,
+        "endpoints": [],
+        "mermaidDiagram": mermaid,
+    }
+
+
 def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] = None, provider: Optional[str] = None, model_name: Optional[str] = None) -> SpecificationDraft:
     spec_file = ws_path / "spec.md"
     raw_prompt = spec_name
@@ -226,15 +255,15 @@ def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] =
 
     draft = None
     if api_key and not LLMFactory.is_mock(api_key, provider):
-        try:
-            draft = transform_requirements(
-                RequirementsTransformRequest(rawText=raw_prompt, serviceName=spec_name),
-                api_key=api_key,
-                chosen_provider=provider,
-                chosen_model=model_name,
-            )
-        except Exception:
-            draft = None
+        # A real key was supplied: the LLM MUST produce the draft. A silent fallback
+        # to a hardcoded decomposition here is exactly the "garbage session" a model-
+        # mode autopilot must never fabricate -- let it raise so the pipeline blocks.
+        draft = transform_requirements(
+            RequirementsTransformRequest(rawText=raw_prompt, serviceName=spec_name),
+            api_key=api_key,
+            chosen_provider=provider,
+            chosen_model=model_name,
+        )
 
     if draft is None:
         decomp = _generate_mock_decomposition(raw_text=raw_prompt, service_name=spec_name)
@@ -387,17 +416,15 @@ def _execute_pipeline_steps(
         _emit_event(session_id, LifecyclePhase.ARCHITECTURE, "Diseño Arquitectónico", 45.0, f"Generando blueprint en 4 capas estrictas y catálogo DTO [{llm_label}]...", PhaseStatus.IN_PROGRESS)
         arch_file = ws_path / "architecture.json"
         if not arch_file.exists():
-            try:
-                arch_req = ArchitectureDesignRequest(draft=draft, apiKey=api_key or "mock-key", provider=provider or "mock")
-                arch_resp = design_architecture(arch_req, api_key=api_key or "mock-key", provider=provider or "mock")
+            if api_key and not LLMFactory.is_mock(api_key, provider):
+                # Model mode: the LLM must produce the architecture. No silent
+                # hardcoded fallback -- let it raise so the pipeline blocks.
+                arch_req = ArchitectureDesignRequest(draft=draft, apiKey=api_key, provider=provider)
+                arch_resp = design_architecture(arch_req, api_key=api_key, provider=provider)
                 arch_data = arch_resp.model_dump()
-            except Exception:
-                arch_data = {
-                    "serviceName": draft.serviceName,
-                    "packageName": draft.packageName,
-                    "components": ["Controller", "Service", "Repository", "Entity"],
-                    "mermaidDiagram": "graph TD\n    Controller --> Service\n    Service --> Repository\n    Repository --> Model",
-                }
+            else:
+                # Offline/no-key path: derive per-entity architecture, not a hardcoded list.
+                arch_data = _derive_architecture_from_draft(draft)
             with open(arch_file, "w", encoding="utf-8") as f:
                 json.dump(arch_data, f, indent=2)
             arch_md = ws_path / "architecture.md"

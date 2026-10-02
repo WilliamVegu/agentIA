@@ -782,9 +782,8 @@ def test_exhausted_stages_block_the_session_and_record_the_evidence(session, mon
     assert events[-1].error == "3 repair attempts exhausted"
 
 
-def test_a_failed_design_falls_back_to_a_minimal_blueprint(session, monkeypatch):
-    """Same rule as the schema fallback: a failed synthesis must still describe THIS
-    service, and must not take the run down with it."""
+def test_deterministic_architecture_is_derived_per_entity(session, monkeypatch):
+    """No key: the architecture is DERIVED from the draft's entities, not a hardcoded list."""
     session_id, ws = session
     _prepare_events(session_id)
     _stub_heavy_steps(monkeypatch)
@@ -792,6 +791,8 @@ def test_a_failed_design_falls_back_to_a_minimal_blueprint(session, monkeypatch)
     def explode(*args, **kwargs):
         raise RuntimeError("architecture service unavailable")
 
+    # No api_key => deterministic path, so the LLM design is never invoked and this
+    # stub proves the pipeline did not try to call it.
     monkeypatch.setattr(pr, "design_architecture", explode)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
@@ -799,10 +800,11 @@ def test_a_failed_design_falls_back_to_a_minimal_blueprint(session, monkeypatch)
 
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED
     arch = json.loads((ws / "architecture.json").read_text(encoding="utf-8"))
-    # The offline decomposition normalises the service name to lower case, so the
-    # fallback carries whatever the draft says rather than re-deriving it.
     assert arch["serviceName"] == "orderservice"
-    assert arch["components"] == ["Controller", "Service", "Repository", "Entity"]
+    # Per-entity component objects (Controller/Service/Repository/Model), not the
+    # hardcoded ["Controller", "Service", "Repository", "Entity"] list.
+    assert isinstance(arch["components"], list) and arch["components"]
+    assert all(isinstance(c, dict) and "layer" in c for c in arch["components"])
     assert "mermaidDiagram" in arch
     assert (ws / "architecture.md").exists()
 
@@ -901,8 +903,8 @@ def test_a_short_spec_file_is_ignored_and_the_service_name_is_used(tmp_path, mon
     assert seen["raw_text"] == "orders"
 
 
-def test_a_rejected_model_transform_falls_back_to_the_offline_decomposition(tmp_path, monkeypatch):
-    """A provider that fails mid-run must not leave the session without a draft."""
+def test_a_rejected_model_transform_blocks_instead_of_fabricating(tmp_path, monkeypatch):
+    """A model-mode transform failure must propagate, not fabricate a decomposition."""
     monkeypatch.setattr(pr.settings, "WORKSPACE_DIR", str(tmp_path))
     monkeypatch.setattr(pr.LLMFactory, "is_mock", lambda *a, **k: False)
 
@@ -911,7 +913,5 @@ def test_a_rejected_model_transform_falls_back_to_the_offline_decomposition(tmp_
 
     monkeypatch.setattr(pr, "transform_requirements", explode)
 
-    draft = pr._get_or_create_draft(tmp_path, "orders", api_key="sk-real", provider="deepseek")
-
-    assert draft is not None
-    assert draft.entities, "the fallback produced no entities"
+    with pytest.raises(RuntimeError):
+        pr._get_or_create_draft(tmp_path, "order-processing-service", api_key="sk-real", provider="deepseek")
