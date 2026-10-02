@@ -1332,6 +1332,45 @@ def run_stage(
     return result
 
 
+def _normalise_generated_code(workspace_path: str) -> None:
+    """Apply the post-generation corrections to whatever the stages emitted.
+
+    **Why this lives here and not at a call site.** It was wired into the node loop in
+    `routes_session`, which is one of TWO generation paths. `pipeline_runner` -- the
+    quick-start, autopilot and lifecycle path -- calls `run_generation_stages` directly and
+    therefore got none of it. A real run proved the cost: session `01f2041f` blocked with
+
+        package org.springframework.test.context.bean.override.mockito does not exist
+        cannot find symbol: class MockitoBean
+
+    which is the exact defect `normalise_generated_tests` exists to correct, on the path
+    that had not been wired. Both paths run these stages, so the stages are where it
+    belongs -- a correction at each caller is a correction that will be missing from the
+    next caller.
+
+    All three are idempotent and operate on globs, so running them once at the end is
+    equivalent to running them per stage: nothing downstream reads these annotations until
+    the sandbox compiles.
+    """
+    if not workspace_path:
+        return
+    try:
+        from app.services.generated_code_fixes import (
+            ensure_not_found_handler,
+            normalise_generated_entities,
+            normalise_generated_tests,
+        )
+
+        for path, what in normalise_generated_entities(workspace_path).items():
+            print(f"[FIX] {path}: {'; '.join(what)}")
+        for path, what in normalise_generated_tests(workspace_path).items():
+            print(f"[FIX] {path}: {'; '.join(what)}")
+        for path, what in ensure_not_found_handler(workspace_path).items():
+            print(f"[FIX] {path}: {what}")
+    except Exception as exc:  # noqa: BLE001 - a correction must never fail a generation
+        print(f"[WARN] generated-code normalisation failed: {type(exc).__name__}: {exc}")
+
+
 def run_stages(
     state: Dict[str, Any],
     stages: Sequence[str] = STAGE_ORDER,
@@ -1343,4 +1382,5 @@ def run_stages(
         current = run_stage(current, stage, api_key=api_key)
         if current.get("status") == SessionStatus.BLOCKED.value:
             break
+    _normalise_generated_code(current.get("workspace_path") or "")
     return current
