@@ -217,8 +217,10 @@ def test_example_unknown_specification_returns_404():
 # --------------------------------------------------------------------------- #
 # Level 4 - LLM-backed endpoints without an API key (mock provider)
 # --------------------------------------------------------------------------- #
-def test_example_requirements_transform_offline_mock():
+def test_example_requirements_transform_offline_mock(monkeypatch):
     """provider='mock' no longer routes to a mock engine: it is rejected (no key)."""
+    for var in ("OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
     payload = {
         "rawText": (
             "Microservicio para gestionar órdenes de compra con email de cliente "
@@ -244,7 +246,7 @@ def test_example_llm_verify_mock_provider():
 
 def test_example_missing_api_key_is_rejected(monkeypatch):
     """Constitution Principle VI: no ephemeral key -> 401, never a silent fallback."""
-    for var in ("OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY"):
+    for var in ("OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "DEEPSEEK_API_KEY"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(settings, "ALLOW_OFFLINE_MOCK", False)
 

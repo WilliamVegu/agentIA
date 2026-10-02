@@ -499,7 +499,12 @@ async def quick_start_session(payload: QuickStartSessionRequest):
     pipeline_started = False
     if payload.auto_run:
         from app.services.pipeline_runner import run_pipeline
-        run_pipeline(session_id, api_key=payload.api_key, provider=payload.llm_provider)
+        run_pipeline(
+            session_id,
+            api_key=payload.api_key,
+            provider=payload.llm_provider,
+            input_interface=payload.input_interface,
+        )
         pipeline_started = True
 
     return QuickStartSessionResponse(

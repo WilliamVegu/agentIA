@@ -8,6 +8,7 @@ export interface QuickStartPayload {
   auto_run?: boolean;
   llm_provider?: string;
   api_key?: string;
+  input_interface?: any;
 }
 
 export interface SessionListItem {

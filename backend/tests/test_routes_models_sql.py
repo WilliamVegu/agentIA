@@ -64,6 +64,7 @@ def test_generate_models_missing_api_key_401(sample_specification_draft: Specifi
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     payload = {
         "draft": sample_specification_draft.model_dump(),
         "apiKey": None

@@ -61,6 +61,7 @@ def test_design_architecture_missing_api_key_returns_401(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     response = client.post("/api/v1/architecture/design", json={"draft": create_sample_draft_payload()})
     assert response.status_code == 401
     assert "LLM API key is required" in response.text

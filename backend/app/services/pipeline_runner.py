@@ -293,6 +293,7 @@ def _execute_pipeline_steps(
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     model_name: Optional[str] = None,
+    input_interface: Optional[dict] = None,
 ):
     """Executes each lifecycle phase sequentially in the background."""
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
@@ -475,6 +476,12 @@ def _execute_pipeline_steps(
                 "entities": [e.model_dump() for e in draft.entities],
                 "userStories": [s.model_dump() for s in draft.userStories],
             }
+            # Wire the "interfaz de entrada" (volume/data/integrations/architecture)
+            # so the deterministic scaffolder's InferenceEngine actually decides the
+            # architecture (layered vs multi-module) and DB target instead of falling
+            # back to the hardcoded default.
+            if input_interface:
+                blueprint_dict["inputInterface"] = input_interface
             agent_state = {
                 "session_id": session_id,
                 "blueprint": blueprint_dict,
@@ -713,19 +720,30 @@ def run_pipeline(
     provider: Optional[str] = None,
     model_name: Optional[str] = None,
     force: bool = False,
+    input_interface: Optional[dict] = None,
 ) -> bool:
     """Initiates an asynchronous background thread for autonomous Auto-Pilot execution."""
     t = _active_threads.get(session_id)
     if not force and t and t.is_alive() and _pipeline_statuses.get(session_id) == PipelineRunStatus.RUNNING:
         return False
 
-    if api_key or provider or model_name:
-        _session_credentials[session_id] = {"api_key": api_key, "provider": provider, "model_name": model_name}
+    if api_key or provider or model_name or input_interface is not None:
+        cached = _session_credentials.get(session_id, {})
+        cached.update({
+            "api_key": api_key if api_key is not None else cached.get("api_key"),
+            "provider": provider if provider is not None else cached.get("provider"),
+            "model_name": model_name if model_name is not None else cached.get("model_name"),
+        })
+        if input_interface is not None:
+            cached["input_interface"] = input_interface
+        _session_credentials[session_id] = cached
     else:
         cached = _session_credentials.get(session_id, {})
         api_key = cached.get("api_key")
         provider = cached.get("provider")
         model_name = cached.get("model_name")
+
+    input_interface = input_interface if input_interface is not None else _session_credentials.get(session_id, {}).get("input_interface")
 
     _pause_events[session_id] = threading.Event()
     _stop_events[session_id] = threading.Event()
@@ -746,7 +764,7 @@ def run_pipeline(
 
     thread = threading.Thread(
         target=_execute_pipeline_steps,
-        args=(session_id, target_phase, stop_on_gate, auto_deploy, api_key, provider, model_name),
+        args=(session_id, target_phase, stop_on_gate, auto_deploy, api_key, provider, model_name, input_interface),
         daemon=True,
     )
     _active_threads[session_id] = thread

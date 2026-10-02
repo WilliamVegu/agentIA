@@ -49,6 +49,13 @@ export const StudioOverviewView: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPipelineWorking, setIsPipelineWorking] = useState(false);
 
+  // Interfaz de entrada (levantando_observaciones): drives the InferenceEngine.
+  const [iface, setIface] = useState({
+    requestVolume: 'low',
+    architecturePreference: '',
+    buildToolPreference: '',
+  });
+
   const handleCreateQuickStart = async (isAuto: boolean) => {
     if (!serviceName.trim() || !prompt.trim()) {
       setSubmitError('Por favor complete el nombre del microservicio y la descripción de requisitos.');
@@ -56,6 +63,10 @@ export const StudioOverviewView: React.FC = () => {
     }
     setIsSubmitting(true);
     setSubmitError(null);
+
+    const inputInterface: any = { requestVolume: iface.requestVolume };
+    if (iface.architecturePreference) inputInterface.architecturePreference = iface.architecturePreference;
+    if (iface.buildToolPreference) inputInterface.buildToolPreference = iface.buildToolPreference;
 
     try {
       const res = await sessionService.quickStart({
@@ -65,6 +76,7 @@ export const StudioOverviewView: React.FC = () => {
         auto_run: isAuto,
         llm_provider: provider,
         api_key: apiKey,
+        input_interface: inputInterface,
       });
 
       await refreshSessions();
@@ -247,6 +259,47 @@ export const StudioOverviewView: React.FC = () => {
                   required
                   className="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs leading-relaxed focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
+              </div>
+
+              {/* Interfaz de entrada — impulsa la inferencia de arquitectura */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="block text-xs font-medium text-slate-300">
+                  Volumen de peticiones
+                  <select
+                    value={iface.requestVolume}
+                    onChange={(e) => setIface({ ...iface, requestVolume: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="low">Bajo</option>
+                    <option value="medium">Medio</option>
+                    <option value="high">Alto</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-medium text-slate-300">
+                  Arquitectura
+                  <select
+                    value={iface.architecturePreference}
+                    onChange={(e) => setIface({ ...iface, architecturePreference: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="">Auto (inferir)</option>
+                    <option value="layered">Layered (4 capas)</option>
+                    <option value="hexagonal">Hexagonal</option>
+                    <option value="hexagonal-ddd">Hexagonal + DDD</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-medium text-slate-300">
+                  Build tool
+                  <select
+                    value={iface.buildToolPreference}
+                    onChange={(e) => setIface({ ...iface, buildToolPreference: e.target.value })}
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="">Auto</option>
+                    <option value="maven">Maven</option>
+                    <option value="gradle">Gradle</option>
+                  </select>
+                </label>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
