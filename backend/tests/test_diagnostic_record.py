@@ -589,13 +589,13 @@ def test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion(
                     "components": [], "mermaidDiagram": "graph TD"}
     monkeypatch.setattr(pipeline_runner, "design_architecture", lambda *a, **k: _Arch())
 
-    # The Data Model phase is a third model-backed phase on the sequential path. It
-    # used to fall back to a locally derived DDL when the provider failed, which
-    # silently consumed one scripted response and left the pattern intact; the
-    # fallback was deliberately removed (a schema that no provider produced is not a
-    # generated schema), so the phase now fails loudly. Stub it to a deterministic
-    # schema for the same reason the spec and architecture phases are stubbed above:
-    # so the scripted responses reach the generation stages this test is about.
+    # The Data Model phase is a third model-backed phase on the sequential path: with a
+    # real key it calls the provider and, when that call fails, derives the DDL from the
+    # blueprint. Either way it is not part of what this test exercises -- the scripted
+    # responses belong to the generation stages -- so pin it to a deterministic schema
+    # for the same reason the spec and architecture phases are stubbed above. Without
+    # this the phase makes a real outbound call and the test is neither hermetic nor
+    # deterministic.
     class _SqlSchema:
         schemaDdl = "CREATE TABLE notes (id BIGINT PRIMARY KEY);"
         seedDml = ""
