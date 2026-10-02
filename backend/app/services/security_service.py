@@ -659,7 +659,19 @@ def audit_workspace(workspace_dir: str, session_id: str, service_name: str = "mi
 
     violations = scan_architecture_compliance(files)
     metrics = calculate_code_metrics(files)
-    quality_gate = evaluate_quality_gate(vulnerabilities, violations, metrics)
+    if not files and not pom_content:
+        quality_gate = QualityGateVerdict(
+            status=QualityGateStatus.BLOCKED,
+            score=0,
+            criticalCount=0,
+            highCount=0,
+            mediumCount=0,
+            lowCount=0,
+            canExport=False,
+            summaryMessage="Quality Gate BLOCKED: Workspace has no source code files to audit.",
+        )
+    else:
+        quality_gate = evaluate_quality_gate(vulnerabilities, violations, metrics)
 
     report = SecurityQualityAuditReport(
         sessionId=session_id,

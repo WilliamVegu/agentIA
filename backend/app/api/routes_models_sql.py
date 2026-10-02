@@ -98,11 +98,10 @@ async def save_models_design(session_id: str, payload: dict):
     lifecycle phase detects them.
     """
     import json
-    from pathlib import Path
-    from app.config import settings
+    from app.services.workspace_guard import get_validated_workspace_path
     from app.services.lifecycle_service import transition_phase, LifecyclePhase
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    ws_path = get_validated_workspace_path(session_id, require_exists=False)
     ws_path.mkdir(parents=True, exist_ok=True)
     (ws_path / "domain_model.json").write_text(
         json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8"

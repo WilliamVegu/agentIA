@@ -417,7 +417,7 @@ export const ArchitectureView: React.FC = () => {
 
             <MermaidViewer
               chart={design.mermaidDiagram || ''}
-              title="Topología Arquitectónica en 4 Capas"
+              title={`Topología Arquitectónica: ${design.serviceName || 'Microservicio'}`}
             />
 
             {showMermaidSource && (

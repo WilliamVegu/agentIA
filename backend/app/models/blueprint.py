@@ -7,6 +7,7 @@ class EntityAttribute(BaseModel):
     type: str = Field(..., description="Java type, e.g. String, Long, UUID, BigDecimal")
     nullable: bool = Field(default=False)
     isPrimaryKey: bool = Field(default=False)
+    isUnique: bool = Field(default=False, description="True if unique constraint applies")
     validationRules: List[str] = Field(default_factory=list, description="Jakarta Validation annotations e.g. @NotNull")
 
 class DomainEntity(BaseModel):

@@ -140,8 +140,10 @@ def get_pipeline_status(session_id: str) -> PipelineRunStatus:
 
 def pause_pipeline(session_id: str) -> bool:
     """Signals an active Auto-Pilot thread to pause cooperatively and switch to Guided Step mode."""
-    if session_id in _pause_events:
-        _pause_events[session_id].set()
+    if session_id not in _pause_events:
+        return False
+
+    _pause_events[session_id].set()
     _pipeline_statuses[session_id] = PipelineRunStatus.PAUSED
 
     # Update DB to GUIDED_STEP and PAUSED
@@ -155,7 +157,7 @@ def pause_pipeline(session_id: str) -> bool:
             return True
     finally:
         db.close()
-    return session_id in _pause_events
+    return True
 
 
 def resume_pipeline(session_id: str) -> bool:
@@ -242,6 +244,23 @@ def _record_pipeline_cost(
                 db.close()
     except Exception:
         pass
+
+
+def _complete_target_phase(session_id: str, phase: LifecyclePhase, target_phase_label: str) -> None:
+    """Updates session status to COMPLETED and aggregates cost on target_phase early exit (H21, H23)."""
+    _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
+    _emit_event(session_id, phase, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase_label}", PhaseStatus.COMPLETED)
+    db = SessionLocal()
+    try:
+        s = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        if s:
+            s.status = SessionStatus.COMPLETED
+            s.completed_at = datetime.now(timezone.utc)
+            db.commit()
+    finally:
+        db.close()
+    _record_pipeline_cost(session_id, terminal_status="COMPLETED")
+
 
 
 def _derive_architecture_from_draft(draft: SpecificationDraft) -> dict:
@@ -363,6 +382,9 @@ def _execute_pipeline_steps(
     stop_event = _stop_events[session_id]
 
     try:
+        from app.services.queue_service import queue_manager
+        queue_manager.acquire_slot_sync(session_id)
+
         # Everything below sits inside the handler, including the mode decision and the
         # instruction-set load. It used to start after them, so a failure there -- an
         # ambiguous API key, an unloadable instruction set on the MODEL path -- escaped
@@ -453,8 +475,7 @@ def _execute_pipeline_steps(
         transition_phase(session_id, LifecyclePhase.REQUIREMENTS, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.REQUIREMENTS):
-            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
-            _emit_event(session_id, LifecyclePhase.REQUIREMENTS, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            _complete_target_phase(session_id, LifecyclePhase.REQUIREMENTS, str(target_phase))
             return
 
         # Step 2: User Stories
@@ -469,8 +490,7 @@ def _execute_pipeline_steps(
         transition_phase(session_id, LifecyclePhase.STORIES, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.STORIES):
-            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
-            _emit_event(session_id, LifecyclePhase.STORIES, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            _complete_target_phase(session_id, LifecyclePhase.STORIES, str(target_phase))
             return
 
         # Step 3: Architecture Blueprint
@@ -496,8 +516,7 @@ def _execute_pipeline_steps(
         transition_phase(session_id, LifecyclePhase.ARCHITECTURE, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.ARCHITECTURE):
-            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
-            _emit_event(session_id, LifecyclePhase.ARCHITECTURE, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            _complete_target_phase(session_id, LifecyclePhase.ARCHITECTURE, str(target_phase))
             return
 
         # Step 4: Data Models & SQL
@@ -526,8 +545,7 @@ def _execute_pipeline_steps(
         transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.DATA_MODEL):
-            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
-            _emit_event(session_id, LifecyclePhase.DATA_MODEL, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            _complete_target_phase(session_id, LifecyclePhase.DATA_MODEL, str(target_phase))
             return
 
         # Step 5: Code & Tests
@@ -717,8 +735,7 @@ def _execute_pipeline_steps(
         transition_phase(session_id, LifecyclePhase.CODE_TESTS, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.CODE_TESTS):
-            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
-            _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            _complete_target_phase(session_id, LifecyclePhase.CODE_TESTS, str(target_phase))
             return
 
         # Step 6: Security Audit & Quality Gate
@@ -742,8 +759,7 @@ def _execute_pipeline_steps(
         transition_phase(session_id, LifecyclePhase.SECURITY_AUDIT, force=True)
         time.sleep(0.3)
         if _phase_reached_or_exceeded(LifecyclePhase.SECURITY_AUDIT):
-            _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
-            _emit_event(session_id, LifecyclePhase.SECURITY_AUDIT, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase}", PhaseStatus.COMPLETED)
+            _complete_target_phase(session_id, LifecyclePhase.SECURITY_AUDIT, str(target_phase))
             return
 
         # Step 7: DevOps & Deploy
@@ -780,7 +796,8 @@ def _execute_pipeline_steps(
             s = db_comp.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
             if s:
                 s.status = SessionStatus.COMPLETED
-                s.phase = SessionPhase.VERIFIED
+                is_truly_verified = bool(build_success and not (verification and verification.result.fallback_used))
+                s.phase = SessionPhase.VERIFIED if is_truly_verified else SessionPhase.CODE_GENERATION
                 s.current_lifecycle_phase = LifecyclePhase.COMPLETED.value
                 s.completed_at = datetime.now(timezone.utc)
                 db_comp.commit()
@@ -816,6 +833,11 @@ def _execute_pipeline_steps(
 
         _record_pipeline_cost(session_id, terminal_status="FAILED")
     finally:
+        try:
+            from app.services.queue_service import queue_manager
+            queue_manager.release_slot_sync(session_id)
+        except Exception:
+            pass
         if stop_event.is_set():
             _emit_event(session_id, LifecyclePhase.COMPLETED, "Cancel", 0.0, "Pipeline cancelado por el usuario.", PhaseStatus.BLOCKED)
             _pipeline_statuses[session_id] = PipelineRunStatus.CANCELLED

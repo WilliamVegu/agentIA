@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.models.session import SessionLocal, GenerationSessionDB
+from app.models.session import SessionLocal, GenerationSessionDB, SessionStatus
 from app.services.export_service import create_project_zip
 from app.services.git_service import publish_to_git
 from app.services.security_service import audit_workspace
@@ -42,12 +42,18 @@ async def export_session_project(session_id: str):
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(status_code=404, detail="Project workspace directory not found")
 
+    if sess.status == SessionStatus.BLOCKED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Cannot export artifact: Session is BLOCKED. {sess.error_message or 'Project is in a blocked state.'}",
+        )
+
     # Enforce Quality Gate guard (Constitution Principle V & Feature 006)
     audit = audit_workspace(str(ws_path), session_id, service_name)
     if not audit.qualityGate.canExport:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Cannot export artifact: Quality Gate is BLOCKED. {audit.qualityGate.summaryMessage}"
+            detail=f"Cannot export artifact: Quality Gate is BLOCKED. {audit.qualityGate.summaryMessage}",
         )
 
     zip_bytes = create_project_zip(str(ws_path))

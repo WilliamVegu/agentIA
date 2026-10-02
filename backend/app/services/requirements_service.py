@@ -253,8 +253,8 @@ def transform_requirements(
 
         llm = LLMFactory.get_chat_model(
             api_key=api_key,
-            provider=chosen_provider,
-            model_name=chosen_model,
+            provider=chosen_prov,
+            model_name=chosen_mod,
             temperature=0.2,
         )
         if llm is None:
@@ -291,7 +291,7 @@ def transform_requirements(
             ]
 
             decomp: LLMRequirementsDecomposition = invoke_structured(
-                llm, LLMRequirementsDecomposition, messages, provider=chosen_provider)
+                llm, LLMRequirementsDecomposition, messages, provider=chosen_prov)
 
     # Convert LLM decomposition into SpecificationDraft
     entities: List[DomainEntity] = []
@@ -398,13 +398,14 @@ def refine_specification(
     request: RefinementRequest,
     api_key: str,
     provider: Optional[str] = None,
+    model_name: Optional[str] = None,
 ) -> SpecificationDraft:
     """
     Applies natural language refinement feedback to update stories, scenarios, or entities in a draft.
     Supports free providers (Gemini, Groq), OpenAI, and offline mock mode.
     """
     chosen_provider = provider or getattr(request, "provider", None)
-    chosen_model = getattr(request, "modelName", None)
+    chosen_model = model_name or getattr(request, "modelName", None)
 
     if LLMFactory.is_mock(api_key, chosen_provider):
         # For mock/testing, apply deterministic modification based on prompt

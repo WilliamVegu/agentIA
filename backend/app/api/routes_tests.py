@@ -188,13 +188,18 @@ def get_session_repairs(sessionId: str):
 
     is_verified = False
     if sess:
-        is_verified = sess.phase == SessionPhase.VERIFIED or sess.status == SessionStatus.COMPLETED
+        is_verified = sess.phase == SessionPhase.VERIFIED or (sess.status == SessionStatus.COMPLETED and not getattr(sess, "error_message", None))
 
-    final_state = "VERIFIED" if is_verified else "INITIAL"
-    if blocked_info.get("blocked", False) or (records and records[-1].outcome == RepairOutcome.FAILED_BLOCKED):
+    if sess and (sess.status == SessionStatus.BLOCKED or sess.phase == SessionPhase.FAILED):
+        final_state = "BLOCKED"
+    elif blocked_info.get("blocked", False) or (records and records[-1].outcome == RepairOutcome.FAILED_BLOCKED):
         final_state = "BLOCKED"
     elif records and records[-1].outcome == RepairOutcome.FAILED_CONTINUE:
         final_state = "REPAIRING"
+    elif is_verified:
+        final_state = "VERIFIED"
+    else:
+        final_state = "INITIAL"
 
     return RepairHistoryResponse(
         sessionId=sessionId,

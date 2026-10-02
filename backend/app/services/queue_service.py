@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from typing import Dict, List, Optional
 from app.config import settings
 
@@ -9,6 +10,8 @@ class ConcurrencyQueueManager:
         self.waiting_queue: List[str] = []
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._thread_lock = threading.Lock()
+        self._thread_semaphore = threading.Semaphore(max_concurrent)
 
     async def enqueue(self, session_id: str) -> int:
         """Enqueues a session and returns its 1-based position (0 if already active)."""
@@ -30,7 +33,6 @@ class ConcurrencyQueueManager:
 
     async def acquire_slot(self, session_id: str):
         """Waits until an execution slot is available and claims it."""
-        # Wait for the semaphore slot
         await self._semaphore.acquire()
         async with self._lock:
             if session_id in self.waiting_queue:
@@ -46,6 +48,23 @@ class ConcurrencyQueueManager:
             elif session_id in self.waiting_queue:
                 self.waiting_queue.remove(session_id)
 
+    def acquire_slot_sync(self, session_id: str):
+        """Synchronously claims an execution slot for background worker threads (H24)."""
+        self._thread_semaphore.acquire()
+        with self._thread_lock:
+            if session_id in self.waiting_queue:
+                self.waiting_queue.remove(session_id)
+            self.active_sessions.add(session_id)
+
+    def release_slot_sync(self, session_id: str):
+        """Synchronously releases execution slot when the thread actually exits (H09)."""
+        with self._thread_lock:
+            if session_id in self.active_sessions:
+                self.active_sessions.remove(session_id)
+                self._thread_semaphore.release()
+            elif session_id in self.waiting_queue:
+                self.waiting_queue.remove(session_id)
+
     async def get_queue_status(self) -> dict:
         async with self._lock:
             return {
@@ -56,4 +75,3 @@ class ConcurrencyQueueManager:
             }
 
 queue_manager = ConcurrencyQueueManager()
-

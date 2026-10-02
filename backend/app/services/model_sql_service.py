@@ -14,6 +14,7 @@ try:
         DataModelSynthesisResponse,
     )
     from app.models.requirements import SpecificationDraft
+    from app.models.blueprint import DomainEntity, EntityAttribute
     from app.services.llm_factory import LLMFactory
 except ImportError:
     from backend.app.models.domain_model import (
@@ -27,6 +28,7 @@ except ImportError:
         DataModelSynthesisResponse,
     )
     from backend.app.models.requirements import SpecificationDraft
+    from backend.app.models.blueprint import DomainEntity, EntityAttribute
     from backend.app.services.llm_factory import LLMFactory
 
 # SQL Reserved Keywords that need escaping or adjustment if used as table/column names
@@ -394,7 +396,8 @@ def _mock_domain_model_response(draft: SpecificationDraft) -> DataModelSynthesis
 
             col_name = to_snake_case(raw_attr.name)
             is_unique = (
-                "number" in col_name
+                bool(getattr(raw_attr, "isUnique", False))
+                or "number" in col_name
                 or "code" in col_name
                 or "email" in col_name
                 or "sku" in col_name
@@ -587,6 +590,7 @@ class ModelSqlService:
                                 type=la.type,
                                 nullable=la.nullable,
                                 isPrimaryKey=la.isPrimaryKey,
+                                isUnique=getattr(la, "isUnique", False),
                             ))
                         enriched_entities.append(DomainEntity(
                             name=le.name,

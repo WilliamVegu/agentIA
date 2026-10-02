@@ -11,7 +11,7 @@ anything you write is persisted.
 - **Framework**: Spring Boot 3.x. This is the 3.x generation — not 2.x.
 - **Namespace**: `jakarta.*` exclusively for all Jakarta EE APIs. `javax.*` packages do not
   exist in this generation and any occurrence is a validation failure.
-- **Build tool**: Maven, with a deterministic offline build. The build must succeed with
+- **Build tool**: As specified in the task payload's `build_tool_preference` (Maven or Gradle), with a deterministic offline build. The build must succeed with
   network access disabled, so every declared artifact must already be resolvable from a
   pre-populated local repository.
 - **Dependency boundary (Constitution IV)**: you may declare only dependencies that appear
@@ -23,8 +23,7 @@ anything you write is persisted.
 - **Test stack (Stack rule)**: the declared test dependencies must provide **JUnit 5
   (Jupiter), Mockito, and AssertJ**, because the test stage is required to build its suite on
   exactly that stack. Declaring a test stack that cannot supply all three is a defect.
-- **Layering**: the project must be structured for a strict unidirectional
-  controller → service → repository → model flow (Constitution I). You establish the
+- **Layering**: the project must be structured according to the `architecture_preference` in the task payload. If hexagonal or hexagonal-ddd is requested, structure into domain, application, and infrastructure adapters; otherwise follow a strict unidirectional controller → service → repository → model flow. You establish the
   package root that the later stages build inside.
 
 ## Rules
@@ -56,7 +55,7 @@ this set breaks the downstream pipeline.
 
 | Path | Artifact |
 | --- | --- |
-| `pom.xml` | Maven project descriptor defining parent, coordinates, Java level, allowlisted dependencies, and build plugins. |
+| `pom.xml` (or `build.gradle` / `settings.gradle` if buildToolPreference is gradle) | Project build descriptor defining parent/coordinates, Java level, allowlisted dependencies, and build plugins. |
 | `src/main/resources/application.yml` | Runtime configuration: application name, datasource, JPA behaviour, and server port. |
 | `src/main/java/<package-path>/<ServiceName>Application.java` | Spring Boot entry point in the base package. |
 

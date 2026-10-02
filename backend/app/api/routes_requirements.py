@@ -106,7 +106,7 @@ def transform_requirements_endpoint(
     api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
 
     try:
-        draft = transform_requirements(request, api_key, provider=provider)
+        draft = transform_requirements(request, api_key, provider=provider, model_name=request.modelName)
         return draft
     except PromptInjectionError as injected:
         # The service raises it, so the pipeline path is covered too; here it becomes
@@ -147,7 +147,7 @@ def refine_requirements_endpoint(
     provider = request.provider or x_llm_provider
     api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
-        refined_draft = refine_specification(request, api_key, provider=provider)
+        refined_draft = refine_specification(request, api_key, provider=provider, model_name=request.modelName)
         return refined_draft
     except Exception as e:
         raise HTTPException(
@@ -222,12 +222,11 @@ async def get_session_requirements(session_id: str):
 async def save_session_requirements(session_id: str, draft: SpecificationDraft):
     """Saves approved requirements draft and advances session to Architecture phase."""
     import json
-    from pathlib import Path
-    from app.config import settings
+    from app.services.workspace_guard import get_validated_workspace_path
     from app.services.lifecycle_service import transition_phase, LifecyclePhase
     from app.services.requirements_service import serialize_draft_to_markdown
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     ws_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Save full draft representation (H14: preserves entities, packageName, assumptions)
@@ -240,11 +239,12 @@ async def save_session_requirements(session_id: str, draft: SpecificationDraft):
     with open(stories_file, "w", encoding="utf-8") as f:
         json.dump([s.model_dump() for s in draft.userStories], f, indent=2, ensure_ascii=False)
 
-    # 3. Save spec markdown
-    if draft.markdownSpec:
+    # 3. Save spec markdown (materialize if approved draft has content)
+    spec_content = draft.markdownSpec or (serialize_draft_to_markdown(draft) if (draft.entities or draft.userStories) else None)
+    if spec_content:
         spec_file = ws_path / "spec.md"
         with open(spec_file, "w", encoding="utf-8") as f:
-            f.write(draft.markdownSpec)
+            f.write(spec_content)
 
     transition_phase(session_id, LifecyclePhase.STORIES, force=True)
     return {"sessionId": session_id, "status": "SAVED", "storiesCount": len(draft.userStories), "entitiesCount": len(draft.entities)}

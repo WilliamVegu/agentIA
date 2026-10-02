@@ -385,15 +385,20 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
     test_url = f"http://localhost:{deploy_info.hostPort}/actuator/health" if deploy_info.hostPort else None
 
     real_tests_passed = False
-    if sess.phase == SessionPhase.VERIFIED:
-        real_tests_passed = True
-    elif sess.verification_metrics_json:
+    if sess.verification_metrics_json:
         try:
             vm = json.loads(sess.verification_metrics_json)
-            if vm.get("totalTests", 0) > 0 and vm.get("passedTests", 0) == vm.get("totalTests") and vm.get("allPassed", False):
+            if (
+                vm.get("totalTests", 0) > 0
+                and vm.get("passedTests", 0) == vm.get("totalTests")
+                and vm.get("allPassed", False)
+                and not vm.get("fallback_used", False)
+            ):
                 real_tests_passed = True
         except Exception:
             pass
+    elif sess.phase == SessionPhase.VERIFIED:
+        real_tests_passed = True
 
     return ProjectOverviewSummary(
         sessionId=session_id,

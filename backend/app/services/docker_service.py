@@ -253,9 +253,6 @@ def deploy_local(
                 _log_message(session_id, "[SUCCESS] Docker Compose containers launched successfully.")
                 session.status = DeploymentStatus.RUNNING
 
-                if not session.containerId:
-                    session.containerId = f"{session_id}-api"
-
                 # Run automated smoke test
                 _log_message(session_id, "[SMOKE_TEST] Polling /actuator/health for readiness...")
                 smoke_res = run_smoke_test(session_id, host_port, max_retries=20, interval=2.0)
