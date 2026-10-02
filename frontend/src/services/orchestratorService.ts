@@ -22,6 +22,7 @@ export interface ProjectOverview {
   entitiesCount?: number;
   /** Whether the generated test suite passed. Present on the real payload. */
   testsPassed?: boolean;
+  testsExecuted?: boolean;
   /** `PASS` / `BLOCKED` from the security audit. */
   securityAuditVerdict?: string;
   deploymentStatus?: string;

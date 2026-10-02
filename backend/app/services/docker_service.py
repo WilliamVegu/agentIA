@@ -10,6 +10,7 @@ from typing import Any, Dict, Generator, Optional
 import requests
 
 from app.models.devops import DeploymentStatus, LocalDeploymentSession, SmokeTestResult
+from app.config import settings
 
 # In-memory tracking for active deployments and log queues
 _active_deployments: Dict[str, LocalDeploymentSession] = {}
@@ -19,6 +20,8 @@ _raw_log_history: Dict[str, list] = {}
 
 def check_docker_daemon() -> bool:
     """Checks if the local Docker daemon is running and reachable within a 2s timeout."""
+    if not settings.DOCKER_ENABLED:
+        return False
     try:
         # Use docker info to test daemon communication
         result = subprocess.run(
@@ -116,6 +119,9 @@ def _recover_deployment(session_id: str) -> "LocalDeploymentSession | None":
 
 def get_deployment_status(session_id: str, host_port: int = 8080) -> LocalDeploymentSession:
     """Returns the current deployment tracking state for a session, actively checking actual container health."""
+    if not settings.DOCKER_ENABLED:
+        return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.DOCKER_UNAVAILABLE,
+            errorMessage="Despliegue no ejecutado: entorno sin virtualización. Puede continuar y entregar las fuentes.")
     session = _active_deployments.get(session_id)
     if session and session.status == DeploymentStatus.BUILDING:
         return session
@@ -195,7 +201,7 @@ def deploy_local(
             status=DeploymentStatus.DOCKER_UNAVAILABLE,
             hostPort=host_port,
             containerPort=8080,
-            errorMessage="Docker daemon is not running or accessible on the host. Entering Export-Only mode.",
+            errorMessage="Despliegue no ejecutado: entorno sin virtualización." if not settings.DOCKER_ENABLED else "Docker daemon is not running or accessible on the host. Entering Export-Only mode.",
             startedAt=datetime.now(timezone.utc).isoformat(),
         )
         _active_deployments[session_id] = session

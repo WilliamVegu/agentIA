@@ -32,6 +32,8 @@ Esta configuración corresponde a un estudio de un solo operador, que administra
 
 ## Verificación y exportación
 
-Una generación parcial queda pausada. La ausencia de Docker, una suite vacía, un fallback o una compilación sin evidencia de pruebas no permiten declarar VERIFIED ni exportar/publicar. Las métricas antiguas sin huella de los archivos requieren volver a ejecutar la verificación. Editar código o configuración de compilación invalida la evidencia anterior.
+El modo sin virtualización está activo por defecto (`DOCKER_ENABLED=false`). Se generan código, tests y manifiestos, se ejecuta SAST y se puede continuar hasta exportar o publicar las fuentes si SAST permite su entrega. Compilación, pruebas y despliegue Docker se registran como **no ejecutados**: el proyecto nunca se declara VERIFIED por omitirlos. El archivo `VERIFICATION_STATUS.md` acompaña las fuentes. Los errores de generación y los bloqueos reales de SAST siguen bloqueando su entrega.
+
+Para ejecutar Docker en un entorno compatible, configura `DOCKER_ENABLED=true` y reinicia el backend. En ese modo, una suite vacía, un fallback o una compilación sin evidencia de pruebas bloquean la entrega. Editar código o configuración de compilación invalida la evidencia anterior. Los proyectos bloqueados antes de este cambio necesitan volver a ejecutar la fase de código o guardar una reparación para registrar la omisión explícita; no se convierten automáticamente en proyectos verificados.
 
 Para Gradle, configura `GRADLE_CACHE_DIR` si su caché está en otra carpeta y `GRADLE_DOCKER_IMAGE` si necesitas otra imagen con Java 21 y Gradle. La ejecución del sandbox usa `--network none` y `--offline`; la imagen y las dependencias deben estar disponibles previamente. Los reportes XML de la ejecución actual suministran el conteo de pruebas.

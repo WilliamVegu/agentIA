@@ -398,7 +398,8 @@ async def execute_generation_pipeline(
             metrics = final_state.get("test_metrics", {})
             if db_sess:
                 db_sess.status = SessionStatus.COMPLETED
-                db_sess.phase = SessionPhase.VERIFIED
+                db_sess.phase = SessionPhase.CODE_GENERATION if metrics.get("verificationSkipped") else SessionPhase.VERIFIED
+                db_sess.error_message = None
                 db_sess.completed_at = datetime.now(timezone.utc)
                 _persist_verification_metrics(db_sess, final_state)
                 _record_session_cost(
@@ -421,8 +422,9 @@ async def execute_generation_pipeline(
                 # substituted verification, so the terminal event must say so.
                 "verificationFallbackUsed": bool(metrics.get("fallback_used", False)),
                 "fallbackReason": metrics.get("fallback_reason"),
-                "totalTests": metrics.get("totalTests", 5),
-                "passedTests": metrics.get("passedTests", 5),
+                "verificationSkipped": bool(metrics.get("verificationSkipped", False)),
+                "totalTests": metrics.get("totalTests", 0),
+                "passedTests": metrics.get("passedTests", 0),
                 "failedTests": metrics.get("failedTests", 0),
                 "durationMs": metrics.get("executionDurationMs", 2100),
                 "artifactCount": len(final_state.get("generated_files", {})),

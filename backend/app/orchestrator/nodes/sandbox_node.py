@@ -30,6 +30,16 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     result = verification.result
     platform_verified = verification.platform_verified
 
+    if result.verification_skipped:
+        logs.append("[SANDBOX] Pruebas no ejecutadas: modo sin virtualización. Continuando con entrega de fuentes.")
+        metrics = VerificationMetrics(totalTests=0, passedTests=0, failedTests=0,
+            allPassed=False, fallback_used=True, fallback_reason=result.fallback_reason,
+            verificationSkipped=True, workspaceFingerprint=workspace_fingerprint(workspace_path))
+        return {"current_phase": SessionPhase.CODE_GENERATION.value,
+                "status": SessionStatus.COMPLETED.value, "build_success": False,
+                "verification_fallback_used": True, "test_metrics": metrics.model_dump(),
+                "error": None, "logs": logs}
+
     # Feature 012 (FR-001): a substituted result is not a verification. Before
     # anything else, decide whether the build actually ran.
     if result.fallback_used:

@@ -257,11 +257,18 @@ def _complete_target_phase(session_id: str, phase: LifecyclePhase, target_phase_
         s = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if s:
             verified = session_has_current_evidence(s)
-            s.status = SessionStatus.COMPLETED if verified else SessionStatus.PAUSED
+            metrics = json.loads(s.verification_metrics_json or "{}")
+            sources_ready = (not settings.DOCKER_ENABLED and metrics.get("verificationSkipped") is True
+                             and metrics.get("workspaceFingerprint") == workspace_fingerprint(Path(settings.WORKSPACE_DIR) / session_id)
+                             and phase in (LifecyclePhase.CODE_TESTS, LifecyclePhase.SECURITY_AUDIT, LifecyclePhase.DEVOPS_DEPLOY))
+            s.status = SessionStatus.COMPLETED if verified or sources_ready else SessionStatus.PAUSED
+            if sources_ready:
+                s.phase = SessionPhase.CODE_GENERATION
+                s.error_message = None
             if verified:
                 s.phase = SessionPhase.VERIFIED
             s.current_lifecycle_phase = phase.value
-            s.completed_at = datetime.now(timezone.utc) if verified else None
+            s.completed_at = datetime.now(timezone.utc) if verified or sources_ready else None
             db.commit()
     finally:
         db.close()
@@ -674,12 +681,14 @@ def _execute_pipeline_steps(
                 # summary has not demonstrated that any test ran.
                 "allPassed": bool(counts and counts.all_passed and counts.total > 0),
                 "fallback_used": bool(verification.result.fallback_used),
+                "verificationSkipped": bool(verification.result.verification_skipped),
                 "fallback_reason": verification.result.fallback_reason,
                 "platformContractTestInjected": verification.platform_verified,
                 "workspaceFingerprint": workspace_fingerprint(ws_path),
             }
 
         build_success = build_success and tests_really_passed(test_metrics)
+        verification_skipped = test_metrics.get("verificationSkipped") is True
 
         # Persist onto the session row, so the detail endpoint can report whether
         # verification actually ran even after a restart (feature 012, T019).
@@ -709,12 +718,12 @@ def _execute_pipeline_steps(
                 else ("Sandbox Docker no disponible; verificación no ejecutada" if (verification and verification.result.fallback_used)
                 else "La compilación o las pruebas fallaron en el sandbox hermético")
             ),
-            PhaseStatus.COMPLETED if build_success else PhaseStatus.BLOCKED,
-            error=None if build_success else "Hermetic verification failed.",
+            PhaseStatus.COMPLETED if build_success or verification_skipped else PhaseStatus.BLOCKED,
+            error=None if build_success or verification_skipped else "Hermetic verification failed.",
         )
         time.sleep(0.2)
 
-        if not build_success:
+        if not build_success and not verification_skipped:
             _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
             db_fail = SessionLocal()
             try:
@@ -788,9 +797,12 @@ def _execute_pipeline_steps(
         _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "DevOps & Manifiestos", 95.0, "Generando Dockerfile, Compose, CI/CD y manifiestos Kubernetes...", PhaseStatus.IN_PROGRESS)
         generate_all_devops_assets(str(ws_path), session_id, spec_name)
 
-        if auto_deploy:
+        if auto_deploy and settings.DOCKER_ENABLED:
             _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "Despliegue Local", 98.0, "Orquestando contenedores en Docker local...", PhaseStatus.IN_PROGRESS)
             deploy_local(session_id, str(ws_path))
+        elif not settings.DOCKER_ENABLED:
+            _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "Despliegue no ejecutado", 98.0,
+                        "Entorno sin virtualización: manifiestos generados; contenedores no ejecutados.", PhaseStatus.COMPLETED)
 
         transition_phase(session_id, LifecyclePhase.DEVOPS_DEPLOY, force=True)
         clear_outdated_phases(session_id)
@@ -816,6 +828,7 @@ def _execute_pipeline_steps(
             s = db_comp.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
             if s:
                 s.status = SessionStatus.COMPLETED
+                s.error_message = None
                 is_truly_verified = bool(build_success and not (verification and verification.result.fallback_used))
                 s.phase = SessionPhase.VERIFIED if is_truly_verified else SessionPhase.CODE_GENERATION
                 s.current_lifecycle_phase = LifecyclePhase.COMPLETED.value

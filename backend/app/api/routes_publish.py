@@ -1,4 +1,4 @@
-from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed
+from app.services.verification_policy import require_source_delivery, session_is_verified, tests_really_passed
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Response, status
@@ -17,7 +17,7 @@ class PublishRequest(BaseModel):
     branchName: str = Field(..., description="Feature branch name e.g. feature/001-order-service")
     gitToken: Optional[str] = Field(None, description="Ephemeral Personal Access Token (PAT)")
     commitMessage: Optional[str] = Field(
-        default="feat: initial autonomous generation and verified test suite",
+        default="feat: generated microservice sources",
         description="Git commit message"
     )
 
@@ -35,7 +35,7 @@ async def export_session_project(session_id: str):
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if not sess:
             raise HTTPException(status_code=404, detail="Session not found")
-        require_verified_session(sess)
+        require_source_delivery(sess)
         service_name = sess.spec_name or "microservice"
     finally:
         db.close()
@@ -77,7 +77,7 @@ async def publish_session_project(session_id: str, payload: PublishRequest):
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if not sess:
             raise HTTPException(status_code=404, detail="Session not found")
-        require_verified_session(sess)
+        require_source_delivery(sess)
         if sess.spec_name:
             service_name = sess.spec_name
     finally:

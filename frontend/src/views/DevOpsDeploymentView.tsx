@@ -543,6 +543,9 @@ export const DevOpsDeploymentView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {isDockerUnavailable && <div role="status" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm">
+        Despliegue no ejecutado: Docker no está disponible. Puede generar los manifiestos y continuar con la entrega del código; el servicio y las pruebas de ejecución no se muestran como aprobados.
+      </div>}
       {/* 1. Status Banner & Metrics */}
       <SingleRowCard
         title="Fase 6: DevOps, Contenerización & Despliegue Multi-Stage"

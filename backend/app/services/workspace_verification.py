@@ -30,6 +30,7 @@ from typing import Callable, Optional, Tuple
 
 from app.sandbox.docker_runner import DockerExecutionResult, run_docker_sandbox
 from app.services.platform_verification import inject_contract_test, strip_vcs_metadata
+from app.config import settings
 
 
 @dataclass(frozen=True)
@@ -87,7 +88,20 @@ def run_workspace_verification(
             for report in directory.glob("*.xml"):
                 if report.resolve().is_relative_to(ws):
                     report.unlink()
-    result = _run_sandbox_blocking(workspace_path, log_callback)
+    if not settings.DOCKER_ENABLED:
+        reason = "No ejecutadas: entorno sin virtualización (DOCKER_ENABLED=false)."
+        (ws / "VERIFICATION_STATUS.md").write_text(
+            "# Estado de verificación\n\nCompilación, pruebas y despliegue Docker: NO EJECUTADOS.\n"
+            "Entorno sin virtualización. Este proyecto se entrega como código fuente sin verificación de ejecución.\n"
+            "La auditoría SAST se registra por separado en security_audit_report.json.\n",
+            encoding="utf-8")
+        if log_callback:
+            log_callback("[VERIFY] " + reason)
+        result = DockerExecutionResult(exit_code=1, fallback_used=True,
+                                       verification_skipped=True, fallback_reason=reason)
+    else:
+        (ws / "VERIFICATION_STATUS.md").unlink(missing_ok=True)
+        result = _run_sandbox_blocking(workspace_path, log_callback)
     if not result.fallback_used:
         import xml.etree.ElementTree as ET
         totals = [0, 0, 0, 0]

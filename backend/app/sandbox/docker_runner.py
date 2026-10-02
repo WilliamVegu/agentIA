@@ -31,6 +31,7 @@ class DockerExecutionResult(BaseModel):
     # Feature 012 (FR-001, FR-009). Defaulted so every pre-existing construction
     # remains valid.
     fallback_used: bool = False
+    verification_skipped: bool = False
     fallback_reason: Optional[str] = None
     matched_pattern: Optional[str] = None
     attribution_ambiguous: bool = False

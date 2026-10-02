@@ -58,6 +58,32 @@ def session_is_verified(session) -> bool:
                 and session_has_current_evidence(session))
 
 
+def session_allows_source_delivery(session) -> bool:
+    """Source-only delivery in no-Docker mode; never a verification verdict."""
+    if session_is_verified(session):
+        return True
+    if settings.DOCKER_ENABLED or not session or session.status != SessionStatus.COMPLETED or session.error_message:
+        return False
+    try:
+        metrics = json.loads(session.verification_metrics_json or "{}")
+        return bool(metrics.get("verificationSkipped") is True
+                    and metrics.get("allPassed") is False
+                    and metrics.get("workspaceFingerprint")
+                    and metrics["workspaceFingerprint"] == workspace_fingerprint(Path(settings.WORKSPACE_DIR) / session.id))
+    except (ValueError, TypeError, OSError):
+        return False
+
+
+def require_source_delivery(session) -> None:
+    """Guard only source export/publication, including a fresh SAST audit."""
+    if not session_allows_source_delivery(session):
+        raise HTTPException(403, "Source delivery requires completed generation and current verification or explicit unexecuted tests in no-Docker mode.")
+    from app.services.security_service import audit_workspace
+    audit = audit_workspace(str(Path(settings.WORKSPACE_DIR) / session.id), session.id, session.spec_name or "microservice")
+    if not audit.qualityGate.canExport:
+        raise HTTPException(403, "Source delivery blocked by SAST: " + audit.qualityGate.summaryMessage)
+
+
 def require_verified_session(session) -> None:
     if not session_is_verified(session):
         raise HTTPException(403, "Project is not verified: execute and pass a nonempty test suite without fallback before exporting or publishing.")

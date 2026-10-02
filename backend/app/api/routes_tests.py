@@ -1,5 +1,5 @@
 from app.models.session import SessionStatus, SessionPhase
-from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed
+from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed, session_allows_source_delivery
 import uuid
 from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Header, status
@@ -181,14 +181,15 @@ def execute_repair_iteration(
                 result = sandbox_node({"workspace_path": str(ws), "session_id": request.sessionId, "logs": []})
                 metrics = result.get("test_metrics", {})
                 verified = result.get("status") == "COMPLETED" and tests_really_passed(metrics)
+                skipped = result.get("status") == "COMPLETED" and metrics.get("verificationSkipped") is True
                 row.verification_metrics_json = json.dumps(metrics)
-                row.status = SessionStatus.COMPLETED if verified else SessionStatus.BLOCKED
-                row.phase = SessionPhase.VERIFIED if verified else SessionPhase.FAILED
-                row.error_message = None if verified else result.get("error", "Repair did not pass sandbox verification")
+                row.status = SessionStatus.COMPLETED if verified or skipped else SessionStatus.BLOCKED
+                row.phase = SessionPhase.VERIFIED if verified else (SessionPhase.CODE_GENERATION if skipped else SessionPhase.FAILED)
+                row.error_message = None if verified or skipped else result.get("error", "Repair did not pass sandbox verification")
                 db.commit()
                 record.passedTestsAfter = metrics.get("passedTests", 0)
                 record.failedTestsAfter = metrics.get("failedTests", 0)
-                record.outcome = RepairOutcome.SUCCESS if verified else RepairOutcome.FAILED_BLOCKED
+                record.outcome = RepairOutcome.SUCCESS if verified else (RepairOutcome.FAILED_CONTINUE if skipped else RepairOutcome.FAILED_BLOCKED)
             finally:
                 db.close()
         finally:
@@ -249,6 +250,8 @@ def get_session_repairs(sessionId: str):
 
     if sess and (sess.status == SessionStatus.BLOCKED or sess.phase == SessionPhase.FAILED):
         final_state = "BLOCKED"
+    elif session_allows_source_delivery(sess):
+        final_state = "UNVERIFIED"
     elif blocked_info.get("blocked", False) or (records and records[-1].outcome == RepairOutcome.FAILED_BLOCKED):
         final_state = "BLOCKED"
     elif records and records[-1].outcome == RepairOutcome.FAILED_CONTINUE:
@@ -361,27 +364,28 @@ def submit_manual_repair(
             result = {"status": "BLOCKED", "current_phase": "FAILED", "test_metrics": {},
                       "error": f"Verification could not run: {type(exc).__name__}"}
         verified = tests_really_passed(result.get("test_metrics")) and result.get("status") == "COMPLETED"
+        skipped = result.get("status") == "COMPLETED" and (result.get("test_metrics") or {}).get("verificationSkipped") is True
         import json
         db = SessionLocal()
         try:
             row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == sessionId).first()
             if row:
                 row.verification_metrics_json = json.dumps(result.get("test_metrics", {}))
-                row.status = SessionStatus.COMPLETED if verified else SessionStatus.BLOCKED
-                row.phase = SessionPhase.VERIFIED if verified else SessionPhase.FAILED
-                row.error_message = None if verified else result.get("error", "Manual repair did not pass verification")
+                row.status = SessionStatus.COMPLETED if verified or skipped else SessionStatus.BLOCKED
+                row.phase = SessionPhase.VERIFIED if verified else (SessionPhase.CODE_GENERATION if skipped else SessionPhase.FAILED)
+                row.error_message = None if verified or skipped else result.get("error", "Manual repair did not pass verification")
                 db.commit()
         finally:
             db.close()
         SESSION_GENERATION_STATE.setdefault(sessionId, {}).update(result)
-        if verified:
+        if verified or skipped:
             BLOCKED_SESSIONS_STORE.pop(sessionId, None)
         else:
             BLOCKED_SESSIONS_STORE[sessionId] = {"blocked": True}
         return ManualRepairResponse(
             sessionId=sessionId,
-            status="VERIFIED" if verified else "BLOCKED",
-            message="Repair passed sandbox verification." if verified else "Repair saved, but sandbox verification did not pass.",
+            status="VERIFIED" if verified else ("UNVERIFIED" if skipped else "BLOCKED"),
+            message="Repair passed sandbox verification." if verified else ("Cambios guardados; pruebas no ejecutadas en modo sin virtualización. Puede continuar el flujo." if skipped else "Repair saved, but sandbox verification did not pass."),
             diagnosticsResolved=verified,
         )
     finally:

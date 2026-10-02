@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_SESSIONS: int = Field(default=2, description="Max concurrent Docker sandbox executions")
     
     # Sandbox & Docker Execution
+    DOCKER_ENABLED: bool = Field(default=False, description="Enable Docker execution; disable in environments without virtualization.")
     DOCKER_IMAGE: str = Field(
         default="maven:3.9-eclipse-temurin-21",
         description="Docker base image with pre-cached Maven 3.9 and Java 21 LTS"

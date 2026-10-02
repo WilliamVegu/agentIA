@@ -551,14 +551,18 @@ export const StudioOverviewView: React.FC = () => {
                     overview payload has carried `testsPassed` the whole time. */}
                 <div
                   className={`text-base font-bold font-mono mt-2 ${
-                    projectOverview?.testsPassed === true
+                    projectOverview?.testsExecuted === false
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : projectOverview?.testsPassed === true
                       ? 'text-emerald-600 dark:text-emerald-400'
                       : projectOverview?.testsPassed === false
                         ? 'text-rose-600 dark:text-rose-400'
                         : 'text-slate-400'
                   }`}
                 >
-                  {projectOverview?.testsPassed === true
+                  {projectOverview?.testsExecuted === false
+                    ? 'No ejecutadas'
+                    : projectOverview?.testsPassed === true
                     ? '✅ Aprobadas'
                     : projectOverview?.testsPassed === false
                       ? '❌ Con fallos'

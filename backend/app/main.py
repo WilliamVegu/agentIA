@@ -139,6 +139,7 @@ async def healthcheck():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
+        "dockerEnabled": settings.DOCKER_ENABLED,
         "mlflow": telemetry
     }
 

@@ -18,12 +18,17 @@ import {
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { useStudio } from '../context/StudioContext';
 import { securityService, SecurityQualityReport, AuditFinding } from '../services/securityService';
+import { llmService } from '../services/llmService';
 
 export const SecurityQualityView: React.FC = () => {
   const { activeSessionId, reloadCurrentOverview, setActiveTab } = useStudio();
 
   const [report, setReport] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [withoutDocker, setWithoutDocker] = useState(false);
+  useEffect(() => {
+    llmService.checkHealth().then(health => setWithoutDocker(health.dockerEnabled === false)).catch(() => {});
+  }, []);
   const [remediatingId, setRemediatingId] = useState<string | null>(null);
   const [remediationDiffs, setRemediationDiffs] = useState<Record<string, string>>({});
   // Keyed by finding id. Per-finding failures are surfaced next to the finding rather
@@ -116,6 +121,9 @@ export const SecurityQualityView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {withoutDocker && <div role="status" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm">
+        <strong>Modo sin virtualización.</strong> La auditoría SAST analiza el código y mantiene sus controles de calidad. Compilación, pruebas y despliegue Docker no se ejecutan y no bloquean la continuidad del flujo ni la entrega de fuentes.
+      </div>}
       {!report ? (
         <div className="p-10 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center space-y-4">
           <div className="w-14 h-14 mx-auto rounded-full bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400">

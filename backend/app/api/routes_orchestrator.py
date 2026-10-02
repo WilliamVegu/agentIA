@@ -195,7 +195,9 @@ async def stream_pipeline_progress(session_id: str):
 async def export_bundle_archive(session_id: str):
     """Downloads all workspace artifacts in a unified ZIP archive."""
     sess = _verify_session_exists(session_id)
-    require_verified_session(sess)
+    # This endpoint only downloads sources; it does not approve or deploy them.
+    from app.services.verification_policy import require_source_delivery
+    require_source_delivery(sess)
     from app.models.session import SessionStatus
     if getattr(sess, "status", None) == SessionStatus.BLOCKED:
         raise HTTPException(

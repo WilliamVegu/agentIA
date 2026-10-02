@@ -115,6 +115,7 @@ class PhaseTransitionRequest(BaseModel):
 
 
 class ProjectOverviewSummary(BaseModel):
+    tests_executed: bool = Field(False, alias="testsExecuted")
     model_config = ConfigDict(populate_by_name=True)
 
     session_id: str = Field(..., alias="sessionId")
