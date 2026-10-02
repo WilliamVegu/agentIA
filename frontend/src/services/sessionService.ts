@@ -8,18 +8,21 @@ export interface QuickStartPayload {
   auto_run?: boolean;
   llm_provider?: string;
   api_key?: string;
+  input_interface?: any;
 }
 
 export interface SessionListItem {
   sessionId: string;
   specId: string;
   specName: string;
-  status: 'CREATED' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED';
+  status: 'CREATED' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'PAUSED' | 'CANCELLED';
   phase?: string;
   currentLifecyclePhase: string;
   lifecycleMode: string;
   completionPercentage: number;
   repairAttempts?: number;
+  failureReason?: string;
+  errorMessage?: string;
   createdAt: string;
 }
 

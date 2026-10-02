@@ -1,0 +1,56 @@
+{
+  "blueprintId": "tier1-02",
+  "tier": 1,
+  "corpusRole": "graded-tier1-trivial",
+  "difficultyAxis": "Still trivial, but with four attributes of three distinct Java types and two stories instead of one, so the per-entity and per-story loops both execute more than once.",
+  "rationale": "Same shape as tier1-01 with multiplicity added on the story axis and a temporal type introduced. A generator that handles exactly one attribute type, or that emits only the first user story, still passes tier1-01 and fails here.",
+
+  "serviceName": "tag-service",
+  "packageName": "com.corp.tag",
+  "basePort": 8302,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Tag",
+      "tableName": "tags",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "label", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "colorHex", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "content editor",
+      "intent": "create a tag with a label and a display colour",
+      "benefit": "content can be categorised consistently",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique tag label",
+          "when": "the editor creates the tag",
+          "then": "the tag is persisted and returned with its creation timestamp"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "content editor",
+      "intent": "read a tag that has already been created",
+      "benefit": "the editor can confirm the stored display colour",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing tag identifier",
+          "when": "the editor retrieves the tag",
+          "then": "the tag is returned with its label and colour"
+        }
+      ]
+    }
+  ]
+}

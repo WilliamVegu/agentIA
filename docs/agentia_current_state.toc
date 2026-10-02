@@ -1,0 +1,23 @@
+\contentsline {section}{\numberline {1}What AgentIA is}{2}{section.1}%
+\contentsline {section}{\numberline {2}How it functions}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The LangGraph harness}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}The stage execution seam}{3}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}The two generation modes}{3}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}The compliance gate}{3}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}The honest verifier (spec 012)}{3}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}Cost tracing (spec 013)}{4}{subsection.2.6}%
+\contentsline {subsection}{\numberline {2.7}The SkillOpt loop (spec 014)}{4}{subsection.2.7}%
+\contentsline {section}{\numberline {3}Features shipped}{4}{section.3}%
+\contentsline {section}{\numberline {4}The agent scripts}{5}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Generation and measurement}{5}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}SkillOpt}{5}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Economics: where the numbers live}{5}{section.5}%
+\contentsline {section}{\numberline {6}How to test it}{6}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Start both halves}{6}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}One run that exercises the newest machinery}{6}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Two host-dependent behaviours to expect}{7}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Honest current limits}{7}{section.7}%
+\contentsline {section}{\numberline {8}Next steps}{7}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Before anything else}{7}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}SkillOpt design improvements}{8}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Documentation}{8}{subsection.8.3}%

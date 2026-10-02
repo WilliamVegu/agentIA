@@ -5,13 +5,24 @@ import { useAuth } from '../context/AuthContext';
 import { useLlm } from '../context/LlmContext';
 
 export const LoginView: React.FC = () => {
-  const { login, loginDemo } = useAuth();
+  const { login, enterMvp } = useAuth();
   const { provider, setProvider } = useLlm();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleMvp = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await enterMvp();
+      if (!result.success) setError(result.error || 'No se pudo entrar al MVP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,10 +99,10 @@ export const LoginView: React.FC = () => {
         <div className="w-full max-w-md space-y-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Acceso Corporativo
+              Acceso al estudio
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Ingrese con sus credenciales institucionales de Tata Consultancy Services.
+              Ingrese con el correo y la clave de acceso configurados para este estudio.
             </p>
           </div>
 
@@ -145,6 +156,7 @@ export const LoginView: React.FC = () => {
                 onChange={(e) => setProvider(e.target.value as any)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
               >
+                <option value="deepseek">DeepSeek</option>
                 <option value="mock">Modo Offline (Mock Engine Local - Sin Consumo)</option>
                 <option value="gemini">Google Gemini (gemini-3.6-flash)</option>
                 <option value="groq">Groq Cloud (qwen/qwen3.8-27b)</option>
@@ -162,19 +174,16 @@ export const LoginView: React.FC = () => {
             </button>
           </form>
 
-          {/* 1-Click Demo Login Button (User Feedback #2) */}
-          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
-            <div className="text-center text-[11px] text-slate-500 dark:text-slate-400">
-              ¿Desea explorar el entorno inmediatamente sin ingresar credenciales?
-            </div>
-            <button
-              type="button"
-              onClick={loginDemo}
-              className="w-full py-2 px-4 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-colors"
-            >
-              Acceso Rápido de Demostración (1-Click Demo)
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+            <button type="button" onClick={handleMvp} disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-60">
+              <Sparkles className="w-4 h-4" />
+              <span>{isLoading ? 'Ingresando…' : 'Entrar al MVP'}</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
+            <p className="text-center text-xs text-slate-500 dark:text-slate-400">Acceso local sin correo ni contraseña.</p>
           </div>
+
         </div>
       </div>
     </div>

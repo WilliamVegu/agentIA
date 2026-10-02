@@ -1,0 +1,198 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{warn}{RGB}{160,60,40}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+\hypersetup{colorlinks=true, linkcolor=accent, urlcolor=accent,
+  pdftitle={AgentIA --- The Spec-Driven Design},
+  pdfauthor={AgentIA Engineering}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}AgentIA --- Spec-Driven Design}
+\fancyhead[R]{\small\color{accent}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize, backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{softgray}, breaklines=true,
+  columns=fullflexible, keepspaces=true, showstringspaces=false,
+  xleftmargin=0.4em, xrightmargin=0.4em,
+}
+
+\newtcolorbox{notebox}[1][]{colback=softgray,colframe=accent,boxrule=0.4pt,
+  arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,breakable,#1}
+
+\title{\vspace{-1.4cm}\textbf{AgentIA --- The Spec-Driven Design}\\[0.25cm]
+\large Every specification the platform reads, and where each one is consumed}
+\author{AgentIA Engineering}
+\date{2026-09-29}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{notebox}
+\textbf{What this document is.} The platform is spec-first: it ingests formal
+specifications, generates against them, and verifies against them. This document
+catalogues every specification in force --- the blueprint, the Spec-Kit document,
+the constitution, the per-stage instruction documents, the dependency allowlist, the
+contract suite, and the skill format --- and states where each is read. The design
+claim is that the specification, not the model, is the authority.
+\end{notebox}
+
+\tableofcontents
+\vspace{0.4cm}
+
+\section{The spine}
+
+Generation is a function of a specification: \emph{spec $\rightarrow$ generate
+$\rightarrow$ verify against the spec}. The model proposes; the specification
+constrains. The specifications below are the parts of that function, in order of how
+directly they determine the output.
+
+\section{The blueprint (the primary spec)}
+
+The \texttt{ArchitectureBlueprint} (\texttt{models/blueprint.py}) is the machine-checkable
+specification every generation session starts from. Its schema:
+
+\begin{center}
+\begin{longtable}{@{}p{0.34\textwidth}p{0.60\textwidth}@{}}
+\toprule
+\textbf{Field} & \textbf{Meaning} \\
+\midrule
+\texttt{serviceName} & lowercase-hyphen service identity \\
+\texttt{packageName} & base Java package \\
+\texttt{basePort} & the port the service binds (1024--65535) \\
+\texttt{databaseMode} & datasource dialect \\
+\texttt{layers[]} & the prescribed layer list (controller/service/repository/model) \\
+\texttt{entities[]} & the domain entities \\
+\texttt{userStories[]} & the acceptance stories (Given/When/Then) \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Each entity carries \texttt{name}, \texttt{tableName}, and \texttt{attributes}
+(name, type, nullable, isPrimaryKey, validationRules); each story carries \texttt{id},
+\texttt{priority}, \texttt{role}, \texttt{intent}, \texttt{benefit}, and
+\texttt{scenarios} (scenarioId, given, when, then). \texttt{validate\_blueprint}
+enforces structural and constitutional integrity before a session may start.
+
+\section{The Spec-Kit document (the human-facing spec)}
+
+A human writes a \texttt{spec.md} conforming to Spec Kit; \texttt{spec\_service.parse\_spec\_markdown}
+parses it into an \texttt{ArchitectureBlueprint}, \texttt{validate\_blueprint} checks
+it, and \texttt{save\_specification} stores it under a \texttt{specId}. This is the
+button visible in the UI as \emph{``Fase 4: Ingesta y Validación Formal de Blueprints
+(Spec Kit)''}, and the export button in the Requirements tab
+(\emph{``Descargar documento spec.md compatible con Spec Kit''}).
+
+\section{The constitution (the governance spec)}
+
+\texttt{.specify/memory/constitution.md} (v1.1.0) is the six-principle authority the
+generator and the compliance gate both defer to:
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Strict layering} --- controller $\rightarrow$ service $\rightarrow$
+  repository $\rightarrow$ model, each layer talking only to the one below it.
+  \item \textbf{Immutable contracts, early validation} --- records only, no JPA
+  entities at the boundary, Jakarta Validation on requests.
+  \item \textbf{Centralised errors} --- one \texttt{@RestControllerAdvice}, one uniform
+  RFC 7807 shape.
+  \item \textbf{Offline determinism} --- hermetic \texttt{mvn test -o} in a sealed
+  container; no undeclared dependencies, no build-time downloads.
+  \item \textbf{Quality gates and bounded repair} --- 100\% test pass; at most three
+  auto-repair iterations, then \texttt{BLOCKED}.
+  \item \textbf{Secrets and the LangGraph boundary} --- no hardcoded keys; the LLM
+  orchestrator stays outside the generated service; no LLM calls from tests.
+\end{enumerate}
+
+\section{The instruction documents (the procedural spec)}
+
+The five stage documents (\texttt{resources/instructions/*.md}) are a per-stage
+procedural specification: each prescribes the technology contract, the rules, the
+output contract, and the prohibitions for one stage. The manifest maps stage to
+document; the set is versioned content-addressed, so an artifact records exactly
+which instruction text produced it. (Full text in the companion report
+\emph{Agents, Prompts and the LangGraph}.)
+
+\section{The dependency allowlist (the build spec)}
+
+\texttt{resources/dependency\_allowlist.json} is the build's specification: the parent,
+the five allowed dependencies, and the three build plugins. Anything not listed is a
+blocking violation at the scaffold stage, because the offline build cannot resolve it.
+
+\section{The contract suite (the behavioural spec)}
+
+Nineteen contract documents, one per feature (001--015), specify behaviour at the
+seam where it can be enforced:
+
+\begin{center}
+\begin{longtable}{@{}p{0.46\textwidth}p{0.48\textwidth}@{}}
+\toprule
+\textbf{Contract} & \textbf{Specifies} \\
+\midrule
+\texttt{011 .../instruction-document.md} & the four-section shape the loader requires \\
+\texttt{011 .../compliance-verdict.md} & the verdict and LOCAL/ACCUMULATED attribution \\
+\texttt{011 .../stage-execution.md} & the stage seam and its failure policy \\
+\texttt{012 .../verification-result.md} & the three-state verifier result \\
+\texttt{012 .../verification-observability.md} & how a substituted result is marked \\
+\texttt{013 .../cost-record.md, cost-report.md} & cost record and report shape \\
+\texttt{014 .../edits.md, gate.md, skill-document.md} & the skill edit ops, the gate, the doc format \\
+\texttt{015 .../diagnostic-record.md, contribution-measurement.md, evolution-round.md} & diagnostics, leave-one-out, the round \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Together they are the platform's own specification of itself: each feature ships a
+\texttt{spec.md}, a \texttt{data-model.md} and its contracts before its code, and the
+tests are written against those documents.
+
+\section{The skill format (the optimisation spec)}
+
+The skill document (\texttt{contracts/skill-document.md}) has a fixed structure ---
+title, granularity, ``when to apply'', numbered rules, and a protected
+\texttt{SLOW\_UPDATE} region. It is the shape a reflective optimiser may edit and the
+boundary it may not cross.
+
+\section{Where each spec is consumed}
+
+\begin{center}
+\begin{longtable}{@{}p{0.42\textwidth}p{0.52\textwidth}@{}}
+\toprule
+\textbf{Specification} & \textbf{Consumed by} \\
+\midrule
+Blueprint / spec.md & \texttt{spec\_service} (parse, validate, store), every stage's task payload \\
+Constitution & compliance gate, stage instruction docs, repair cap \\
+Instruction documents & \texttt{instructions.py} loader, \texttt{render\_stage\_request} \\
+Dependency allowlist & scaffolder compliance check \\
+Contracts & the test suite (written against them), data models \\
+Skill document & \texttt{skills/document.py}, the injection prefix \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\end{document}

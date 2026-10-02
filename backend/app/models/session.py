@@ -46,6 +46,20 @@ class GenerationSessionDB(Base):
     current_lifecycle_phase = Column(String(50), nullable=True, default="INITIAL")
     lifecycle_mode = Column(String(50), nullable=True, default="GUIDED_STEP")
     phase_progress_json = Column(Text, nullable=True)
+    # Feature 011 additive storage (T013). Deliberately NEW columns rather than
+    # reuse of phase_progress_json: the specification does not permit assuming an
+    # existing column changes meaning. Records provider and model identifiers only
+    # — never credentials (FR-018, Constitution VI).
+    generation_journal_json = Column(Text, nullable=True)
+    artifact_provenance_json = Column(Text, nullable=True)
+    # Feature 012 additive storage. Holds the serialized VerificationMetrics so
+    # the session detail endpoint can report whether verification actually ran,
+    # including after a process restart (the in-process state does not survive).
+    verification_metrics_json = Column(Text, nullable=True)
+    # Feature 013 additive storage. Holds the session's cost aggregate so the
+    # session detail surface can report what a session cost without reading the
+    # cost store. The cost store remains the system of record; this is a copy.
+    cost_record_json = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -71,6 +85,35 @@ def _ensure_sqlite_lifecycle_columns():
         pass
 
 _ensure_sqlite_lifecycle_columns()
+
+
+def _ensure_generation_columns():
+    """Additive SQLite migration for the feature-011 generation journal and
+    provenance columns (T013). Mirrors the lifecycle shim above so an existing
+    studio.db picks up the new columns without a migration tool.
+
+    Purely additive: no existing column is dropped, retyped, or repurposed, and
+    phase_progress_json keeps its existing meaning.
+    """
+    try:
+        with engine.connect() as conn:
+            res = conn.execute(text("PRAGMA table_info(generation_sessions)")).fetchall()
+            existing_cols = [r[1] for r in res]
+            if existing_cols:
+                if "generation_journal_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN generation_journal_json TEXT"))
+                if "artifact_provenance_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN artifact_provenance_json TEXT"))
+                if "verification_metrics_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN verification_metrics_json TEXT"))
+                if "cost_record_json" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN cost_record_json TEXT"))
+                conn.commit()
+    except Exception:
+        pass
+
+
+_ensure_generation_columns()
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -107,6 +150,10 @@ class QuickStartSessionRequest(BaseModel):
     auto_run: Optional[bool] = Field(False, alias="autoRun")
     api_key: Optional[str] = Field(None, alias="apiKey")
     llm_provider: Optional[str] = Field(None, alias="llmProvider")
+    model_name: Optional[str] = Field(None, alias="modelName")
+    # The "interfaz de entrada" (levantando_observaciones): volume, data needs,
+    # integrations, architecture/build-tool preference. Drives the InferenceEngine.
+    input_interface: Optional[dict] = Field(None, alias="inputInterface")
 
 class QuickStartSessionResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -134,4 +181,8 @@ class GenerationSessionDetail(BaseModel):
     started_at: Optional[datetime] = Field(None, alias="startedAt")
     completed_at: Optional[datetime] = Field(None, alias="completedAt")
     error_message: Optional[str] = Field(None, alias="errorMessage")
+    # Feature 012 (FR-005): whether verification actually ran. Defaults to False
+    # so a session with no persisted metrics -- or an older row -- degrades to
+    # "no known fallback" rather than raising.
+    verification_fallback_used: bool = Field(False, alias="verificationFallbackUsed")
 

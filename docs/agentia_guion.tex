@@ -1,0 +1,129 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{nv}{RGB}{15,23,42}
+\definecolor{bl}{RGB}{0,118,206}
+\definecolor{mg}{RGB}{226,0,116}
+\definecolor{mut}{RGB}{100,116,139}
+
+\titleformat{\section}{\large\bfseries\color{nv}}{}{0em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{bl}}{}{0em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{nv}Guion de presentación}
+\fancyhead[R]{\small\color{nv}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\newtcolorbox{slide}[1]{colback=white,colframe=mg,boxrule=0.5pt,arc=2pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt,breakable,
+  title={\textbf{#1}},coltitle=white,colbacktitle=nv,fonttitle=\small\bfseries}
+
+\title{\vspace{-1.2cm}\textbf{Guion — Generación autónoma de microservicios}\\[0.2cm]
+\large Notas del ponente para el deck TCS (11 diapositivas)}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{tcolorbox}[colback=bl!6,colframe=bl,arc=2pt,left=8pt,right=8pt,top=6pt,bottom=6pt]
+\textbf{Duración total:} $\approx$ 4 minutos. Ritmo pausado; cada diapositiva se lee
+en 20--25 segundos. Frases cortas, una idea por frase.
+\end{tcolorbox}
+
+\section*{Apertura}
+
+\begin{slide}{Diapositiva 1 · Portada}
+Buenos días. Les voy a presentar en pocos minutos cómo generamos microservicios de
+forma autónoma: dónde está la industria, cómo funciona nuestra solución, cuánto
+cuesta y hacia dónde vamos.
+\end{slide}
+
+\section*{El contexto}
+
+\begin{slide}{Diapositiva 2 · Dónde está la industria}
+Hay tres caminos en el mercado. Primero, los agentes generalistas que arreglan código
+ya existente: dominan los rankings, pero están saturados y salen caros. Segundo, los
+generadores guiados por especificación --- que construyen desde un diseño formal ---
+que es nuestro camino, y donde todavía queda mucho espacio: solo se resuelve entre el
+12 y el 55 por ciento. Y tercero, los agentes que se auto-mejoran: suenan muy bien,
+pero en código real la mejora es casi nula. La lección es simple: lo que de verdad
+marca la diferencia no es un modelo más listo, sino una \emph{verificación} en la que
+puedas confiar.
+\end{slide}
+
+\section*{La solución}
+
+\begin{slide}{Diapositiva 3 · Cómo funciona}
+¿Cómo funciona? Entra una especificación: entidades, reglas, historias de usuario. Un
+agente autónomo escribe el servicio completo en cinco etapas. Después, un contenedor
+sellado y sin red lo compila y lo prueba. Si pasa, se entrega; si falla, el agente
+corrige, hasta tres veces. Al tercer fallo se detiene y pide ayuda a una persona.
+Nunca un bucle infinito, nunca un éxito no comprobado.
+\end{slide}
+
+\begin{slide}{Diapositiva 4 · El proceso, de punta a punta}
+El proceso completo tiene nueve etapas: de los requisitos a la entrega, pasando por
+arquitectura, modelos, generación, calidad y despliegue. La generación y la
+verificación están en el centro.
+\end{slide}
+
+\begin{slide}{Diapositiva 5 · Lo que eso garantiza}
+¿Qué garantiza esto? Un servicio completo, no fragmentos. Verificación en un entorno
+aislado. Autocorrección con tope. Y reglas del proyecto que se auditan de forma
+automática --- no la opinión del modelo sobre su propio trabajo.
+\end{slide}
+
+\section*{El coste}
+
+\begin{slide}{Diapositiva 6 · El coste}
+¿Cuánto cuesta? Un servicio de dificultad media: siete centavos de dólar. Un servicio
+\emph{garantizado} --- generamos tres y entregamos el que compila --- veinte centavos.
+El acumulado de todo el trabajo hasta hoy: ocho dólares con quince centavos.
+\end{slide}
+
+\begin{slide}{Diapositiva 7 · Coste por etapa}
+Y el coste es predecible: la etapa más cara es la de tests; la más barata, la de
+dominio. Escala con el tamaño del servicio.
+\end{slide}
+
+\begin{slide}{Diapositiva 8 · Tokens}
+En tokens: diecinueve millones acumulados, unos setenta y ocho mil por servicio. Todo
+medido y visible en MLflow.
+\end{slide}
+
+\section*{Balance y futuro}
+
+\begin{slide}{Diapositiva 9 · El trabajo hecho}
+¿Qué logramos hasta ahora? La plataforma ya verifica su propia salida --- antes
+reportaba cero de quince verificadas, por un defecto de un carácter. Las dos vías de
+producto compilan y prueban. La métrica de calidad dejó de ser manipulable. Y el
+registro de coste es honesto. Queda un punto abierto: el verificador a veces cambia
+su veredicto, y lo cerramos en la siguiente iteración.
+\end{slide}
+
+\begin{slide}{Diapositiva 10 · El futuro: auto-mejora}
+¿Hacia dónde vamos? A que el sistema aprenda de sus errores y mejore su propio
+manual. Pero la evidencia nos obliga a un orden: primero un verificador sólido;
+después, una medida que detecte fallos reales; y solo entonces, encender la
+auto-mejora. El mecanismo ya está construido.
+\end{slide}
+
+\begin{slide}{Diapositiva 11 · El camino}
+En resumen: pasamos de ``no podía verificar su propia salida'' a ``genera, compila y
+verifica por siete centavos, y se auto-mejorará cuando la base sea fiable''. El camino
+son cuatro pasos cortos. Gracias --- y quedo para preguntas.
+\end{slide}
+
+\end{document}

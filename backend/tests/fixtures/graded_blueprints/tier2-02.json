@@ -1,0 +1,96 @@
+{
+  "blueprintId": "tier2-02",
+  "tier": 2,
+  "corpusRole": "graded-tier2-simple",
+  "difficultyAxis": "Two entities, one relation, three stories and five scenarios, with the read side constrained by the parent reference (list the stock held by one warehouse). Still create and read only, but the read is not a plain identifier lookup.",
+  "rationale": "Ramps the tier 2 story and scenario count while keeping the operation set at create plus read. The third story makes the generator emit a collection-returning read scoped by a foreign key, which tier2-01 does not require, and it declares the empty-collection-vs-not-found distinction.",
+
+  "serviceName": "inventory-service",
+  "packageName": "com.corp.inventory",
+  "basePort": 8305,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Warehouse",
+      "tableName": "warehouses",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "city", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "capacityUnits", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    },
+    {
+      "name": "StockItem",
+      "tableName": "stock_items",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "sku", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "quantity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "unitCost", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin"] },
+        { "name": "reorderLevel", "type": "Integer", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Min"] },
+        { "name": "warehouseId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "warehouse manager",
+      "intent": "register a warehouse with a code, a city and a capacity",
+      "benefit": "stock can be located at a known facility",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique warehouse code and a positive capacity",
+          "when": "the manager registers the warehouse",
+          "then": "the warehouse is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a capacity below the permitted minimum",
+          "when": "the manager attempts to register the warehouse",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "warehouse manager",
+      "intent": "record a stock item held by a warehouse",
+      "benefit": "the on-hand quantity and unit cost are known",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing warehouse identifier and a non-negative quantity",
+          "when": "the manager records the stock item",
+          "then": "the stock item is persisted with its warehouse reference intact"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a quantity below the permitted minimum",
+          "when": "the manager attempts to record the stock item",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "warehouse manager",
+      "intent": "read the stock items held by one warehouse",
+      "benefit": "the facility inventory can be reviewed as a whole",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "a warehouse holding no stock items",
+          "when": "the manager reads the stock for that warehouse",
+          "then": "the service returns an empty collection rather than reporting an error"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,323 @@
+{
+  "blueprintId": "hard-10",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Heterogeneous identifiers and an explicit nullability matrix: one entity keyed by UUID, one by a natural string token, the rest by integral identifiers, with required and optional attributes interleaved and three derived lookups required by scenarios.",
+  "rationale": "An identity service that cannot be served by a single identifier strategy or a single required/optional default. Account is keyed by UUID, Session by an opaque string token, and Credential, Device and LoginAttempt by Long. Optional attributes sit between required ones, so a generator that applies one nullability rule to the whole entity is visibly wrong. Three scenarios need lookups the standard repository operations do not cover (account by email, active sessions by account, recent attempts by account), so the derived query must be declared without moving the decision out of the service.",
+
+  "serviceName": "identity-service",
+  "packageName": "com.corp.identity",
+  "basePort": 8190,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Account",
+      "tableName": "accounts",
+      "attributes": [
+        { "name": "id", "type": "UUID", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "displayName", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "lastLoginAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "locked", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Session",
+      "tableName": "sessions",
+      "attributes": [
+        { "name": "id", "type": "String", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "accountId", "type": "UUID", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "issuedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "expiresAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "revokedAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "clientAddress", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] }
+      ]
+    },
+    {
+      "name": "Credential",
+      "tableName": "credentials",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "accountId", "type": "UUID", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "credentialType", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "secretHash", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "retiredAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "compromised", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Device",
+      "tableName": "devices",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "accountId", "type": "UUID", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "deviceFingerprint", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "friendlyName", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] },
+        { "name": "trustedAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "blocked", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "LoginAttempt",
+      "tableName": "login_attempts",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "accountId", "type": "UUID", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "attemptedEmail", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "occurredAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "succeeded", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "failureReason", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "identity administrator",
+      "intent": "create an account identified by a generated UUID",
+      "benefit": "the subject of every credential has a stable, non-guessable identifier",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a well-formed email address not already registered and a display name",
+          "when": "the administrator creates the account",
+          "then": "the account is persisted with a generated UUID identifier and returned in an active status"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "an email address already held by another account",
+          "when": "the administrator attempts to create the account",
+          "then": "the service rejects the creation as conflicting"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "a malformed email address",
+          "when": "the administrator attempts to create the account",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "identity administrator",
+      "intent": "retrieve an account by its UUID",
+      "benefit": "a caller holding only the identifier can resolve the subject",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing account UUID",
+          "when": "the administrator retrieves the account",
+          "then": "the account is returned with the identifier echoed as a UUID"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "no account exists with the requested UUID",
+          "when": "the administrator retrieves that account",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "identity administrator",
+      "intent": "resolve an account from an email address",
+      "benefit": "a login flow can find the subject before it has an identifier",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing account registered with a known email address in mixed case",
+          "when": "the administrator resolves the account by that email address",
+          "then": "the single matching account is returned regardless of the casing supplied"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "an email address that matches no account",
+          "when": "the administrator resolves the account by it",
+          "then": "the service reports the account as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "security officer",
+      "intent": "issue a session token for an account with an expiry",
+      "benefit": "the account can act with a bounded credential",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing unlocked account and an expiry in the future",
+          "when": "the officer issues the session",
+          "then": "the session is persisted under its opaque token identifier and returned with it"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "an account that is locked",
+          "when": "the officer attempts to issue the session",
+          "then": "the service rejects the issuance as conflicting with the account state"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "an account identifier that does not exist",
+          "when": "the officer attempts to issue the session",
+          "then": "the service reports the account as not found"
+        },
+        {
+          "scenarioId": "AC-4.4",
+          "given": "an expiry earlier than the issue time",
+          "when": "the officer attempts to issue the session",
+          "then": "the service rejects the session as inconsistent"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P1",
+      "role": "security officer",
+      "intent": "revoke a session without deleting its history",
+      "benefit": "the revocation time remains auditable",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing session that has not been revoked",
+          "when": "the officer revokes the session",
+          "then": "the session stores a revocation time and is no longer returned among the account's active sessions"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a session that has already been revoked",
+          "when": "the officer attempts to revoke it again",
+          "then": "the service rejects the revocation as conflicting with the current state"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "a token identifier that does not exist",
+          "when": "the officer revokes the session",
+          "then": "the service reports the session as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P2",
+      "role": "security officer",
+      "intent": "list the sessions that are still active for one account",
+      "benefit": "a compromised account can be inspected in one call",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an account with one active session, one revoked session and one expired session",
+          "when": "the officer reads the account's active sessions",
+          "then": "only the session that is neither revoked nor expired is returned"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "an account with no active sessions",
+          "when": "the officer reads the account's active sessions",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "an account identifier that does not exist",
+          "when": "the officer reads the account's active sessions",
+          "then": "the service reports the account as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P2",
+      "role": "identity administrator",
+      "intent": "register a credential for an account",
+      "benefit": "the account can authenticate",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "an existing account and a credential type matching the permitted pattern",
+          "when": "the administrator registers the credential",
+          "then": "the credential is persisted against the account and returned with its integral identifier"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "an account identifier that does not exist",
+          "when": "the administrator attempts to register the credential",
+          "then": "the service reports the account as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-8",
+      "priority": "P2",
+      "role": "identity administrator",
+      "intent": "record a device as trusted for an account",
+      "benefit": "the account is not challenged on a known device",
+      "scenarios": [
+        {
+          "scenarioId": "AC-8.1",
+          "given": "an existing account and an unregistered device fingerprint",
+          "when": "the administrator trusts the device",
+          "then": "the device is persisted against the account with a trust timestamp"
+        },
+        {
+          "scenarioId": "AC-8.2",
+          "given": "a blocked device fingerprint",
+          "when": "the administrator attempts to trust it",
+          "then": "the service rejects the trust as conflicting with the device state"
+        }
+      ]
+    },
+    {
+      "id": "US-9",
+      "priority": "P2",
+      "role": "security officer",
+      "intent": "record a login attempt, successful or failed, against an email",
+      "benefit": "repeated failures can be detected and investigated",
+      "scenarios": [
+        {
+          "scenarioId": "AC-9.1",
+          "given": "an existing account and a failed authentication for its email",
+          "when": "the officer records the attempt",
+          "then": "the attempt is persisted with its failure reason and the account reference"
+        },
+        {
+          "scenarioId": "AC-9.2",
+          "given": "an email address that matches no account",
+          "when": "the officer records the attempt",
+          "then": "the attempt is persisted without an account reference rather than being rejected"
+        },
+        {
+          "scenarioId": "AC-9.3",
+          "given": "an attempt timestamp in the future",
+          "when": "the officer attempts to record the attempt",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-10",
+      "priority": "P3",
+      "role": "security officer",
+      "intent": "count the failed login attempts for an account since a given time",
+      "benefit": "a lockout threshold can be evaluated without loading the attempts",
+      "scenarios": [
+        {
+          "scenarioId": "AC-10.1",
+          "given": "an account with two failed attempts after a cutoff and one before it",
+          "when": "the officer counts the failed attempts since that cutoff",
+          "then": "the count reported is two"
+        },
+        {
+          "scenarioId": "AC-10.2",
+          "given": "an account with no failed attempts after the cutoff",
+          "when": "the officer counts the failed attempts since that cutoff",
+          "then": "the count is reported as zero rather than the resource being treated as missing"
+        }
+      ]
+    }
+  ]
+}

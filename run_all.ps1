@@ -6,12 +6,12 @@ Write-Host "====================================================================
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host "`n[1/2] Iniciando Backend Orchestrator (FastAPI en http://localhost:8000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir\backend'; python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass", "-NoExit", "-Command", "cd '$scriptDir\backend'; python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 Start-Sleep -Seconds 3
 
 Write-Host "[2/2] Iniciando Frontend Studio (React/Vite en http://localhost:3000)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$scriptDir\frontend'; npm run dev"
+Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass", "-NoExit", "-Command", "cd '$scriptDir\frontend'; npm.cmd run dev"
 
 Write-Host "`n==============================================================================" -ForegroundColor Green
 Write-Host "Servicios iniciados en consolas independientes:" -ForegroundColor Green

@@ -81,6 +81,10 @@ vi.mock('../services/devopsService', () => ({
     runSmokeTest: vi.fn(),
     getLogs: vi.fn().mockResolvedValue(['[LOG] Container ready']),
     generateManifests: vi.fn(),
+    // The playground reads the service's own controller paths. Absent here, so the view
+    // is exercised with discovery failing -- which it must survive.
+    getPlaygroundResources: vi.fn().mockResolvedValue({ resources: [], defaultResource: null }),
+    proxyPlayground: vi.fn(),
   },
 }));
 
@@ -88,6 +92,9 @@ vi.mock('../services/exportService', () => ({
   exportService: {
     getDownloadZipUrl: vi.fn().mockReturnValue('/api/v1/sessions/sess-ops-001/export'),
     publishToGit: vi.fn(),
+    // The DevOps view reads the generated manifests through this. Its absence was not a
+    // missing mock -- it crashed the view, which is why the guard above exists too.
+    getArtifactContent: vi.fn().mockRejectedValue(new Error('not generated in this fixture')),
   },
 }));
 
@@ -174,7 +181,7 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
       renderWithProviders(<DevOpsDeploymentView />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Fase 8: DevOps, Contenerización & Despliegue Multi-Stage/i)).toBeInTheDocument();
+        expect(screen.getByText(/Fase 6: DevOps, Contenerización & Despliegue Multi-Stage/i)).toBeInTheDocument();
         expect(screen.getByText('STOPPED')).toBeInTheDocument();
       });
     });
@@ -194,7 +201,7 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
       renderWithProviders(<DevOpsDeploymentView />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Fase 8: DevOps/i)).toBeInTheDocument();
+        expect(screen.getByText(/Fase 6: DevOps/i)).toBeInTheDocument();
       });
 
       const deployBtn = screen.getByRole('button', { name: /Desplegar Localmente/i });

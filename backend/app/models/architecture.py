@@ -15,6 +15,8 @@ class LayerType(str, Enum):
     REPOSITORY = "repository"
     MODEL = "model"
     INFRASTRUCTURE = "infrastructure"
+    DOMAIN = "domain"
+    APPLICATION = "application"
 
 class HttpMethod(str, Enum):
     GET = "GET"
@@ -54,6 +56,7 @@ class ComponentInteraction(BaseModel):
     interactionType: InteractionType = Field(default=InteractionType.CALLS, description="Type of interaction")
 
 class ArchitectureDesignRequest(BaseModel):
+    architecturePreference: Optional[str] = None
     draft: SpecificationDraft = Field(..., description="Specification draft with entities and user stories")
     apiKey: Optional[str] = Field(default=None, description="Optional ephemeral LLM API key")
     provider: Optional[str] = Field(default=None, description="Optional LLM provider: 'gemini', 'groq', 'openai', or 'mock'")

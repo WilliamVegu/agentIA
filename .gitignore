@@ -25,6 +25,7 @@ wheels/
 !.env.example
 venv/
 .venv/
+.uvcache/
 ENV/
 env.bak/
 venv.bak/
@@ -60,6 +61,16 @@ Thumbs.db
 backend/workspaces/*
 !backend/workspaces/.gitkeep
 
+# Ingested blueprints, persisted so they survive a restart. Runtime data, like the
+# workspaces above. Path-anchored: a bare `specifications/` would also exclude any
+# directory of that name elsewhere, including in the frontend.
+/backend/specifications/
+# A workspace written at the repository root (e.g. by a script run from there).
+# Root-anchored deliberately: a bare `workspaces/` would also exclude the
+# backend/workspaces/ directory itself, which the negation above must be able to
+# re-include.
+/workspaces/
+
 # Pytest cache
 .pytest_cache/
 
@@ -68,6 +79,8 @@ backend/app/resources/ca-bundle.pem
 
 # Node / Frontend
 node_modules/
+# Local npm cache (set explicitly so installs work inside the sandbox)
+frontend/.npm-cache/
 frontend/dist/
 frontend/.vite/
 frontend-legacy/.streamlit/
@@ -78,3 +91,14 @@ slide_previews_ejempl/
 test_open.pptx
 
 
+
+# Local Maven cache warm-up project (feature 015)
+warmup/
+mlruns/
+
+# coverage.py data file
+.coverage
+
+# start_services.sh runtime state (pids, logs)
+.run/
+docs/fig/*-1.png

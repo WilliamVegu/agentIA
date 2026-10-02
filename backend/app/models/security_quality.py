@@ -101,6 +101,7 @@ class AuditRequest(BaseModel):
 
 
 class RemediationRequest(BaseModel):
+    sessionId: Optional[str] = None
     findingId: str = Field(..., description="ID of finding or violation to remediate")
     filePath: str = Field(..., description="File path to patch")
     sourceCode: Optional[str] = Field(None, description="Optional source code override; if omitted, read from workspace")

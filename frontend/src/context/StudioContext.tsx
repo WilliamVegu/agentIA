@@ -1,10 +1,12 @@
+import { setActiveSessionForApi } from '../services/apiClient';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { SessionListItem, sessionService } from '../services/sessionService';
 import { orchestratorService, ProjectOverview } from '../services/orchestratorService';
+import type { TabKey } from '../config/workspaceTabs';
 
 interface StudioContextType {
-  activeTab: number;
-  setActiveTab: (tab: number) => void;
+  activeTab: TabKey;
+  setActiveTab: (tab: TabKey) => void;
   activeSessionId: string | null;
   activeSession: SessionListItem | null;
   sessions: SessionListItem[];
@@ -31,7 +33,8 @@ interface StudioContextType {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<number>(0);
+  // A key, not an index: see config/workspaceTabs.ts for why the number was removed.
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [projectOverview, setProjectOverview] = useState<ProjectOverview | null>(null);
@@ -43,6 +46,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentSpecId, setCurrentSpecId] = useState<string | null>(null);
   const [parsedSpec, setParsedSpec] = useState<any | null>(null);
   const initialLoadDone = useRef(false);
+  useEffect(() => { setActiveSessionForApi(activeSessionId); }, [activeSessionId]);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -91,21 +95,27 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [activeSessionId, reloadCurrentOverview]);
 
   const selectSession = (sessionId: string | null) => {
-    setActiveSessionId(sessionId);
-    if (!sessionId) {
-      setProjectOverview(null);
-      setLifecycle(null);
+    if (sessionId !== activeSessionId) {
       setCurrentDraft(null);
       setArchitectureDesign(null);
       setDataModelDesign(null);
       setCurrentSpecId(null);
       setParsedSpec(null);
+      setProjectOverview(null);
+      setLifecycle(null);
     }
+    setActiveSessionId(sessionId);
   };
 
   const startNewService = () => {
     setActiveSessionId(null);
-    setActiveTab(0);
+    // Resumen, because that is where the new-service form is (name, description,
+    // database). This read `setActiveTab(0)` when 0 was Resumen, and the reorder turned
+    // that into "the first tab" -- which is now Blueprints -- so the button navigated away
+    // from the form it exists to open. Worse, the copy of this button *inside* Resumen
+    // took you off the page you were already on. A refactor has to preserve what a control
+    // does; pointing at the first tab preserved the number instead.
+    setActiveTab('overview');
     setProjectOverview(null);
     setLifecycle(null);
     setCurrentDraft(null);

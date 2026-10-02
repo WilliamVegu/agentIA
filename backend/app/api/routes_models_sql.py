@@ -44,7 +44,7 @@ def generate_models_and_sql_endpoint(
     provider = request.provider or x_llm_provider
     api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
-        response = model_sql_service.synthesize_domain_models_and_sql(request.draft, api_key, provider=provider)
+        response = model_sql_service.synthesize_domain_models_and_sql(request.draft, api_key, provider=provider, model_name=request.modelName)
         return response
     except Exception as e:
         raise HTTPException(
@@ -80,6 +80,7 @@ def refine_models_and_sql_endpoint(
             target_entity=request.targetEntity,
             api_key=api_key,
             provider=provider,
+            model_name=request.modelName,
         )
         return refined
     except Exception as e:
@@ -87,4 +88,50 @@ def refine_models_and_sql_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to refine domain models and SQL schema: {str(e)}",
         )
+
+@router.post("/sessions/{session_id}/save", status_code=status.HTTP_200_OK)
+async def save_models_design(session_id: str, payload: dict):
+    """Persist the LLM-designed domain models + SQL so the tab retrieves them later.
+
+    This is the tuning result (entities, DTOs, schema.sql, ER diagram), written to
+    ``domain_model.json``, which the Models & SQL tab reads back on mount.
+    Also materializes schema.sql and data.sql in the workspace so the DATA_MODEL
+    lifecycle phase detects them.
+    """
+    import json
+    from app.services.workspace_guard import get_validated_workspace_path
+    from app.services.lifecycle_service import transition_phase, LifecyclePhase
+
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
+    ws_path.mkdir(parents=True, exist_ok=True)
+    (ws_path / "domain_model.json").write_text(
+        json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8"
+    )
+
+    # Materialize schema.sql and data.sql if present in payload
+    schema_sql = (
+        payload.get("schemaSql")
+        or (payload.get("sqlSchema") or {}).get("schemaDdl")
+        or payload.get("schema_sql")
+        or payload.get("schemaDdl")
+    )
+    if schema_sql:
+        (ws_path / "schema.sql").write_text(schema_sql, encoding="utf-8")
+
+    data_sql = (
+        payload.get("dataSql")
+        or (payload.get("sqlSchema") or {}).get("seedDml")
+        or payload.get("data_sql")
+        or payload.get("seedDml")
+    )
+    if data_sql:
+        (ws_path / "data.sql").write_text(data_sql, encoding="utf-8")
+
+    try:
+        transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
+    except Exception:
+        pass
+
+    return {"sessionId": session_id, "status": "SAVED"}
+
 

@@ -88,3 +88,23 @@ def refine_architecture_endpoint(
             detail=f"Failed to refine architecture: {str(e)}",
         )
 
+@router.post("/sessions/{session_id}/save", status_code=status.HTTP_200_OK)
+async def save_architecture_design(session_id: str, payload: dict):
+    """Persist the LLM-designed architecture so the tab retrieves it after navigating away.
+
+    This is the tuning result — the user's designed components/endpoints/diagrams, not the
+    mechanical derivation written at build time. It lands in ``architecture.json``, which the
+    Architecture tab reads back on mount.
+    """
+    import json
+    from pathlib import Path
+    from app.config import settings
+
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
+    ws_path.mkdir(parents=True, exist_ok=True)
+    (ws_path / "architecture.json").write_text(
+        json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8"
+    )
+    return {"sessionId": session_id, "status": "SAVED"}
+

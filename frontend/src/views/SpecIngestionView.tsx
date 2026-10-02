@@ -9,9 +9,65 @@ import apiClient from '../services/apiClient';
 export const SpecIngestionView: React.FC = () => {
   const { refreshSessions, selectSession, setActiveTab, parsedSpec, setParsedSpec, setCurrentSpecId } = useStudio();
 
-  const [activeTabMode, setActiveTabMode] = useState<'upload' | 'json'>('upload');
+  const [activeTabMode, setActiveTabMode] = useState<'upload' | 'json' | 'interface'>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [jsonText, setJsonText] = useState('');
+
+  const [iface, setIface] = useState({
+    requestVolume: 'low',
+    expectedQps: '',
+    dataNeeds: [] as string[],
+    integrations: [] as string[],
+    consistency: 'strong',
+    architecturePreference: '',
+    buildToolPreference: '',
+  });
+
+  const toggleList = (list: string[], value: string) =>
+    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+
+  const handleInterfaceSubmit = async () => {
+    setIsSubmitting(true);
+    setFeedback(null);
+    const inputInterface: any = {
+      requestVolume: iface.requestVolume,
+      consistency: iface.consistency,
+      dataNeeds: iface.dataNeeds,
+      integrations: iface.integrations,
+    };
+    if (iface.expectedQps) inputInterface.expectedQps = Number(iface.expectedQps);
+    if (iface.architecturePreference) inputInterface.architecturePreference = iface.architecturePreference;
+    if (iface.buildToolPreference) inputInterface.buildToolPreference = iface.buildToolPreference;
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      parsed = null;
+    }
+    if (!parsed) {
+      setFeedback({ type: 'error', message: 'Primero ingresa el blueprint JSON (pestaña "Pegar Blueprint JSON").' });
+      setIsSubmitting(false);
+      return;
+    }
+    parsed.inputInterface = inputInterface;
+    try {
+      const summary = await specService.submitJson(parsed);
+      if (summary) {
+        setParsedSpec(summary);
+        if (summary.specId) setCurrentSpecId(summary.specId);
+      }
+      setFeedback({
+        type: 'success',
+        message: `Interfaz de entrada aplicada a "${summary?.serviceName || parsed.serviceName}" — lista para inferir arquitectura.`,
+      });
+      await refreshSessions();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Error al aplicar la interfaz de entrada' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -76,7 +132,7 @@ export const SpecIngestionView: React.FC = () => {
     <div className="space-y-6">
       {/* Top Card */}
       <SingleRowCard
-        title="Fase 4: Ingesta y Validación Formal de Blueprints (Spec Kit)"
+        title="Ingesta y Validación Formal de Blueprints (Spec Kit)"
         subtitle="Carga de especificaciones estandarizadas en Markdown o esquemas Blueprint en JSON"
         badge={
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
@@ -104,6 +160,16 @@ export const SpecIngestionView: React.FC = () => {
               }`}
             >
               Pegar Blueprint JSON
+            </button>
+            <button
+              onClick={() => setActiveTabMode('interface')}
+              className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${
+                activeTabMode === 'interface'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              Interfaz de entrada
             </button>
           </div>
         }
@@ -171,7 +237,7 @@ export const SpecIngestionView: React.FC = () => {
             </button>
           </div>
         </div>
-      ) : (
+      ) : activeTabMode === 'json' ? (
         <div className="space-y-4">
           <textarea
             rows={14}
@@ -189,6 +255,130 @@ export const SpecIngestionView: React.FC = () => {
             >
               <Send className="w-3.5 h-3.5" />
               <span>Validar e Ingestar JSON Blueprint</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5 shadow-sm">
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+              Interfaz de entrada — impulsa la inferencia de arquitectura
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Volumen, datos e integraciones deciden arquitectura, tipo de DB, build tool y librerías.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label className="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
+              Volumen de peticiones
+              <select
+                value={iface.requestVolume}
+                onChange={(e) => setIface({ ...iface, requestVolume: e.target.value })}
+                className="mt-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs"
+              >
+                <option value="low">Bajo</option>
+                <option value="medium">Medio</option>
+                <option value="high">Alto</option>
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
+              QPS esperado (opcional)
+              <input
+                type="number"
+                min={0}
+                value={iface.expectedQps}
+                onChange={(e) => setIface({ ...iface, expectedQps: e.target.value })}
+                placeholder="ej. 500"
+                className="mt-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
+              Consistencia
+              <select
+                value={iface.consistency}
+                onChange={(e) => setIface({ ...iface, consistency: e.target.value })}
+                className="mt-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs"
+              >
+                <option value="strong">Fuerte</option>
+                <option value="eventual">Eventual</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Necesidades de datos</span>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {['relational', 'document', 'cache', 'fulltext', 'blob'].map((d) => (
+                  <label key={d} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={iface.dataNeeds.includes(d)}
+                      onChange={() => setIface({ ...iface, dataNeeds: toggleList(iface.dataNeeds, d) })}
+                    />
+                    {d}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Integraciones</span>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {['messaging', 'external-http', 'scheduler', 'none'].map((i) => (
+                  <label key={i} className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={iface.integrations.includes(i)}
+                      onChange={() => setIface({ ...iface, integrations: toggleList(iface.integrations, i) })}
+                    />
+                    {i}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
+              Arquitectura preferida
+              <select
+                value={iface.architecturePreference}
+                onChange={(e) => setIface({ ...iface, architecturePreference: e.target.value })}
+                className="mt-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs"
+              >
+                <option value="">Auto (inferir)</option>
+                <option value="layered">Layered (4 capas)</option>
+                <option value="hexagonal">Hexagonal</option>
+                <option value="hexagonal-ddd">Hexagonal + DDD</option>
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-300">
+              Build tool
+              <select
+                value={iface.buildToolPreference}
+                onChange={(e) => setIface({ ...iface, buildToolPreference: e.target.value })}
+                className="mt-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs"
+              >
+                <option value="">Auto (default del perfil)</option>
+                <option value="maven">Maven</option>
+                <option value="gradle">Gradle</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={handleInterfaceSubmit}
+              disabled={isSubmitting}
+              className="flex items-center gap-2 py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Aplicar interfaz y validar</span>
             </button>
           </div>
         </div>
@@ -243,7 +433,7 @@ export const SpecIngestionView: React.FC = () => {
                     console.warn(e);
                   }
                 }
-                setActiveTab(5);
+                setActiveTab('monitor');
               }}
               className="py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
             >

@@ -14,27 +14,28 @@ import { ExportPublishView } from './ExportPublishView';
 export const WorkspaceRouter: React.FC = () => {
   const { activeTab } = useStudio();
 
+  // Keyed, not positional: reordering the tab row cannot change which view renders.
   switch (activeTab) {
-    case 0:
-      return <StudioOverviewView />;
-    case 1:
-      return <RequirementsView />;
-    case 2:
-      return <ArchitectureView />;
-    case 3:
-      return <DomainModelsView />;
-    case 4:
+    case 'blueprints':
       return <SpecIngestionView />;
-    case 5:
-      return <GenerationMonitorView />;
-    case 6:
+    case 'overview':
+      return <StudioOverviewView />;
+    case 'requirements':
+      return <RequirementsView />;
+    case 'architecture':
+      return <ArchitectureView />;
+    case 'models':
+      return <DomainModelsView />;
+    case 'code':
       return <CodeExplorerView />;
-    case 7:
+    case 'quality':
       return <SecurityQualityView />;
-    case 8:
+    case 'devops':
       return <DevOpsDeploymentView />;
-    case 9:
+    case 'delivery':
       return <ExportPublishView />;
+    case 'monitor':
+      return <GenerationMonitorView />;
     default:
       return <StudioOverviewView />;
   }

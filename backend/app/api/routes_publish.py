@@ -1,10 +1,11 @@
+from app.services.verification_policy import require_source_delivery, session_is_verified, tests_really_passed
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.models.session import SessionLocal, GenerationSessionDB
+from app.models.session import SessionLocal, GenerationSessionDB, SessionStatus
 from app.services.export_service import create_project_zip
 from app.services.git_service import publish_to_git
 from app.services.security_service import audit_workspace
@@ -16,7 +17,7 @@ class PublishRequest(BaseModel):
     branchName: str = Field(..., description="Feature branch name e.g. feature/001-order-service")
     gitToken: Optional[str] = Field(None, description="Ephemeral Personal Access Token (PAT)")
     commitMessage: Optional[str] = Field(
-        default="feat: initial autonomous generation and verified test suite",
+        default="feat: generated microservice sources",
         description="Git commit message"
     )
 
@@ -34,6 +35,7 @@ async def export_session_project(session_id: str):
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if not sess:
             raise HTTPException(status_code=404, detail="Session not found")
+        require_source_delivery(sess)
         service_name = sess.spec_name or "microservice"
     finally:
         db.close()
@@ -42,12 +44,18 @@ async def export_session_project(session_id: str):
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(status_code=404, detail="Project workspace directory not found")
 
+    if sess.status == SessionStatus.BLOCKED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Cannot export artifact: Session is BLOCKED. {sess.error_message or 'Project is in a blocked state.'}",
+        )
+
     # Enforce Quality Gate guard (Constitution Principle V & Feature 006)
     audit = audit_workspace(str(ws_path), session_id, service_name)
     if not audit.qualityGate.canExport:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Cannot export artifact: Quality Gate is BLOCKED. {audit.qualityGate.summaryMessage}"
+            detail=f"Cannot export artifact: Quality Gate is BLOCKED. {audit.qualityGate.summaryMessage}",
         )
 
     zip_bytes = create_project_zip(str(ws_path))
@@ -69,6 +77,7 @@ async def publish_session_project(session_id: str, payload: PublishRequest):
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if not sess:
             raise HTTPException(status_code=404, detail="Session not found")
+        require_source_delivery(sess)
         if sess.spec_name:
             service_name = sess.spec_name
     finally:

@@ -1,0 +1,63 @@
+Fatal Python error: Aborted
+
+Current thread 0x00007f088704be80 (most recent call first):
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/urllib3/util/retry.py", line 383 in _sleep_backoff
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/urllib3/util/retry.py", line 399 in sleep
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/urllib3/connectionpool.py", line 850 in urlopen
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/urllib3/connectionpool.py", line 886 in urlopen
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/urllib3/connectionpool.py", line 886 in urlopen
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/urllib3/connectionpool.py", line 886 in urlopen
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/requests/adapters.py", line 696 in send
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/requests/sessions.py", line 784 in send
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/requests/sessions.py", line 651 in request
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/utils/request_utils.py", line 282 in _get_http_response_with_retries
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/utils/rest_utils.py", line 295 in http_request
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/utils/rest_utils.py", line 671 in call_endpoint
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/store/tracking/rest_store.py", line 269 in _call_endpoint
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/store/tracking/rest_store.py", line 406 in create_run
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/tracking/_tracking_service/client.py", line 185 in create_run
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/telemetry/track.py", line 24 in wrapper
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/tracking/client.py", line 633 in create_run
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/mlflow/tracking/fluent.py", line 668 in start_run
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.qe-baseline/backend/app/cost/mlflow_sink.py", line 49 in _record
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.qe-baseline/backend/app/cost/mlflow_sink.py", line 74 in mirror_call_record
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.qe-baseline/backend/app/cost/recording.py", line 148 in _record_call
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.qe-baseline/backend/app/cost/recording.py", line 183 in invoke
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.qe-baseline/backend/app/orchestrator/stages/runner.py", line 994 in _run_model_stage
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.qe-baseline/backend/app/orchestrator/stages/runner.py", line 1180 in run_stage
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.qe-baseline/backend/tests/test_cost_recording.py", line 116 in test_a_call_through_the_stage_boundary_is_recorded_end_to_end
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/python.py", line 167 in pytest_pyfunc_call
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/python.py", line 1707 in runtest
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/runner.py", line 184 in pytest_runtest_call
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/runner.py", line 250 in <lambda>
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/runner.py", line 361 in from_call
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/runner.py", line 249 in call_and_report
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/runner.py", line 139 in runtestprotocol
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/runner.py", line 118 in pytest_runtest_protocol
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/main.py", line 408 in pytest_runtestloop
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/main.py", line 384 in _main
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/main.py", line 330 in wrap_session
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/main.py", line 377 in pytest_cmdline_main
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/config/__init__.py", line 229 in _main
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/_pytest/config/__init__.py", line 253 in _console_main
+  File "/home/gjanampa/Projects/AI_AGENTS/agentIA/.venv/lib64/python3.12/site-packages/pytest/__main__.py", line 9 in <module>
+  File "<frozen runpy>", line 88 in _run_code
+  File "<frozen runpy>", line 198 in _run_module_as_main
+
+Extension modules: charset_normalizer.md, charset_normalizer.cd, requests.packages.charset_normalizer.md, requests.packages.chardet.md, requests.packages.charset_normalizer.cd, requests.packages.chardet.cd, zstandard.backend_c, xxhash._xxhash, sqlalchemy.util._collections_cy, sqlalchemy.util._immutabledict_cy, sqlalchemy.sql._util_cy, sqlalchemy.sql._cache_key_cy, sqlalchemy.engine._processors_cy, sqlalchemy.engine._util_cy, sqlalchemy.engine._row_cy, sqlalchemy.engine._result_cy, multidict._multidict, yarl._quoting_c, propcache._helpers_c, aiohttp._http_writer, aiohttp._http_parser, aiohttp._websocket.mask, aiohttp._websocket.reader_c, frozenlist._frozenlist, yaml._yaml, google._upb._message, numpy._core._multiarray_umath, numpy.linalg._umath_linalg, pyarrow.lib, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._pcg64, numpy.random._generator, numpy.random._mt19937, numpy.random._philox, numpy.random._sfc64, numpy.random.mtrand, _cyutility, pandas._libs._cyutility, pandas._libs.tslibs.ccalendar, pandas._libs.tslibs.np_datetime, pandas._libs.tslibs.dtypes, pandas._libs.tslibs.base, pandas._libs.tslibs.nattype, pandas._libs.tslibs.timezones, pandas._libs.properties, pandas._libs.tslibs.fields, pandas._libs.tslibs.timedeltas, pandas._libs.tslibs.tzconversion, pandas._libs.tslibs.timestamps, pandas._libs.tslibs.offsets, pandas._libs.tslibs.strptime, pandas._libs.tslibs.parsing, pandas._libs.tslibs.conversion, pandas._libs.tslibs.period, pandas._libs.tslibs.vectorized, pandas._libs.ops_dispatch, pandas._libs.missing, pandas._libs.hashtable, pandas._libs.algos, pandas._libs.interval, pandas._libs.lib, pyarrow._compute, pandas._libs.ops, pandas._libs.hashing, pandas._libs.arrays, pandas._libs.tslib, pandas._libs.sparse, pandas._libs.internals, pandas._libs.indexing, pandas._libs.index, pandas._libs.writers, pandas._libs.join, pandas._libs.window.aggregations, pandas._libs.window.indexers, pandas._libs.reshape, pandas._libs.groupby, pandas._libs.json, pandas._libs.parsers, pandas._libs.testing, pyarrow._fs, pyarrow._azurefs, pyarrow._hdfs, pyarrow._gcsfs, pyarrow._s3fs, scipy._cyutility, scipy._lib._ccallback_c, scipy.sparse._sparsetools, _csparsetools, scipy.sparse._csparsetools (total: 91)
+timeout: the monitored command dumped core

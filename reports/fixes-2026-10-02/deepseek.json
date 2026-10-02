@@ -1,0 +1,244 @@
+{
+  "elapsedSeconds": 42.86,
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "sessionId": "f337c83d-91cb-4732-96c6-0cd4408b8c1e",
+  "checks": [
+    {
+      "name": "nonempty tests accepted",
+      "passed": true
+    },
+    {
+      "name": "zero tests rejected",
+      "passed": true
+    },
+    {
+      "name": "fallback rejected",
+      "passed": true
+    },
+    {
+      "name": "partial suite rejected",
+      "passed": true
+    },
+    {
+      "name": "missing evidence rejected",
+      "passed": true
+    },
+    {
+      "name": "empty audit blocked",
+      "passed": true
+    },
+    {
+      "name": "shared capacity enforced",
+      "passed": true
+    },
+    {
+      "name": "cancellation retains running slot",
+      "passed": true
+    },
+    {
+      "name": "thread receives released slot",
+      "passed": true
+    },
+    {
+      "name": "queued cancellation exits",
+      "passed": true
+    },
+    {
+      "name": "anonymous API rejected",
+      "passed": true
+    },
+    {
+      "name": "fabricated email rejected",
+      "passed": true
+    },
+    {
+      "name": "wrong password rejected",
+      "passed": true
+    },
+    {
+      "name": "configured login accepted",
+      "passed": true
+    },
+    {
+      "name": "authenticated API available",
+      "passed": true
+    },
+    {
+      "name": "empty API audit blocked",
+      "passed": true
+    },
+    {
+      "name": "unverified export rejected",
+      "passed": true
+    },
+    {
+      "name": "unverified bundle rejected",
+      "passed": true
+    },
+    {
+      "name": "history never fabricates VERIFIED",
+      "passed": true
+    },
+    {
+      "name": "matching evidence recognized",
+      "passed": true
+    },
+    {
+      "name": "edited source invalidates proof",
+      "passed": true
+    },
+    {
+      "name": "Gradle sandbox selected",
+      "passed": true
+    },
+    {
+      "name": "Gradle Dockerfile selected",
+      "passed": true
+    },
+    {
+      "name": "Gradle CI selected",
+      "passed": true
+    },
+    {
+      "name": "logout revokes access",
+      "passed": true
+    },
+    {
+      "name": "live model synthesis",
+      "passed": true
+    },
+    {
+      "name": "live refinement follows feedback",
+      "passed": true
+    },
+    {
+      "name": "live partial pipeline starts",
+      "passed": true
+    },
+    {
+      "name": "live partial pipeline stops",
+      "passed": true
+    },
+    {
+      "name": "partial generation is PAUSED",
+      "passed": true
+    },
+    {
+      "name": "partial generation is not VERIFIED",
+      "passed": true
+    }
+  ],
+  "refinedModel": {
+    "serviceName": "audit-library",
+    "packageName": "com.audit.library",
+    "entities": [
+      {
+        "name": "Book",
+        "tableName": "books",
+        "packageName": "com.audit.library.model",
+        "attributes": [
+          {
+            "name": "id",
+            "columnName": "id",
+            "javaType": "UUID",
+            "sqlType": "UUID",
+            "length": null,
+            "nullable": false,
+            "isPrimaryKey": true,
+            "isUnique": false,
+            "hasIndex": true,
+            "defaultValue": null
+          },
+          {
+            "name": "isbn",
+            "columnName": "isbn",
+            "javaType": "String",
+            "sqlType": "VARCHAR",
+            "length": 255,
+            "nullable": false,
+            "isPrimaryKey": false,
+            "isUnique": true,
+            "hasIndex": true,
+            "defaultValue": null
+          },
+          {
+            "name": "title",
+            "columnName": "title",
+            "javaType": "String",
+            "sqlType": "VARCHAR",
+            "length": 255,
+            "nullable": false,
+            "isPrimaryKey": false,
+            "isUnique": false,
+            "hasIndex": false,
+            "defaultValue": null
+          },
+          {
+            "name": "author",
+            "columnName": "author",
+            "javaType": "String",
+            "sqlType": "VARCHAR",
+            "length": 255,
+            "nullable": false,
+            "isPrimaryKey": false,
+            "isUnique": false,
+            "hasIndex": false,
+            "defaultValue": null
+          },
+          {
+            "name": "shelfCode",
+            "columnName": "shelf_code",
+            "javaType": "String",
+            "sqlType": "VARCHAR",
+            "length": 255,
+            "nullable": true,
+            "isPrimaryKey": false,
+            "isUnique": false,
+            "hasIndex": false,
+            "defaultValue": null
+          },
+          {
+            "name": "createdAt",
+            "columnName": "created_at",
+            "javaType": "Instant",
+            "sqlType": "TIMESTAMP WITH TIME ZONE",
+            "length": null,
+            "nullable": false,
+            "isPrimaryKey": false,
+            "isUnique": false,
+            "hasIndex": false,
+            "defaultValue": "CURRENT_TIMESTAMP"
+          },
+          {
+            "name": "updatedAt",
+            "columnName": "updated_at",
+            "javaType": "Instant",
+            "sqlType": "TIMESTAMP WITH TIME ZONE",
+            "length": null,
+            "nullable": false,
+            "isPrimaryKey": false,
+            "isUnique": false,
+            "hasIndex": false,
+            "defaultValue": "CURRENT_TIMESTAMP"
+          }
+        ],
+        "relationships": [],
+        "hasAuditFields": true
+      }
+    ],
+    "sqlSchema": {
+      "schemaDdl": "-- ============================================================================\n-- Microservice Code Studio: Relational Schema DDL\n-- Dialect: ANSI SQL / PostgreSQL & H2 (MODE=PostgreSQL) Compatible\n-- ============================================================================\n\nCREATE TABLE IF NOT EXISTS books (\n    id UUID PRIMARY KEY,\n    isbn VARCHAR(255) NOT NULL UNIQUE,\n    title VARCHAR(255) NOT NULL,\n    author VARCHAR(255) NOT NULL,\n    shelf_code VARCHAR(255),\n    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP\n);\n",
+      "seedDml": "-- ============================================================================\n-- Microservice Code Studio: Initial Seed Data DML\n-- Preconditions and Test Fixtures\n-- ============================================================================\n\nINSERT INTO books (id, isbn, title, author, shelf_code) VALUES ('11111111-1111-1111-1111-111111111111', 'Test Isbn', 'Test Title', 'Test Author', 'A1');\n",
+      "tableNames": [
+        "books"
+      ],
+      "dialect": "postgresql_h2"
+    },
+    "mermaidErDiagram": "erDiagram\n    BOOKS {\n        uuid id PK\n        varchar isbn UK\n        varchar title\n        varchar author\n        varchar shelf_code\n        timestamp created_at\n        timestamp updated_at\n    }",
+    "javaEntityClasses": {
+      "Book": "package com.audit.library.model;\n\nimport jakarta.persistence.*;\nimport jakarta.validation.constraints.*;\nimport lombok.*;\nimport java.time.Instant;\nimport java.util.UUID;\n\n/**\n * Domain Entity representing Book.\n * Adheres to Spring Boot 3 Jakarta persistence standards.\n */\n@Entity\n@Table(name = \"books\")\n@Getter\n@Setter\n@Builder\n@NoArgsConstructor\n@AllArgsConstructor\npublic class Book {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.UUID)\n    @Column(name = \"id\", nullable = false, updatable = false)\n    private UUID id;\n\n    @Column(name = \"isbn\", nullable = false, unique = true)\n    @NotBlank\n    private String isbn;\n\n    @Column(name = \"title\", nullable = false, length = 255)\n    @NotBlank\n    private String title;\n\n    @Column(name = \"author\", nullable = false, length = 255)\n    @NotBlank\n    private String author;\n\n    @Column(name = \"shelf_code\", length = 255)\n    private String shelfCode;\n\n    @Column(name = \"created_at\", nullable = false, updatable = false)\n    private Instant createdAt;\n\n    @Column(name = \"updated_at\", nullable = false, updatable = true)\n    private Instant updatedAt;\n\n}\n"
+    },
+    "validationErrors": []
+  }
+}

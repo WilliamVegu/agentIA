@@ -20,6 +20,7 @@ try:
     from app.models.blueprint import DomainEntity, UserStoryRecord
     from app.models.requirements import SpecificationDraft
     from app.services.llm_factory import LLMFactory
+    from app.services.structured_output import invoke_structured
 except ImportError:
     from backend.app.models.architecture import (
         ComponentDefinition,
@@ -35,10 +36,12 @@ except ImportError:
     from backend.app.models.blueprint import DomainEntity, UserStoryRecord
     from backend.app.models.requirements import SpecificationDraft
     from backend.app.services.llm_factory import LLMFactory
+    from backend.app.services.structured_output import invoke_structured
 
 class LLMComponentDecomposition(BaseModel):
     name: str = Field(description="PascalCase component name")
-    layer: str = Field(description="controller, service, repository, model, or infrastructure")
+    layer: str = Field(description="controller, service, repository, model, infrastructure, domain, or application")
+    packageName: Optional[str] = None
     stereotype: str = Field(description="@RestController, @Service, @Repository, @Entity, @RestControllerAdvice")
     responsibilities: List[str] = Field(description="Primary responsibilities")
     dependencies: List[str] = Field(description="Components this component depends on (must be strictly downward)")
@@ -192,6 +195,8 @@ def generate_mermaid_flowchart(
         LayerType.REPOSITORY: ("Persistence", "Capa Repositorio (Spring Data JPA)"),
         LayerType.MODEL: ("Domain", "Capa Dominio & Modelos"),
         LayerType.INFRASTRUCTURE: ("Infrastructure", "Componentes Transversales & Soporte"),
+        LayerType.DOMAIN: ("HexDomain", "Dominio y puertos"),
+        LayerType.APPLICATION: ("Application", "Casos de uso"),
     }
 
     comp_by_layer: Dict[LayerType, List[ComponentDefinition]] = {l: [] for l in LayerType}
@@ -280,127 +285,6 @@ def serialize_architecture_markdown(response: ArchitectureDesignResponse) -> str
 
     return "\n".join(lines)
 
-def _generate_mock_architecture(draft: SpecificationDraft) -> ArchitectureDesignResponse:
-    """Deterministic mock architecture generator for unit tests and offline execution."""
-    service_name = draft.serviceName or "order-service"
-    package_name = draft.packageName or f"com.corp.{service_name.replace('-', '.')}"
-    components: List[ComponentDefinition] = []
-    endpoints: List[ApiEndpointDefinition] = []
-    interactions: List[ComponentInteraction] = []
-
-    # Cross-Cutting Infrastructure
-    infra_comp = ComponentDefinition(
-        name="GlobalExceptionHandler",
-        layer=LayerType.INFRASTRUCTURE,
-        stereotype="@RestControllerAdvice",
-        packageName=f"{package_name}.controller.advice",
-        responsibilities=[
-            "Intercept HTTP exceptions and validation errors",
-            "Format responses as standard RFC 7807 ProblemDetails",
-        ],
-        dependencies=[],
-        mappedStories=["ALL"],
-    )
-    components.append(infra_comp)
-
-    # Generate components per domain entity
-    for ent in (draft.entities or [DomainEntity(name="Order", tableName="orders", attributes=[])]):
-        ent_name = ent.name
-        table_name = ent.tableName or f"{ent_name.lower()}s"
-
-        repo_comp = ComponentDefinition(
-            name=f"{ent_name}Repository",
-            layer=LayerType.REPOSITORY,
-            stereotype="@Repository",
-            packageName=f"{package_name}.repository",
-            responsibilities=[f"Spring Data JPA persistence operations for {ent_name}"],
-            dependencies=[ent_name],
-            mappedStories=["US-1"],
-        )
-
-        service_comp = ComponentDefinition(
-            name=f"{ent_name}Service",
-            layer=LayerType.SERVICE,
-            stereotype="@Service",
-            packageName=f"{package_name}.service",
-            responsibilities=[
-                f"Business logic and transaction boundaries for {ent_name}",
-                "Validation and entity to record mapping",
-            ],
-            dependencies=[repo_comp.name],
-            mappedStories=["US-1"],
-        )
-
-        controller_comp = ComponentDefinition(
-            name=f"{ent_name}Controller",
-            layer=LayerType.CONTROLLER,
-            stereotype="@RestController",
-            packageName=f"{package_name}.controller",
-            responsibilities=[
-                f"REST HTTP endpoints routing for {table_name}",
-                "Request validation trigger with @Valid",
-            ],
-            dependencies=[service_comp.name],
-            mappedStories=["US-1"],
-        )
-
-        model_comp = ComponentDefinition(
-            name=ent_name,
-            layer=LayerType.MODEL,
-            stereotype="@Entity",
-            packageName=f"{package_name}.model",
-            responsibilities=[f"JPA Domain entity mapped to table {table_name}"],
-            dependencies=[],
-            mappedStories=["US-1"],
-        )
-
-        components.extend([controller_comp, service_comp, repo_comp, model_comp])
-
-        # Interactions
-        interactions.append(ComponentInteraction(sourceComponent=controller_comp.name, targetComponent=service_comp.name, interactionType=InteractionType.CALLS))
-        interactions.append(ComponentInteraction(sourceComponent=service_comp.name, targetComponent=repo_comp.name, interactionType=InteractionType.CALLS))
-        interactions.append(ComponentInteraction(sourceComponent=repo_comp.name, targetComponent=model_comp.name, interactionType=InteractionType.PERSISTS))
-        interactions.append(ComponentInteraction(sourceComponent=infra_comp.name, targetComponent=controller_comp.name, interactionType=InteractionType.INTERCEPTS))
-
-        # Endpoints derived from stories / entity
-        endpoints.append(ApiEndpointDefinition(
-            method=HttpMethod.POST,
-            path=f"/api/v1/{table_name}",
-            summary=f"Create a new {ent_name}",
-            requestDto=f"Create{ent_name}Request",
-            responseDto=f"{ent_name}Response",
-            successStatus=201,
-            errorStatuses=[400, 500],
-            mappedScenarioId="AC-1.1",
-        ))
-        endpoints.append(ApiEndpointDefinition(
-            method=HttpMethod.GET,
-            path=f"/api/v1/{table_name}/{{id}}",
-            summary=f"Retrieve {ent_name} by ID",
-            responseDto=f"{ent_name}Response",
-            successStatus=200,
-            errorStatuses=[404, 500],
-            mappedScenarioId="AC-1.2",
-        ))
-
-    mermaid_code = generate_mermaid_flowchart(components, interactions)
-    openapi_str = serialize_to_openapi_yaml(service_name, package_name, endpoints, draft.entities or [])
-
-    resp = ArchitectureDesignResponse(
-        serviceName=service_name,
-        packageName=package_name,
-        basePort=draft.basePort or 8080,
-        components=components,
-        endpoints=endpoints,
-        interactions=interactions,
-        mermaidDiagram=mermaid_code,
-        openapiYaml=openapi_str,
-        entities=draft.entities,
-        userStories=draft.userStories,
-    )
-    resp.architectureMarkdown = serialize_architecture_markdown(resp)
-    return resp
-
 def design_architecture(
     request: ArchitectureDesignRequest,
     api_key: str,
@@ -414,7 +298,13 @@ def design_architecture(
     chosen_model = getattr(request, "modelName", None)
 
     if LLMFactory.is_mock(api_key, chosen_provider):
-        return _generate_mock_architecture(request.draft)
+        raise RuntimeError(
+            "mock/offline generation is disabled: refusing to fabricate an architecture without a real model"
+        )
+
+    # Guardrail: the draft is untrusted user input rendered into the model request.
+    from app.services.injection_guard import assert_no_injection
+    assert_no_injection(request.draft.model_dump(), field="architecture draft")
 
     from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -425,9 +315,9 @@ def design_architecture(
         temperature=0.2,
     )
     if llm is None:
-        return _generate_mock_architecture(request.draft)
-
-    structured_llm = llm.with_structured_output(LLMArchitecturePayload)
+        raise RuntimeError(
+            "no model client available for architecture design; refusing to fabricate a mock architecture"
+        )
 
     system_prompt = (
         "You are an expert Enterprise Software Architect specialized in Spring Boot 3 and Java 21 LTS.\n"
@@ -443,6 +333,16 @@ def design_architecture(
         "4. REST ENDPOINTS: Derive endpoints from Given/When/Then scenarios with Java Record DTOs (Create*Request, *Response) and HTTP status codes."
     )
 
+    if "hex" in (request.architecturePreference or "").lower():
+        system_prompt = (
+            "Design a hexagonal Spring Boot architecture from the supplied requirements. "
+            "Use domain/model and domain/port for domain and ports, application/service for use cases, "
+            "application/dto for records, infrastructure/adapter/in for REST, infrastructure/adapter/out "
+            "for persistence adapters, and infrastructure/persistence for JPA entities. "
+            "Use layers domain, application and infrastructure. Include full packageName per component. "
+            "Dependencies point toward domain interfaces. Derive endpoints, HTTP statuses and DTOs from actual stories."
+        )
+
     content_summary = (
         f"Service Name: {request.draft.serviceName}\n"
         f"Package Name: {request.draft.packageName}\n"
@@ -455,12 +355,13 @@ def design_architecture(
         HumanMessage(content=content_summary),
     ]
 
-    llm_payload: LLMArchitecturePayload = structured_llm.invoke(messages)
+    llm_payload: LLMArchitecturePayload = invoke_structured(
+        llm, LLMArchitecturePayload, messages)
 
     components: List[ComponentDefinition] = []
     for c in llm_payload.components:
         layer_enum = LayerType(c.layer.lower()) if c.layer.lower() in [l.value for l in LayerType] else LayerType.SERVICE
-        pkg = f"{request.draft.packageName}.{layer_enum.value}"
+        pkg = c.packageName or f"{request.draft.packageName}.{layer_enum.value}"
         components.append(ComponentDefinition(
             name=c.name,
             layer=layer_enum,
@@ -525,36 +426,13 @@ def refine_architecture(
     chosen_model = getattr(request, "modelName", None)
 
     if LLMFactory.is_mock(api_key, chosen_provider):
-        updated_comps = list(request.currentDesign.components)
-        updated_interactions = list(request.currentDesign.interactions)
+        raise RuntimeError(
+            "mock/offline generation is disabled: refusing to fabricate a refinement without a real model"
+        )
 
-        # Add refined component in service layer
-        new_comp_name = "AuditNotificationService"
-        if not any(c.name == new_comp_name for c in updated_comps):
-            new_comp = ComponentDefinition(
-                name=new_comp_name,
-                layer=LayerType.SERVICE,
-                stereotype="@Service",
-                packageName=f"{request.currentDesign.packageName}.service",
-                responsibilities=[f"Refined service based on prompt: {request.feedbackPrompt[:30]}"],
-                dependencies=[],
-                mappedStories=["US-1"],
-            )
-            updated_comps.append(new_comp)
-            # Find a service to connect
-            services = [c for c in updated_comps if c.layer == LayerType.SERVICE and c.name != new_comp_name]
-            if services:
-                services[0].dependencies.append(new_comp_name)
-                updated_interactions.append(ComponentInteraction(sourceComponent=services[0].name, targetComponent=new_comp_name, interactionType=InteractionType.CALLS))
-
-        mermaid_code = generate_mermaid_flowchart(updated_comps, updated_interactions)
-        resp = request.currentDesign.model_copy(update={
-            "components": updated_comps,
-            "interactions": updated_interactions,
-            "mermaidDiagram": mermaid_code,
-        })
-        resp.architectureMarkdown = serialize_architecture_markdown(resp)
-        return resp
+    # Guardrail: the refinement feedback is untrusted user input rendered into the request.
+    from app.services.injection_guard import assert_no_injection
+    assert_no_injection(request.feedbackPrompt, field="architecture refinement feedback")
 
     from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -565,9 +443,10 @@ def refine_architecture(
         temperature=0.2,
     )
     if llm is None:
-        return request.currentDesign
+        raise RuntimeError(
+            "no model client available for architecture refinement; refusing to return an unrefined design"
+        )
 
-    structured_llm = llm.with_structured_output(LLMArchitecturePayload)
 
     system_prompt = (
         "You are an Enterprise Software Architect. You are given an existing architecture design and feedback prompt. "
@@ -583,12 +462,13 @@ def refine_architecture(
     )
 
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=current_summary)]
-    llm_payload: LLMArchitecturePayload = structured_llm.invoke(messages)
+    llm_payload: LLMArchitecturePayload = invoke_structured(
+        llm, LLMArchitecturePayload, messages)
 
     components: List[ComponentDefinition] = []
     for c in llm_payload.components:
         layer_enum = LayerType(c.layer.lower()) if c.layer.lower() in [l.value for l in LayerType] else LayerType.SERVICE
-        pkg = f"{request.currentDesign.packageName}.{layer_enum.value}"
+        pkg = c.packageName or f"{request.currentDesign.packageName}.{layer_enum.value}"
         components.append(ComponentDefinition(
             name=c.name,
             layer=layer_enum,

@@ -188,8 +188,14 @@ export const CodeExplorerView: React.FC = () => {
 
   const filteredArtifacts = categories[selectedCategory] || artifacts || [];
 
-  const finalState = repairData?.finalState || (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : 'VERIFIED');
+  // `null` means NO VERDICT, and it is rendered as such. This defaulted to 'VERIFIED'
+  // whenever the repairs report was missing or its request failed, so the header showed
+  // a green "VERIFIED" for a session nothing had verified.
+  const finalState =
+    repairData?.finalState ?? (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : null);
   const totalIters = repairData?.totalIterations ?? (Array.isArray(repairs) ? repairs.length : 0);
+  // From the report when the server states it; the same cap the monitor's counter uses.
+  const repairLimit = (repairData as { maxIterations?: number } | null)?.maxIterations ?? 5;
   const isBlocked = finalState === 'BLOCKED';
 
   const testArtifacts = (artifacts || []).filter(
@@ -232,7 +238,11 @@ export const CodeExplorerView: React.FC = () => {
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 dark:text-slate-400 font-medium">Pruebas Unitarias Mockito</span>
           <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
-            {metricsData.passedTests} / {metricsData.totalTests} Pasadas (100%)
+            {metricsData.totalTests > 0
+              ? `${metricsData.passedTests} / ${metricsData.totalTests} Pasadas (${Math.round(
+                  (metricsData.passedTests / metricsData.totalTests) * 100,
+                )}%)`
+              : 'Sin datos de pruebas'}
           </div>
         </div>
       </div>
@@ -266,7 +276,10 @@ export const CodeExplorerView: React.FC = () => {
           {[
             { id: 0, label: '📂 Artefactos del Microservicio', icon: Folder },
             { id: 1, label: '🧪 Suites de Pruebas & Cobertura', icon: FlaskConical },
-            { id: 2, label: `🔄 Historial de Auto-Reparaciones (${totalIters}/3)`, icon: History },
+            // Was `(${totalIters}/3)`. The configured cap is 5, so the header read
+            // "(5/3)" -- a ratio that cannot exist -- while the banner above it said 5 and
+            // the manual-intervention panel said 3. The cap comes from the report now.
+            { id: 2, label: `🔄 Historial de Auto-Reparaciones (${totalIters}/${repairLimit})`, icon: History },
             { id: 3, label: '🛠️ Intervención Manual (Desbloqueo)', icon: Wrench },
             { id: 4, label: '🛡️ Auditoría de Seguridad & Calidad', icon: ShieldCheck },
           ].map((tab) => {
@@ -432,15 +445,24 @@ export const CodeExplorerView: React.FC = () => {
       {activeSubtab === 2 && (
         <div className="space-y-4">
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            Visualice los diagnósticos estructurados del compilador y los parches quirúrgicos aplicados a nivel de método o bloque a lo largo de las hasta 3 iteraciones permitidas por la Constitución.
+            Visualice los diagnósticos estructurados del compilador y los parches
+            quirúrgicos aplicados a nivel de método o bloque a lo largo de las hasta{' '}
+            {repairLimit} iteraciones permitidas por la Constitución.
           </p>
 
           {repairs.length === 0 ? (
-            <div className="p-6 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            // "No repair records" is not evidence that anything passed. It is also what a
+            // FAILED request to /repairs looks like, because that catch is empty -- so this
+            // claimed a clean first-iteration build for sessions whose report never loaded.
+            <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 text-xs flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-slate-400 shrink-0" />
               <div>
-                <strong className="block text-sm">Sin intervenciones necesarias</strong>
-                <span>La generación inicial compiló y superó todas las pruebas en la primera iteración de sandbox.</span>
+                <strong className="block text-sm">Sin registros de auto-reparación</strong>
+                <span>
+                  No se recuperó ningún informe de reparaciones para esta sesión. Esto no
+                  indica por sí mismo que la compilación pasara: consulte la verificación
+                  del sandbox en la pestaña de Monitor.
+                </span>
               </div>
             </div>
           ) : (
@@ -495,7 +517,8 @@ export const CodeExplorerView: React.FC = () => {
               <span>Intervención Manual y Desbloqueo de Sesión</span>
             </h4>
             <p className="text-slate-600 dark:text-slate-400">
-              Cuando la auto-reparación autónoma agota sus 3 iteraciones permitidas, la sesión entra en estado <strong>BLOCKED</strong>. Desde este editor en línea puede inspeccionar el archivo causante, aplicar una corrección manual directa o proporcionar una sugerencia en lenguaje natural al agente para reanudar la verificación.
+              Cuando la auto-reparación autónoma agota sus {repairLimit} iteraciones
+              permitidas, la sesión entra en estado <strong>BLOCKED</strong>. Desde este editor en línea puede inspeccionar el archivo causante, aplicar una corrección manual directa o proporcionar una sugerencia en lenguaje natural al agente para reanudar la verificación.
             </p>
           </div>
 
@@ -579,7 +602,7 @@ export const CodeExplorerView: React.FC = () => {
             La evaluación estática de vulnerabilidades, reglas de inmutabilidad y reporte SonarQube se encuentran centralizados en la pestaña canónica.
           </p>
           <button
-            onClick={() => setActiveTab(7)}
+            onClick={() => setActiveTab('quality')}
             className="py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm inline-flex items-center gap-1.5"
           >
             <span>👉 Abrir Auditoría en Pestaña 7</span>

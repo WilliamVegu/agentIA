@@ -26,6 +26,7 @@ import { requirementsService } from '../services/requirementsService';
 import { modelsService } from '../services/modelsService';
 import { specService } from '../services/specService';
 import { orchestratorService } from '../services/orchestratorService';
+import { exportService } from '../services/exportService';
 import apiClient from '../services/apiClient';
 
 export const ArchitectureView: React.FC = () => {
@@ -43,7 +44,7 @@ export const ArchitectureView: React.FC = () => {
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey } = useLlm();
+  const { provider, apiKey, model } = useLlm();
 
   // Active design or null if not yet synthesized
   const [design, setDesign] = useState<any>(architectureDesign || null);
@@ -72,9 +73,39 @@ export const ArchitectureView: React.FC = () => {
     }
   }, [architectureDesign, activeSessionId]);
 
+  useEffect(() => {
+    // The design lived only in React state, so it was present while you ran the step and
+    // gone the moment you reloaded, resumed a job, or opened the session from history --
+    // with `architecture.json` sitting on disk the whole time. Reported as "arquitectura
+    // disappears"; nothing had been lost, it was simply never read back.
+    if (!activeSessionId || architectureDesign) return;
+    let cancelled = false;
+    const read = (exportService as {
+      getArtifactContent?: (id: string, path: string) => Promise<string>;
+    }).getArtifactContent;
+    if (typeof read !== 'function') return;
+    read(activeSessionId, 'architecture.json')
+      .then((content) => {
+        if (cancelled || !content?.trim()) return;
+        setDesign(JSON.parse(content));
+      })
+      .catch(() => {
+        // Absent or unreadable: leave it empty. Not an error worth a banner -- the tab
+        // says nothing has been designed yet, which is the truth.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, architectureDesign]);
+
   const updateDesign = (newDesign: any) => {
     setDesign(newDesign);
     setArchitectureDesign(newDesign);
+    // Persist the tuned design so it survives tab navigation / reload / resume —
+    // this is the tuning result, not the mechanical derivation written at build time.
+    if (activeSessionId) {
+      architectureService.saveDesign(activeSessionId, newDesign).catch(() => {});
+    }
   };
 
   const handleGenerateAi = async () => {
@@ -93,22 +124,21 @@ export const ArchitectureView: React.FC = () => {
         }
       }
       if (!draftPayload) {
-        const rawServiceName = (activeSession?.specName || 'app-service')
-          .toLowerCase()
-          .replace(/[^a-z0-9-]/g, '-')
-          .replace(/^-+|-+$/g, '') || 'app-service';
-        draftPayload = {
-          serviceName: rawServiceName,
-          packageName: `com.corp.${rawServiceName.replace(/[^a-z0-9]/g, '')}`,
-          basePort: 8080,
-          entities: [{ name: 'Resource', tableName: 'resources', attributes: [{ name: 'id', type: 'Long', isPrimaryKey: true }] }],
-          userStories: [],
-        };
+        // Was a fabricated draft -- service `app-service`, one `Resource` entity with a
+        // single `id` -- sent to the architecture model and presented as derived from the
+        // session. There is no specification to design from, so say that instead.
+        setErrorMsg(
+          'No hay un borrador de requisitos para esta sesión. Genere y apruebe las ' +
+          'historias en la pestaña de Requisitos antes de diseñar la arquitectura.',
+        );
+        setIsGenerating(false);
+        return;
       }
       const res = await architectureService.design({
         draft: draftPayload,
         apiKey,
         provider,
+        modelName: model,
       });
       updateDesign(res);
       setFeedback('Diseño arquitectónico y componentes sintetizados exitosamente.');
@@ -130,6 +160,7 @@ export const ArchitectureView: React.FC = () => {
         targetComponent: targetComponent === 'GLOBAL' ? undefined : targetComponent,
         apiKey,
         provider,
+        modelName: model,
       });
       updateDesign(res);
       setIsRefining(false);
@@ -179,16 +210,17 @@ export const ArchitectureView: React.FC = () => {
         draft: draftPayload,
         apiKey,
         provider,
+        modelName: model,
       });
       setDataModelDesign(res);
       if (activeSessionId) {
         await orchestratorService.invalidateDownstream(activeSessionId, 'ARCHITECTURE');
         await reloadCurrentOverview();
       }
-      setActiveTab(3); // Go to tab 3 (Modelos & SQL)
+      setActiveTab('models'); // Go to tab 3 (Modelos & SQL)
     } catch (err: any) {
       // Fallback transition
-      setActiveTab(3);
+      setActiveTab('models');
     } finally {
       setIsGenerating(false);
     }
@@ -204,35 +236,21 @@ export const ArchitectureView: React.FC = () => {
         .replace(/^-+|-+$/g, '') || 'order-service';
       const cleanPackage = design.packageName || currentDraft?.packageName || `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
 
-      const draftEntities = (currentDraft?.entities && currentDraft.entities.length > 0)
-        ? currentDraft.entities
-        : [
-            {
-              name: 'Order',
-              tableName: 'orders',
-              attributes: [{ name: 'id', type: 'Long', nullable: false, isPrimaryKey: true, validationRules: [] }],
-            },
-          ];
+      // No invented fallback. This used to substitute an `Order`/`orders` entity and a
+      // "Gestionar pedidos" story with a full acceptance scenario when the draft was
+      // empty, and the result was submitted to POST /specifications -- so a session could
+      // be created, and a microservice generated, from domain content nobody wrote.
+      const draftEntities = currentDraft?.entities || [];
+      const draftStories = currentDraft?.userStories || [];
 
-      const draftStories = (currentDraft?.userStories && currentDraft.userStories.length > 0)
-        ? currentDraft.userStories
-        : [
-            {
-              id: 'US-001',
-              priority: 'P1',
-              role: 'Usuario',
-              intent: 'Gestionar pedidos',
-              benefit: 'Operar el negocio',
-              scenarios: [
-                {
-                  scenarioId: 'AC-1.1',
-                  given: 'Servicio en ejecución y base de datos disponible',
-                  when: 'Cliente envía solicitud REST',
-                  then: 'El microservicio procesa y retorna 201 Created',
-                },
-              ],
-            },
-          ];
+      if (draftEntities.length === 0 || draftStories.length === 0) {
+        setErrorMsg(
+          'El borrador no declara entidades o historias de usuario. Complete la ' +
+          'especificación en la pestaña de Requisitos antes de transferirla a generación.',
+        );
+        setIsGenerating(false);
+        return;
+      }
 
       const blueprintPayload = {
         serviceName: rawServiceName,
@@ -284,10 +302,10 @@ export const ArchitectureView: React.FC = () => {
           console.warn('Could not auto-start session:', sessErr);
         }
       }
-      setActiveTab(5); // Go to tab 5 (Generación & Logs)
+      setActiveTab('monitor'); // Go to tab 5 (Generación & Logs)
     } catch (err: any) {
       console.error('Error al transferir arquitectura a generación:', err);
-      setActiveTab(5);
+      setActiveTab('monitor');
     } finally {
       setIsGenerating(false);
     }
@@ -308,7 +326,7 @@ export const ArchitectureView: React.FC = () => {
       {/* Top Banner Card */}
       <SingleRowCard
         title="Fase 2: Diseño Arquitectónico & Catálogo de Componentes"
-        subtitle="Topología en 4 capas estrictas (Controller ➔ Service ➔ Repository ➔ Model) con Java Records y @RestControllerAdvice"
+        subtitle="Topología y contratos derivados de los requisitos de la sesión"
         badge={
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
             Spring Boot 3.x / Java 21
@@ -369,7 +387,7 @@ export const ArchitectureView: React.FC = () => {
               Arquitectura no sintetizada para este microservicio
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Presione <strong className="text-slate-700 dark:text-slate-300">"Sintetizar con IA"</strong> para deducir automáticamente la topología en 4 capas (Controllers, Services, Repositories, JPA Entities), endpoints REST y contratos inmutables a partir de los requerimientos de la sesión activa.
+              Presione <strong className="text-slate-700 dark:text-slate-300">"Sintetizar con IA"</strong> para deducir automáticamente la topología, los componentes y sus dependencias, endpoints REST y contratos inmutables a partir de los requerimientos de la sesión activa.
             </p>
           </div>
           <div className="pt-2">
@@ -402,7 +420,7 @@ export const ArchitectureView: React.FC = () => {
 
             <MermaidViewer
               chart={design.mermaidDiagram || ''}
-              title="Topología Arquitectónica en 4 Capas"
+              title={`Topología Arquitectónica: ${design.serviceName || 'Microservicio'}`}
             />
 
             {showMermaidSource && (

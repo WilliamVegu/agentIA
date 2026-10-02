@@ -1,0 +1,106 @@
+{
+  "serviceName": "audit-library",
+  "packageName": "com.corp.auditlibrary",
+  "basePort": 8080,
+  "entities": [],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "Librarian",
+      "intent": "register a new book with a unique ISBN, title, and author",
+      "benefit": "maintain an accurate and up-to-date library catalog",
+      "scenarios": [
+        {
+          "scenarioId": "AC-US-1.1",
+          "given": "a librarian with valid book details (ISBN, title, author)",
+          "when": "they submit a request to register the book",
+          "then": "the system creates the book and returns HTTP 201 with the created book details"
+        },
+        {
+          "scenarioId": "AC-US-1.2",
+          "given": "a book with an ISBN that already exists in the system",
+          "when": "the librarian attempts to register it",
+          "then": "the system rejects the request and returns HTTP 400 with an error message indicating duplicate ISBN"
+        },
+        {
+          "scenarioId": "AC-US-1.3",
+          "given": "a book with an empty title",
+          "when": "the librarian attempts to register it",
+          "then": "the system rejects the request and returns HTTP 400 with an error message indicating title cannot be empty"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "Librarian",
+      "intent": "update the title of an existing book identified by its ISBN",
+      "benefit": "correct or modify book information as needed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-US-2.1",
+          "given": "a book exists with a known ISBN",
+          "when": "the librarian updates the title with a valid new title",
+          "then": "the system updates the title and returns HTTP 200 with the updated book details"
+        },
+        {
+          "scenarioId": "AC-US-2.2",
+          "given": "a book does not exist for a given ISBN",
+          "when": "the librarian attempts to update its title",
+          "then": "the system returns HTTP 404 with an error message indicating the book was not found"
+        },
+        {
+          "scenarioId": "AC-US-2.3",
+          "given": "a book exists with a known ISBN",
+          "when": "the librarian attempts to update the title to an empty string",
+          "then": "the system returns HTTP 400 with an error message indicating title cannot be empty"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "Library Patron",
+      "intent": "retrieve book details by its ISBN",
+      "benefit": "find information about a specific book in the library",
+      "scenarios": [
+        {
+          "scenarioId": "AC-US-3.1",
+          "given": "a book exists with a specific ISBN",
+          "when": "the patron requests the book by ISBN",
+          "then": "the system returns HTTP 200 with the book details"
+        },
+        {
+          "scenarioId": "AC-US-3.2",
+          "given": "no book exists with a specific ISBN",
+          "when": "the patron requests the book by ISBN",
+          "then": "the system returns HTTP 404 with an error message indicating the book was not found"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "Librarian",
+      "intent": "delete a book from the library catalog by its ISBN",
+      "benefit": "remove outdated or lost books from the system",
+      "scenarios": [
+        {
+          "scenarioId": "AC-US-4.1",
+          "given": "a book exists with a specific ISBN",
+          "when": "the librarian deletes the book by ISBN",
+          "then": "the system removes the book and returns HTTP 204 No Content"
+        },
+        {
+          "scenarioId": "AC-US-4.2",
+          "given": "no book exists with a specific ISBN",
+          "when": "the librarian attempts to delete it",
+          "then": "the system returns HTTP 404 with an error message indicating the book was not found"
+        }
+      ]
+    }
+  ],
+  "assumptions": [],
+  "markdownSpec": ""
+}

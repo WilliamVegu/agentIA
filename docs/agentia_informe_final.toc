@@ -1,0 +1,12 @@
+\contentsline {section}{\numberline {1}El dolor}{1}{section.1}%
+\contentsline {section}{\numberline {2}La propuesta}{1}{section.2}%
+\contentsline {section}{\numberline {3}La propuesta de auto-mejora}{2}{section.3}%
+\contentsline {section}{\numberline {4}Estado actual}{2}{section.4}%
+\contentsline {section}{\numberline {5}El diseño guiado por especificación}{2}{section.5}%
+\contentsline {section}{\numberline {6}Orquestación de agentes y LangGraph}{3}{section.6}%
+\contentsline {section}{\numberline {7}El flujo de la aplicación}{3}{section.7}%
+\contentsline {section}{\numberline {8}La interfaz de usuario}{4}{section.8}%
+\contentsline {section}{\numberline {9}El coste}{4}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Uso de tokens (actual, del espejo MLflow y del registro)}{4}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Datos que faltan y qué hacer}{5}{subsection.9.2}%
+\contentsline {section}{\numberline {10}Conclusión}{5}{section.10}%

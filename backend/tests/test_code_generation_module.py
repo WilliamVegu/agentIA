@@ -427,7 +427,17 @@ def test_test_node_generates_mockito_and_web_tests(clean_workspace):
 # =========================================================================
 # 6. Complete LangGraph State Graph Workflow Execution
 # =========================================================================
-def test_complete_langgraph_generation_graph(clean_workspace):
+def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
+    # This test exercises the graph's plumbing end to end, not verifier honesty.
+    # The synthetic sandbox success was removed (levantando_observaciones), so an
+    # unreachable container now produces an HONEST block — the graph still generates
+    # every layer, which is what this test asserts. Verifier honesty is covered in
+    # backend/tests/test_sandbox_verifier_honesty.py.
+    monkeypatch.setattr(
+        "app.services.docker_service.check_docker_daemon",
+        lambda: False,
+    )
+
     session_ws = clean_workspace / "sess_graph_full"
     session_ws.mkdir()
 
@@ -441,11 +451,12 @@ def test_complete_langgraph_generation_graph(clean_workspace):
 
     final_state = generation_graph.invoke(initial_state)
 
-    assert final_state["build_success"] is True
-    assert final_state["status"] == SessionStatus.COMPLETED.value
-    assert final_state["current_phase"] == SessionPhase.VERIFIED.value
+    # Honest outcome now that the synthetic fallback is gone: the build could not
+    # run, so the session blocks rather than fabricating success.
+    assert final_state["build_success"] is False
+    assert final_state["status"] == SessionStatus.BLOCKED.value
 
-    # Verify that all 4 layers and tests are generated in the file system
+    # Plumbing assertions: every layer and the tests are still generated on disk.
     all_java_files = list(session_ws.glob("**/*.java"))
     assert len(all_java_files) >= 10, f"Expected at least 10 Java files, found {len(all_java_files)}"
 

@@ -15,6 +15,9 @@ try:
         RefinementRequest,
         SpecificationDraft,
     )
+    from app.services.injection_guard import assert_no_injection
+    from app.services.specification_guard import assert_looks_like_specification
+    from app.services.structured_output import invoke_structured
     from app.services.llm_factory import LLMFactory
 except ImportError:
     from backend.app.models.blueprint import (
@@ -28,6 +31,9 @@ except ImportError:
         RefinementRequest,
         SpecificationDraft,
     )
+    from backend.app.services.injection_guard import assert_no_injection
+    from backend.app.services.specification_guard import assert_looks_like_specification
+    from backend.app.services.structured_output import invoke_structured
     from backend.app.services.llm_factory import LLMFactory
 
 class LLMStoryDecomposition(BaseModel):
@@ -130,6 +136,14 @@ def _generate_mock_decomposition(raw_text: str, service_name: Optional[str] = No
         serviceName=clean_service,
         packageName=package,
         assumptions=[
+            # Stated first, because it is the most important thing about this
+            # decomposition and the UI was presenting it as an answer to the prompt.
+            # `raw_text` is never read here: any prompt -- "cafe", "a ceviche", empty,
+            # gibberish -- yields the identical Order entity and these identical three
+            # stories. Two sessions run from unrelated prompts therefore come back
+            # byte-identical, which reads as hardcoded output because it is one.
+            "OFFLINE SAMPLE: this decomposition is a fixed template. The submitted "
+            "prompt was NOT used to derive these entities or stories.",
             "Data retention adheres to standard 90-day retention policies.",
             "All monetary transactions require validation against active accounts.",
         ],
@@ -215,30 +229,37 @@ def transform_requirements(
     request: RequirementsTransformRequest,
     api_key: str,
     provider: Optional[str] = None,
+    model_name: Optional[str] = None,
+    chosen_provider: Optional[str] = None,
+    chosen_model: Optional[str] = None,
+    **kwargs,
 ) -> SpecificationDraft:
     """
     Decomposes unstructured natural language requirements into canonical User Stories,
     BDD Acceptance Criteria (Given/When/Then), and Domain Entities.
-    Supports free providers (Gemini, Groq), OpenAI, and offline mock mode.
+    Supports free providers (Gemini, Groq), DeepSeek, OpenAI, and offline mock mode.
     """
-    chosen_provider = provider or getattr(request, "provider", None)
-    chosen_model = getattr(request, "modelName", None)
+    # Guard the SERVICE, not only the route.
+    assert_no_injection(getattr(request, "rawText", "") or "", field="rawText")
+    assert_looks_like_specification(getattr(request, "rawText", "") or "", field="rawText")
 
-    if LLMFactory.is_mock(api_key, chosen_provider):
+    chosen_prov = chosen_provider or provider or getattr(request, "provider", None)
+    chosen_mod = chosen_model or model_name or getattr(request, "modelName", None)
+
+    if LLMFactory.is_mock(api_key, chosen_prov):
         decomp = _generate_mock_decomposition(request.rawText, request.serviceName)
     else:
         from langchain_core.messages import SystemMessage, HumanMessage
 
         llm = LLMFactory.get_chat_model(
             api_key=api_key,
-            provider=chosen_provider,
-            model_name=chosen_model,
+            provider=chosen_prov,
+            model_name=chosen_mod,
             temperature=0.2,
         )
         if llm is None:
-            decomp = _generate_mock_decomposition(request.rawText, request.serviceName)
+            raise RuntimeError("The selected provider is unavailable")
         else:
-            structured_llm = llm.with_structured_output(LLMRequirementsDecomposition)
 
             system_prompt = (
                 "You are an expert Enterprise Software Architect and Agile Product Owner. "
@@ -269,7 +290,8 @@ def transform_requirements(
                 HumanMessage(content=user_content),
             ]
 
-            decomp: LLMRequirementsDecomposition = structured_llm.invoke(messages)
+            decomp: LLMRequirementsDecomposition = invoke_structured(
+                llm, LLMRequirementsDecomposition, messages, provider=chosen_prov)
 
     # Convert LLM decomposition into SpecificationDraft
     entities: List[DomainEntity] = []
@@ -376,13 +398,14 @@ def refine_specification(
     request: RefinementRequest,
     api_key: str,
     provider: Optional[str] = None,
+    model_name: Optional[str] = None,
 ) -> SpecificationDraft:
     """
     Applies natural language refinement feedback to update stories, scenarios, or entities in a draft.
     Supports free providers (Gemini, Groq), OpenAI, and offline mock mode.
     """
     chosen_provider = provider or getattr(request, "provider", None)
-    chosen_model = getattr(request, "modelName", None)
+    chosen_model = model_name or getattr(request, "modelName", None)
 
     if LLMFactory.is_mock(api_key, chosen_provider):
         # For mock/testing, apply deterministic modification based on prompt
@@ -423,8 +446,6 @@ def refine_specification(
         draft.markdownSpec = serialize_draft_to_markdown(draft)
         return draft
 
-    structured_llm = llm.with_structured_output(LLMRequirementsDecomposition)
-
     system_prompt = (
         "You are an expert Software Architect and Agile Product Owner. "
         "You are given an existing SpecificationDraft and user feedback/refinement instructions. "
@@ -446,7 +467,8 @@ def refine_specification(
         HumanMessage(content=current_summary),
     ]
 
-    decomp: LLMRequirementsDecomposition = structured_llm.invoke(messages)
+    decomp: LLMRequirementsDecomposition = invoke_structured(
+        llm, LLMRequirementsDecomposition, messages)
 
     # Reconstruct updated draft
     entities: List[DomainEntity] = []

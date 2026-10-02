@@ -1,0 +1,258 @@
+{
+  "blueprintId": "hard-07",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Scheduled and batch work: a recurring cycle close whose rules, idempotency and partial-failure bookkeeping must live in the service layer rather than in a scheduler component or a controller-triggered job.",
+  "rationale": "A billing cycle service whose main story is a scheduled nightly close over many accounts, plus a manual trigger endpoint and a retry of a failed run. The batch nature invites a @Scheduled component or the controller to iterate accounts and touch the repository directly, and invites an all-or-nothing transaction that loses the per-item failure record. The run, item and failure entities make both mistakes visible.",
+
+  "serviceName": "billing-cycle-service",
+  "packageName": "com.corp.billingcycle",
+  "basePort": 8187,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Account",
+      "tableName": "accounts",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "accountCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "holderName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "billingEmail", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "currencyCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "BillingCycle",
+      "tableName": "billing_cycles",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "cycleCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "periodStart", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "periodEnd", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "closedAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "BillingRun",
+      "tableName": "billing_runs",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "cycleId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "runReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "triggerSource", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "startedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "finishedAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "processedCount", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero"] },
+        { "name": "failedCount", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero"] }
+      ]
+    },
+    {
+      "name": "BillingRunItem",
+      "tableName": "billing_run_items",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "runId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "accountId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "amountCharged", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero", "@Digits"] },
+        { "name": "settled", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "processedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "BillingRunFailure",
+      "tableName": "billing_run_failures",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "runId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "accountId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "errorCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "errorDetail", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "occurredAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "billing operator",
+      "intent": "open a billing cycle for a dated period",
+      "benefit": "charges are grouped into an auditable period",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique cycle code and a period end later than the period start",
+          "when": "the operator opens the cycle",
+          "then": "the cycle is persisted in an open state and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a period end earlier than the period start",
+          "when": "the operator attempts to open the cycle",
+          "then": "the service rejects the cycle as inconsistent"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "billing operator",
+      "intent": "register an account that can be billed",
+      "benefit": "the nightly run has a defined population to charge",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an account code matching the permitted pattern and a valid billing email",
+          "when": "the operator registers the account",
+          "then": "the account is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a malformed billing email",
+          "when": "the operator attempts to register the account",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "billing scheduler",
+      "intent": "close every open billing cycle automatically once per night and charge all active accounts",
+      "benefit": "billing happens without an operator starting it",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "one open cycle and three active accounts",
+          "when": "the nightly close runs",
+          "then": "a run is recorded in a completed state with three processed items and the cycle is closed with a closure timestamp"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "an open cycle whose period has not yet ended",
+          "when": "the nightly close runs",
+          "then": "that cycle is left untouched and no run is recorded for it"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "no open cycle at all",
+          "when": "the nightly close runs",
+          "then": "no run is recorded and the operation completes without error"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "billing operator",
+      "intent": "trigger a close of a specific cycle by hand without waiting for the schedule",
+      "benefit": "an urgent close can be forced on demand",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an open cycle whose period has ended and a manual trigger",
+          "when": "the operator triggers the close",
+          "then": "a run is recorded with a manual trigger source and the response reports the run outcome"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "a cycle identifier that does not exist",
+          "when": "the operator triggers the close",
+          "then": "the service reports the cycle as not found"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "a cycle that is already closed",
+          "when": "the operator triggers the close",
+          "then": "the service reports the cycle as conflicting with the current state rather than closing it twice"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P1",
+      "role": "billing scheduler",
+      "intent": "keep a close idempotent so a repeated trigger cannot double-charge an account",
+      "benefit": "a retried or duplicated schedule does not bill twice",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "a cycle already closed by an earlier run",
+          "when": "the close is triggered again for that cycle",
+          "then": "no new billing item is persisted for any account and the earlier run outcome is reported"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "two close requests for the same open cycle arriving together",
+          "when": "both are handled",
+          "then": "exactly one run is recorded for the cycle"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P1",
+      "role": "billing operator",
+      "intent": "record a per-account failure without abandoning the rest of the run",
+      "benefit": "one bad account does not block every other customer's invoice",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "three active accounts, one of which cannot be charged",
+          "when": "the close runs",
+          "then": "the run is recorded in a partially failed state with two processed items and one failure entry naming the offending account"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "a run with one recorded failure",
+          "when": "the operator reads the failures of that run",
+          "then": "the failure is returned with its account reference, error code and detail"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P2",
+      "role": "billing operator",
+      "intent": "retry only the accounts that failed in an earlier run",
+      "benefit": "a transient failure can be recovered without re-charging successful accounts",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "a run with one failed account and two successful items",
+          "when": "the operator retries the failed accounts",
+          "then": "a new run is recorded for the same cycle in which only the previously failed account is processed"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "a run identifier that does not exist",
+          "when": "the operator retries its failures",
+          "then": "the service reports the run as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-8",
+      "priority": "P2",
+      "role": "billing operator",
+      "intent": "read the items and failures of a run for reconciliation",
+      "benefit": "the amounts charged can be reconciled against the ledger",
+      "scenarios": [
+        {
+          "scenarioId": "AC-8.1",
+          "given": "a run with no failures",
+          "when": "the operator reads the failures",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-8.2",
+          "given": "a run identifier that does not exist",
+          "when": "the operator reads the items",
+          "then": "the service reports the run as not found"
+        }
+      ]
+    }
+  ]
+}

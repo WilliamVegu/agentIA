@@ -1,0 +1,36 @@
+\contentsline {section}{\numberline {1}Resumen ejecutivo}{2}{section.1}%
+\contentsline {section}{\numberline {2}Objetivo y alcance}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Objetivo}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Alcance acordado}{2}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Fuera de alcance}{3}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Estrategia de pruebas}{3}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Enfoque basado en riesgo}{3}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Sustitución de fronteras}{3}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Hermeticidad}{4}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Inventario de pruebas automatizadas}{4}{section.4}%
+\contentsline {section}{\numberline {5}Matriz de trazabilidad}{4}{section.5}%
+\contentsline {section}{\numberline {6}Defectos encontrados y corregidos}{5}{section.6}%
+\contentsline {paragraph}{Evidencia.}{5}{paragraph*.1}%
+\contentsline {paragraph}{Causa raíz.}{5}{paragraph*.2}%
+\contentsline {paragraph}{Corrección.}{6}{paragraph*.3}%
+\contentsline {paragraph}{Corrección del arnés.}{6}{paragraph*.4}%
+\contentsline {paragraph}{Resultado.}{6}{paragraph*.5}%
+\contentsline {paragraph}{Evidencia.}{6}{paragraph*.6}%
+\contentsline {paragraph}{Causa raíz.}{6}{paragraph*.7}%
+\contentsline {paragraph}{Corrección.}{6}{paragraph*.8}%
+\contentsline {paragraph}{Pruebas de regresión.}{6}{paragraph*.9}%
+\contentsline {paragraph}{Evidencia.}{7}{paragraph*.10}%
+\contentsline {paragraph}{Causa raíz.}{7}{paragraph*.11}%
+\contentsline {paragraph}{Corrección.}{7}{paragraph*.12}%
+\contentsline {paragraph}{Pruebas de regresión.}{7}{paragraph*.13}%
+\contentsline {paragraph}{Evidencia.}{7}{paragraph*.14}%
+\contentsline {paragraph}{Causa raíz.}{7}{paragraph*.15}%
+\contentsline {paragraph}{Corrección.}{7}{paragraph*.16}%
+\contentsline {paragraph}{Pruebas de regresión.}{7}{paragraph*.17}%
+\contentsline {paragraph}{Evidencia.}{7}{paragraph*.18}%
+\contentsline {paragraph}{Causa raíz.}{8}{paragraph*.19}%
+\contentsline {paragraph}{Corrección.}{8}{paragraph*.20}%
+\contentsline {paragraph}{Pruebas de regresión.}{8}{paragraph*.21}%
+\contentsline {section}{\numberline {7}Resultados de ejecución}{8}{section.7}%
+\contentsline {section}{\numberline {8}Brechas restantes y recomendaciones}{9}{section.8}%
+\contentsline {section}{\numberline {9}Limitaciones del informe}{10}{section.9}%

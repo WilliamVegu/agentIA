@@ -1,0 +1,27 @@
+{
+  "sessionId": "330dab8e-c435-4fce-8ba3-dc46d67c705e",
+  "serviceName": "audit-library",
+  "qualityGate": {
+    "status": "PASS",
+    "score": 100,
+    "criticalCount": 0,
+    "highCount": 0,
+    "mediumCount": 0,
+    "lowCount": 0,
+    "canExport": true,
+    "summaryMessage": "Quality Gate PASSED: Zero security flaws or constitutional violations. Clean code standards met."
+  },
+  "metrics": {
+    "averageCyclomaticComplexity": 1.08,
+    "maxCyclomaticComplexity": 2,
+    "totalMethodsAudited": 79,
+    "methodsExceedingThreshold": 0,
+    "totalLinesOfCode": 918,
+    "duplicationPercentage": 6.21,
+    "testAssertionDensity": 2.7,
+    "totalCodeSmells": 0
+  },
+  "vulnerabilities": [],
+  "violations": [],
+  "auditedAt": "2026-10-02T07:33:11.409508+00:00"
+}

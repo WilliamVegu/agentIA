@@ -24,214 +24,31 @@ import { SingleRowCard } from '../components/common/SingleRowCard';
 import { CodeViewer } from '../components/common/CodeViewer';
 import { useStudio } from '../context/StudioContext';
 import { devopsService, LocalDeploymentSession, SmokeTestResult } from '../services/devopsService';
+import { exportService } from '../services/exportService';
 
-const SAMPLE_DOCKERFILE = `# Multi-stage Build for Spring Boot 3 / Java 21 LTS (Eclipse Temurin)
-FROM eclipse-temurin:21-jdk-alpine AS builder
-WORKDIR /workspace
-COPY pom.xml .
-COPY src ./src
-RUN ./mvnw clean package -DskipTests
-RUN java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted
 
-FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup -u 10001
-USER 10001
-WORKDIR /app
-COPY --from=builder /workspace/target/extracted/dependencies/ ./
-COPY --from=builder /workspace/target/extracted/spring-boot-loader/ ./
-COPY --from=builder /workspace/target/extracted/snapshot-dependencies/ ./
-COPY --from=builder /workspace/target/extracted/application/ ./
-EXPOSE 8080
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]
-`;
 
-const SAMPLE_DOCKERIGNORE = `.git
-.gitignore
-.idea
-target/
-*.class
-*.jar
-*.war
-.mvn
-`;
+//: What to show when an artifact has not been generated. Names the file it looked for,
+//: so "not generated" can never be mistaken for "generated differently".
+const MissingArtifact: React.FC<{ path: string }> = ({ path }) => (
+  <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center">
+    <p className="text-xs text-slate-500 dark:text-slate-400">
+      No hay <span className="font-mono">{path}</span> en este workspace.
+    </p>
+    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+      Pulse <strong>Generar Manifiestos DevOps</strong> para producirlo.
+    </p>
+  </div>
+);
 
-const SAMPLE_COMPOSE = `version: '3.8'
-
-services:
-  app:
-    build: .
-    container_name: \${SERVICE_NAME:-order-service}
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/studio_db
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=\${DB_PASSWORD:-postgres}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - app-network
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: studio-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=studio_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  pgdata:
-`;
-
-const SAMPLE_GITHUB_CI = `name: Autonomous CI/CD Pipeline
-
-on:
-  push:
-    branches: [ main, feature/* ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-      - name: Run Hermetic Verification Suite
-        run: ./mvnw clean verify -B
-      - name: Build Docker Image
-        run: docker build -t \${{ github.repository }}:\${{ github.sha }} .
-`;
-
-const SAMPLE_GITLAB_CI = `image: maven:3.9.6-eclipse-temurin-21-alpine
-
-stages:
-  - test
-  - build
-
-verify_job:
-  stage: test
-  script:
-    - mvn clean verify -B
-  artifacts:
-    reports:
-      junit: target/surefire-reports/*.xml
-
-build_job:
-  stage: build
-  script:
-    - mvn clean package -DskipTests
-`;
-
-const SAMPLE_K8S_DEPLOYMENT = `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: order-service
-  labels:
-    app: order-service
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: order-service
-  template:
-    metadata:
-      labels:
-        app: order-service
-    spec:
-      containers:
-        - name: order-service
-          image: order-service:latest
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8080
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8080
-            initialDelaySeconds: 15
-            periodSeconds: 5
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-`;
-
-const SAMPLE_K8S_SERVICE = `apiVersion: v1
-kind: Service
-metadata:
-  name: order-service
-spec:
-  selector:
-    app: order-service
-  ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
-  type: ClusterIP
-`;
-
-const SAMPLE_K8S_CONFIGMAP = `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: order-service-config
-data:
-  SPRING_PROFILES_ACTIVE: "prod"
-  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics"
-`;
-
-const SAMPLE_K8S_INGRESS = `apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: order-service-ingress
-  annotations:
-    kubernetes.io/ingress.class: nginx
-spec:
-  rules:
-    - host: api.enterprise.corp
-      http:
-        paths:
-          - path: /api/v1/orders
-            pathType: Prefix
-            backend:
-              service:
-                name: order-service
-                port:
-                  number: 8080
-`;
+//: Which generated file each subtab shows. The keys are the filenames the API returns
+//: under `kubernetesManifests`, so the tab and the generator cannot disagree.
+const K8S_FILES: Record<string, string> = {
+  deployment: 'deployment.yaml',
+  service: 'service.yaml',
+  configmap: 'configmap.yaml',
+  ingress: 'ingress.yaml',
+};
 
 export const DevOpsDeploymentView: React.FC = () => {
   const { activeSessionId, reloadCurrentOverview } = useStudio();
@@ -240,6 +57,13 @@ export const DevOpsDeploymentView: React.FC = () => {
 
   const [hostPort, setHostPort] = useState<number>(8080);
   const [activeManifestTab, setActiveManifestTab] = useState<'docker' | 'compose' | 'cicd' | 'k8s'>('docker');
+  // filename -> content, exactly as the API returns it. Empty until something generates
+  // it or the workspace is read, and the tab says so rather than inventing a manifest.
+  const [k8sManifests, setK8sManifests] = useState<Record<string, string>>({});
+  // The generated DevOps files, by workspace-relative path. Same reasoning as the
+  // Kubernetes manifests: the constants these replaced were samples from another
+  // service, so every tab showed a plausible artifact whether or not one existed.
+  const [devopsFiles, setDevopsFiles] = useState<Record<string, string>>({});
   const [activeCicdSubtab, setActiveCicdSubtab] = useState<'github' | 'gitlab'>('github');
   const [activeK8sSubtab, setActiveK8sSubtab] = useState<'deployment' | 'service' | 'configmap' | 'ingress'>('deployment');
 
@@ -253,8 +77,19 @@ export const DevOpsDeploymentView: React.FC = () => {
 
   // Live Playground State: Dynamic CRUD
   const [orders, setOrders] = useState<any[]>([]);
-  const [newCustomerEmail, setNewCustomerEmail] = useState('');
-  const [newTotalAmount, setNewTotalAmount] = useState('');
+  // The collection path this service actually exposes, read from its controllers.
+  // It used to be a hardcoded `/api/v1/orders`, which is wrong for every blueprint
+  // without an Order entity -- so the form posted to a path that did not exist and the
+  // old silent fallback hid the 404. Empty until discovery answers; the form refuses
+  // to submit rather than guessing.
+  const [crudPath, setCrudPath] = useState('');
+  const [availableResources, setAvailableResources] = useState<string[]>([]);
+  // The entities this service actually declares, from its own domain_model.json. The form
+  // below used to be hardcoded to an Orders shape (customerEmail, totalAmount, status)
+  // and posted it to whichever path discovery found -- so on any other blueprint it sent
+  // fields the target entity does not have and the service rejected it.
+  const [modelEntities, setModelEntities] = useState<any[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   // REST Console State
   const [reqMethod, setReqMethod] = useState<'GET' | 'POST' | 'DELETE'>('GET');
@@ -293,12 +128,112 @@ export const DevOpsDeploymentView: React.FC = () => {
     }
   }, [activeSessionId]);
 
+  useEffect(() => {
+    // Read whatever is already on disk, so the tab is correct after a reload and not
+    // only immediately after pressing "Generar Manifiestos".
+    if (!activeSessionId) {
+      setK8sManifests({});
+      return;
+    }
+    let cancelled = false;
+    const wanted = [
+      ...Object.values(K8S_FILES).map((f) => `k8s/${f}`),
+      'Dockerfile',
+      '.dockerignore',
+      'docker-compose.yml',
+      '.github/workflows/ci-cd.yml',
+      '.gitlab-ci.yml',
+      'domain_model.json',
+    ];
+    // Guarded: a missing or throwing reader must not take the whole view down. It did --
+    // the first version called this unguarded and the view crashed on mount in any test
+    // whose `exportService` mock lacked the method, so the page rendered nothing at all.
+    const read = (path: string): Promise<readonly [string, string] | null> => {
+      try {
+        const fn = (exportService as { getArtifactContent?: (id: string, p: string) => Promise<string> })
+          .getArtifactContent;
+        if (typeof fn !== 'function') return Promise.resolve(null);
+        return fn(activeSessionId, path).then((content) => [path, content] as const);
+      } catch {
+        return Promise.resolve(null);
+      }
+    };
+    Promise.all(wanted.map((path) => read(path).catch(() => null))).then((entries) => {
+      if (cancelled) return;
+      const found = Object.fromEntries(entries.filter(Boolean) as [string, string][]);
+      setK8sManifests(
+        Object.fromEntries(Object.entries(found).filter(([p]) => p.startsWith('k8s/')).map(([p, c]) => [p.slice(4), c])),
+      );
+      setDevopsFiles(
+        Object.fromEntries(
+          Object.entries(found).filter(([p]) => !p.startsWith('k8s/') && p !== 'domain_model.json'),
+        ),
+      );
+      try {
+        const model = JSON.parse(found['domain_model.json'] || '{}');
+        setModelEntities(Array.isArray(model.entities) ? model.entities : []);
+      } catch {
+        // Absent or unparseable: the form falls back to a JSON body, which is honest.
+        setModelEntities([]);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      setCrudPath('');
+      setAvailableResources([]);
+      return;
+    }
+    let cancelled = false;
+    // Guarded for the same reason as the artifact reader below: this is a new dependency
+    // and an unmocked or older service object would otherwise throw on mount and blank
+    // the entire screen. Discovery failing should leave the form empty, not break the tab.
+    const discover = (devopsService as {
+      getPlaygroundResources?: (id: string) => Promise<{ resources?: string[]; defaultResource?: string | null }>;
+    }).getPlaygroundResources;
+    if (typeof discover !== 'function') {
+      setAvailableResources([]);
+      setCrudPath('');
+      return () => {
+        cancelled = true;
+      };
+    }
+    discover(activeSessionId)
+      .then((res) => {
+        if (cancelled) return;
+        setAvailableResources(res.resources || []);
+        setCrudPath(res.defaultResource || '');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAvailableResources([]);
+        setCrudPath('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId]);
+
   const handleGenerateManifests = async () => {
     if (!activeSessionId) return;
     setIsGenerating(true);
     setFeedback(null);
     try {
-      await devopsService.generateManifests(activeSessionId, 'POSTGRESQL', hostPort);
+      // The response was previously discarded -- `await` with no assignment -- which is
+      // how the Kubernetes tab ended up rendering samples instead of these files.
+      const bundle = await devopsService.generateManifests(activeSessionId, 'POSTGRESQL', hostPort);
+      setK8sManifests(bundle.kubernetesManifests || {});
+      setDevopsFiles({
+        Dockerfile: bundle.dockerfileContent,
+        '.dockerignore': bundle.dockerignoreContent,
+        'docker-compose.yml': bundle.dockerComposeContent,
+        '.github/workflows/ci-cd.yml': bundle.githubActionsWorkflow,
+        '.gitlab-ci.yml': bundle.gitlabCiWorkflow,
+      });
       setFeedback('✅ Manifiestos DevOps (Dockerfile, Compose, CI/CD y Kubernetes) generados exitosamente.');
       await fetchStatus();
     } catch (err: any) {
@@ -333,7 +268,12 @@ export const DevOpsDeploymentView: React.FC = () => {
       setFeedback('Contenedores y redes detenidos correctamente.');
       await reloadCurrentOverview();
     } catch (err: any) {
-      setFeedback('Contenedores detenidos.');
+      // Report the real outcome. This used to say "Contenedores detenidos." even
+      // when the stop request failed, so the UI claimed a state the host was not in.
+      setFeedback(
+        `No se pudieron detener los contenedores: ${err?.message || String(err)}. ` +
+        `El estado mostrado puede no reflejar el host.`,
+      );
     } finally {
       setIsStopping(false);
     }
@@ -345,111 +285,255 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       const res = await devopsService.runSmokeTest(activeSessionId, hostPort);
       setSmokeResult(res);
-    } catch {
+    } catch (err) {
+      // SKIPPED, not SUCCESS. This used to fabricate a pass -- status 'SUCCESS',
+      // httpStatusCode 200, latencyMs 14, "Endpoint de salud verificado" -- on any
+      // failure, so pressing "Ejecutar Smoke Test" reported a healthy service that
+      // was never contacted. It is the same three-state discipline the diagnostics
+      // use: *verified*, *verified with findings*, and *not evaluable* must never be
+      // conflated, and "the check could not run" is the third one.
       setSmokeResult({
         sessionId: activeSessionId,
         endpointTested: `http://localhost:${hostPort}/actuator/health`,
-        status: 'SUCCESS',
-        httpStatusCode: 200,
-        latencyMs: 14,
-        message: 'Endpoint de salud verificado: Status UP en 14ms',
+        status: 'SKIPPED',
+        message:
+          `Smoke test NO ejecutado: ${err instanceof Error ? err.message : String(err)}. ` +
+          `No se contactó ningún endpoint, así que esto no dice nada sobre el servicio ` +
+          `(ni bueno ni malo). Comprueba que el contenedor está desplegado.`,
       });
     } finally {
       setIsTesting(false);
     }
   };
 
-  const handleCreateOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCustomerEmail) return;
+  // The entity behind the selected resource path. Paths are the pluralised table name
+  // (`/api/v1/customers` -> `customers`), which is how the emitted controllers are built.
+  const pathTail = (crudPath.split('/').filter(Boolean).pop() || '').toLowerCase();
+  const targetEntity = modelEntities.find(
+    (e: any) =>
+      String(e.tableName || '').toLowerCase() === pathTail ||
+      `${String(e.name || '').toLowerCase()}s` === pathTail,
+  );
+  // The primary key is generated by the service, so it is never an input.
+  const createFields: any[] = targetEntity
+    ? (targetEntity.attributes || []).filter((a: any) => !a.isPrimaryKey)
+    : [];
 
-    let createdId = orders.length + 101;
-    let actualStatus = 'CONFIRMED';
-    const payload = {
-      customerEmail: newCustomerEmail,
-      totalAmount: parseFloat(newTotalAmount) || 99.99,
-      status: 'CONFIRMED',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  //: Java time types, and the input control that can produce a value for each.
+  //:
+  //: These were plain text boxes. An `Instant` field is `@NotNull` on the generated entity,
+  //: so it genuinely has to be sent, and Jackson rejects anything that is not ISO-8601 --
+  //: typing "11" produced a 500 with no explanation of what was wrong. A picker cannot
+  //: produce an unparseable value, which removes the trap rather than documenting it.
+  const temporalInputType = (javaType: string): 'datetime-local' | 'date' | null => {
+    if (javaType === 'Instant' || javaType === 'LocalDateTime' || javaType === 'OffsetDateTime') {
+      return 'datetime-local';
+    }
+    if (javaType === 'LocalDate') return 'date';
+    return null;
+  };
+
+  const coerceField = (attr: any, raw: string): any => {
+    const t = String(attr.javaType || attr.type || 'String');
+    if (t.startsWith('List')) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        throw new Error(`${attr.name} debe ser una lista JSON, por ejemplo ["a","b"]`);
+      }
+    }
+    if (t === 'Boolean' || t === 'boolean') return raw.toLowerCase() === 'true';
+    if (['Long', 'Integer', 'int', 'long', 'BigDecimal', 'Double', 'double', 'Float'].includes(t)) {
+      const n = Number(raw);
+      if (Number.isNaN(n)) throw new Error(`${attr.name} debe ser numérico`);
+      return n;
+    }
+    if (temporalInputType(t)) {
+      // `datetime-local` yields "2026-09-30T12:00" with no zone. Instant is an instant on
+      // the timeline, so it needs one; LocalDateTime is not, so it must not gain one.
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new Error(`${attr.name} debe ser una fecha válida`);
+      }
+      if (t === 'LocalDateTime') {
+        return raw.length === 16 ? `${raw}:00` : raw;
+      }
+      return parsed.toISOString();
+    }
+    return raw;
+  };
+
+  const handleCreateRecordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSessionId) return;
+    if (!crudPath) {
+      setFeedback(
+        'No se ha detectado ninguna ruta REST en este servicio todavía. ' +
+        'Despliega el servicio y vuelve a intentarlo, o usa la consola REST de la derecha.',
+      );
+      return;
+    }
+
+    // Built from the target entity's own attributes. The previous payload was an Orders
+    // template with `totalAmount: parseFloat(x) || 99.99` -- an amount invented on the
+    // user's behalf -- plus `status: 'CONFIRMED'` and two timestamps the entity may not
+    // declare. Sending fields a service does not have is why the call failed.
+    if (createFields.length === 0) {
+      setFeedback(
+        `No se han podido determinar los campos de ${crudPath || 'la ruta seleccionada'}. ` +
+        'Comprueba que la entidad existe en el modelo de dominio del servicio.',
+      );
+      return;
+    }
+    const payload: Record<string, any> = {};
+    try {
+      for (const attr of createFields) {
+        const raw = (fieldValues[attr.name] ?? '').trim();
+        if (raw === '') {
+          if (attr.nullable) continue; // genuinely optional: omit rather than invent
+          setFeedback(`El campo ${attr.name} es obligatorio.`);
+          return;
+        }
+        payload[attr.name] = coerceField(attr, raw);
+      }
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : String(err));
+      return;
+    }
+
+    // The record is only real if the service accepted it. This used to swallow the
+    // failure, invent an id (`orders.length + 101`), default the status to
+    // 'CONFIRMED' and then append a log line claiming `201 CREATED` -- so the table
+    // showed a record and the log showed a success whether or not anything had been
+    // called. On a workspace whose generated service does not expose /api/v1/orders
+    // the form targeted a non-existent endpoint and the fallback hid the 404.
+    let createdId: number | string | null = null;
+    let actualStatus: string | null = null;
+    let createdHttp: number | null = null;
+    let failure: string | null = null;
 
     try {
-      const resp = await fetch(`http://localhost:${hostPort}/api/v1/orders`, {
+      // Through the platform, not the browser: a direct cross-origin call is rejected
+      // by the generated service (no CORS), and `crudPath` is the path its controllers
+      // actually expose rather than a hardcoded /api/v1/orders.
+      const result = await devopsService.proxyPlayground(activeSessionId, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        path: crudPath,
+        body: payload,
       });
-      if (resp.ok) {
-        const data = await resp.json();
+      if (result.error) {
+        failure = result.error;
+      } else if (result.statusCode && result.statusCode < 300) {
+        createdHttp = result.statusCode;
+        const data = result.body as { id?: number | string; status?: string } | null;
         if (data?.id) createdId = data.id;
         if (data?.status) actualStatus = data.status;
+      } else {
+        failure = `HTTP ${result.statusCode}`;
       }
-    } catch {
-      // Local fallback if container not reachable
+    } catch (err: any) {
+      // The platform refuses an undeployed session with a 400 and a reason. Reading only
+      // `err.message` reduced that to "Request failed with status code 400" and threw the
+      // explanation away -- which is the whole reason the platform now states it.
+      const detail = err?.response?.data?.detail;
+      failure =
+        (typeof detail === 'string' ? detail : detail?.message) ||
+        (err instanceof Error ? err.message : String(err));
+    }
+
+    if (failure) {
+      setTerminalLogs((prev) => [
+        ...prev,
+        `[http] POST ${crudPath} FAILED (${failure}) — el servicio no aceptó el registro`,
+      ]);
+      setFeedback(
+        `No se pudo crear el registro: ${failure}. ` +
+        `La ruta ${crudPath} se consulta a través del backend de la plataforma — ` +
+        `verifica que el contenedor está en ejecución y que la entidad existe.`,
+      );
+      return;
     }
 
     const newOrd = {
       id: createdId,
-      customerEmail: newCustomerEmail,
-      totalAmount: parseFloat(newTotalAmount) || 99.99,
       status: actualStatus,
       createdAt: new Date().toLocaleTimeString(),
+      submitted: payload,
     };
     setOrders([newOrd, ...orders]);
+    setFieldValues({});
     setTerminalLogs((prev) => [
       ...prev,
-      `[http] POST /api/v1/orders 201 CREATED {"id":${newOrd.id},"customerEmail":"${newOrd.customerEmail}"}`,
+      `[http] POST ${crudPath} ${createdHttp ?? '—'} ${JSON.stringify(payload)}`,
     ]);
   };
 
   const handleSendCustomRest = async () => {
+    if (!activeSessionId) return;
     const t0 = performance.now();
     const cleanEndpoint = reqEndpoint.startsWith('/') ? reqEndpoint : `/${reqEndpoint}`;
-    const url = `http://localhost:${hostPort}${cleanEndpoint}`;
 
     try {
-      const options: RequestInit = {
-        method: reqMethod,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-        },
-      };
+      let parsedBody: unknown;
       if (reqMethod === 'POST' && reqBody.trim()) {
-        options.body = reqBody;
+        try {
+          parsedBody = JSON.parse(reqBody);
+        } catch {
+          parsedBody = reqBody;
+        }
       }
 
-      const resp = await fetch(url, options);
+      const result = await devopsService.proxyPlayground(activeSessionId, {
+        method: reqMethod,
+        path: cleanEndpoint,
+        body: parsedBody,
+      });
+      setRestLatency(result.latencyMs ?? Math.round(performance.now() - t0));
+
+      if (result.error) {
+        // The platform reports what actually happened; it never invents a status.
+        setRestStatusCode(null);
+        setRestResponse(
+          [
+            '// NO HUBO RESPUESTA DEL SERVICIO',
+            `// ${reqMethod} ${result.url || cleanEndpoint}`,
+            `// ${result.error}`,
+            '',
+            '// Nada se ejecutó en el contenedor. Esto NO es una respuesta del API.',
+          ].join('\n'),
+        );
+        return;
+      }
+
+      setRestStatusCode(result.statusCode ?? null);
+      if (typeof result.body === 'string') {
+        setRestResponse(result.body);
+      } else {
+        setRestResponse(JSON.stringify(result.body, null, 2));
+      }
+      if (result.truncated) {
+        setRestResponse((prev) => `${prev}\n\n// (respuesta truncada por el proxy)`);
+      }
+    } catch (err) {
+      // A console that invents a response is worse than one that shows nothing: the
+      // operator reads `HTTP 200` and a JSON body and concludes the service answered.
+      // This block used to fabricate 200/201/204 with canned bodies on ANY failure
+      // (container down, wrong port, CORS, DNS), which is precisely the class of
+      // dishonesty feature 012 removed from the verifier.
       const t1 = performance.now();
       setRestLatency(Math.round(t1 - t0));
-      setRestStatusCode(resp.status);
-
-      const text = await resp.text();
-      try {
-        const json = JSON.parse(text);
-        setRestResponse(JSON.stringify(json, null, 2));
-      } catch {
-        setRestResponse(text || '// Respuesta recibida (HTTP ' + resp.status + ')');
-      }
-    } catch {
-      // Local simulated response fallback
-      const t1 = performance.now();
-      setRestLatency(Math.round(t1 - t0) + 8);
-      if (reqMethod === 'GET') {
-        setRestStatusCode(200);
-        setRestResponse(JSON.stringify(orders, null, 2));
-      } else if (reqMethod === 'POST') {
-        setRestStatusCode(201);
-        try {
-          const parsed = JSON.parse(reqBody);
-          setRestResponse(JSON.stringify({ id: 105, ...parsed, status: 'CONFIRMED' }, null, 2));
-        } catch {
-          setRestResponse(JSON.stringify({ id: 105, status: 'CONFIRMED' }, null, 2));
-        }
-      } else {
-        setRestStatusCode(204);
-        setRestResponse('{}');
-      }
+      setRestStatusCode(null);
+      setRestResponse(
+        [
+          '// NO HUBO RESPUESTA DEL SERVICIO',
+          `// ${reqMethod} ${cleanEndpoint}`,
+          `// ${err instanceof Error ? err.message : String(err)}`,
+          '',
+          '// Nada se ejecutó en el contenedor. Esto NO es una respuesta del API.',
+          `// Comprueba que el contenedor está en marcha en el puerto ${hostPort}`,
+          '// (pestaña DevOps: "Desplegar Localmente") y que la ruta existe.',
+        ].join('\n'),
+      );
     }
   };
 
@@ -459,9 +543,12 @@ export const DevOpsDeploymentView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {isDockerUnavailable && <div role="status" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm">
+        Despliegue no ejecutado: Docker no está disponible. Puede generar los manifiestos y continuar con la entrega del código; el servicio y las pruebas de ejecución no se muestran como aprobados.
+      </div>}
       {/* 1. Status Banner & Metrics */}
       <SingleRowCard
-        title="Fase 8: DevOps, Contenerización & Despliegue Multi-Stage"
+        title="Fase 6: DevOps, Contenerización & Despliegue Multi-Stage"
         subtitle="Dockerfile multi-stage hermético, Compose con base de datos, pipelines de CI/CD (GitHub Actions / GitLab CI) y Kubernetes"
         badge={
           <span
@@ -542,12 +629,29 @@ export const DevOpsDeploymentView: React.FC = () => {
         )}
 
         {smokeResult && (
-          <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+          // Styled by outcome. This was unconditional emerald with a check, so a FAILURE
+          // or the SKIPPED the catch now sets both rendered as a green pass -- and
+          // SKIPPED carries no latency, so it printed "undefinedms".
+          <div
+            className={`mt-2.5 p-2.5 rounded-lg border text-xs flex items-center justify-between ${
+              smokeResult.status === 'SUCCESS'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                : smokeResult.status === 'SKIPPED'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+                  : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+            }`}
+          >
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              {smokeResult.status === 'SUCCESS' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+              )}
               <span>{smokeResult.message}</span>
             </div>
-            <span className="font-mono font-bold">{smokeResult.latencyMs}ms</span>
+            {typeof smokeResult.latencyMs === 'number' && (
+              <span className="font-mono font-bold">{smokeResult.latencyMs}ms</span>
+            )}
           </div>
         )}
       </SingleRowCard>
@@ -572,8 +676,23 @@ export const DevOpsDeploymentView: React.FC = () => {
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
-            <span className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-              PostgreSQL + Spring Boot 3 Conectados
+            {/* Was unconditional literal text: "PostgreSQL + Spring Boot 3 Conectados"
+                rendered green no matter what, including while the page simultaneously
+                showed `Estado Actuator: NO INICIADO`. It happened to be true on the run
+                that exposed it, which is exactly what makes a static claim dangerous --
+                it is right often enough to be believed. It now reports the state the
+                rest of the page is reporting, so the two cannot disagree on screen. */}
+            <span
+              className={`text-xs px-2.5 py-1 rounded-lg font-semibold border ${
+                isRunning
+                  ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+              }`}
+              title="Derivado del estado de despliegue, no de una comprobación propia"
+            >
+              {isRunning
+                ? `PostgreSQL + Spring Boot 3 conectados (${currentStatus})`
+                : `Sin conexión verificada — estado: ${currentStatus}`}
             </span>
           </div>
         </div>
@@ -582,42 +701,80 @@ export const DevOpsDeploymentView: React.FC = () => {
           {/* Gestor Visual de Órdenes */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              📋 Gestor Visual de Órdenes (CRUD en PostgreSQL)
+              📋 Crear registro{targetEntity ? ` · ${targetEntity.name}` : ''} (CRUD en PostgreSQL)
             </h4>
 
-            <form onSubmit={handleCreateOrderSubmit} className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Email del Cliente
-                  </label>
-                  <input
-                    type="email"
-                    value={newCustomerEmail}
-                    onChange={(e) => setNewCustomerEmail(e.target.value)}
-                    required
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Monto Total ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newTotalAmount}
-                    onChange={(e) => setNewTotalAmount(e.target.value)}
-                    required
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none"
-                  />
-                </div>
+            {/* The resource is chosen, not assumed: discovery lists what the service
+                exposes and the fields come from that entity's own definition. */}
+            {availableResources.length > 0 && (
+              <div>
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">
+                  Recurso
+                </label>
+                <select
+                  value={crudPath}
+                  onChange={(e) => {
+                    setCrudPath(e.target.value);
+                    setFieldValues({});
+                  }}
+                  className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none"
+                >
+                  {availableResources.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
               </div>
+            )}
+
+            <form onSubmit={handleCreateRecordSubmit} className="space-y-2">
+              {createFields.length === 0 ? (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  {crudPath
+                    ? `No se han podido determinar los campos de ${crudPath}.`
+                    : 'Despliega el servicio para descubrir sus recursos.'}
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {createFields.map((attr) => (
+                    <div key={attr.name}>
+                      <label className="block text-[11px] font-medium text-slate-500 mb-1">
+                        {attr.name}
+                        <span className="text-slate-400 font-normal">
+                          {' '}({attr.javaType || attr.type})
+                          {attr.nullable ? '' : ' *'}
+                        </span>
+                        {String(attr.javaType || attr.type) === 'Instant' && (
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            se envía como ISO-8601 UTC
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type={
+                          temporalInputType(String(attr.javaType || attr.type)) ??
+                          (['Long', 'Integer', 'int', 'long', 'BigDecimal', 'Double', 'double', 'Float'].includes(
+                            String(attr.javaType || attr.type),
+                          )
+                            ? 'number'
+                            : 'text')
+                        }
+                        step={['BigDecimal', 'Double', 'double', 'Float'].includes(String(attr.javaType || attr.type)) ? '0.01' : undefined}
+                        value={fieldValues[attr.name] ?? ''}
+                        onChange={(e) =>
+                          setFieldValues((prev) => ({ ...prev, [attr.name]: e.target.value }))
+                        }
+                        required={!attr.nullable}
+                        className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <button
                 type="submit"
-                className="w-full py-2 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
+                disabled={createFields.length === 0}
+                className="w-full py-2 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition-colors"
               >
                 💾 Guardar en PostgreSQL
               </button>
@@ -632,12 +789,14 @@ export const DevOpsDeploymentView: React.FC = () => {
                   key={ord.id}
                   className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-xs flex items-center justify-between"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-semibold text-slate-900 dark:text-white font-mono">
-                      #{ord.id} · {ord.customerEmail}
+                      #{ord.id}
                     </div>
-                    <div className="text-[11px] text-slate-500">
-                      Monto: ${ord.totalAmount.toFixed(2)} · {ord.createdAt}
+                    {/* Was `ord.totalAmount.toFixed(2)`, which throws on any record whose
+                        entity has no `totalAmount` -- i.e. every service but the sample. */}
+                    <div className="text-[11px] text-slate-500 truncate">
+                      {JSON.stringify(ord.submitted ?? {})} · {ord.createdAt}
                     </div>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -785,28 +944,28 @@ export const DevOpsDeploymentView: React.FC = () => {
 
         {activeManifestTab === 'docker' && (
           <div className="space-y-3">
-            <CodeViewer
-              code={SAMPLE_DOCKERFILE}
-              language="dockerfile"
-              filename="Dockerfile (Multi-Stage JRE 21 LTS)"
-              maxHeight="max-h-72"
-            />
-            <CodeViewer
-              code={SAMPLE_DOCKERIGNORE}
-              language="text"
-              filename=".dockerignore"
-              maxHeight="max-h-40"
-            />
+            {devopsFiles['Dockerfile'] ? (
+              <CodeViewer code={devopsFiles['Dockerfile']} language="dockerfile"
+                          filename="Dockerfile (Multi-Stage JRE 21 LTS)" maxHeight="max-h-72" />
+            ) : (
+              <MissingArtifact path="Dockerfile" />
+            )}
+            {devopsFiles['.dockerignore'] ? (
+              <CodeViewer code={devopsFiles['.dockerignore']} language="text"
+                          filename=".dockerignore" maxHeight="max-h-40" />
+            ) : (
+              <MissingArtifact path=".dockerignore" />
+            )}
           </div>
         )}
 
         {activeManifestTab === 'compose' && (
-          <CodeViewer
-            code={SAMPLE_COMPOSE}
-            language="yaml"
-            filename="docker-compose.yml (Spring Boot + PostgreSQL)"
-            maxHeight="max-h-80"
-          />
+          devopsFiles['docker-compose.yml'] ? (
+            <CodeViewer code={devopsFiles['docker-compose.yml']} language="yaml"
+                        filename="docker-compose.yml (Spring Boot + PostgreSQL)" maxHeight="max-h-80" />
+          ) : (
+            <MissingArtifact path="docker-compose.yml" />
+          )
         )}
 
         {activeManifestTab === 'cicd' && (
@@ -835,19 +994,17 @@ export const DevOpsDeploymentView: React.FC = () => {
             </div>
 
             {activeCicdSubtab === 'github' ? (
-              <CodeViewer
-                code={SAMPLE_GITHUB_CI}
-                language="yaml"
-                filename=".github/workflows/ci-cd.yml"
-                maxHeight="max-h-72"
-              />
+              devopsFiles['.github/workflows/ci-cd.yml'] ? (
+                <CodeViewer code={devopsFiles['.github/workflows/ci-cd.yml']} language="yaml"
+                            filename=".github/workflows/ci-cd.yml" maxHeight="max-h-72" />
+              ) : (
+                <MissingArtifact path=".github/workflows/ci-cd.yml" />
+              )
+            ) : devopsFiles['.gitlab-ci.yml'] ? (
+              <CodeViewer code={devopsFiles['.gitlab-ci.yml']} language="yaml"
+                          filename=".gitlab-ci.yml" maxHeight="max-h-72" />
             ) : (
-              <CodeViewer
-                code={SAMPLE_GITLAB_CI}
-                language="yaml"
-                filename=".gitlab-ci.yml"
-                maxHeight="max-h-72"
-              />
+              <MissingArtifact path=".gitlab-ci.yml" />
             )}
           </div>
         )}
@@ -897,37 +1054,27 @@ export const DevOpsDeploymentView: React.FC = () => {
               </button>
             </div>
 
-            {activeK8sSubtab === 'deployment' && (
+            {k8sManifests[K8S_FILES[activeK8sSubtab]] ? (
               <CodeViewer
-                code={SAMPLE_K8S_DEPLOYMENT}
+                code={k8sManifests[K8S_FILES[activeK8sSubtab]]}
                 language="yaml"
-                filename="k8s/deployment.yaml"
+                filename={`k8s/${K8S_FILES[activeK8sSubtab]}`}
                 maxHeight="max-h-72"
               />
-            )}
-            {activeK8sSubtab === 'service' && (
-              <CodeViewer
-                code={SAMPLE_K8S_SERVICE}
-                language="yaml"
-                filename="k8s/service.yaml"
-                maxHeight="max-h-72"
-              />
-            )}
-            {activeK8sSubtab === 'configmap' && (
-              <CodeViewer
-                code={SAMPLE_K8S_CONFIGMAP}
-                language="yaml"
-                filename="k8s/configmap.yaml"
-                maxHeight="max-h-72"
-              />
-            )}
-            {activeK8sSubtab === 'ingress' && (
-              <CodeViewer
-                code={SAMPLE_K8S_INGRESS}
-                language="yaml"
-                filename="k8s/ingress.yaml"
-                maxHeight="max-h-72"
-              />
+            ) : (
+              // Was four hardcoded SAMPLE_K8S_* constants, from an unrelated
+              // `order-service`: the tab showed a canned manifest whatever the session
+              // contained, while the real files sat on disk. A viewer that cannot tell
+              // "not generated" from "generated differently" is worse than an empty one.
+              <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  No hay <span className="font-mono">k8s/{K8S_FILES[activeK8sSubtab]}</span> en
+                  este workspace.
+                </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                  Pulse <strong>Generar Manifiestos DevOps</strong> para producirlo.
+                </p>
+              </div>
             )}
           </div>
         )}

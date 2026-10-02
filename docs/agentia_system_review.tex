@@ -1,0 +1,505 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{warn}{RGB}{160,60,40}
+\definecolor{good}{RGB}{30,120,70}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true, linkcolor=accent, urlcolor=accent,
+  pdftitle={AgentIA --- System Review, Verification and Cost Report},
+  pdfauthor={AgentIA Engineering}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}AgentIA --- System Review}
+\fancyhead[R]{\small\color{accent}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{softgray}, breaklines=true,
+  columns=fullflexible, keepspaces=true, showstringspaces=false,
+  xleftmargin=0.5em, xrightmargin=0.5em,
+}
+
+\newtcolorbox{notebox}[1][]{colback=softgray,colframe=accent,boxrule=0.4pt,
+  arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,breakable,#1}
+
+\title{\vspace{-1.4cm}\textbf{AgentIA --- System Review, Verification and Cost}\\[0.25cm]
+\large The agentic workflow, the orchestration, what is measured, and what it costs}
+\author{AgentIA Engineering}
+\date{2026-09-29}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{notebox}
+\textbf{What this document is.} A review of the system as it actually runs today:
+the agentic generation workflow (the LangGraph pipeline and its verification loop),
+the orchestration around it, the design, the verification results obtained this
+week, and a cost/usage report gathered from the platform's own stores --- the local
+SQLite system of record and its MLflow mirror.
+
+It is written \emph{after} the platform produced its first verified builds, so it
+separates what is measured from what is asserted. Where the two cost sources
+disagree, this document says so rather than picking one silently.
+\end{notebox}
+
+\tableofcontents
+\vspace{0.4cm}
+
+\section{Executive summary}
+
+Four facts dominate this review.
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{The platform now verifies its own output.} Until this week the
+  system reported ``0 of 15 sessions verified''. The cause was a one-character
+  Docker mount defect (a private SELinux relabel concatenated onto a read-only
+  flag, producing an invalid mount option that made every build exit before Maven
+  ran). It is fixed, and the first verified builds are on record.
+  \item \textbf{The agentic workflow is real and governed.} A LangGraph state
+  machine runs eight nodes --- validator, five generation stages, sandbox, repair
+  --- with a deterministic compliance gate at every stage and a bounded repair
+  loop. Every generation stage has two implementations, \texttt{MODEL} and
+  \texttt{DETERMINISTIC}, dispatched once per session.
+  \item \textbf{Verification-guided selection is the measured reliability lever.}
+  With a single sample the generator builds 78\% of the time; sampling three
+  candidates and keeping the first that builds raises task-level coverage to 100\%
+  at \$0.20 per reliable service.
+  \item \textbf{The verifier is intermittently flaky, and the cost mirror has
+  drifted.} The same frozen workspace rebuilds 4-of-6 times under load and 8-of-8
+  times sequentially; the leading cause is the same mount configuration. And the
+  MLflow mirror undercounts the system of record by $\approx$\$1.6 (20\%), so the local
+  store --- not the mirror --- is the number to quote.
+\end{enumerate}
+
+\section{The agent: what it does, and how it is governed}
+
+At its core, AgentIA is a single autonomous worker with one job: turn a formal
+blueprint into a complete, compilable, test-passing Spring Boot microservice --- and
+refuse to report success unless that is true. It is not a chatbot that suggests code;
+it is a governed pipeline that writes, checks, builds and verifies, and stops when it
+cannot. This section describes that worker in plain terms: the stages it runs, the
+guardrails that constrain it, and the loop that keeps it honest.
+
+\subsection{The job, stage by stage}
+
+Eight stages take a specification to a verified service. Each one has a single,
+reviewable responsibility, which is what makes the output auditable.
+
+\begin{center}
+\begin{longtable}{@{}p{0.19\textwidth}p{0.34\textwidth}p{0.41\textwidth}@{}}
+\toprule
+\textbf{Stage} & \textbf{Produces} & \textbf{Why it matters} \\
+\midrule
+Validator & passes or rejects the blueprint & a bad spec is caught before a single token is spent \\
+Scaffolder & \texttt{pom.xml}, configuration, entry point & the dependency allowlist and the skeleton, fixed by policy \\
+Domain & JPA entities + immutable DTO records & the data model, in one canonical place \\
+Service & repository, service, implementation & business logic isolated in its own layer \\
+Controller & REST endpoints + global error handler & a uniform API surface \\
+Test & unit tests derived from the acceptance scenarios & every declared behaviour has a test \\
+Sandbox & compiles and runs the tests, offline & proof, not a claim \\
+Repair & a surgical patch, then re-runs & self-correction, bounded \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+The order is not arbitrary: each stage builds only on artifacts the previous stages
+have already produced, so a decision made upstream --- the package name, an entity, a
+contract --- is never silently contradicted downstream.
+
+\subsection{Autonomy with a hard stop}
+
+The pipeline is deliberately a bounded loop, shown in Figure~\ref{fig:workflow}.
+Generation runs in one direction; then the sandbox builds. If the build fails, the
+repair stage reads the actual Maven error, applies a narrow patch, and builds again
+--- up to a fixed limit (three attempts by the constitution, five in one config
+file, an inconsistency noted in Section~\ref{sec:findings}). At the limit the session
+is marked \texttt{BLOCKED} and handed to a human.
+
+That bound is the point, not a limitation: the agent may correct itself, but it may
+not loop indefinitely, and it may not silently hand back something it could not build.
+Bounded autonomy is the property a board can underwrite --- the cost of a wrong answer
+is capped at a review, never an unbounded token burn or an unverifiable artifact.
+
+\subsection{Two engines, one decision}
+
+Every generation stage has two implementations: \texttt{DETERMINISTIC} (offline
+templates, zero model calls, byte-identical output) and \texttt{MODEL} (a commodity
+LLM, currently \texttt{deepseek-flash}, driven by a versioned instruction set). The
+choice is made once per session and recorded, never re-decided halfway, so a session
+cannot mix the two. The deterministic engine exists for cost and for audit: the same
+input must produce the same output when an auditor asks, and a session must be able to
+run with no network and no API key.
+
+\subsection{Guardrails the project owns}
+
+Before any file is written, it passes a compliance gate that merges two rule families
+--- the constitutional test analysis and the security architecture scan. Every
+finding carries an attribution: \texttt{LOCAL} (this stage owns the offending file) or
+\texttt{ACCUMULATED} (a whole-project concern, e.g.\ ``errors must be centralised'').
+A local violation rejects the candidate and spends one correction attempt; an
+accumulated one is recorded but never blamed on a single stage.
+
+The key property for the board: \textbf{these are the project's own rules, enforced
+deterministically --- not the model's opinion of its own output.}
+
+\subsection{The agent cannot grade its own homework}
+
+The decisive design choice is that the acceptance test is \emph{not} written by the
+model. After every stage, the platform injects its own persistence contract test --- a
+Spring context boot with \texttt{ddl-auto=validate} against the generated
+\texttt{schema.sql} --- then compiles and runs everything inside a sealed Docker
+container with no network and a read-only dependency cache. The model never sees this
+test, so it cannot write to it.
+
+This matters because the model's own unit tests mock the persistence layer out: a
+generated service whose schema contradicts its entities would pass every model-written
+test and fail the platform's. That class of defect has been caught here, and it is
+exactly the gap this design closes. Test counts are read from the build's own output,
+never fabricated, and a build that reports success without running any test is
+recorded as not verified.
+
+\subsection{The prompts, the skill, and the reflector}
+
+Three pieces of authored text drive the model, and they are worth naming because they
+are the platform's real, reviewable ``program'':
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{The five stage prompts} (\texttt{resources/instructions/*.md}). One
+  per stage, each in four fixed sections --- \emph{Technology contract}, \emph{Rules},
+  \emph{Output contract}, \emph{Prohibitions}. They are injected verbatim ahead of
+  every model request and versioned content-addressed, so an artifact records exactly
+  which instruction text produced it.
+  \item \textbf{The skill} (\texttt{resources/skills/layer\_architecture.md}). A
+  single document encoding the layering discipline: one class per layer; depend only
+  on the layer immediately below; never import a repository from a controller. The
+  skill slot currently points at nothing --- two further skill files are empty and the
+  active pointer is absent --- so the skill is defined but not yet wired in.
+  \item \textbf{The reflector prompt} (\texttt{scripts/skillopt/prompts/analyst\_error.md},
+  adapted from SkillOpt, Appendix C.2.1). This is the text that would turn recorded
+  diagnostics into skill edits: it consumes the rule histogram, per-stage attribution,
+  the build exit code, the terminal status and the verification-fallback flag --- the
+  diagnostic channel, not a binary verdict.
+\end{itemize}
+
+\section{Orchestration}
+
+\subsection{Two entry points, one product}
+
+The system exposes two ways to start a session, and this review confirms both now
+reach the model and both verify the workspace:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Graph path} --- \texttt{POST /sessions} enqueues a session whose
+  worker runs the compiled graph end to end, credentials threaded through the
+  \texttt{X-LLM-API-Key} header.
+  \item \textbf{Sequential path} --- \texttt{POST /sessions/quick-start} with
+  \texttt{autoRun}, and \texttt{/orchestrator/pipeline/run}, drive
+  \texttt{pipeline\_runner}, which runs the same generation stages, the same
+  hermetic verification, a static security audit, and DevOps/export phases.
+\end{itemize}
+
+The sequential path previously generated code and \emph{never compiled it}; it now
+runs the same verification seam as the graph, so the two paths cannot drift.
+
+\subsection{Queue, lifecycle and streaming}
+
+A FIFO queue (\texttt{queue\_service.py}) caps concurrency at two simultaneous
+sandbox executions. The lifecycle (\texttt{lifecycle\_service.py}) walks
+\texttt{REQUIREMENTS $\rightarrow$ ARCHITECTURE $\rightarrow$ DATA\_MODEL
+$\rightarrow$ CODE\_TESTS $\rightarrow$ SECURITY\_AUDIT $\rightarrow$ DEVOPS
+$\rightarrow$ EXPORT $\rightarrow$ COMPLETED}, with in-flight pause, resume and cancel
+and live Server-Sent-Events streaming to the monitor screen.
+
+\subsection{Measurement and self-improvement substrate}
+
+Two further layers sit alongside generation. The diagnostic instrument
+(\texttt{conformance\_diagnostics.py}) is a deterministic, rule-attributed scorer
+that persists one durable record per session and produces a corpus report. The
+skill-optimisation loop (features 014--015) is \emph{built} --- collect, reflect,
+apply, a strict-improvement gate, per-skill contribution by leave-one-out, and
+eviction with an evidence floor --- but it is deliberately not run, for the reasons
+stated in Section~\ref{sec:verification}.
+
+\section{User interface availability}
+
+The product surface is a React/Vite single-page application (the earlier Streamlit
+app is retained as \texttt{frontend-legacy/}). It is organised as a ten-tab workspace
+with Spanish labels, tabulated below; a lifecycle stepper mirrors the backend phase
+machine, and architecture and entity-relationship diagrams render through a Mermaid
+viewer.
+
+\begin{center}
+\begin{longtable}{@{}p{0.24\textwidth}p{0.70\textwidth}@{}}
+\toprule
+\textbf{Tab} & \textbf{What it exposes} \\
+\midrule
+0. Resumen & executive dashboard; 1-click quick start; Auto-Pilot vs step-by-step mode \\
+1. Requisitos & BDD user stories (Given/When/Then) and spec.md export \\
+2. Arquitectura & 4-layer architecture, component catalogue, REST contracts (Mermaid) \\
+3. Modelos \& SQL & JPA entities, DTO records, schema.sql, ER diagram \\
+4. Blueprints & drag-and-drop spec.md / JSON blueprint ingestion and validation \\
+5. Monitor Live & live logs over Server-Sent Events, phase progress, pause/resume/cancel \\
+6. Código \& Fix & code explorer, tests, repair diffs, manual intervention for blocked sessions \\
+7. Calidad SAST & static secrets/CVE/architecture audit, quality gate, 1-click remediation \\
+8. DevOps \& Demo & Dockerfile, compose, CI/CD, k8s manifests, local deploy, smoke test, REST console \\
+9. Entrega Git & ZIP download and atomic Git publish \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Beyond the tabs: an LLM settings drawer (provider: Gemini, Groq, OpenAI, DeepSeek or
+offline mock; API key; model; connection verification), authentication on the login
+screen, a dark/light theme toggle, and a session list with status. The UI mirrors the
+backend's honest three-state verification (verified / verified with findings / not
+evaluable), following a frontend audit that removed several places where the interface
+reported outcomes that had not occurred (a fabricated smoke-test ``UP'' verdict, a
+REST console that invented 200/201/204 responses, and a CRUD form that invented a
+created record).
+
+\section{Design}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig/architecture.pdf}
+  \caption{System architecture: the React studio over the FastAPI API, the LangGraph
+  agentic engine, the hermetic verification sandbox, and the state/cost stores.}
+  \label{fig:architecture}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{fig/workflow.pdf}
+  \caption{The generation state machine: a linear spine with one bounded
+  repair--sandbox cycle.}
+  \label{fig:workflow}
+\end{figure}
+
+\subsection{Service inventory}
+
+\begin{center}
+\begin{longtable}{@{}p{0.34\textwidth}p{0.60\textwidth}@{}}
+\toprule
+\textbf{Service} & \textbf{Role} \\
+\midrule
+\texttt{requirements\_service} & BDD story decomposition and spec synthesis \\
+\texttt{architecture\_service} & 4-layer architecture and component catalogue \\
+\texttt{model\_sql\_service} & JPA entities, DTOs, schema/data SQL, ER diagram \\
+\texttt{test\_analysis\_service} & static constitutional-rule analyser (family A) \\
+\texttt{security\_service} & SAST, secrets, architecture conformance (family B) \\
+\texttt{conformance\_diagnostics} & deterministic rule-attributed conformance scorer \\
+\texttt{corpus\_report} & batch/corpus measurement report \\
+\texttt{workspace\_verification} & strip VCS, inject contract test, run the build \\
+\texttt{verification\_selection} & best-of-$k$: generate, verify, stop at first pass \\
+\texttt{platform\_verification} & platform-authored persistence contract test \\
+\texttt{skill\_contribution} & leave-one-out per-skill contribution \\
+\texttt{llm\_factory} & provider detection and model-client construction \\
+\texttt{structured\_output} & schema-constrained model output \\
+\texttt{injection\_guard} & prompt-injection defence for the reflector \\
+\texttt{queue\_service / lifecycle\_service} & concurrency and phase orchestration \\
+\texttt{docker\_service / devops / export / git} & container deploy, CI, ZIP, publish \\
+\texttt{cost recording + mlflow sink} & per-call and per-session cost, mirror \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Verification results}
+\label{sec:verification}
+
+\subsection{Coverage scaling: the reliability lever}
+
+Verification-guided selection --- generate $k$ candidates, verify each, keep the
+first that passes --- is measured here, not borrowed from another task class. The
+control arm of this week's experiment is 6 tasks, each resampled 3--4 times with the
+same instructions and model; the coverage formula is
+$\mathrm{coverage}(k)=1-(1-p)^k$ (\emph{Large Language Monkeys},
+\texttt{arXiv:2407.21787}).
+
+\begin{center}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} & \\
+\midrule
+pass@1 (single sample) & \textbf{78.3\%} & \\
+coverage $k{=}1$ & 83.3\% & \\
+coverage $k{=}2$ & 83.3\% & \\
+coverage $k{=}3$ & \textbf{100.0\%} & 6 of 6 tasks \\
+coverage $k{=}4$ & 100.0\% & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+At \$0.065 per generated service, three candidates cost \textbf{\$0.20 per reliable
+service}. Caveats, stated not smoothed: $n{=}6$ tasks, one model, one provider; this
+is a demonstration of the lever, not a benchmark, and the direction (coverage is
+monotone in $k$) is robust while the 100\% is ``6 of 6 tasks''.
+
+\subsection{The verifier is intermittently flaky}
+
+The same frozen workspace, rebuilt under load earlier, passed 4 of 6 times; rebuilt
+sequentially, two workspaces passed 8 of 8 each. The failure, when it occurs, is a
+surefire \texttt{PluginContainerException} on a \texttt{surefire-shared-utils}
+foreign import --- \emph{after} every test has passed.
+
+The flake is therefore not a per-workspace code defect. It is intermittent and
+load-correlated, and the leading hypothesis is the mount configuration:
+\texttt{DOCKER\_MOUNT\_SUFFIX=:Z} is a \emph{private} SELinux relabel, correct for a
+per-session workspace but wrong for a \emph{shared read-only Maven cache} mounted by
+many concurrent containers. Two containers relabelling one shared source with
+\texttt{:Z} is a known cause of exactly this class of intermittent class-realm
+failure. The proposed fix is to apply \texttt{:Z} to the workspace only and leave the
+cache unrelabelled (or \texttt{:z}), confirmed by a repeatability gate.
+
+\begin{notebox}[colframe=warn]
+\textbf{Why this gates everything downstream.} A verifier that flips $\approx$ 33\% of
+runs cannot serve as an admission oracle: coverage would over-promise, an admission
+gate would promote noise, and Ratchet's theorem (\texttt{arXiv:2605.22148}) says a
+judge this noisy retires nothing at any sample size. Making the oracle deterministic
+is therefore the prerequisite for every further measurement --- including the
+skill-optimisation loop, which stays closed behind it.
+\end{notebox}
+
+\section{Cost and usage}
+\label{sec:cost}
+
+Costs are recorded per call and per session in the local SQLite store
+(\texttt{backend/cost\_tracking.db}), which is the \textbf{system of record}, and
+mirrored into MLflow (\texttt{mlflow.db}). The two are compared here, not merged.
+
+\subsection{System of record (authoritative)}
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Scope} & \textbf{Calls} & \textbf{Cost (USD)} & \textbf{Output tokens} \\
+\midrule
+Polarity experiment (\texttt{p4}) & 750 & \textbf{6.58} & --- \\
+Frozen-five baseline (\texttt{corpus}) & 120 & 0.63 & --- \\
+Hard ten & 50 & 0.64 & --- \\
+Probes / single sessions & $\approx$ 250 & $\approx$ 0.16 & --- \\
+\midrule
+\textbf{Total} & \textbf{1172} & \textbf{8.01} & \textbf{12.28M} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All 1219 calls were \texttt{deepseek-flash}. Total input tokens 6.54M, output tokens
+12.48M (combined 19.02M), of which 2.20M input tokens were served from cache
+($\approx$34\%). The mirror records 5.49M in / 9.92M out (15.41M combined) --- the
+same undercount as its cost. The single dominant cost is the instruction-polarity
+experiment, which is a finished measurement (a null), not an ongoing drain.
+
+\subsection{Per-task and per-stage (real measurements)}
+
+Across the ten-service ``hard'' corpus, a generated service costs \textbf{\$0.052--\$0.077},
+for a corpus total of \textbf{\$0.6357} over 50 calls --- roughly \textbf{\$0.005 per
+model call}, and cost scales with blueprint complexity (payload and output tokens),
+not with retries.
+
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Stage (one service)} & \textbf{In tok} & \textbf{Out tok} & \textbf{Cost} \\
+\midrule
+Scaffolder & 2{,}200 & 6{,}620 & \$0.0040 \\
+Domain & 2{,}669 & 1{,}759 & \$0.0012 \\
+Service & 3{,}250 & 5{,}166 & \$0.0034 \\
+Controller & 3{,}925 & 4{,}210 & \$0.0029 \\
+Test & 5{,}711 & 9{,}108 & \$0.0061 \\
+\midrule
+\textbf{Total} & 17{,}755 & 26{,}863 & \textbf{\$0.0176} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The test stage is the most expensive because its output is the largest; the scaffold
+and domain stages are the cheapest. No single stage dominates, so cost is predictable
+and linear in service size.
+
+\subsection{MLflow mirror (and where it has drifted)}
+
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Experiment} & \textbf{Runs} & \textbf{Cost (USD)} & \textbf{In tok} & \textbf{Out tok} \\
+\midrule
+\texttt{Default} (legacy) & 877 & 5.41 & 4.63M & 8.20M \\
+\texttt{agentia} (current) & 114 & 0.98 & 0.78M & 1.52M \\
+\midrule
+\textbf{Mirror total} & 991 & \textbf{6.39} & 5.40M & 9.72M \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{notebox}[colframe=warn]
+\textbf{The mirror has drifted.} MLflow totals \textbf{\$6.39} against the system of
+record's \textbf{\$8.01} --- an undercount of $\approx$\$1.62 (20\%), with $\approx$ 181 fewer
+calls and token totals that also disagree. The mirror is split across a legacy and a
+current experiment, and only per-call metrics are being written (session aggregates
+are absent). The earlier ``the mirror works and it agrees'' claim is no longer true
+for the current data. Until the sink is repaired, the local store is the only number
+to quote, and a cost report generated from MLflow alone would understate spend.
+\end{notebox}
+
+\subsection{Why the MLflow UI can look empty}
+
+Two independent causes. First, the data lives in \texttt{mlflow.db} (SQLite); the
+filesystem store \texttt{mlruns/} --- which \texttt{mlflow ui} opens \emph{by
+default} --- is empty, so a bare \texttt{mlflow ui} shows nothing. The server must be
+started with \texttt{--backend-store-uri sqlite:///mlflow.db}. Second, even in the
+right store the records are in the wrong experiment: all 168 session aggregates and
+623 of the per-call runs are in the legacy \texttt{Default} experiment, while the
+\texttt{agentia} experiment (which the configuration names) holds 0 session records
+and 119 per-call runs. The sink's experiment targeting does not reach session records.
+
+\section{Findings and next steps}
+\label{sec:findings}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Make the verifier deterministic before spending anything more.}
+  Split the mount suffix (workspace \texttt{:Z}, shared cache unrelabelled) and add a
+  repeatability gate: one frozen workspace must rebuild $N/N$ times.
+  \item \textbf{Make the measure able to move.} The conformance instrument reads 0 on
+  failing builds; surface the repair parser's failure classes as accumulated
+  findings so a build failure is attributable.
+  \item \textbf{Use verification-guided selection as the reliability mechanism now.}
+  It is measured (\$0.20/service at $k{=}3$), it needs no training, and it is the
+  lever the literature ranks first.
+  \item \textbf{Repair the cost mirror.} Session-level mirroring is not populating;
+  restore it or the MLflow UI understates spend.
+  \item \textbf{Resolve the repair-cap inconsistency} (constitution 3 vs
+  \texttt{config.py} 5).
+  \item \textbf{Leave the skill-optimisation loop closed} until items 1 and 2 pass
+  their gates; the instruction-polarity experiment that was its most promising
+  input is a null (prohibition vs control: 1 win, 3 losses, 2 ties).
+\end{enumerate}
+
+\end{document}

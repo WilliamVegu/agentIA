@@ -16,6 +16,30 @@ from app.services.pipeline_runner import (
 )
 
 
+@pytest.fixture(autouse=True)
+def hermetic_verification(monkeypatch):
+    """Keep the suite hermetic: no test may run a real container build.
+
+    The sequential path now verifies the workspace, which is correct in production
+    and unacceptable in a unit suite -- a Docker build makes tests slow and makes
+    their result depend on the host. Tests that need to observe verification
+    monkeypatch `run_workspace_verification` themselves, which overrides this.
+    """
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+    import app.services.pipeline_runner as pr
+
+    fake = WorkspaceVerification(
+        result=DockerExecutionResult(exit_code=0, stdout="", fallback_used=True,
+                                     fallback_reason="stubbed for the hermetic suite"),
+        platform_test_path=None,
+    )
+    monkeypatch.setattr(
+        pr, "run_workspace_verification", lambda path, log_callback=None: fake
+    )
+    yield
+
+
 @pytest.fixture
 def runner_session(tmp_path, monkeypatch):
     session_id = "test-runner-sess"
@@ -107,3 +131,140 @@ def test_pipeline_runner_quality_gate_block(runner_session, monkeypatch):
     # DevOps assets should NOT be created due to block
     assert not (ws_path / "docker-compose.yml").exists()
 
+
+
+def test_the_sequential_path_verifies_the_workspace(runner_session, monkeypatch):
+    """The product path used to generate code and never compile it.
+
+    `POST /sessions/quick-start` with autoRun, and /orchestrator/pipeline/run, are the
+    routes the readiness report tells clients to use -- and they ran the generation
+    stages and a static SAST audit with no build or test step anywhere. So on the
+    primary product path the acceptance signal was not merely generator-authored: it
+    did not exist. This pins that the sequential path now verifies.
+    """
+    import threading
+
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+    import app.services.pipeline_runner as pr
+
+    calls = []
+    fake = WorkspaceVerification(
+        result=DockerExecutionResult(
+            exit_code=0,
+            stdout="[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0\n",
+        ),
+        platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
+    )
+
+    def fake_verify(path, log_callback=None):
+        calls.append(path)
+        return fake
+
+    monkeypatch.setattr(pr, "run_workspace_verification", fake_verify)
+
+    session_id, ws_path = runner_session
+    _pause_events[session_id] = threading.Event()
+    _stop_events[session_id] = threading.Event()
+    _execute_pipeline_steps(
+        session_id, LifecyclePhase.CODE_TESTS, stop_on_gate=True, auto_deploy=False
+    )
+
+    assert calls, "the sequential path did not verify the workspace"
+
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(GenerationSessionDB)
+            .filter(GenerationSessionDB.id == session_id)
+            .first()
+        )
+        metrics = json.loads(row.verification_metrics_json)
+    finally:
+        db.close()
+
+    assert metrics["totalTests"] == 7
+    assert metrics["passedTests"] == 7
+    assert metrics["allPassed"] is True
+    assert metrics["platformContractTestInjected"] is True
+
+
+def test_a_substituted_verification_is_not_reported_as_a_pass(runner_session, monkeypatch):
+    """Feature 012's rule, applied to the path that never had it.
+
+    A fallback result means verification did not happen, so the session must not be
+    recorded as verified however the exit code reads.
+    """
+    import threading
+
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+    import app.services.pipeline_runner as pr
+
+    fake = WorkspaceVerification(
+        result=DockerExecutionResult(
+            exit_code=0,
+            stdout="",
+            fallback_used=True,
+            fallback_reason="container runtime unreachable",
+        ),
+        platform_test_path=None,
+    )
+    monkeypatch.setattr(
+        pr, "run_workspace_verification", lambda path, log_callback=None: fake
+    )
+
+    session_id, ws_path = runner_session
+    _pause_events[session_id] = threading.Event()
+    _stop_events[session_id] = threading.Event()
+    _execute_pipeline_steps(
+        session_id, LifecyclePhase.CODE_TESTS, stop_on_gate=True, auto_deploy=False
+    )
+
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(GenerationSessionDB)
+            .filter(GenerationSessionDB.id == session_id)
+            .first()
+        )
+        metrics = json.loads(row.verification_metrics_json)
+    finally:
+        db.close()
+
+    assert metrics["fallback_used"] is True
+    assert metrics["allPassed"] is False, "a substituted verification is not a pass"
+
+
+def test_a_verifier_that_raises_is_recorded_as_unverified(runner_session, monkeypatch):
+    """An exception has verified nothing, and must not become a pass."""
+    import threading
+
+    import app.services.pipeline_runner as pr
+
+    def explode(path, log_callback=None):
+        raise RuntimeError("sandbox unavailable")
+
+    monkeypatch.setattr(pr, "run_workspace_verification", explode)
+
+    session_id, ws_path = runner_session
+    _pause_events[session_id] = threading.Event()
+    _stop_events[session_id] = threading.Event()
+    _execute_pipeline_steps(
+        session_id, LifecyclePhase.CODE_TESTS, stop_on_gate=True, auto_deploy=False
+    )
+
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(GenerationSessionDB)
+            .filter(GenerationSessionDB.id == session_id)
+            .first()
+        )
+        metrics = json.loads(row.verification_metrics_json)
+    finally:
+        db.close()
+
+    assert metrics["fallback_used"] is True
+    assert metrics["allPassed"] is False
+    assert "RuntimeError" in metrics["fallback_reason"]

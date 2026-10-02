@@ -37,29 +37,68 @@ const getEntityTableName = (ent: string | EntityItem | any): string | null => {
   return ent.tableName || null;
 };
 
-const normalizeEntitiesForDraft = (rawEntities: (string | EntityItem | any)[], defaultServiceName?: string) => {
-  const fallback = defaultServiceName
-    ? defaultServiceName.replace(/[^a-zA-Z0-9]/g, '').replace(/^[0-9]+/, '') || 'Resource'
-    : 'Resource';
-  const list = rawEntities.length > 0 ? rawEntities : [fallback];
+/**
+ * What is missing before this specification may be submitted. Empty means complete.
+ *
+ * Replaces a set of fabricated fallbacks. The normaliser used to invent a `Resource`
+ * entity (named after the service) when the list was empty, and the submit handler
+ * invented a role, an objective, a benefit and three Given/When/Then clauses per story.
+ * All of it went to `POST /specifications` and into the session's saved requirements, so
+ * a service could be generated from domain content nobody wrote -- and the server-side
+ * validation passed precisely because the invented text satisfied its minimum lengths.
+ */
+const describeIncompleteness = (
+  ents: { name: string; attributes?: any[] }[],
+  storyList: BddStory[],
+): string[] => {
+  const problems: string[] = [];
+  if (ents.length === 0) {
+    problems.push('no hay ninguna entidad de dominio definida');
+  }
+  ents.forEach((e) => {
+    if (!e.attributes || e.attributes.length === 0) {
+      problems.push(`la entidad ${e.name} no declara atributos`);
+    }
+  });
+  if (storyList.length === 0) {
+    problems.push('no hay historias de usuario');
+  }
+  storyList.forEach((s, i) => {
+    const label = s.id || `historia #${i + 1}`;
+    if (!s.role?.trim()) problems.push(`${label}: falta el rol`);
+    if (!(s.feature || s.title)?.trim()) problems.push(`${label}: falta el objetivo`);
+    if (!s.benefit?.trim()) problems.push(`${label}: falta el beneficio`);
+    const scenarios = s.scenarios || [];
+    if (scenarios.length === 0) problems.push(`${label}: no tiene escenarios`);
+    scenarios.forEach((sc, j) => {
+      if (!sc.given?.trim() || !sc.when?.trim() || !sc.then?.trim()) {
+        problems.push(`${label}, escenario ${j + 1}: faltan cláusulas Dado/Cuando/Entonces`);
+      }
+    });
+  });
+  return problems;
+};
+
+const normalizeEntitiesForDraft = (rawEntities: (string | EntityItem | any)[], _defaultServiceName?: string) => {
+  // No entity is invented. An empty list is returned as empty so the caller can refuse
+  // and say so, instead of submitting a fabricated `Resource` table.
+  if (!Array.isArray(rawEntities) || rawEntities.length === 0) return [];
+  const list = rawEntities;
   return list.map((e) => {
-    const name = getEntityName(e) || fallback;
+    // A nameless entry is dropped rather than given the invented `Resource` name; an
+    // entity with no name cannot be reported as incomplete in any useful way, and the
+    // remaining entries are still what the describeIncompleteness gate examines.
+    const name = getEntityName(e);
     const tableName = (typeof e === 'object' && e?.tableName)
       ? e.tableName
       : `${name.toLowerCase()}s`;
-    const attributes = (typeof e === 'object' && Array.isArray(e?.attributes) && e.attributes.length > 0)
+    // An entity with no attributes is reported as incomplete rather than given a
+    // synthetic `id` column, which made an empty entity look like a declared one.
+    const attributes = (typeof e === 'object' && Array.isArray(e?.attributes))
       ? e.attributes
-      : [
-          {
-            name: 'id',
-            type: 'Long',
-            nullable: false,
-            isPrimaryKey: true,
-            validationRules: [],
-          },
-        ];
+      : [];
     return { name, tableName, attributes };
-  });
+  }).filter((e) => Boolean(e.name));
 };
 
 const mapIncomingStories = (rawStories: any[], fallbackEntities: (string | EntityItem | any)[]): BddStory[] => {
@@ -67,20 +106,30 @@ const mapIncomingStories = (rawStories: any[], fallbackEntities: (string | Entit
   const entityNames = fallbackEntities.map(getEntityName).filter(Boolean);
 
   return rawStories.map((s: any, idx: number) => ({
+    // Only labels are defaulted -- an id and a scenario title are names, not claims about
+    // the domain. Everything semantic is taken verbatim or left empty:
+    //
+    // these fields used to be filled with invented Spanish domain text ("Usuario",
+    // "Operación transaccional", "Se procesa la transacción exitosamente"), which rendered
+    // as though the model had produced it AND satisfied the server's minimum-length
+    // validation on submit, so an incomplete model response could not be told apart from
+    // a complete one.
     id: s.id || `US-${String(idx + 1).padStart(3, '0')}`,
-    title: s.title || s.intent || s.feature || `Historia de Usuario ${idx + 1}`,
-    role: s.role || 'Usuario',
-    feature: s.feature || s.intent || 'Operación transaccional',
-    benefit: s.benefit || 'Completar flujo de negocio',
+    title: s.title || s.intent || s.feature || '',
+    role: s.role || '',
+    feature: s.feature || s.intent || '',
+    benefit: s.benefit || '',
     scenarios: (s.scenarios || []).map((sc: any, scIdx: number) => ({
       title: sc.title || sc.scenarioId || `Escenario ${scIdx + 1}`,
-      given: sc.given || 'El microservicio está en ejecución',
-      when: sc.when || 'Se recibe la solicitud con parámetros válidos',
-      then: sc.then || 'Se procesa la transacción exitosamente',
+      given: sc.given || '',
+      when: sc.when || '',
+      then: sc.then || '',
     })),
+    // No `entityNames.slice(0, 2)` fallback: it asserted an association between the story
+    // and the first two entities that nothing in the response claimed.
     detected_entities: Array.isArray(s.detected_entities || s.detectedEntities)
       ? (s.detected_entities || s.detectedEntities).map((e: any) => getEntityName(e)).filter(Boolean)
-      : entityNames.slice(0, 2),
+      : [],
   }));
 };
 
@@ -91,12 +140,13 @@ export const RequirementsView: React.FC = () => {
     reloadCurrentOverview,
     setActiveTab,
     setCurrentDraft,
+    currentDraft,
     setCurrentSpecId,
     setParsedSpec,
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey } = useLlm();
+  const { provider, apiKey, model } = useLlm();
 
   const [promptText, setPromptText] = useState('');
   const [stories, setStories] = useState<BddStory[]>([]);
@@ -125,6 +175,7 @@ export const RequirementsView: React.FC = () => {
           setPromptText('');
         }
         if (data.hasDraft && data.draft) {
+          setCurrentDraft(data.draft);
           if (data.draft.entities && Array.isArray(data.draft.entities)) {
             setEntities(data.draft.entities);
           } else {
@@ -159,8 +210,10 @@ export const RequirementsView: React.FC = () => {
         serviceName: activeSession?.specName || undefined,
         apiKey,
         provider,
+        modelName: model,
       });
 
+      setCurrentDraft(res);
       let nextEntities = entities;
       if (res?.entities && Array.isArray(res.entities) && res.entities.length > 0) {
         nextEntities = res.entities;
@@ -168,13 +221,28 @@ export const RequirementsView: React.FC = () => {
       }
 
       const incomingStories = res?.userStories || res?.stories;
-      if (incomingStories && Array.isArray(incomingStories) && incomingStories.length > 0) {
+      const storyCount = Array.isArray(incomingStories) ? incomingStories.length : 0;
+      if (storyCount > 0) {
         setStories(mapIncomingStories(incomingStories, nextEntities));
       }
 
-      setFeedbackMsg('Requerimientos transformados: Historias BDD generadas exitosamente (mínimo 3 historias).');
-    } catch {
-      setFeedbackMsg('Modo autónomo local: Historias formalizadas con éxito.');
+      // Report the count that actually came back. This said "(mínimo 3 historias)"
+      // unconditionally, which is a claim about the response, not a description of it.
+      setFeedbackMsg(
+        storyCount > 0
+          ? `Requerimientos transformados: ${storyCount} historia(s) BDD generadas.`
+          : 'La transformación no devolvió ninguna historia. Revisa el prompt e inténtalo de nuevo.',
+      );
+    } catch (err: any) {
+      // A failed call was reported as success -- "Modo autónomo local: Historias
+      // formalizadas con éxito." -- which is exactly what put a green banner above an
+      // empty catalogue on screen. Nothing was formalised, so nothing may say it was.
+      const detail = err?.response?.data?.detail;
+      setFeedbackMsg(
+        (typeof detail === 'string' ? detail : detail?.message) ||
+        'No se pudieron transformar los requisitos: la llamada al modelo falló. ' +
+        'No se generó ninguna historia.',
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -214,8 +282,10 @@ export const RequirementsView: React.FC = () => {
         refinementPrompt: refinePrompt,
         apiKey,
         provider,
+        modelName: model,
       });
 
+      setCurrentDraft(res);
       let nextEntities = entities;
       if (res?.entities && Array.isArray(res.entities) && res.entities.length > 0) {
         nextEntities = res.entities;
@@ -230,9 +300,14 @@ export const RequirementsView: React.FC = () => {
       setIsRefineOpen(false);
       setRefinePrompt('');
       setFeedbackMsg('Especificación refinada exitosamente mediante IA.');
-    } catch {
-      setIsRefineOpen(false);
-      setFeedbackMsg('Ajustes aplicados a las historias de usuario.');
+    } catch (err: any) {
+      // Keep the drawer open on failure: closing it looks like the refinement was
+      // accepted, and the previous message claimed the adjustments had been applied.
+      const detail = err?.response?.data?.detail;
+      setFeedbackMsg(
+        (typeof detail === 'string' ? detail : detail?.message) ||
+        'No se pudieron aplicar los ajustes: la llamada al modelo falló.',
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -271,11 +346,23 @@ export const RequirementsView: React.FC = () => {
       setFeedbackMsg('Debe generar o agregar historias de usuario antes de transferir a generación.');
       return;
     }
+    const normalizedEntities = normalizeEntitiesForDraft(entities);
+    // Refuse rather than fabricate. The payload below used to substitute a role, an
+    // objective, a benefit and three Given/When/Then clauses, so an incomplete draft was
+    // submitted as a complete specification and the server never saw the gap.
+    const problems = describeIncompleteness(normalizedEntities, stories);
+    if (problems.length > 0) {
+      setFeedbackMsg(
+        `No se puede transferir: ${problems.slice(0, 3).join('; ')}${
+          problems.length > 3 ? ` y ${problems.length - 3} problema(s) más` : ''
+        }.`,
+      );
+      return;
+    }
     setIsProcessing(true);
     try {
       const rawServiceName = (activeSession?.specName || 'order-service').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '') || 'order-service';
       const cleanPackage = `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
-      const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
 
       const blueprintPayload = {
         serviceName: rawServiceName,
@@ -286,14 +373,15 @@ export const RequirementsView: React.FC = () => {
         userStories: stories.map((s, idx) => ({
           id: s.id || `US-${idx + 1}`,
           priority: 'P1',
-          role: s.role || 'Usuario',
-          intent: s.feature || (s as any).intent || 'Gestionar entidades de negocio',
-          benefit: s.benefit || 'Completar flujo operacional',
+          // Completeness was checked above, so these are the real values.
+          role: s.role,
+          intent: s.feature || (s as any).intent || '',
+          benefit: s.benefit || '',
           scenarios: (s.scenarios || []).map((sc, i) => ({
             scenarioId: (sc as any).scenarioId || `AC-${s.id}.${i + 1}`,
-            given: sc.given || 'Precondición del sistema verificada',
-            when: sc.when || 'Se invoca el endpoint REST',
-            then: sc.then || 'Se retorna respuesta esperada',
+            given: sc.given,
+            when: sc.when,
+            then: sc.then,
           })),
         })),
       };
@@ -313,10 +401,10 @@ export const RequirementsView: React.FC = () => {
           console.warn('Could not auto-start session:', sessErr);
         }
       }
-      setActiveTab(5); // Switch to Tab 5 Monitor
+      setActiveTab('monitor'); // Switch to Tab 5 Monitor
     } catch (err) {
       console.error('Error al transferir a generación:', err);
-      setActiveTab(5);
+      setActiveTab('monitor');
     } finally {
       setIsProcessing(false);
     }
@@ -360,9 +448,11 @@ export const RequirementsView: React.FC = () => {
     const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
 
     const draftObj = {
+      ...(currentDraft || {}),
       serviceName: rawServiceName,
-      packageName: cleanPackage,
-      basePort: 8080,
+      packageName: currentDraft?.packageName || cleanPackage,
+      basePort: currentDraft?.basePort || 8080,
+      markdownSpec: undefined,
       entities: normalizedEntities,
       userStories: stories.map((s, idx) => ({
         id: s.id || `US-${idx + 1}`,
@@ -389,7 +479,7 @@ export const RequirementsView: React.FC = () => {
       await orchestratorService.invalidateDownstream(activeSessionId, 'STORIES');
       await reloadCurrentOverview();
     }
-    setActiveTab(2); // Move to tab 2 Architecture
+    setActiveTab('architecture'); // Move to tab 2 Architecture
   };
 
   return (
@@ -562,8 +652,20 @@ export const RequirementsView: React.FC = () => {
                 subtitle={`Rol: ${story.role}`}
                 badge={
                   <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
-                      BDD Verified
+                    {/* Was the literal text "BDD Verified" on every card, whether or
+                        not anything had been verified. It now states the format and
+                        the count, which is checkable from the data in the card --
+                        and says so when a story carries no scenarios at all. */}
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                        story.scenarios?.length
+                          ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/60'
+                          : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'
+                      }`}
+                    >
+                      {story.scenarios?.length
+                        ? `BDD · ${story.scenarios.length} escenario(s)`
+                        : 'Sin escenarios — no verificable'}
                     </span>
                     <button
                       onClick={() => handleDeleteStory(story.id)}

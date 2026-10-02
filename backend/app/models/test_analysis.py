@@ -96,6 +96,9 @@ class RepairHistoryResponse(BaseModel):
     currentBlockedDiagnostic: Optional[FailureDiagnostic] = None
 
 class TestSynthesisRequest(BaseModel):
+    provider: Optional[str] = None
+    modelName: Optional[str] = None
+    sourceFiles: Dict[str, str] = Field(default_factory=dict)
     __test__ = False
     specId: Optional[str] = None
     blueprint: Optional[Dict] = None
@@ -122,6 +125,8 @@ class CodeAnalysisResponse(BaseModel):
     violations: List[str] = Field(default_factory=list)
 
 class RepairExecutionRequest(BaseModel):
+    provider: Optional[str] = None
+    modelName: Optional[str] = None
     sessionId: str
     iterationNumber: int = Field(..., ge=1, le=5)
     diagnostics: List[FailureDiagnostic]

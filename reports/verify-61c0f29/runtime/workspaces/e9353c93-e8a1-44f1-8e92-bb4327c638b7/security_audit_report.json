@@ -1,0 +1,38 @@
+{
+  "sessionId": "e9353c93-e8a1-44f1-8e92-bb4327c638b7",
+  "serviceName": "audit-security-probe",
+  "qualityGate": {
+    "status": "BLOCKED",
+    "score": 85,
+    "criticalCount": 0,
+    "highCount": 1,
+    "mediumCount": 0,
+    "lowCount": 0,
+    "canExport": false,
+    "summaryMessage": "Quality Gate BLOCKED: 0 Critical and 1 High issues prevent export or publishing."
+  },
+  "metrics": {
+    "averageCyclomaticComplexity": 1.0,
+    "maxCyclomaticComplexity": 1,
+    "totalMethodsAudited": 0,
+    "methodsExceedingThreshold": 0,
+    "totalLinesOfCode": 3,
+    "duplicationPercentage": 0.0,
+    "testAssertionDensity": 0.0,
+    "totalCodeSmells": 0
+  },
+  "vulnerabilities": [],
+  "violations": [
+    {
+      "id": "CONST-VIOL-001",
+      "principle": "PRINCIPLE_III_CENTRALIZED_ERRORS",
+      "severity": "HIGH",
+      "filePath": "src/main/java",
+      "offendingElement": "Missing @RestControllerAdvice",
+      "ruleDescription": "Constitution Principle III Violation: A centralized exception handler annotated with @RestControllerAdvice is required.",
+      "suggestedFix": "Implement a GlobalExceptionHandler class annotated with @RestControllerAdvice returning ProblemDetails (RFC 7807).",
+      "autoFixAvailable": false
+    }
+  ],
+  "auditedAt": "2026-10-02T07:28:17.319484+00:00"
+}

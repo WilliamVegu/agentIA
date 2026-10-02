@@ -1,0 +1,81 @@
+{
+  "blueprintId": "tier2-01",
+  "tier": 2,
+  "corpusRole": "graded-tier2-simple",
+  "difficultyAxis": "First step into relationships: a child entity carries a foreign-key attribute pointing at the parent, and the read scenarios require the reference to survive persistence. Light validation rules appear for the first time.",
+  "rationale": "Two entities, one explicit relation (Book.authorId -> Author.id), create and read only, four scenarios. Adjacent to tier 1 it adds two visible things at once: a second entity and a declared validation rule. Nothing here requires update, delete or cross-entity invariants.",
+
+  "serviceName": "library-service",
+  "packageName": "com.corp.library",
+  "basePort": 8304,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Author",
+      "tableName": "authors",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "nationality", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "birthYear", "type": "Integer", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Min", "@Max"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    },
+    {
+      "name": "Book",
+      "tableName": "books",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "title", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "isbn", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "publishedYear", "type": "Integer", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "authorId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "available", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "librarian",
+      "intent": "register an author",
+      "benefit": "books can be attributed to a known person",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a non-empty author name",
+          "when": "the librarian registers the author",
+          "then": "the author is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a blank author name",
+          "when": "the librarian attempts to register the author",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "librarian",
+      "intent": "catalogue a book against an existing author",
+      "benefit": "the catalogue records who wrote each title",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing author identifier and a well-formed isbn",
+          "when": "the librarian catalogues the book",
+          "then": "the book is persisted with its author reference intact"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a book identifier that does not exist",
+          "when": "the librarian retrieves that book",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    }
+  ]
+}

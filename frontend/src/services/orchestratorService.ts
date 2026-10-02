@@ -1,18 +1,34 @@
 import apiClient from './apiClient';
 
+/**
+ * Mirrors the `/orchestrator/sessions/{id}/overview` payload field for field.
+ *
+ * It previously declared `serviceName`, `database`, `totalStories`, `totalEntities`,
+ * `totalEndpoints`, `testSuitesCount`, `qualityGateStatus`, `qualityScore`,
+ * `activePhase` and `completionPercentage` -- and the API returns **none of those**.
+ * `deploymentStatus` was the only name that matched. Every card in the studio overview
+ * therefore read `undefined` and rendered its fallback literal instead: "✅ Aprobado",
+ * "Puntaje: 95/100", "RUNNING", "4 historias", "2 entidades". The numbers looked
+ * measured; none of them were read from anywhere.
+ *
+ * Verified against a live response before changing it.
+ */
 export interface ProjectOverview {
   sessionId: string;
-  serviceName: string;
-  database: string;
-  totalStories: number;
-  totalEntities: number;
-  totalEndpoints: number;
-  testSuitesCount: number;
-  qualityGateStatus: string;
-  qualityScore: number;
-  deploymentStatus: string;
-  activePhase: string;
-  completionPercentage: number;
+  specName?: string;
+  databaseEngine?: string;
+  framework?: string;
+  userStoriesCount?: number;
+  entitiesCount?: number;
+  /** Whether the generated test suite passed. Present on the real payload. */
+  testsPassed?: boolean;
+  testsExecuted?: boolean;
+  /** `PASS` / `BLOCKED` from the security audit. */
+  securityAuditVerdict?: string;
+  deploymentStatus?: string;
+  deploymentUrl?: string;
+  pipelineStatus?: string;
+  lifecycle?: Record<string, unknown>;
 }
 
 export interface PhaseTransitionPayload {

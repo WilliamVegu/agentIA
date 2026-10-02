@@ -1,0 +1,63 @@
+{
+  "blueprintId": "tier1-03",
+  "tier": 1,
+  "corpusRole": "graded-tier1-trivial",
+  "difficultyAxis": "Top of tier 1: the widest trivial entity (five attributes, four Java types) and three scenarios across two stories, still with no relationship and no validation rule.",
+  "rationale": "Deliberately the last blueprint that asks nothing of the generator beyond one flat entity. It sets the ramp into tier 2, where a second entity and a declared validation rule appear for the first time.",
+
+  "serviceName": "bookmark-service",
+  "packageName": "com.corp.bookmark",
+  "basePort": 8303,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Bookmark",
+      "tableName": "bookmarks",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "url", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "title", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "folder", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "end user",
+      "intent": "save a bookmark with a url, a title and an optional folder",
+      "benefit": "the link can be found again later",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a url, a title and no folder",
+          "when": "the user saves the bookmark",
+          "then": "the bookmark is persisted with a null folder and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a url, a title and a folder name",
+          "when": "the user saves the bookmark",
+          "then": "the bookmark is persisted with the folder it was given"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "end user",
+      "intent": "read a saved bookmark",
+      "benefit": "the user can navigate to the stored link",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing bookmark identifier",
+          "when": "the user retrieves the bookmark",
+          "then": "the bookmark is returned with its url and title"
+        }
+      ]
+    }
+  ]
+}

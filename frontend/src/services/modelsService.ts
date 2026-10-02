@@ -4,6 +4,7 @@ export interface ModelSqlGeneratePayload {
   draft: any;
   apiKey?: string;
   provider?: string;
+  modelName?: string;
 }
 
 export interface ModelSqlRefinePayload {
@@ -23,6 +24,11 @@ export const modelsService = {
 
   async refine(payload: ModelSqlRefinePayload) {
     const response = await apiClient.post('/models/refine', payload);
+    return response.data;
+  },
+
+  async saveDesign(sessionId: string, design: any) {
+    const response = await apiClient.post(`/models/sessions/${sessionId}/save`, design);
     return response.data;
   },
 };
