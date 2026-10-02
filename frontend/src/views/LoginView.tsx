@@ -146,8 +146,9 @@ export const LoginView: React.FC = () => {
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none"
               >
                 <option value="mock">Modo Offline (Mock Engine Local - Sin Consumo)</option>
-                <option value="gemini">Google Gemini (gemini-3.6-flash)</option>
-                <option value="groq">Groq Cloud (qwen/qwen3.8-27b)</option>
+                <option value="deepseek">DeepSeek (deepseek-chat / deepseek-reasoner)</option>
+                <option value="gemini">Google Gemini (gemini-3.5-flash-lite / flash)</option>
+                <option value="groq">Groq Cloud (llama-3.3-70b-versatile)</option>
                 <option value="openai">OpenAI (gpt-4o-mini)</option>
               </select>
             </div>

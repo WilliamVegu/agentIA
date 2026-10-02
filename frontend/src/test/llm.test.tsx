@@ -54,12 +54,12 @@ describe('LlmContext & SettingsDrawer', () => {
 
     fireEvent.click(screen.getByTestId('btn-gemini'));
     expect(screen.getByTestId('provider')).toHaveTextContent('gemini');
-    expect(screen.getByTestId('model')).toHaveTextContent('gemini-3.6-flash');
+    expect(screen.getByTestId('model')).toHaveTextContent('gemini-3.5-flash-lite');
     expect(screen.getByTestId('isVerified')).toHaveTextContent('UNVERIFIED');
 
     fireEvent.click(screen.getByTestId('btn-groq'));
     expect(screen.getByTestId('provider')).toHaveTextContent('groq');
-    expect(screen.getByTestId('model')).toHaveTextContent('qwen/qwen3.8-27b');
+    expect(screen.getByTestId('model')).toHaveTextContent('llama-3.3-70b-versatile');
     expect(screen.getByTestId('isVerified')).toHaveTextContent('UNVERIFIED');
 
     fireEvent.click(screen.getByTestId('btn-mock'));
@@ -113,7 +113,7 @@ describe('LlmContext & SettingsDrawer', () => {
       expect(llmService.verifyConnection).toHaveBeenCalledWith({
         apiKey: 'AIzaSyFakeKey123',
         provider: 'gemini',
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.5-flash-lite',
       });
     });
   });

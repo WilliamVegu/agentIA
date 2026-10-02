@@ -1,111 +1,88 @@
 <!--
-SYNC IMPACT REPORT
-==================
-- Version change: 1.0.0 → 1.1.0 (MINOR: incorporación de principio de seguridad de secretos y frontera del orquestador LangGraph/LLM)
-- List of modified principles:
-  * Principios I a V: Se mantienen íntegros y vigentes.
-- Added sections/principles:
-  * VI. Seguridad de Secretos y Frontera del Orquestador (LangGraph & LLM API Keys)
-  * Reglas de inyección de credenciales y aislamiento del motor de IA en el Stack Tecnológico
-- Removed sections: Ninguna
-- Follow-up TODOs: Ninguno
+INFORME DE IMPACTO DE SINCRONIZACIÓN CONSTITUCIONAL
+===================================================
+- Versión: 3.0.0 (MAJOR: Eliminación total del módulo de preguntas/aclaración, adopción de Enfoque Contract-Driven Reactivo Dinámico, Aprobación previa de Extensiones Quarkus 3.x con Versiones Exactas, y Bucle de Auto-Corrección Self-Healing)
+- Principios Rectores:
+  * I. Recepción Ágil de Requisitos de Negocio & Arquetipo (Maven o Gradle, Java 21 LTS sin cuestionarios)
+  * II. Contrato OpenAPI Dinámico y Revisión Viva (La IA interpreta cada cambio del contrato en tiempo real)
+  * III. Contratos Inmutables con Java 21 Records y Desacoplamiento de Persistencia
+  * IV. Arquitectura Seleccionable & Aprobación/Reemplazo de Extensiones Quarkus con Versiones
+  * V. Generación de Código, Pruebas Automatizadas y Bucle de Auto-Corrección (Self-Healing)
+  * VI. Las Dos Compuertas de Control Humano Obligatorias (Control 1: Contrato/BD; Control 2: Revisión de Código)
+  * VII. Code Review Automatizado y Suite Documental Completa
+  * VIII. Seguridad de Secretos, Observabilidad de Fábrica y CI/CD Corporativo (Dockerfile, Jenkinsfile, ZIP)
+- Stack Base: Java 21 LTS, Quarkus 3.15+ LTS, SmallRye, SQLite dev / SQL Server & PostgreSQL prod, Maven y Gradle.
 -->
 
-# Java/Spring Boot Microservices Platform Constitution
+# Constitución de la Fábrica de Agentes de Microservicios Quarkus 3.x
 
-## Core Principles
+Esta Constitución establece los principios de diseño, límites operativos, compuertas de control humano y directrices arquitectónicas inmutables para la **Fábrica de Agentes de Software Quarkus**. Todo microservicio generado autónomamente DEBE obedecer estrictamente este marco normativo.
 
-### I. Arquitectura en Capas Estricta y Separación de Responsabilidades
-El diseño de cada microservicio MUST seguir de forma inquebrantable una estructura en capas unidireccional:
-`controller` -> `service` (interfaz e implementación) -> `repository` -> `model` / `entity`.
-- Cada capa solo puede interactuar con su capa inmediata inferior.
-- Los `controllers` se limitan exclusivamente a la recepción HTTP, orquestación de llamadas al servicio y serialización de respuestas.
-- Los `services` son los únicos responsables de concentrar la lógica de negocio y reglas de dominio.
-- Los `repositories` gestionan exclusivamente el acceso a datos y consultas de persistencia.
+---
 
-*Rationale*: Garantiza desacoplamiento, mantenibilidad a largo plazo, alta testabilidad con mocks independientes y preparación para auditorías de código corporativas.
+## Principios Fundamentales (Core Principles)
 
-### II. Contratos Inmutables y Validación Temprana
+### I. Recepción Ágil de Requisitos y Selección de Arquetipo
+El diseño y generación de microservicios DEBE iniciar directamente desde los requerimientos funcionales del negocio:
+- **Cero Módulos de Preguntas Inútiles**: Queda formalmente ELIMINADO cualquier módulo de preguntas de aclaración o cuestionarios previos que retrasen o bloqueen el flujo de trabajo. La IA procesa directamente los requerimientos del usuario para sintetizar el contrato.
+- **Cero Datos Predeterminados (Zero Defaults)**: Queda estrictamente PROHIBIDO precargar nombres de servicio fijos, pedidos predeterminados o catálogos estáticos en formularios.
+- **Validador de Calidad del Pedido**: Exige nombre técnico kebab-case, equipo propietario, groupId Java válido, descripción funcional suficiente (mínimo 30 caracteres) y motor de base de datos.
+- **Selección de Arquetipo de Construcción**: Soporte nativo para **Apache Maven** (`pom.xml`) y **Gradle** (`build.gradle`), compatibles con Java 21 LTS.
+
+---
+
+### II. Contrato OpenAPI Dinámico y Revisión Viva (Contract-Driven Real)
+El contrato OpenAPI 3.1 revisado por el usuario es la **ÚNICA FUENTE DE VERDAD**:
+- **Interpretación Reactiva en Tiempo Real**: La IA DEBE parsear e interpretar dinámicamente cualquier modificación, adición o corrección que el usuario realice en el contrato durante la fase de revisión (endpoints, payloads, schemas, tipos y códigos de error).
+- **Prohibición de Plantillas Estáticas**: Queda terminantemente PROHIBIDO utilizar clases o esquemas hardcodeados ajenos al contrato editado por el usuario.
+- **Sincronización Transversal**: Toda ruta definida en el contrato genera su correspondiente interfaz JAX-RS / RESTEasy Reactive, y todo esquema genera su DTO inmutable.
+
+---
+
+### III. Contratos Inmutables con Java 21 Records y Desacoplamiento Panache
 Los contratos de API (DTOs) MUST ser inmutables y estar estrictamente desacoplados de la persistencia:
-- Todos los DTOs de Request y Response MUST implementarse mediante Java Records nativos.
-- Queda terminantemente PROHIBIDO exponer entidades JPA directamente en los controllers o retornos de API.
-- Todo record de Request MUST incorporar validaciones declarativas tempranas mediante anotaciones de Jakarta Validation (`@NotNull`, `@NotBlank`, `@Positive`, `@Email`, etc.).
-- Ningún payload no validado debe alcanzar la capa de servicio.
+- Todos los DTOs de Request y Response MUST implementarse mediante **Java 21 Records inmutables**.
+- Queda terminantemente PROHIBIDO exponer entidades de persistencia (`PanacheEntity` o entidades JPA) directamente en los endpoints o retornos de la API.
+- Todo record de Request MUST incorporar validaciones declarativas tempranas mediante Jakarta Bean Validation (`@NotNull`, `@NotBlank`, `@DecimalMin`, `@Email`, `@Size`, etc.).
+- Las entidades de base de datos extienden de `PanacheEntityBase` con identificadores primarios UUID generados automáticamente.
 
-*Rationale*: Previene mutaciones no intencionadas de estado en memoria, evita la exposición accidental del esquema de base de datos y detiene transacciones inválidas en el borde de la aplicación.
+---
 
-### III. Manejo Centralizado de Excepciones y Limpieza de Código
-Toda respuesta de fallo MUST estar estandarizada y ser predecible para clientes internos y externos:
-- Se DEBE implementar un manejador global mediante `@RestControllerAdvice`.
-- Ningún controller debe contener bloques `try-catch` con fines de formateo de respuesta ni devolver entidades de error ad-hoc.
-- Toda respuesta de error MUST responder a una estructura uniforme `ProblemDetails` (RFC 7807) o `ApiErrorRecord` conteniendo: `timestamp`, código de estado HTTP (`status`), mensaje descriptivo (`message`) y detalles de validación de campo cuando aplique.
-- Clean Code obligatorio: Prohibido colocar lógica de negocio en capas de presentación o persistencia.
+### IV. Arquitectura Seleccionable & Aprobación Previa de Extensiones Quarkus
+Antes de generar una sola línea de código, la arquitectura y dependencias deben ser transparentes:
+- **3 Opciones de Arquitectura**: Capas Estándar (Pragmática), Hexagonal / Ports & Adapters (DDD), o Reactiva (Mutiny + Kafka).
+- **Catálogo Explícito de Extensiones Quarkus y sus Versiones**:
+  - La IA DEBE listar con total transparencia las extensiones Quarkus 3.x que se utilizarán con sus coordenadas de artefacto, versión exacta (ej. `3.15.1`) y justificación funcional.
+  - El usuario cuenta con la potestad de **aprobarlas**, **descartarlas**, **cambiar su versión** o **añadir extensiones adicionales** antes de la construcción del código.
 
-*Rationale*: Elimina inconsistencias en el consumo de APIs, simplifica la observabilidad y previene la fuga de stack traces o datos sensibles hacia el cliente.
+---
 
-### IV. Determinismo Offline-First y Aislamiento en Sandbox
-La generación, compilación y verificación de código MUST ser estrictamente deterministas y autosuficientes:
-- Las compilaciones y ejecuciones de pruebas MUST funcionar al 100% en modo offline (`mvn test -o`) dentro de contenedores Docker aislados sin acceso a redes externas.
-- Queda terminantemente PROHIBIDO declarar o incorporar dependencias en `pom.xml` que no se encuentren previamente cacheadas en la imagen base de Docker.
-- Prohibida cualquier dependencia dinámica, descarga de scripts remotos en tiempo de compilación o resolución de artefactos de red en tiempo de build.
+### V. Construcción de Código, Pruebas y Bucle de Auto-Corrección (Self-Healing)
+La síntesis y validación técnica garantizan robustez antes de cualquier entrega:
+- **Generación de APIs, Modelos y Persistencia**: Implementación desacoplada de Resources JAX-RS, Servicios de negocio, Entidades Panache y scripts de migración Flyway (`V1.0.0__init_schema.sql`).
+- **Pruebas Automatizadas Integradas**: Generación obligatoria de suite `@QuarkusTest`, pruebas de integración con RestAssured y pruebas unitarias de servicios con Mockito.
+- **Bucle de Auto-Corrección (Self-Healing)**: El sistema detecta automáticamente errores de sintaxis, imports faltantes, desajustes de tipos o fallos en aserciones de pruebas, aplicando correcciones automáticas sobre el código generado.
 
-*Rationale*: Garantiza reproducibilidad absoluta en entornos de integración continua (CI/CD) corporativos de alta seguridad, elimina vulnerabilidades de la cadena de suministro (supply-chain attacks) y asegura la ejecución en sandboxes herméticos.
+---
 
-### V. Quality Gates y Ciclo Acotado de Auto-Reparación
-La validación del código generado y los límites de intervención autónoma MUST obedecer a compuertas estrictas:
-- Aprobación 100% en pruebas: Todo microservicio DEBE superar el 100% de los tests unitarios ejecutados por Maven para considerarse aprobado. Cero pruebas fallidas permitidas.
-- Cobertura exhaustiva: Toda funcionalidad DEBE contener pruebas unitarias con Mockito y AssertJ tanto para el camino feliz (happy path) como para los caminos alternativos y excepciones (validaciones fallidas, recurso no existente, errores de negocio).
-- Límite de auto-reparación: Ante fallos de compilación o aserción en pruebas, el agente autónomo dispone de un límite estricto de tres (3) iteraciones de corrección automática, guiándose exclusivamente por el stack trace emitido por Maven.
-- Si la compilación o las pruebas no son exitosas al 3er intento, la tarea MUST ser abortada de forma inmediata y etiquetada bajo el estado: `Bloqueo por intervención humana requerida`.
+### VI. Las Dos Compuertas de Control Humano Obligatorias
+El control final reside invariablemente en el operador humano:
+- **Control Humano 1 (Revisión y Congelamiento de Contrato OpenAPI y Modelo de BD)**:
+  - El usuario inspecciona y edita el YAML de OpenAPI 3.1, las Historias de Usuario BDD y el esquema relacional de tablas/columnas.
+  - Al dar el visto bueno, el alcance queda formalmente congelado para la generación determinista.
+- **Control Humano 2 (Revisión Final de Entrega y Code Review)**:
+  - El usuario audita el árbol de archivos generado, los resultados de pruebas, el informe de Code Review y el consumo de tokens.
+  - Concede la autorización final para la exportación y despliegue a Git/DevOps.
 
-*Rationale*: Evita bucles infinitos de alucinación o degradación de código, manteniendo un proceso de desarrollo autónomo seguro, transparente y con control humano preventivo.
+---
 
-### VI. Seguridad de Secretos y Frontera del Orquestador (LangGraph & LLMs)
-La interacción entre el orquestador de IA, las API keys de modelos y el código del microservicio MUST cumplir límites estrictos:
-- **Cero Secretos Hardcodeados**: Queda terminantemente PROHIBIDO hardcodear, commitear o exponer API keys de LLMs (OpenAI, Anthropic, Gemini, etc.), tokens o credenciales en código fuente, archivos de configuración (`application.yml`, `application.properties`), scripts, Dockerfiles o mensajes de commit.
-- **Frontera de LangGraph**: LangGraph opera estrictamente en la capa externa de orquestación del agente (ej. en el pipeline de ejecución y supervisor de tareas). El código de los microservicios Java generados DEBE mantenerse desacoplado y libre de dependencias del framework del orquestador, salvo requerimiento funcional explícito de negocio.
-- **Aislamiento en Pruebas (Zero LLM Network Calls)**: Queda terminantemente PROHIBIDO que los tests unitarios o el proceso de build offline (`mvn test -o`) realicen peticiones de red hacia APIs de LLMs externas. Si el microservicio incluye integración con modelos de lenguaje, toda llamada MUST ser 100% simulada mediante mocks deterministas (Mockito).
-- **Inyección en Tiempo de Ejecución**: Toda credencial o API key requerida por el microservicio en ambientes productivos MUST suministrarse exclusivamente a través de variables de entorno seguras (`${LLM_API_KEY}`) o gestores de secretos corporativos (Vault, AWS Secrets Manager).
+### VII. Code Review Automatizado y Documentación Oficial
+- **Auditoría de Buenas Prácticas**: El Agente Revisor evalúa cumplimiento de principios SOLID, inyección CDI (`@ApplicationScoped`), gobernanza de perfiles y seguridad.
+- **Suite Documental de 5 Artefactos**: Todo microservicio incluye `README.md`, `DOCUMENTACION_API.md`, `ADR_001_DECISIONES_ARQUITECTURA.md`, `GUIA_PRUEBAS_COBERTURA.md` y `GUIA_OPERACION_SERVICIO.md`.
 
-*Rationale*: Protege la seguridad corporativa evitando filtraciones de claves en repositorios, previene costos imprevistos de API durante pruebas y preserva la regla inquebrantable de compilación hermética y offline.
+---
 
-## Stack Tecnológico Base y Versiones
-
-Las siguientes versiones y tecnologías representan la línea base obligatoria e inmutable del repositorio:
-
-- **Lenguaje**: Java 21 LTS (aprovechando Records, Pattern Matching y características modernas de la plataforma).
-- **Framework Principal**: Spring Boot 3.x (Spring Web, Spring Data JPA, Spring Validation).
-- **Gestor de Construcción**: Maven 3.9+ (con configuración para compilación determinista y ejecución offline).
-- **Persistencia en Pruebas**: Base de datos H2 en memoria configurada en sintaxis PostgreSQL (`jdbc:h2:mem:testdb;MODE=PostgreSQL`).
-- **Frameworks de Pruebas**: JUnit 5 (Jupiter), Mockito (mocking y verificación de interacciones) y AssertJ (aserciones fluidas).
-- **Librerías de Utilidad**: Project Lombok queda estrictamente RESTRINGIDO a las siguientes anotaciones:
-  - `@Getter`
-  - `@Setter`
-  - `@Builder`
-  - `@NoArgsConstructor`
-  - `@AllArgsConstructor`
-  - *Nota*: Se prohíbe el uso de `@Data`, `@SneakyThrows` o `@Value` en clases de entidad o servicio para evitar efectos colaterales en Equals/HashCode o enmascaramiento de excepciones.
-- **Capa de Orquestación y Agentes**:
-  - *Orquestador Autónomo*: LangGraph (gestionado exclusivamente en el plano de control del agente / pipeline CI/CD externo, fuera del artefacto JAR final).
-  - *Gestión de Secretos de IA*: Variables de entorno seguras en el host/contenedor; ninguna clave persistida en el repositorio.
-  - *Aislamiento de IA en Pruebas*: Mockito para desacoplar cualquier cliente de LLM en las compuertas de calidad.
-
-## Ciclo de Vida de Entrega y Auditoría
-
-- **Generación basada en Especificaciones**: Todo microservicio se genera a partir de especificaciones formales gestionadas por Spec Kit.
-- **Aislamiento de Entregables**: Todo código final validado y probado DEBE aislarse en una rama Git dedicada bajo la convención:
-  `feature/[nombre-spec]`
-- **Commits Atómicos**: Cada entrega debe constar de commits atómicos, concisos y conformes a Conventional Commits (e.g., `feat(order-service): implement order creation endpoints`), listos para apertura de Pull Request sin dependencias de ramas sucias ni secretos residuales.
-- **Preparación para Auditoría Interna**: El código debe ser limpio, autodocumentado, sin dead code ni variables sin usar, cumpliendo con las guías de estilo institucionales y preparado para pasar herramientas de escaneo estático y análisis de secretos (SonarQube, GitGuardian, TruffleHog).
-
-## Gobernanza
-
-- **Inmutabilidad y Supremacía**: Esta Constitución constituye la ley fundamental y suprema para el desarrollo y generación de microservicios en este repositorio. Ningún agente autónomo ni contribuidor humano puede revocar o ignorar estas reglas de forma tácita.
-- **Procedimiento de Enmienda**: Cualquier modificación a estas normas exige un proceso de revisión formal, aprobación colegiada, justificación técnica y un plan de migración para los microservicios existentes.
-- **Política de Versionamiento**: Este documento sigue Semantic Versioning (SemVer):
-  - **MAJOR**: Remoción, debilitamiento o cambio incompatible de principios o gobernanza.
-  - **MINOR**: Incorporación de nuevos principios, estándares de arquitectura o ampliación sustancial del stack tecnológico.
-  - **PATCH**: Correcciones de formato, aclaraciones tipográficas o refinamientos no semánticos.
-- **Verificación de Cumplimiento**: Todo Pull Request, pipeline de CI y ciclo de revisión debe verificar explícitamente el cumplimiento de los seis Principios Fundamentales antes del merge.
-
-**Version**: 1.1.0 | **Ratified**: 2026-09-13 | **Last Amended**: 2026-09-13
+### VIII. Seguridad de Secretos, Observabilidad y CI/CD
+- **Cero Secretos en Repositorio**: Variables de entorno preparadas para Kubernetes y perfiles duales (%dev SQLite portable vs %prod SQL Server / PostgreSQL).
+- **Observabilidad Integrada**: SmallRye Health (`/q/health`), Prometheus Metrics (`/q/metrics`) y OpenTelemetry de fábrica.
+- **Empaquetado y Despliegue**: Dockerfile multi-etapa (JVM y GraalVM Native), pipeline `Jenkinsfile` y descarga directa del microservicio en paquete `.ZIP` listo para compilar.

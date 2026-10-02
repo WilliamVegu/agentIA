@@ -1,187 +1,66 @@
-# Tasks: Microservice Code Studio Web Application
+# Tareas de Implementación: Fábrica de Agentes Java Quarkus 3.x ⚡
 
-**Feature**: `001-microservice-code-studio`
-**Input**: Design artifacts from `specs/001-microservice-code-studio/` (`spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`)
-**Constitution**: `.specify/memory/constitution.md` (v1.1.0)
+**Característica**: `001-quarkus-agent-factory` | **Iniciativa**: Fábrica de Agentes Java Quarkus | **Versión**: 3.0.0 | **Estado**: Completado y Verificado
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## Fase 1: Fundamentos y Modelos de Datos (Backend FastAPI)
 
-**Purpose**: Project initialization and basic workspace structure
-
-- [X] T001 Create project directory structure (`backend/app`, `backend/tests`, `frontend/views`, `frontend/tests`) per implementation plan in `plan.md`
-- [X] T002 [P] Initialize backend Python dependencies in `backend/requirements.txt` (FastAPI, Uvicorn, LangGraph, LangChain, Pydantic v2, sse-starlette, docker, GitPython, pytest)
-- [X] T003 [P] Initialize frontend Python dependencies in `frontend/requirements.txt` (Streamlit, requests, sseclient-py)
-- [X] T004 [P] Configure environment settings, queue concurrency limits (max 2), and logging in `backend/app/config.py`
+- [X] **T001**: Definir modelos Pydantic v2 para el Pedido en 5 bloques (`BasicDataBlock`, `BusinessRequirementBlock`, `TechnicalRequirementsBlock`, `AIModeBlock`, `AttachmentsBlock`) en `backend/app/models/quarkus_factory.py`.
+- [X] **T002**: Definir la máquina de estados del pedido (`Recibido`, `Contrato en revisión`, `Aprobado`, `Generando`, `Probando`, `En revisión`, `Entregado`) y estructuras de auditoría de tokens (`TokensAudit`).
+- [X] **T003**: Configurar base de datos portable con SQLite para soporte zero-setup en demostraciones locales y perfiles corporativos para SQL Server / Azure SQL / PostgreSQL.
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Fase 2: Equipo de 7 Agentes Especializados (Backend)
 
-**Purpose**: Core infrastructure and models that MUST be complete before ANY user story can be implemented
-
-**⚠️ CRITICAL**: No user story work can begin until this phase is complete.
-
-- [X] T005 Implement SQLite/PostgreSQL database engine and session model in `backend/app/models/session.py` (`GenerationSession` with status enum: `QUEUED`, `RUNNING`, `COMPLETED`, `BLOCKED`, `CANCELLED`)
-- [X] T006 [P] Implement Pydantic v2 blueprint schemas in `backend/app/models/blueprint.py` (`ArchitectureBlueprint`, `DomainEntity`, `EntityAttribute`, `UserStoryRecord`, `AcceptanceScenarioRecord`)
-- [X] T007 [P] Implement artifact and verification metrics schemas in `backend/app/models/artifact.py` (`GeneratedArtifactRecord`, `VerificationMetricRecord`)
-- [X] T008 Implement in-memory FIFO queue and concurrency manager (max 2 concurrent generations) in `backend/app/services/queue_service.py`
-- [X] T009 Setup main FastAPI application with CORS, router mounts, and centralized error handlers in `backend/app/main.py`
-- [X] T010 [P] Setup Streamlit main entrypoint, page layout, and navigation tabs in `frontend/app.py`
-
-**Checkpoint**: Foundation ready — user story implementation can now begin in priority order.
+- [X] **T004**: Implementar el **Agente Analista** (`analyst_agent.py`): síntesis directa del contrato **OpenAPI 3.1** completo con schemas RFC 7807 y tags de endpoints, Historias de Usuario BDD y Modelo de Base de Datos.
+- [X] **T005**: Implementar el **Agente Arquitecto** (`architect_agent.py`): generación de las 3 opciones de arquitectura (Capas Estándar, Hexagonal, Reactiva), catálogo de extensiones Quarkus y el **Previsualizador interactivo de arquetipos (Maven `pom.xml` vs Gradle `build.gradle`)**.
+- [X] **T006**: Implementar el **Esqueleto Automático (Scaffolder)** (`scaffolder_service.py`): generación dinámica de DTOs Java Records inmutables desde OpenAPI, interfaces JAX-RS y observabilidad SmallRye (`/q/health`, `/q/metrics`, OpenTelemetry).
+- [X] **T007**: Implementar los **Agentes Desarrollador Java y QA** (`developer_qa_service.py`): entidades Panache derivadas del modelo de base de datos, servicio con reglas de negocio y pruebas automatizadas `@QuarkusTest` JUnit 5 + RestAssured.
+- [X] **T008**: Implementar el **Agente Documentador** (`documenter_devops_service.py`): generación obligatoria de los 5 documentos (`README.md`, `DOCUMENTACION_API.md`, `ADR_001`, `GUIA_PRUEBAS_COBERTURA.md`, `GUIA_OPERACION_SERVICIO.md`).
+- [X] **T009**: Implementar el **Agente DevOps** (`documenter_devops_service.py`): generación de `Jenkinsfile` corporativo de 5 etapas, `Dockerfile.jvm` optimizado para Fast-JAR y simulación de Pull Request.
+- [X] **T010**: Implementar el **Orquestador Central** (`factory_orchestrator.py`): coordinación de transiciones, persistencia en memoria, auditoría de tokens por agente y empaquetador dinámico en archivo `.ZIP`.
 
 ---
 
-## Phase 3: User Story 1 - Ingestion and Pre-Generation Validation of Service Specifications (Priority: P1) 🎯 MVP
+## Fase 3: Endpoints REST & Suite de Pruebas Backend
 
-**Goal**: Ingest pre-defined microservice specifications via either Markdown file upload (`spec.md`) or REST API JSON payload, validate completeness (entities, user stories with Given/When/Then criteria), and return parsed summary.
-
-**Independent Test**: Can be fully tested by submitting a valid `spec.md` or JSON blueprint to `POST /api/v1/specifications/upload` or `POST /api/v1/specifications` and confirming HTTP 201 Created with parsed entities and validation status.
-
-### Tests for User Story 1
-- [X] T011 [P] [US1] Unit test for specification Markdown parser and JSON validator in `backend/tests/test_spec_service.py`
-- [X] T012 [P] [US1] Contract test for specification ingestion endpoints in `backend/tests/test_routes_spec.py`
-
-### Implementation for User Story 1
-- [X] T013 [US1] Implement Spec Kit Markdown parser and structural validator in `backend/app/services/spec_service.py`
-- [X] T014 [US1] Implement REST endpoints `POST /api/v1/specifications/upload` and `POST /api/v1/specifications` in `backend/app/api/routes_spec.py`
-- [X] T015 [US1] Implement Streamlit file upload (`st.file_uploader`) and JSON editor view in `frontend/views/ingestion_view.py`
-- [X] T016 [US1] Connect `frontend/app.py` to render `ingestion_view.py` and display live schema validation feedback
-
-**Checkpoint**: User Story 1 is fully functional and independently testable as the MVP input stage.
+- [X] **T011**: Implementar router REST en `backend/app/api/routes_quarkus_factory.py` y registrar en `backend/app/main.py`.
+- [X] **T012**: Desarrollar suite de pruebas automatizadas E2E en `backend/tests/test_quarkus_factory.py` cubriendo el ciclo completo optimizado, las 2 compuertas de control humano y la descarga del ZIP.
+- [X] **T013**: Ejecutar y validar con `pytest` logrando 100% de tasa de aprobación.
 
 ---
 
-## Phase 4: User Story 2 - Autonomous Code Generation and Live Progress Monitoring (Priority: P1)
+## Fase 4: Frontend React - Flujo Limpio de 7 Pasos & 2 Controles Humanos
 
-**Goal**: Coordinate LangGraph multi-stage code synthesis compliant with Constitution v1.1.0, run hermetic `mvn test -o` in Docker sandbox (`--network none`), enforce 3-iteration self-repair loop, and stream progress over SSE.
-
-**Independent Test**: Trigger a generation session via `POST /api/v1/sessions`, connect to `GET /api/v1/sessions/{id}/stream`, and observe real-time lifecycle phase transitions, Maven build logs, and completion/blocked events.
-
-### Tests for User Story 2
-- [X] T017 [P] [US2] Unit test for Maven stack trace error parser and retry logic in `backend/tests/test_repair_parser.py`
-- [X] T018 [P] [US2] Unit test for Docker sandbox executor in `backend/tests/test_docker_runner.py`
-
-### Implementation for User Story 2
-- [X] T019 [P] [US2] Implement Docker sandbox executor running `mvn test -o` with `--network none` mounting read-only `.m2` in `backend/app/sandbox/docker_runner.py`
-- [X] T020 [P] [US2] Implement Maven stack trace parser and 3-attempt bounded auto-repair logic in `backend/app/orchestrator/repair.py`
-- [X] T021 [US2] Implement LangGraph state schema (`GenerationAgentState`) in `backend/app/orchestrator/state.py`
-- [X] T022 [US2] Implement LangGraph synthesis nodes (scaffolder, domain entities, record DTOs, layered services, controllers, and Mockito tests) in `backend/app/orchestrator/nodes/`
-- [X] T023 [US2] Assemble LangGraph workflow and state transitions with 3-iteration retry loop in `backend/app/orchestrator/graph.py`
-- [X] T024 [US2] Implement session management endpoints (`POST /api/v1/sessions`, `GET /api/v1/sessions/{id}`, `GET /api/v1/sessions/{id}/stream`) in `backend/app/api/routes_session.py`
-- [X] T025 [US2] Implement Streamlit live progress view with `st.status` and real-time log terminal in `frontend/views/monitor_view.py`
-- [X] T026 [US2] Integrate `monitor_view.py` with SSE consumer in `frontend/app.py` displaying queue position and auto-repair badges
-
-**Checkpoint**: User Stories 1 AND 2 are complete. Full autonomous generation, sandbox testing, and live streaming work end-to-end.
+- [X] **T014**: Definir interfaces TypeScript en `frontend/src/types/quarkusFactory.ts` (incluyendo `QuarkusExtensionItem`) y servicio Axios en `frontend/src/services/quarkusFactoryService.ts`.
+- [X] **T015**: Crear el contexto global `QuarkusContext.tsx` con manejo reactivo de pedidos, estado de pasos y compuertas de aprobación sin intermediación de preguntas.
+- [X] **T016**: Implementar `QuarkusStepperNav.tsx`: barra de progreso de los 7 pasos limpios, badges de Control Humano y medidor transversal de tokens.
+- [X] **T017**: Implementar `Step1OrderInput.tsx`: formulario en bloques con Java 21, selector de herramienta de build (Maven o Gradle) y validación reactiva.
+- [X] **T018**: Implementar `Step3ContractControl1.tsx` (**Control Humano 1**): visor y editor YAML del contrato OpenAPI con interpretación dinámica en tiempo real y botón de congelamiento formal.
+- [X] **T019**: Implementar `Step4ArchitectureArchetype.tsx`: selector de arquitectura, **Gestor y Aprobador de Extensiones Quarkus con Versiones Exactas** y **Previsualizador interactivo Maven vs Gradle**.
+- [X] **T020**: Implementar `Step5ConstructionTracking.tsx`: monitor en tiempo real del avance, ejecución de pruebas `@QuarkusTest` y widget de auto-corrección (Self-Healing).
+- [X] **T021**: Implementar `Step6Documentation.tsx`: visor con pestañas para los 5 documentos generados en Markdown.
+- [X] **T022**: Implementar `Step7RevisionControl2.tsx` (**Control Humano 2**): reporte de Code Review, explorador de código Java, auditoría de tokens y formulario de aprobación final.
+- [X] **T023**: Implementar `Step8DevOpsDelivery.tsx`: visor de `Jenkinsfile`, `Dockerfile`, Pull Request y botón de descarga directa de microservicio en `.ZIP`.
+- [X] **T024**: Integrar vistas y compilar exitosamente con `npm run build` (100% libre de errores TypeScript).
 
 ---
 
-## Phase 5: User Story 3 - Interactive Code Exploration and Verification Inspection (Priority: P2)
+## Fase 5: Eliminación de Módulo de Preguntas y Contract-Driven Dinámico
 
-**Goal**: Provide an interactive file tree explorer, syntax-highlighted source code viewer, and verification metrics dashboard.
-
-**Independent Test**: Retrieve generated files via `GET /api/v1/sessions/{id}/artifacts` and render them in the Streamlit file explorer with Java syntax highlighting and unit test verification metrics.
-
-### Tests for User Story 3
-- [X] T027 [P] [US3] Unit test for artifact retrieval and file content endpoints in `backend/tests/test_routes_artifact.py`
-
-### Implementation for User Story 3
-- [X] T028 [US3] Implement artifact exploration endpoints (`GET /api/v1/sessions/{id}/artifacts` and `GET /api/v1/sessions/{id}/artifacts/content`) in `backend/app/api/routes_artifact.py`
-- [X] T029 [US3] Implement Streamlit hierarchical file tree selector and Java syntax viewer using `st.code` in `frontend/views/explorer_view.py`
-- [X] T030 [US3] Implement test verification metrics dashboard displaying total tests, pass rates, and duration in `frontend/views/explorer_view.py`
-- [X] T031 [US3] Integrate `explorer_view.py` as an inspection tab in `frontend/app.py`
-
-**Checkpoint**: User Stories 1, 2, and 3 are complete. Reviewers can inspect all generated layered components and test reports.
+- [X] **T025**: **Eliminación Total del Módulo de Preguntas / Aclaración**: Eliminación de `Step2Clarifications.tsx` y retiro de `submit_clarifications` del flujo obligatorio.
+- [X] **T026**: **Síntesis Directa de Contrato**: La creación de pedido genera de inmediato OpenAPI 3.1, Historias BDD y Modelo Relacional, pasando a estado `Contrato en revisión`.
+- [X] **T027**: **Motor Contract-First Dinámico**: `ScaffolderService` y `DeveloperQAService` parsean dinámicamente el contrato OpenAPI modificado por el usuario, generando DTOs Java 21 Records inmutables y recursos JAX-RS correspondientes a los endpoints reales.
+- [X] **T028**: **Gestor y Aprobador de Extensiones Quarkus y sus Versiones**: Implementación en backend y frontend de la lista transparente de dependencias Quarkus 3.x con versiones fijas, permitiendo al usuario aprobar, editar versión o reemplazar extensiones antes de generar código.
+- [X] **T029**: **Bucle de Auto-Corrección (Self-Healing) y Code Review**: Integración en backend de comprobaciones de sintaxis y scopes CDI, y panel de Code Review en frontend.
+- [X] **T030**: **Sincronización Total con SDD y Constitución v3.0.0**: Actualización de `constitution.md`, `spec.md`, `plan.md`, `tasks.md`, `data-model.md` y `README.md`.
 
 ---
 
-## Phase 6: User Story 4 - Project Export and Repository Integration (Priority: P3)
+## Fase 6: Medidor Continuo de Tokens, Progreso 0-100% y Resiliencia en Construcción
 
-**Goal**: Enable downloading the full project as a standalone ZIP archive and pushing an atomic commit to a dedicated Git feature branch using ephemeral in-memory credentials.
-
-**Independent Test**: Trigger ZIP export via `GET /api/v1/sessions/{id}/export` and test Git branch push via `POST /api/v1/sessions/{id}/publish`.
-
-### Tests for User Story 4
-- [X] T032 [P] [US4] Unit test for ZIP project bundler in `backend/tests/test_export_service.py`
-- [X] T033 [P] [US4] Unit test for in-memory ephemeral Git publisher in `backend/tests/test_git_service.py`
-
-### Implementation for User Story 4
-- [X] T034 [US4] Implement project packaging service creating clean standalone ZIP archives in `backend/app/services/export_service.py`
-- [X] T035 [US4] Implement Git publishing service with ephemeral in-memory token handling in `backend/app/services/git_service.py`
-- [X] T036 [US4] Implement export and publish endpoints (`GET /api/v1/sessions/{id}/export` and `POST /api/v1/sessions/{id}/publish`) in `backend/app/api/routes_publish.py`
-- [X] T037 [US4] Implement Streamlit download button (`st.download_button`) and Git publication modal in `frontend/views/export_view.py`
-- [X] T038 [US4] Integrate `export_view.py` into `frontend/app.py`
-
-**Checkpoint**: All 4 user stories complete. End-to-end delivery pipeline verified.
-
----
-
-## Phase 7: Polish & Cross-Cutting Concerns
-
-**Purpose**: Cross-cutting improvements, healthchecks, and validation across all user stories
-
-- [X] T039 [P] Add end-to-end integration test running quickstart Scenario 1 and Scenario 2 in `backend/tests/test_e2e_flow.py`
-- [X] T040 [P] Add Docker base image verification script confirming `maven:3.9-eclipse-temurin-21` cache in `backend/app/sandbox/verify_cache.py`
-- [X] T041 Add system healthcheck endpoint `GET /healthz` in `backend/app/main.py`
-- [X] T042 Update root execution documentation and quickstart instructions in `README.md`
-
----
-
-## Dependencies & Execution Order
-
-### Phase Dependencies
-- **Setup (Phase 1)**: No dependencies — start immediately.
-- **Foundational (Phase 2)**: Depends on Phase 1 completion — BLOCKS all user stories.
-- **User Story 1 (Phase 3)**: Depends on Phase 2 completion — delivers MVP input stage.
-- **User Story 2 (Phase 4)**: Depends on Phase 2 and US1 schemas — delivers core generation engine.
-- **User Story 3 (Phase 5)**: Depends on Phase 4 artifacts — delivers inspection UI.
-- **User Story 4 (Phase 6)**: Depends on Phase 4 artifacts — delivers packaging and Git push.
-- **Polish (Phase 7)**: Depends on completion of all desired user stories.
-
-### User Story Dependencies
-- **US1 (P1)**: Independent entry point.
-- **US2 (P1)**: Consumes output of US1 (`specId` and parsed blueprint).
-- **US3 (P2)**: Consumes output of US2 (`sessionId` and generated artifacts).
-- **US4 (P3)**: Consumes output of US2 (`sessionId` and generated project files).
-
-### Parallel Opportunities
-
-- Within **Phase 1**: `T002`, `T003`, and `T004` can execute in parallel.
-- Within **Phase 2**: `T006`, `T007`, and `T010` can execute in parallel.
-- Within **Phase 3 (US1)**: Tests `T011` and `T012` can execute in parallel.
-- Within **Phase 4 (US2)**: Tests `T017` and `T018`, plus implementation tasks `T019` and `T020` can execute in parallel.
-- Within **Phase 5 (US3)**: Test `T027` and backend endpoint `T028` can run in parallel with frontend view `T029`.
-- Within **Phase 6 (US4)**: Tests `T032` and `T033` can run in parallel.
-- Across stories: Once Phase 4 (US2) completes, US3 (Exploration) and US4 (Export) can proceed in parallel.
-
----
-
-## Parallel Example: User Story 2 (Generation Engine)
-
-```bash
-# Launch unit tests and isolated services for User Story 2 in parallel:
-Task T017: "Unit test for Maven stack trace error parser in backend/tests/test_repair_parser.py"
-Task T018: "Unit test for Docker sandbox executor in backend/tests/test_docker_runner.py"
-Task T019: "Implement Docker sandbox executor in backend/app/sandbox/docker_runner.py"
-Task T020: "Implement Maven stack trace parser in backend/app/orchestrator/repair.py"
-```
-
----
-
-## Implementation Strategy
-
-### MVP First (Phases 1, 2, and 3)
-1. Complete **Phase 1: Setup** (dependencies, configuration).
-2. Complete **Phase 2: Foundational** (data models, queue service, app layout).
-3. Complete **Phase 3: User Story 1** (specification ingestion and validation).
-4. **STOP and VALIDATE**: Verify that `spec.md` and JSON blueprints can be ingested and validated.
-
-### Incremental Delivery
-1. **Increment 1 (MVP)**: Specification ingestion and validation working.
-2. **Increment 2**: Core autonomous generation, Docker offline test execution, and SSE streaming (User Story 2).
-3. **Increment 3**: Interactive code explorer and verification dashboard in Streamlit (User Story 3).
-4. **Increment 4**: ZIP packaging and ephemeral Git feature branch publication (User Story 4).
-5. **Increment 5**: End-to-end integration tests and healthchecks (Phase 7).
-
+- [X] **T031**: **Medidor Continuo de Tokens No Restrictivo**: Migración de topes rígidos ("Modo Medio") a "Continuo (Sin límite)" en backend (`AIModeEnum.CONTINUO`, `TokensAudit.is_unlimited`) y frontend (`QuarkusStepperNav.tsx`, `Step1OrderInput.tsx`, `Step5ConstructionTracking.tsx`), permitiendo generación continua y visualización por agente sin cortes.
+- [X] **T032**: **Monitor de Progreso 0-100% y Alerta de Finalización**: Implementación de barra de porcentaje en tiempo real vinculada a los hitos de construcción (DTOs, Panache, JAX-RS, Tests, Self-Healing) y banner de celebración al 100% con retención de vista en `QuarkusContext.tsx` y `Step5ConstructionTracking.tsx`.
+- [X] **T033**: **Mapeo de Errores y Resiliencia en UI**: Detección y despliegue transparente de fallos y timeouts en Pasos 4 y 5 con botón de reintento, eliminando cargas silenciosas infinitas.

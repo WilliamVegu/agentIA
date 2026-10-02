@@ -64,8 +64,9 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
             className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <option value="mock">Modo Offline (Mock Engine - Sin Costo)</option>
-            <option value="gemini">Google Gemini (Gemini 3.6 Flash / 3.5 Lite)</option>
-            <option value="groq">Groq Cloud (Qwen 3.8 27B / GPT-OSS)</option>
+            <option value="deepseek">DeepSeek (DeepSeek-V3 / DeepSeek-R1)</option>
+            <option value="gemini">Google Gemini (Gemini 3.5 Flash Lite / Pro)</option>
+            <option value="groq">Groq Cloud (Llama 3.3 70B / Instant)</option>
             <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
           </select>
         </div>
@@ -81,7 +82,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
                 type={showKey ? 'text' : 'password'}
                 value={localKey}
                 onChange={(e) => setLocalKey(e.target.value)}
-                placeholder={provider === 'gemini' ? 'AQ... o AIzaSy...' : provider === 'groq' ? 'gsk_...' : 'sk-...'}
+                placeholder={provider === 'gemini' ? 'AQ... o AIzaSy...' : provider === 'groq' ? 'gsk_...' : 'sk-... (ej. sk-...) '}
                 className="w-full px-3 py-2 pr-16 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
               <button

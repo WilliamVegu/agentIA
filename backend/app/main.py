@@ -49,6 +49,18 @@ async def generic_exception_handler(request: Request, exc: Exception):
         }
     )
 
+@app.get("/", tags=["Root"])
+async def root():
+    return {
+        "status": "UP",
+        "app": "Fábrica de Agentes Java Quarkus 3.x",
+        "version": settings.APP_VERSION,
+        "docs_url": "/docs",
+        "health_url": "/healthz",
+        "frontend_url": "http://localhost:3000",
+        "message": "Backend de Fábrica Quarkus activo. Visita /docs para explorar la API o http://localhost:3000 para el Frontend Studio."
+    }
+
 @app.get("/healthz", tags=["Health"])
 async def healthcheck():
     return {
@@ -130,5 +142,12 @@ try:
     app.include_router(llm_router, prefix="/api/v1")
 except ImportError:
     pass
+
+try:
+    from app.api.routes_quarkus_factory import router as quarkus_factory_router
+    app.include_router(quarkus_factory_router, prefix="/api/v1")
+except ImportError:
+    pass
+
 
 

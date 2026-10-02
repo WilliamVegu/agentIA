@@ -1,78 +1,102 @@
-# Microservice Code Studio ⚡
+# Fábrica de Agentes · Agente Java Developer de Microservicios Quarkus ⚡
 
-> **Aplicación Web para la Generación Autónoma y Verificación Hermética de Microservicios Java 21 / Spring Boot 3.x**
+> **Plataforma Web para la Generación Autónoma y Verificación de Microservicios Quarkus 3.x / Java 21 LTS**  
+> *Enfoque Contract-First Dinámico · Metodología SDD (Spec-Driven Development) · Constitución v3.0.0*
 
-Microservice Code Studio es una plataforma integral que ingesta especificaciones formales de microservicios (blueprints de arquitectura, entidades de dominio e historias de usuario con criterios Given/When/Then), orquesta la síntesis de código mediante un agente **LangGraph**, ejecuta compilaciones y pruebas en un sandbox **Docker hermético y fuera de línea** (`--network none`), y entrega proyectos listos para producción mediante descarga en ZIP o publicación atómica a una rama de Git.
-
----
-
-## 🏛️ Arquitectura del Sistema (Opción B)
-
-El sistema opera desacoplado en dos capas:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│             React / Vite Web Studio (Frontend :3000)        │
-│  - Asistente BDD, Arquitectura y Modelos Relacionales       │
-│  - Ingesta de spec.md / JSON Blueprint                      │
-│  - Monitor en Vivo con Server-Sent Events (SSE) y Logs      │
-│  - Auditoría SAST, Calidad, DevOps y Exportación de Código  │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ HTTP / SSE / REST API
-┌──────────────────────────────▼──────────────────────────────┐
-│             FastAPI Orchestrator Engine (Backend :8000)     │
-│  - Cola FIFO de Concurrencia (Máx 2 compilaciones simult.)  │
-│  - Agente Autónomo LangGraph (Scaffolder, DTOs, Servicios)  │
-│  - Sandbox Docker Hermético (mvn test -o --network none)    │
-│  - Máquina de Auto-Reparación Acotada (Máx 3 iteraciones)   │
-│  - Base de Datos SQLite/PostgreSQL para Sesiones            │
-└─────────────────────────────────────────────────────────────┘
-```
+La **Fábrica de Agentes Quarkus** es una plataforma orientada a la síntesis autónoma de microservicios empresariales bajo un enfoque **Contract-First Dinámico y Reactivo**. Combina un equipo de agentes especializados de IA con herramientas automáticas y deterministas, eliminando cuestionarios burocráticos y permitiendo que cada modificación hecha al contrato OpenAPI en la revisión dirija dinámicamente la generación de APIs, DTOs inmutables (Java 21 Records), modelos relacionales y pruebas.
 
 ---
 
-## 📜 Cumplimiento Constitucional (Constitución v1.1.0)
+## 🏛️ Arquitectura del Sistema
 
-1. **Principio I: Java 21 LTS y Spring Boot 3.x**: Estricto uso de Java 21 (`java.version=21`) y Spring Boot 3.2+ (Jakarta EE en lugar de `javax`).
-2. **Principio II: Records para DTOs**: Todos los objetos de transferencia de datos (`Create*Request`, `*Response`) son Java Records inmutables.
-3. **Principio III: `@RestControllerAdvice`**: Manejo centralizado y uniforme de errores HTTP y respuestas RFC 7807 / JSON estructurado.
-4. **Principio IV: Compilación Hermética y Pruebas Unitarias al 100%**: Sandbox Docker ejecutado con `--network none` y `mvn test -o` con caché `.m2` de solo lectura. Pruebas unitarias Mockito con 100% de tasa de aprobación.
-5. **Principio V: Auto-reparación Acotada (Máximo 3 Intentos)**: Si fallan pruebas o compilación, el analizador de trazas Maven diagnostica y reintenta hasta 3 veces; al fallar el tercer intento pasa a `BLOCKED` (Intervención humana requerida).
-6. **Principio VI: Cero Secretos Persistidos**: Tokens de acceso personal (PAT) para Git y claves API se procesan efímeramente en memoria y jamás se persisten en disco ni en base de datos.
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│            Frontend React / Vite Studio (Puerto :3000)                 │
+│  - Paso 1: Pedido sin datos precargados + Arquetipo (Maven vs Gradle)  │
+│  - Paso 2 (Control 1): Editor OpenAPI 3.1 reactivo + CRUD HU/Modelo BD │
+│  - Paso 3: Selector de Arquitectura + Gestor de Extensiones y Versiones│
+│  - Paso 4: Monitor en vivo de Construcción, Pruebas y Self-Healing     │
+│  - Paso 5: Visor de Documentación Oficial (README, API doc, ADR-001)   │
+│  - Paso 6 (Control 2): Árbol de código Java, Code Review y Auditoría   │
+│  - Paso 7: Entrega DevOps: Jenkinsfile, Dockerfile y descarga ZIP      │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ HTTP / REST API (/api/v1/quarkus/*)
+┌───────────────────────────────────▼────────────────────────────────────┐
+│            Backend Orquestador FastAPI (Puerto :8000)                  │
+│  - Máquina de estados: Recibido → Revisión → Aprobado → Generando →    │
+│    Probando → En revisión → Entregado                                  │
+│  - 🧠 1. Requirements Agent (especificaciones técnicas y HUs BDD)      │
+│  - 🏗️ 2. Architecture Agent (OpenAPI 3.1, arquetipo y extensiones)      │
+│  - 💻 3. Java/Quarkus Coding Agent (JAX-RS Reactive, DTOs Java 21)     │
+│  - 🗄️ 4. Database Agent (Modelo ER, DDL SQL, Panache y migraciones)    │
+│  - 🔐 5. Security Agent (SmallRye JWT/OIDC, RBAC y secretos)           │
+│  - 🧪 6. Testing & Debug Agent (JUnit 5, RestAssured, Self-Healing)    │
+│  - 🔎 7. Code Review Agent (Auditoría estática, SOLID, OWASP y score) │
+│  - 🚀 8. DevOps Agent (pom.xml/gradle, Docker, K8s, CI/CD y docs)      │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🤖 El Equipo de 8 Agentes Especializados (Ciclo Autónomo)
+
+El ciclo técnico opera de forma continua y automatizada:  
+$$\text{Requisito} \rightarrow \text{Diseño} \rightarrow \text{Código} \rightarrow \text{Compilación} \rightarrow \text{Tests} \rightarrow \text{Corrección (Self-Healing)} \rightarrow \text{Code Review} \rightarrow \text{Proyecto Listo}$$
+
+| # | Agente | Rol Técnico | Entregables Clave |
+|---|---|---|---|
+| **1** | 🧠 **Requirements Agent** | Analiza requisitos y los convierte en especificaciones técnicas. | Historias de usuario BDD, casos de uso, restricciones y glosario. |
+| **2** | 🏗️ **Architecture Agent** | Diseña microservicios, capas, patrones, OpenAPI y arquitectura. | Contrato OpenAPI 3.1 YAML, matriz de extensiones Quarkus 3.15 LTS, patrón arquitectónico. |
+| **3** | 💻 **Java/Quarkus Coding Agent** | Genera y modifica código Java 21 + Quarkus. | DTOs Java 21 Records inmutables, recursos JAX-RS / RESTEasy Reactive, servicios `@ApplicationScoped`. |
+| **4** | 🗄️ **Database Agent** | Modelos, SQL, repositorios, migraciones y conexiones DB. | Modelo Relacional, Diagrama ER Mermaid, DDL `schema.sql`, entidades Panache. |
+| **5** | 🔐 **Security Agent** | JWT, OAuth2, hashing, cifrado y configuraciones seguras. | SmallRye JWT / OIDC, RBAC `@RolesAllowed`, gobernanza de variables de entorno. |
+| **6** | 🧪 **Testing & Debug Agent** | JUnit, Mockito, integración, ejecución de tests y self-healing. | Suites `@QuarkusTest`, tests RestAssured, ejecutor sandbox y bucle de auto-corrección. |
+| **7** | 🔎 **Code Review Agent** | Revisa calidad, SOLID, patrones y vulnerabilidades. | Auditoría estática, verificación anti-patrones Quarkus, reporte de calidad y puntuación. |
+| **8** | 🚀 **DevOps Agent** | Maven/Gradle, Git, Docker, Kubernetes y Jenkins/CI-CD. | `pom.xml` / `build.gradle`, `Dockerfile` JVM y Native, manifiestos K8s, `Jenkinsfile` y `README.md`. |
+
+---
+
+## 📜 Cumplimiento Constitucional (Constitución v3.0.0)
+
+1. **Principio I: Recepción Ágil de Requisitos & Arquetipo (Maven o Gradle)**: Formulario limpio sin precargas fijas, validación técnica en tiempo real y **cero cuestionarios de preguntas que retrasen el flujo**.
+2. **Principio II: Contrato OpenAPI Dinámico y Revisión Viva**: La IA parsea dinámicamente cualquier cambio que el usuario haga en el contrato OpenAPI durante la revisión; el contrato congelado es la única fuente de verdad para la API.
+3. **Principio III: Contratos Inmutables con Java 21 Records**: DTOs inmutables con validación Jakarta Bean Validation (`@NotNull`, `@NotBlank`, `@Size`, etc.). Entidades de persistencia Panache desacopladas de la API.
+4. **Principio IV: Arquitectura Seleccionable & Aprobación de Extensiones con Versiones**: 3 patrones (Capas, Hexagonal o Reactiva) y catálogo transparente de extensiones Quarkus 3.x con versiones exactas para aprobar, modificar o reemplazar antes de generar código.
+5. **Principio V: Construcción, Pruebas y Bucle Self-Healing**: Suite `@QuarkusTest` con RestAssured y Mockito. Detección y auto-corrección automática de errores de sintaxis y dependencias.
+6. **Principio VI: Dos Compuertas de Control Humano**:
+   - *Control 1*: Revisión, edición reactiva y congelamiento del contrato OpenAPI y modelo de datos.
+   - *Control 2*: Inspección de código Java, reporte de Code Review, pruebas y auditoría de tokens antes de autorizar la entrega.
+7. **Principio VII: Seguridad y CI/CD**: Cero credenciales persistidas; `Dockerfile` multi-etapa (JVM y GraalVM Native), `Jenkinsfile` declarativo y descarga directa en `.ZIP`.
 
 ---
 
 ## 🚀 Requisitos Previos
 
 - **Python**: 3.11 o 3.12 (`python --version`)
-- **Docker Desktop** (opcional, para ejecución real en contenedor Docker con Java 21 / Maven 3.9 pre-cacheados)
+- **Node.js**: 20+ y npm (`npm --version`)
+- **Java** (opcional, para compilar el proyecto exportado): Java 21 LTS (`java -version`)
 
 ---
 
-## 📦 Instalación y Configuración
+## 📦 Puesta en Marcha Rápida (1 Clic)
 
-### 1. Clonar o acceder al repositorio
-```bash
-cd agentIA
+Puedes iniciar ambos servicios simultáneamente ejecutando:
+
+```cmd
+run_all.bat
 ```
 
-### 2. Configurar el Backend (FastAPI + LangGraph)
-```bash
-# Instalar dependencias del backend
-pip install -r backend/requirements.txt
+O arrancar cada componente de forma individual:
 
-# Iniciar servidor backend FastAPI en el puerto 8000
+### 1. Iniciar el Backend (FastAPI :8000)
+```bash
 python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000 --reload
 ```
 *Documentación interactiva Swagger UI disponible en:* `http://localhost:8000/docs`
 
-### 3. Configurar el Frontend (React + Vite + TypeScript)
+### 2. Iniciar el Frontend (React + Vite :3000)
 ```bash
-# En una terminal separada, navegar a frontend e instalar paquetes
 cd frontend
-npm install
-
-# Iniciar el servidor de desarrollo Vite en el puerto 3000
 npm run dev
 ```
 *Interfaz de usuario disponible en:* `http://localhost:3000`
@@ -81,80 +105,68 @@ npm run dev
 
 ## 🧪 Ejecución de la Suite de Pruebas Automatizadas
 
-El proyecto cuenta con una batería completa de **125 pruebas automatizadas** (unitarias, de integración, contract tests y end-to-end), con un 100% de tasa de aprobación:
+El backend incluye pruebas automatizadas con un 100% de tasa de aprobación:
 
 ```bash
 # Ejecutar todas las pruebas con pytest
-python -m pytest backend/tests -o pythonpath=backend
+python -m pytest backend/tests/test_quarkus_factory.py -o pythonpath=backend
 ```
-
-Suite de pruebas principales:
-- `test_e2e_flow.py`: Flujo E2E integral (Ingesta dual, pipeline Auto-Pilot, pause/resume, auditoría SAST, auto-reparación quirúrgica, DevOps y exportación).
-- `test_pipeline_runner.py`: Motor de generación generativa completa (sintetiza especificación, historias BDD, arquitectura 4 capas, DDL relacional, código Java 21 LTS y pruebas Mockito).
-- `test_sessions_api.py`: Gestión de sesiones, listado cronológico de sesiones y aprovisionamiento rápido 1-Click (`/api/v1/sessions/quick-start`).
-- `test_routes_orchestrator.py`: Orquestador central, transiciones de fase, ejecución de pipeline Auto-Pilot, hot-pause, resume, cancel y re-sincronización forzada.
-- `test_security_service.py` & `test_routes_security.py`: Auditoría estática SAST, detección de secretos hardcodeados, evaluación CVE, Compuertas de Calidad (Quality Gate) y auto-parcheo quirúrgico.
-- `test_devops_service.py` & `test_routes_devops.py`: Docker multi-stage hermético, Docker Compose con PostgreSQL, pipelines de CI/CD (GitHub Actions / GitLab CI) y manifiestos de Kubernetes.
-- `test_architecture_service.py` & `test_routes_architecture.py`: Topología en 4 capas estrictas, catálogo de componentes, endpoints REST y diagramas Mermaid.
-- `test_model_sql_service.py` & `test_routes_models_sql.py`: Entidades JPA Jakarta Persistence, scripts relacionales DDL/DML para PostgreSQL y diagramas Mermaid `erDiagram`.
-- `test_requirements_service.py` & `test_routes_requirements.py`: Asistente de requisitos BDD Given/When/Then con IA y exportación Spec Kit `spec.md`.
-- `test_test_analysis_service.py`: Analizador de reglas constitucionales estáticas, diagnóstico de compilación Maven y auto-reparación acotada a 3 intentos.
 
 ---
 
-## 🖥️ Flujo de Trabajo en la Interfaz Web (10 Pestañas Canónicas)
+## 🖥️ Flujo de Trabajo en la Interfaz Web (7 Pasos)
 
-La interfaz web unificada en Streamlit organiza el ciclo de vida completo del microservicio en 10 etapas claras:
+La interfaz web organiza el ciclo de vida del microservicio en 7 etapas claras y sin fricción:
 
-0. **🏠 Pestaña 0 - Resumen del Proyecto & Control Central**:
-   - Tarjeta de **Inicio Rápido 1-Click** para crear nuevos microservicios a partir de un prompt en lenguaje natural.
-   - Selector interactivo entre modo **🚀 Auto-Pilot** (flujo desatendido) y **👣 Modo Paso a Paso** (revisión asistida).
-   - Controles de pipeline en caliente: Pausa (`⏸️ Pausar`), Reanudar (`▶️ Reanudar`) y Cancelar (`⏹️ Cancelar`).
-   - Grilla de indicadores ejecutivos: Historias BDD, Entidades SQL, Suites de Pruebas, Veredicto del Quality Gate y Estado de Despliegue.
-   - Descarga con 1 clic del paquete de entrega completo (`complete-bundle.zip`).
+1. **📝 Paso 1 - Pedido & Arquetipo (Maven o Gradle)**:
+   - Datos básicos (Nombre kebab-case, equipo, groupId, versión de Java 21 LTS y build tool).
+   - Requerimientos funcionales de negocio (mínimo 30 caracteres con validador en tiempo real).
+   - Requisitos técnicos (SQLite demo local vs SQL Server / PostgreSQL, JWT, Kafka).
+2. **🔒 Paso 2 - Control Humano 1: Contrato OpenAPI & Revisión Dinámica**:
+   - La IA genera directamente el contrato OpenAPI 3.1, Historias de Usuario BDD y Modelo Relacional sin cuestionarios.
+   - Visor y editor interactivo YAML: **cada cambio que haces en el contrato es interpretado en tiempo real por la IA**.
+   - Congelamiento formal del contrato y modelo de datos.
+3. **🏛️ Paso 3 - Arquitectura & Aprobación/Reemplazo de Extensiones**:
+   - Selección entre las 3 opciones de arquitectura (Capas Estándar, Hexagonal o Reactiva).
+   - **Gestor de Extensiones Quarkus 3.x**: Tabla explícita de artefactos y versiones exactas con casillas de verificación, edición de versiones y opción de añadir extensiones personalizadas.
+   - **Previsualizador interactivo Maven vs Gradle**: Comparativa de `pom.xml` vs `build.gradle`, dependencias y árbol de carpetas.
+4. **⚙️ Paso 4 - Construcción de Código, APIs, Modelos y Pruebas**:
+   - Generación dinámica de DTOs Java 21 Records inmutables a partir de los esquemas OpenAPI revisados.
+   - Recursos JAX-RS / RESTEasy Reactive, servicios de negocio y entidades Panache ORM con scripts Flyway.
+   - Ejecución de pruebas `@QuarkusTest` JUnit 5 con RestAssured.
+   - **Bucle Self-Healing**: Detección y auto-corrección de errores de sintaxis y dependencias.
+5. **📚 Paso 5 - Documentación Oficial**:
+   - Visualización de los 5 documentos generados (`README.md`, `DOCUMENTACION_API.md`, `ADR_001`, `GUIA_PRUEBAS_COBERTURA.md`, `GUIA_OPERACION_SERVICIO.md`).
+6. **🔍 Paso 6 - Control Humano 2: Revisión Final de Entrega & Code Review**:
+   - Informe de auditoría de calidad de código (**Code Review**) emitido por el Agente Revisor.
+   - Inspección del árbol de código Java, pruebas y tabla de auditoría de tokens consumidos.
+7. **🚀 Paso 7 - Entrega DevOps & Descarga ZIP**:
+   - Inspección de `Jenkinsfile`, `Dockerfile` y botón de descarga directa del microservicio en archivo **.ZIP** listo para ejecutar con `./mvnw quarkus:dev`.
 
-1. **📝 Pestaña 1 - Requisitos & Historias (IA)**:
-   - Redacción y descomposición de requerimientos de negocio con IA.
-   - Síntesis de historias de usuario canonicales y escenarios de aceptación **Given/When/Then**.
-   - Detección de entidades de dominio y exportación del archivo `spec.md` (Spec Kit).
+---
 
-2. **🏗️ Pestaña 2 - Diseño Arquitectónico & Componentes (IA)**:
-   - Visualización en tiempo real del diagrama **Mermaid** en 4 capas estrictas (`Controller` ➔ `Service` ➔ `Repository` ➔ `Model`).
-   - Catálogo jerárquico de componentes y contratos de endpoints REST con Java Records inmutables.
-   - Refinamiento interactivo de la arquitectura mediante instrucciones en lenguaje natural.
+## 📁 Estructura del Repositorio
 
-3. **💾 Pestaña 3 - Modelos de Dominio JPA & Esquema SQL**:
-   - Entidades Jakarta Persistence fuertemente tipadas con auditoría (`createdAt`, `updatedAt`) y claves autonuméricas.
-   - Diagrama visual de entidades y relaciones (Mermaid `erDiagram`).
-   - Scripts relacionales sincronizados: `schema.sql` (DDL de tablas e índices) y `data.sql` (DML de datos semilla).
-
-4. **📥 Pestaña 4 - Ingesta de Especificación**:
-   - Carga de especificaciones previas mediante drag-and-drop de archivos `spec.md` o JSON blueprint.
-   - Validación automática de sintaxis, entidades y cobertura de criterios de aceptación.
-
-5. **🚀 Pestaña 5 - Generación & Logs en Vivo**:
-   - Orquestación de la síntesis autónoma con el grafo LangGraph.
-   - Terminal de logs en tiempo real vía Server-Sent Events (SSE).
-   - Visualización del progreso de etapas (`SCAFFOLDING` → `CODE_GENERATION` → `TEST_SYNTHESIS` → `SANDBOX_BUILD` → `SELF_REPAIR_LOOP` → `VERIFIED`).
-
-6. **🔍 Pestaña 6 - Código, Tests & Auto-Reparación**:
-   - Explorador jerárquico del código fuente Java 21 / Spring Boot 3 generado con resaltado de sintaxis.
-   - Inspección de suites de pruebas Unitarias Mockito, Web y de Integración.
-   - Historial de auto-reparaciones quirúrgicas con visor de diferencias unificadas (`diff`).
-   - Consola de intervención manual para desbloquear sesiones detenidas por límite de iteraciones.
-
-7. **🛡️ Pestaña 7 - Seguridad, Calidad & SAST**:
-   - Banner de veredicto del **Quality Gate** (PASS / BLOCKED) y cálculo de Score de Calidad (0-100).
-   - Detección estática de secretos hardcodeados, vulnerabilidades SAST (inyección SQL, XSS, deserialización insegura) y CVEs.
-   - Botón de **Auto-Remediación Quirúrgica 1-Click** para aplicar parches de seguridad directos sin reescribir archivos manualmente.
-   - Métricas de mantenibilidad: Complejidad ciclomática, duplicación y densidad de aserciones.
-
-8. **🚀 Pestaña 8 - DevOps, Contenerización & Despliegue**:
-   - Generación de `Dockerfile` multi-stage optimizado para Java 21 LTS.
-   - Configuración de `docker-compose.yml` con servicio PostgreSQL y volúmenes persistentes.
-   - Pipelines de CI/CD para GitHub Actions y GitLab CI con caché de dependencias Maven.
-   - Manifiestos de Kubernetes (`deployment.yaml`, `service.yaml`, `configmap.yaml`).
-
-9. **📦 Pestaña 9 - Exportación & Publicación en Git**:
-   - Descarga del código fuente completo empaquetado como proyecto Maven en archivo ZIP.
-   - Publicación atómica a repositorios Git remotos (GitHub / GitLab) en ramas dedicadas `feature/{specName}` con credenciales efímeras en memoria.
+```text
+agentIA/
+├── backend/app/
+│   ├── models/quarkus_factory.py        # Modelos Pydantic del Pedido, Extensiones y Tokens
+│   ├── services/quarkus_factory/        # Los Agentes especializados de Quarkus
+│   └── api/routes_quarkus_factory.py    # Endpoints REST de la Fábrica
+├── frontend/src/
+│   ├── types/quarkusFactory.ts          # Interfaces TypeScript (QuarkusExtensionItem, etc.)
+│   ├── services/quarkusFactoryService.ts# Cliente HTTP Axios
+│   ├── context/QuarkusContext.tsx       # Estado global y controles humanos
+│   └── views/quarkus/                   # Componentes de los 7 pasos
+├── specs/001-microservice-code-studio/  # Documentación formal SDD en español
+│   ├── spec.md                          # Especificación funcional detallada v3.0.0
+│   ├── plan.md                          # Plan de arquitectura e implementación v3.0.0
+│   ├── tasks.md                         # Tareas ordenadas y completadas v3.0.0
+│   ├── data-model.md                    # Modelo de datos y esquemas v3.0.0
+│   ├── research.md                      # Decisiones técnicas y herramientas
+│   └── quickstart.md                    # Guía paso a paso para la demo
+├── .specify/memory/constitution.md      # Constitución v3.0.0 en español
+├── run_all.bat                          # Lanzador 1-clic para Windows
+├── run_backend.bat                      # Lanzador backend FastAPI
+└── run_frontend.bat                     # Lanzador frontend React Vite
+```

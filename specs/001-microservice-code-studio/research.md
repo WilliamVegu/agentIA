@@ -1,101 +1,57 @@
-# Research & Technical Decisions: Microservice Code Studio
+# Investigación y Decisiones Técnicas: Fábrica de Agentes Java Quarkus ⚡
 
-**Feature**: `001-microservice-code-studio`
-**Date**: 2026-09-13
-**Status**: Completed (Updated for FastAPI + Streamlit + LangGraph)
-
-## Overview
-
-Microservice Code Studio is an enterprise platform designed to ingest formal microservice specifications (architecture blueprints, user stories, and acceptance criteria), orchestrate autonomous code synthesis adhering strictly to Constitution v1.1.0 (Java 21 LTS, Spring Boot 3.x, layered architecture, immutable records, Mockito unit tests), execute hermetic offline compilation and testing (`mvn test -o`) within isolated Docker sandboxes, stream real-time progress via Server-Sent Events (SSE), enforce a strict 3-iteration self-repair loop, and package or publish the resulting code to Git feature branches.
-
-The studio platform itself is implemented with **FastAPI** (headless backend API & LangGraph execution engine) paired with **Streamlit** (interactive developer web UI) in Python 3.11+.
+**Característica**: `001-quarkus-agent-factory` | **Fecha**: 2026-10-01 | **Iniciativa**: Pedido 2 de Lorena
 
 ---
 
-## Technical Decisions
+## 1. Visión General
 
-### Decision 1: Platform Architecture — FastAPI (Backend) + Streamlit (Frontend) + LangGraph
-
-- **Decision**: Architect the studio platform using a decoupled Python-based architecture:
-  - **Backend API & Engine (FastAPI on port 8000)**: Implements the REST API endpoints and Server-Sent Events (`EventSourceResponse`). Houses the **LangGraph** state machine, Pydantic v2 schemas, session queue manager, and Docker sandbox executor.
-  - **Frontend UI (Streamlit on port 8501)**: Provides an interactive, rapid web interface for developers and architects, communicating with FastAPI via HTTP and SSE.
-  - **Target Deliverable**: Pure Java 21 LTS / Spring Boot 3.x corporate microservices complying with the repository constitution.
-- **Rationale**: 
-  - **Dual Access Model**: Satisfies user clarification 1 & 2: external services (like the sister specification authoring module) or CI pipelines can trigger code generation programmatically via FastAPI's REST API (`POST /api/v1/sessions`), while human engineers can use Streamlit for visual file uploading, live log streaming, code exploration, and ZIP export.
-  - **Native LangGraph Integration**: Running LangGraph inside FastAPI leverages Python's native async runtime, state management, and memory safety without language-bridging overhead.
-  - **Rapid UI Iteration**: Streamlit provides built-in `st.file_uploader`, `st.status`, `st.code(language="java")`, and `st.download_button`, eliminating hundreds of hours of custom frontend component plumbing while providing a sleek experience.
-- **Alternatives Considered**:
-  - *Spring Boot (Java) backend for the studio*: Rejected because running Python LangGraph agents from a Java backend requires complex subprocesses or HTTP sidecars, creating unnecessary operational complexity.
-  - *Streamlit Solo (without FastAPI)*: Evaluated, but rejected because a standalone Streamlit app cannot expose headless REST endpoints for programmatic invocation by the sister specification module.
-  - *React / Next.js frontend*: Evaluated, but Streamlit offers vastly faster delivery with native Python integration for code exploration and live log streaming.
+La **Fábrica de Agentes de Microservicios Quarkus** implementa un modelo de colaboración entre herramientas automáticas deterministas y agentes de IA especializados para generar microservicios Java 21 LTS de nivel producción en Quarkus, bajo un enfoque estricto **Contract-First**.
 
 ---
 
-### Decision 2: Hermetic Offline Sandbox & Build Execution (`mvn test -o`)
+## 2. Decisiones Técnicas Fundamentales
 
-- **Decision**: Execute all generated code builds, compilation, and JUnit 5 unit tests inside ephemeral Docker containers running with `--network none` and mounting a pre-warmed, read-only local Maven cache (`/root/.m2/repository:ro`).
-- **Rationale**:
-  - Directly enforces Constitution Principle IV (Deterministic Offline-First & Sandbox Isolation).
-  - With network disabled (`--network none`), the container cannot download unauthorized dynamic dependencies, connect to external network services, or leak environment variables/secrets.
-  - Running `mvn test -o` deterministically verifies that all required plugins and dependencies (Spring Boot starter, JPA, Validation, H2, JUnit 5, Mockito, AssertJ) exist in the base cache.
-  - In Python, the `docker` SDK (`docker-py`) or `asyncio.create_subprocess_exec` manages container lifecycles cleanly and captures stdout/stderr line-by-line for streaming.
-- **Alternatives Considered**:
-  - *Process-level execution on host (`subprocess` without Docker)*: Fails to guarantee network isolation; a prompt hallucination or rogue dependency could initiate outbound HTTP calls.
+### Decisión 1: Enfoque Contract-First con Quarkus OpenAPI Generator
+* **Decisión**: El microservicio no genera endpoints libres a partir de prompts; se redacta y aprueba primero un contrato **OpenAPI 3.1** que luego se congela inmutablemente. Las interfaces JAX-RS y DTOs nacen directamente de dicho contrato.
+* **Justificación**: Cumple el requisito de diseño del documento de Lorena: "Nada se construye sin esta aprobación". Evita alucinaciones de nombres de rutas, métodos HTTP o esquemas de payload.
+* **Herramientas de Referencia**:
+  * *Quarkus OpenAPI Generator*: Generación oficial de interfaces de servidor y modelos desde especificaciones OpenAPI.
+  * *SmallRye OpenAPI*: Exposición dinámica de Swagger UI en `/q/swagger-ui`.
 
 ---
 
-### Decision 3: Autonomous Code Synthesis Engine with LangGraph
-
-- **Decision**: The autonomous generation pipeline is structured as an asynchronous state graph (`StateGraph`) in LangGraph:
-  1. *Validator Node*: Validates ingested blueprint, entity mappings, and Given/When/Then criteria against constitutional rules.
-  2. *Scaffolder Node*: Synthesizes project root, `pom.xml` (with pinned dependency versions), package structure, and `application.yml`.
-  3. *Domain & Contract Synthesizer*: Generates JPA entities, Jakarta-validated Request/Response Java Records, and custom business exceptions.
-  4. *Layered Component Synthesizer*: Generates Spring Data Repositories, Service interfaces with `@Service` implementations, and `@RestController` with `@RestControllerAdvice`.
-  5. *Test Suite Synthesizer*: Generates comprehensive JUnit 5, Mockito, and AssertJ test classes covering happy paths and exception paths.
-- **Rationale**:
-  - Complies with Constitution Principle VI: LangGraph resides solely in the orchestration plane; the generated Spring Boot microservice contains zero dependencies on LangGraph or LLM libraries.
-  - Multi-stage graph nodes provide deterministic rollback and inspection at each layer.
+### Decisión 2: Previsualización y Elección de Arquetipos (Maven vs Gradle)
+* **Decisión**: En el Paso 4, el usuario cuenta con un previsualizador interactivo que le permite examinar el `pom.xml` proyectado con el BOM `io.quarkus.platform:quarkus-bom:3.15.1` y sus plugins, o el `build.gradle` equivalente, junto con la estructura de carpetas y comandos de ejecución, antes de generar el esqueleto.
+* **Justificación**: Responde a la preferencia explícita del usuario de validar cómo se estructura el proyecto antes de ejecutar la descarga o generación.
 
 ---
 
-### Decision 4: Bounded Self-Repair Loop (Anti-Hallucination Gate)
-
-- **Decision**: When `mvn test -o` exits with a non-zero code in Docker, a specialized regex parser extracts only compiler errors and Surefire/Failsafe failure traces from the build log.
-  - The repair node receives ONLY this diagnostic trace and the affected Java file.
-  - The graph increments `repair_attempts` (1, 2, 3).
-  - If attempt 3 fails, the graph immediately transitions to the `BLOCKED` state, sets status to `Bloqueo por intervención humana requerida`, and emits an SSE event.
-- **Rationale**:
-  - Directly fulfills Constitution Principle V.
-  - Strict input focus (Maven stack trace only) prevents context bloat and compounding hallucinations.
-  - Explicit 3-attempt ceiling prevents infinite compute loops and API cost runaway.
+### Decisión 3: Multi-Perfil de Persistencia (SQLite Portable para Demo vs SQL Server Corporativo)
+* **Decisión**: El microservicio generado incluye soporte dual en `application.properties`:
+  * `%dev` y `%test`: Base de datos **SQLite local portable (zero-setup)** con dialecto Hibernate comunitario para que el microservicio compile y ejecute sus pruebas unitarias en cualquier máquina de demo sin requerir un servidor SQL Server encendido.
+  * `%prod`: Configuración oficial para **Microsoft SQL Server / Azure SQL** mediante `quarkus-jdbc-mssql` con variables de entorno (`DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).
+* **Justificación**: Permite portabilidad absoluta de la demo solicitada por el usuario, manteniendo el cumplimiento del perfil corporativo de SQL Server requerido por Lorena.
 
 ---
 
-### Decision 5: Real-Time Streaming Architecture via Server-Sent Events (SSE)
-
-- **Decision**: FastAPI uses `sse-starlette` (`EventSourceResponse`) to expose `GET /api/v1/sessions/{id}/stream`.
-  - Emits typed events: `phase_transition`, `queue_status`, `build_log`, `repair_diagnostic`, `session_completed`, `session_blocked`.
-  - Streamlit consumes this stream using `sseclient-py` inside a background generator or thread, updating `st.status()` and log containers progressively.
-- **Rationale**:
-  - Complies with user clarification 4.
-  - Standard HTTP, lightweight, and supports automatic reconnection with `Last-Event-ID`.
-
----
-
-### Decision 6: Concurrency Control & Worker Queue
-
-- **Decision**: FastAPI implements an in-memory `asyncio.Queue` with a semaphore limiting active concurrent generations to `MAX_CONCURRENT_SESSIONS = 2`.
-  - Excess requests are enqueued in FIFO order.
-  - Real-time queue position is broadcasted over SSE (`queue_status`).
-- **Rationale**:
-  - Complies with user clarification 5.
-  - Prevents host memory exhaustion caused by parallel Docker containers running Maven compiler JVMs.
+### Decisión 4: Observabilidad de Fábrica Integrada
+* **Decisión**: Todo microservicio generado incluye sin configuración manual:
+  1. *SmallRye Health*: Liveness (`/q/health/live`) y Readiness (`/q/health/ready`).
+  2. *Micrometer Prometheus*: Métricas en formato scrapeable en `/q/metrics`.
+  3. *OpenTelemetry*: Trazas distribuidas con inyección automática de span y traceId.
+  4. *Logging JSON*: Formato estructurado JSON para producción.
+* **Justificación**: Estándar ineludible de microservicios nativos para despliegue en Kubernetes o Azure Container Apps.
 
 ---
 
-### Decision 7: Ephemeral Secret Management for VCS Delivery
-
-- **Decision**: Git Personal Access Tokens (PATs) are accepted in the payload of `POST /api/v1/sessions/{id}/publish`. The token is held only in a local method variable during the Git push operation via `GitPython` or `git CLI`, after which it is immediately dereferenced and purged from memory. No token is ever written to the database, disk, or logs.
-- **Rationale**:
-  - Adheres to Constitution Principle VI and User Clarification 3.
-  - Prevents accidental token leakage across shared development workspaces.
+### Decisión 5: División en 7 Agentes de IA Especializados
+* **Decisión**: En lugar de un agente monolítico, la síntesis se divide en 7 roles:
+  1. *Analista*: Aclaración previa (3-5 preguntas) y síntesis OpenAPI 3.1.
+  2. *Arquitecto*: Evaluación de patrones (Capas, Hexagonal, Reactiva) y extensiones Quarkus.
+  3. *Desarrollador Java*: Lógica de negocio y entidades Panache con principios SOLID.
+  4. *QA*: Pruebas unitarias `@QuarkusTest`, RestAssured y Mockito.
+  5. *Documentador*: Generación de README, API docs, ADR-001 y guías operativas.
+  6. *Revisor*: Auditoría estática en Modo Alto.
+  7. *DevOps*: Jenkinsfile corporativo, Dockerfile y simulación de Pull Request.
+* **Justificación**: Aísla el contexto por tarea, reduce drásticamente las alucinaciones y permite una auditoría granular del consumo de tokens por especialidad.

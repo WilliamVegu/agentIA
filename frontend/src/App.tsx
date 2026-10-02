@@ -8,6 +8,8 @@ import { AppLayout } from './components/layout/AppLayout';
 import { WorkspaceRouter } from './views/WorkspaceRouter';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
+import { QuarkusProvider } from './context/QuarkusContext';
+
 const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
@@ -17,11 +19,13 @@ const AppContent: React.FC = () => {
 
   return (
     <StudioProvider>
-      <AppLayout>
-        <ErrorBoundary fallbackTitle="Error al renderizar el módulo del Workspace">
-          <WorkspaceRouter />
-        </ErrorBoundary>
-      </AppLayout>
+      <QuarkusProvider>
+        <AppLayout>
+          <ErrorBoundary fallbackTitle="Error al renderizar el módulo del Workspace">
+            <WorkspaceRouter />
+          </ErrorBoundary>
+        </AppLayout>
+      </QuarkusProvider>
     </StudioProvider>
   );
 };

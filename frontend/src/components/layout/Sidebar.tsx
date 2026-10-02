@@ -3,6 +3,8 @@ import { PlusCircle, RefreshCw, Box, CheckCircle2, Clock, AlertTriangle, XCircle
 import { TcsLogo } from '../common/TcsLogo';
 import { useStudio } from '../../context/StudioContext';
 
+import { useQuarkus } from '../../context/QuarkusContext';
+
 export const Sidebar: React.FC = () => {
   const {
     sessions,
@@ -12,28 +14,32 @@ export const Sidebar: React.FC = () => {
     refreshSessions,
   } = useStudio();
 
-  const isCreatingNew = !activeSessionId;
+  const {
+    currentOrder,
+    ordersList,
+    selectOrder,
+    setActiveStep,
+    refreshOrders: refreshQuarkusOrders
+  } = useQuarkus();
 
-  const handleNewService = () => {
-    startNewService();
+  const handleNewQuarkusOrder = () => {
+    setActiveStep(0);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getQuarkusStatusIcon = (status: string) => {
     switch (status) {
-      case 'COMPLETED':
+      case 'Entregado':
         return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
-      case 'RUNNING':
-        return <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />;
-      case 'PAUSED':
-        return <Pause className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
-      case 'CANCELLED':
-        return <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />;
-      case 'QUEUED':
-        return <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
-      case 'BLOCKED':
-        return <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />;
+      case 'Generando':
+      case 'Probando':
+        return <RefreshCw className="w-3.5 h-3.5 text-red-500 animate-spin shrink-0" />;
+      case 'Contrato en revisión':
+      case 'En revisión':
+        return <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+      case 'Aprobado':
+        return <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />;
       default:
-        return <Box className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+        return <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
     }
   };
 
@@ -44,88 +50,66 @@ export const Sidebar: React.FC = () => {
         <TcsLogo variant="nav" showSubtitle={true} />
       </div>
 
-      {/* Action: New Microservice */}
+      {/* Action: New Quarkus Order */}
       <div className="p-4 border-b border-slate-200/80 dark:border-slate-800/80">
         <button
-          onClick={handleNewService}
-          className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-white transition-all focus:outline-none ${
-            isCreatingNew
-              ? 'bg-blue-700 ring-2 ring-blue-400 dark:ring-blue-500 shadow-md font-bold'
-              : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm'
-          }`}
+          onClick={handleNewQuarkusOrder}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 shadow-md transition-all focus:outline-none"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>Nuevo Microservicio</span>
+          <span>+ Nuevo Pedido Quarkus</span>
         </button>
       </div>
 
-      {/* Sessions List Header */}
+      {/* Orders List Header */}
       <div className="px-5 py-3 flex items-center justify-between">
         <span className="text-xs font-semibold tracking-wider uppercase text-slate-500 dark:text-slate-400">
-          Microservicios ({sessions.length})
+          Fábrica Quarkus ({ordersList.length})
         </span>
         <button
-          onClick={() => refreshSessions()}
+          onClick={() => refreshQuarkusOrders()}
           className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          title="Actualizar listado de sesiones"
+          title="Actualizar listado de pedidos"
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Session items list */}
+      {/* Quarkus orders list */}
       <div className="flex-1 overflow-y-auto px-3 space-y-1 py-1">
-        {/* Quick Option: New Microservice (Streamlit Parity) */}
-        <button
-          onClick={handleNewService}
-          className={`w-full text-left p-2.5 rounded-xl text-xs transition-all flex items-center justify-between group mb-1 ${
-            isCreatingNew
-              ? 'bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 shadow-sm font-semibold text-blue-700 dark:text-blue-300'
-              : 'hover:bg-slate-100 dark:hover:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 truncate min-w-0">
-            <PlusCircle className={`w-3.5 h-3.5 shrink-0 ${isCreatingNew ? 'text-blue-600' : 'text-slate-400'}`} />
-            <div className="truncate">
-              <div>✨ + Crear Nuevo Microservicio</div>
-              <div className="text-[10px] opacity-75">Inicio rápido 1-click</div>
-            </div>
-          </div>
-          <ChevronRight className={`w-3.5 h-3.5 shrink-0 ${isCreatingNew ? 'text-blue-600' : 'text-slate-300'}`} />
-        </button>
-        {sessions.length === 0 ? (
+        {ordersList.length === 0 ? (
           <div className="text-center py-8 px-4 text-xs text-slate-400">
-            No hay sesiones registradas. Inicie una con el botón superior.
+            No hay pedidos activos. Pulsa el botón superior para ingresar uno.
           </div>
         ) : (
-          sessions.map((sess) => {
-            const isSelected = sess.sessionId === activeSessionId;
+          ordersList.map((ord) => {
+            const isSelected = ord.id === currentOrder?.id;
             return (
               <button
-                key={sess.sessionId}
-                onClick={() => selectSession(sess.sessionId)}
+                key={ord.id}
+                onClick={() => selectOrder(ord)}
                 className={`w-full text-left p-2.5 rounded-xl text-xs transition-all flex items-center justify-between group ${
                   isSelected
-                    ? 'bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 shadow-sm'
+                    ? 'bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-900/60 shadow-sm'
                     : 'hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate min-w-0">
-                  {getStatusBadge(sess.status)}
+                  {getQuarkusStatusIcon(ord.status)}
                   <div className="truncate">
                     <div
                       className={`font-semibold truncate ${
                         isSelected
-                          ? 'text-blue-700 dark:text-blue-300'
+                          ? 'text-red-700 dark:text-red-300'
                           : 'text-slate-800 dark:text-slate-200'
                       }`}
                     >
-                      {sess.specName || 'app-service'}
+                      {ord.basic_data.service_name}
                     </div>
                     <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
-                      <span>{sess.currentLifecyclePhase || 'INICIO'}</span>
+                      <span>{ord.status}</span>
                       <span>·</span>
-                      <span>{Math.round(sess.completionPercentage || 0)}%</span>
+                      <span>{(ord.tokens_audit?.total_consumed || 0).toLocaleString()} tok</span>
                     </div>
                   </div>
                 </div>
@@ -133,7 +117,7 @@ export const Sidebar: React.FC = () => {
                 <ChevronRight
                   className={`w-4 h-4 shrink-0 transition-transform ${
                     isSelected
-                      ? 'text-blue-600 dark:text-blue-400 translate-x-0.5'
+                      ? 'text-red-600 dark:text-red-400 translate-x-0.5'
                       : 'text-slate-300 dark:text-slate-700 group-hover:text-slate-500'
                   }`}
                 />

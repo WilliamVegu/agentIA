@@ -13,7 +13,7 @@ echo [2/2] Esperando inicializacion del backend (3 segundos)...
 timeout /t 3 /nobreak >nul
 
 echo [2/2] Iniciando Frontend Studio (React/Vite en http://localhost:3000)...
-start "AgentIA - Frontend Studio (:3000)" cmd /k "cd /d "%~dp0frontend" && npm run dev"
+start "AgentIA - Frontend Studio (:3000)" cmd /k "cd /d "%~dp0frontend" && npm.cmd run dev"
 
 echo.
 echo ==============================================================================

@@ -24,18 +24,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         {/* Header (z-30) */}
         <Header onOpenSettings={() => setIsSettingsOpen(true)} />
 
-        {/* Workspace Canvas (Rule 5: No z-10 relative on main!) */}
+        {/* Workspace Canvas */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {/* Persistent Lifecycle Stepper when active session is selected */}
-          {activeSessionId && <LifecycleStepper />}
-
-          {/* Zero-Scroll Horizontal 10-Tab Navigation Grid */}
-          <ResponsiveTabGrid />
-
-          {/* Tab View Canvas */}
-          <div className="pt-2">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
 
