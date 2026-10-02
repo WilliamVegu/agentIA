@@ -19,6 +19,13 @@ import pytest
 from app.sandbox.docker_runner import describe_missing_dependencies
 from app.services.pipeline_runner import describe_block_reason
 
+_UNRESOLVED_PARENT = (
+    "Could not resolve dependencies for project com.corp.x:x:jar:1.0: The following "
+    "artifacts could not be resolved: "
+    "org.springframework.boot:spring-boot-starter-parent:pom:3.2.3 (absent): Cannot access "
+    "central in offline mode and the artifact has not been downloaded from it before."
+)
+
 MAVEN_UNRESOLVED = (
     "[ERROR] Failed to execute goal on project help-desk: Could not resolve dependencies "
     "for project com.corp.helpdesk:help-desk:jar:1.0.0: The following artifacts could not "
@@ -120,3 +127,50 @@ def test_duplicates_are_collapsed():
     described = describe_missing_dependencies(output)
 
     assert "1 artifact(s)" in described
+
+
+# ---------------------------------------------------------------------------
+# An invisible cache is not a missing dependency
+# ---------------------------------------------------------------------------
+def test_a_cache_the_container_cannot_see_is_reported_as_a_mount_fault(tmp_path):
+    """Measured on this host, and the reason this check exists.
+
+    The build reported `spring-boot-starter-parent:pom:3.2.3` as unresolvable while that
+    exact file sat in the host cache. `DOCKER_MOUNT_SUFFIX=:Z` -- an SELinux relabel -- was
+    set on a host where SELinux is Disabled and the runtime is rootless Podman, so the mount
+    delivered nothing. The operator was sent to download a file they already had, twice.
+    """
+    from app.sandbox.docker_runner import describe_cache_mount_failure
+
+    cache = tmp_path / "repository"
+    pom = (
+        cache / "org/springframework/boot/spring-boot-starter-parent/3.2.3"
+        / "spring-boot-starter-parent-3.2.3.pom"
+    )
+    pom.parent.mkdir(parents=True)
+    pom.write_text("<project/>", encoding="utf-8")
+
+    described = describe_cache_mount_failure(_UNRESOLVED_PARENT, str(cache))
+
+    assert described is not None
+    assert "NOT VISIBLE" in described
+    assert "mount problem, not a missing dependency" in described
+    assert "DOCKER_MOUNT_SUFFIX" in described, "the message must name the thing to check"
+    assert "Verification did NOT run" in described
+
+
+def test_a_genuinely_missing_dependency_is_not_blamed_on_the_mount(tmp_path):
+    """The two cases must not be conflated; the remedies are opposite."""
+    from app.sandbox.docker_runner import describe_cache_mount_failure
+
+    empty_cache = tmp_path / "repository"
+    empty_cache.mkdir()
+
+    assert describe_cache_mount_failure(_UNRESOLVED_PARENT, str(empty_cache)) is None
+
+
+def test_the_mount_check_needs_a_cache_path():
+    from app.sandbox.docker_runner import describe_cache_mount_failure
+
+    assert describe_cache_mount_failure(_UNRESOLVED_PARENT, None) is None
+    assert describe_cache_mount_failure(_UNRESOLVED_PARENT, "") is None

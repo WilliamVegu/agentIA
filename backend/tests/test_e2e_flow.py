@@ -1,8 +1,18 @@
 import io
 import time
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
+
+from app.config import settings
 from app.main import app
+from app.models.session import (
+    GenerationSessionDB,
+    SessionLocal,
+    SessionPhase,
+    SessionStatus,
+)
 
 client = TestClient(app)
 
@@ -44,40 +54,122 @@ def test_scenario_1_dual_ingestion():
     spec_id = _ingest_spec()
     assert spec_id is not None
 
-def test_scenario_2_autonomous_generation_and_export():
+def test_scenario_2_autonomous_generation_and_export(hermetic_container_build):
     """Quickstart Scenario 2: Ingest, create generation session, inspect artifacts, and export ZIP."""
     # 1. Ingest
     spec_id = _ingest_spec()
 
-    # 2. Trigger generation session
-    create_resp = client.post("/api/v1/sessions", json={"specId": spec_id})
-    assert create_resp.status_code == 202
-    sess_data = create_resp.json()
-    session_id = sess_data.get("sessionId") or sess_data.get("session_id")
-    assert session_id is not None
+    # Entered as a context manager so the app's event loop outlives the POST. The
+    # session's pipeline is an asyncio background task on that loop; a bare
+    # TestClient tears the loop down when the response returns, which leaves the
+    # session RUNNING forever and therefore unable to satisfy the verification
+    # evidence export now requires.
+    with TestClient(app) as live_client:
+        # 2. Trigger generation session
+        create_resp = live_client.post("/api/v1/sessions", json={"specId": spec_id})
+        assert create_resp.status_code == 202
+        sess_data = create_resp.json()
+        session_id = sess_data.get("sessionId") or sess_data.get("session_id")
+        assert session_id is not None
 
-    # Wait briefly for background pipeline
-    time.sleep(1.5)
+        # Wait for the background pipeline to reach a terminal state.
+        for _ in range(60):
+            time.sleep(0.5)
+            status_resp = live_client.get(f"/api/v1/sessions/{session_id}")
+            if status_resp.json().get("status") in ("COMPLETED", "BLOCKED", "FAILED", "CANCELLED"):
+                break
 
-    # 3. Query session details
-    detail_resp = client.get(f"/api/v1/sessions/{session_id}")
-    assert detail_resp.status_code == 200
-    detail = detail_resp.json()
-    assert detail["specName"] == "order-service"
+        # 3. Query session details
+        detail_resp = live_client.get(f"/api/v1/sessions/{session_id}")
+        assert detail_resp.status_code == 200
+        detail = detail_resp.json()
+        assert detail["specName"] == "order-service"
 
-    # 4. List artifacts
-    art_resp = client.get(f"/api/v1/sessions/{session_id}/artifacts")
-    assert art_resp.status_code == 200
-    artifacts = art_resp.json()
-    assert len(artifacts) >= 5
+        # 4. List artifacts
+        art_resp = live_client.get(f"/api/v1/sessions/{session_id}/artifacts")
+        assert art_resp.status_code == 200
+        artifacts = art_resp.json()
+        assert len(artifacts) >= 5
 
-    # 5. Export ZIP
-    export_resp = client.get(f"/api/v1/sessions/{session_id}/export")
-    assert export_resp.status_code == 200
-    assert export_resp.headers["content-type"] == "application/zip"
-    assert len(export_resp.content) > 0
+        # 5. Export ZIP (the pipeline verified the workspace, so the gate is satisfied)
+        export_resp = live_client.get(f"/api/v1/sessions/{session_id}/export")
+        assert export_resp.status_code == 200
+        assert export_resp.headers["content-type"] == "application/zip"
+        assert len(export_resp.content) > 0
 
-def test_quickstart_feature_005_e2e():
+def _prepare_repair_session(sess_id: str, tmp_path, monkeypatch, source_files: dict) -> Path:
+    """Create the session row and on-disk sources ``/tests/repair`` now requires.
+
+    The repair route resolves the session through ``workspace_guard(require_exists=True)``
+    and rejects any repair source that is not an existing workspace file whose content
+    matches the request, so the session has to be real before the loop is exercised.
+    """
+    monkeypatch.setattr(settings, "WORKSPACE_DIR", str(tmp_path))
+    workspace = tmp_path / sess_id
+    workspace.mkdir(parents=True, exist_ok=True)
+    for relative, content in source_files.items():
+        target = workspace / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    db = SessionLocal()
+    try:
+        db.merge(
+            GenerationSessionDB(
+                id=sess_id,
+                spec_id="spec-feature-005",
+                spec_name="order-service",
+                status=SessionStatus.RUNNING,
+                phase=SessionPhase.SELF_REPAIR,
+                current_lifecycle_phase="CODE_TESTS",
+                lifecycle_mode="GUIDED_STEP",
+                repair_attempts=0,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+    return workspace
+
+
+def _stub_sandbox(monkeypatch, results) -> None:
+    """Script the sandbox outcome for the repair route (no container build here)."""
+    import app.orchestrator.nodes.sandbox_node as sandbox_module
+
+    queue = list(results)
+
+    def fake_sandbox(state):
+        return queue.pop(0) if len(queue) > 1 else queue[0]
+
+    monkeypatch.setattr(sandbox_module, "sandbox_node", fake_sandbox)
+
+
+def _sandbox_result(passed: bool) -> dict:
+    if passed:
+        return {
+            "status": "COMPLETED",
+            "test_metrics": {
+                "totalTests": 2,
+                "passedTests": 2,
+                "failedTests": 0,
+                "allPassed": True,
+                "fallback_used": False,
+            },
+        }
+    return {
+        "status": "BLOCKED",
+        "test_metrics": {
+            "totalTests": 2,
+            "passedTests": 0,
+            "failedTests": 2,
+            "allPassed": False,
+            "fallback_used": False,
+        },
+        "error": "tests still failing",
+    }
+
+
+def test_quickstart_feature_005_e2e(tmp_path, monkeypatch):
     """Validates Feature 005 quickstart scenarios: test synthesis, diagnostic analysis, 3-step repair, and manual unblock."""
     spec_id = _ingest_spec()
 
@@ -102,13 +194,19 @@ def test_quickstart_feature_005_e2e():
 
     # 3. Execute self-repair iteration loop
     sess_id = f"test-sess-{int(time.time())}"
+    broken_source = "package com.corp.order.service;\npublic class OrderServiceImpl {}"
+    relative = "src/main/java/com/corp/order/service/OrderServiceImpl.java"
+    _prepare_repair_session(sess_id, tmp_path, monkeypatch, {relative: broken_source})
+    # The automatic iterations fail sandbox verification; the manual edit passes.
+    _stub_sandbox(monkeypatch, [
+        _sandbox_result(False), _sandbox_result(False), _sandbox_result(True),
+    ])
+
     repair_resp = client.post("/api/v1/tests/repair", json={
         "sessionId": sess_id,
         "iterationNumber": 1,
         "diagnostics": analysis_data["diagnostics"],
-        "sourceFiles": {
-            "src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\npublic class OrderServiceImpl {}"
-        }
+        "sourceFiles": {relative: broken_source}
     })
     assert repair_resp.status_code == 200
     repair_record = repair_resp.json()
@@ -116,14 +214,15 @@ def test_quickstart_feature_005_e2e():
     assert len(repair_record["patchesApplied"]) >= 1
     assert "import java.math.BigDecimal;" in repair_record["diffSummary"]
 
-    # 4. Trigger iteration 5 and verify BLOCKED state (Principle V: max 5 attempts)
+    # 4. Trigger iteration 5 and verify BLOCKED state (Principle V: max 5 attempts).
+    # The route persisted iteration 1's patch, so iteration 5 must send the current
+    # workspace content or the route (correctly) rejects it as a stale source.
+    patched_source = (tmp_path / sess_id / relative).read_text(encoding="utf-8")
     client.post("/api/v1/tests/repair", json={
         "sessionId": sess_id,
         "iterationNumber": 5,
         "diagnostics": analysis_data["diagnostics"],
-        "sourceFiles": {
-            "src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\npublic class OrderServiceImpl {}"
-        }
+        "sourceFiles": {relative: patched_source}
     })
     history_resp = client.get(f"/api/v1/sessions/{sess_id}/repairs")
     assert history_resp.status_code == 200
@@ -131,14 +230,17 @@ def test_quickstart_feature_005_e2e():
     assert history_data["finalState"] == "BLOCKED"
     assert history_data["canRetryManually"] is True
 
-    # 5. Perform manual repair unblock
+    # 5. Perform manual repair unblock. The route no longer merely acknowledges the
+    # edit ("REPAIR_APPLIED"); it applies it and reports the sandbox outcome, which
+    # is the stronger claim.
     manual_resp = client.post(f"/api/v1/sessions/{sess_id}/manual-repair", json={
-        "filePath": "src/main/java/com/corp/order/service/OrderServiceImpl.java",
+        "filePath": relative,
         "modifiedCode": "package com.corp.order.service;\nimport java.math.BigDecimal;\npublic class OrderServiceImpl {}",
         "guidanceHint": "Manual import added"
     })
     assert manual_resp.status_code == 200
-    assert manual_resp.json()["status"] == "REPAIR_APPLIED"
+    assert manual_resp.json()["status"] == "VERIFIED"
+    assert manual_resp.json()["diagnosticsResolved"] is True
 
 
 @pytest.fixture
@@ -151,10 +253,16 @@ def hermetic_container_build(monkeypatch):
     about -- it asserts the API and lifecycle orchestration. The verification seam is
     stubbed to a PASS so the rest of the flow is exercised unchanged, and the
     verification-specific behaviour is covered by test_pipeline_runner.py.
+
+    Both entry points are patched: the sequential runner
+    (``pipeline_runner.run_workspace_verification``) and the graph node
+    (``sandbox_node.run_workspace_verification``). They each bind the function at
+    import time, so patching one leaves the other doing a real build.
     """
     from app.sandbox.docker_runner import DockerExecutionResult
     from app.services.workspace_verification import WorkspaceVerification
     import app.services.pipeline_runner as pr
+    import app.orchestrator.nodes.sandbox_node as sandbox_module
 
     fake = WorkspaceVerification(
         result=DockerExecutionResult(
@@ -163,9 +271,9 @@ def hermetic_container_build(monkeypatch):
         ),
         platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
     )
-    monkeypatch.setattr(
-        pr, "run_workspace_verification", lambda path, log_callback=None: fake
-    )
+    stub = lambda path, log_callback=None: fake
+    monkeypatch.setattr(pr, "run_workspace_verification", stub)
+    monkeypatch.setattr(sandbox_module, "run_workspace_verification", stub)
 
 
 def test_full_unified_orchestration_e2e(hermetic_container_build):

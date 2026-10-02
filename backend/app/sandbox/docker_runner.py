@@ -191,6 +191,66 @@ _MISSING_ARTIFACT = re.compile(r"([\w.\-]+:[\w.\-]+:(?:jar|pom|zip):[\w.\-]+)")
 _CONTAINER_M2 = "/root/.m2/repository"
 
 
+
+def _host_artifact_path(cache_dir: str, coordinate: str) -> Optional[Path]:
+    """Map `org.postgresql:postgresql:jar:42.6.1` to its path in a Maven repository."""
+    try:
+        group, artifact, packaging, version = coordinate.split(":")
+    except ValueError:
+        return None
+    return (
+        Path(cache_dir)
+        / group.replace(".", "/")
+        / artifact
+        / version
+        / f"{artifact}-{version}.{packaging}"
+    )
+
+
+def describe_cache_mount_failure(
+    output: str, cache_dir: Optional[str], limit: int = 4
+) -> Optional[str]:
+    """Detect that the cache mount is not delivering what the host actually has.
+
+    A missing artifact and an invisible artifact produce the same Maven error and have
+    opposite remedies: fetch it, or fix the mount. They are distinguishable, because the
+    backend can look at the host cache itself.
+
+    Measured: `GET`-time build reported `spring-boot-starter-parent:pom:3.2.3` as
+    unresolvable while that exact file was on the host, because `DOCKER_MOUNT_SUFFIX=:Z`
+    (an SELinux relabel) was set on a host where SELinux is Disabled and the runtime is
+    rootless Podman. The mount delivered nothing, and the message sent the operator to
+    download a file they already had.
+    """
+    if not cache_dir or not output:
+        return None
+
+    marker = "the following artifacts could not be resolved"
+    lowered = output.lower()
+    if marker not in lowered:
+        return None
+    tail = output[lowered.index(marker) + len(marker):]
+
+    present: List[str] = []
+    for coordinate in _MISSING_ARTIFACT.findall(tail):
+        path = _host_artifact_path(cache_dir, coordinate)
+        if path and path.exists() and coordinate not in present:
+            present.append(coordinate)
+    if not present:
+        return None
+
+    shown = present[:limit]
+    remainder = len(present) - len(shown)
+    listed = ", ".join(shown) + (f" (+{remainder} more)" if remainder > 0 else "")
+    return (
+        f"the offline Maven cache is NOT VISIBLE inside the sandbox: {len(present)} "
+        f"artifact(s) it could not resolve are present at {cache_dir} ({listed}). The bind "
+        f"mount is not delivering the cache, so nothing can be built. This is a mount "
+        f"problem, not a missing dependency -- check DOCKER_MOUNT_SUFFIX (an SELinux ':Z' "
+        f"suffix on a host without SELinux does exactly this) and the runtime's mount "
+        f"options. Verification did NOT run."
+    )
+
 def describe_missing_dependencies(output: str, limit: int = 6) -> Optional[str]:
     """Name the artifacts the offline build could not resolve, if any.
 
@@ -404,8 +464,14 @@ async def run_docker_sandbox(
         # environment pattern 'cannot access central'" is accurate and useless; naming the
         # artifacts that could not be resolved turns a blocked session into a one-command
         # remedy. Falls back to the pattern reason when the output names nothing.
-        reason = describe_missing_dependencies(combined) or _environment_pattern_reason(
-            matched_pattern
+        # Order matters: an invisible cache and a genuinely missing dependency produce the
+        # same Maven text, and only the first is diagnosable from here by looking at the
+        # host. Checking the mount first keeps a mount fault from being reported as a
+        # dependency the operator does not have.
+        reason = (
+            describe_cache_mount_failure(combined, m2_cache)
+            or describe_missing_dependencies(combined)
+            or _environment_pattern_reason(matched_pattern)
         )
         if log_callback:
             log_callback(f"[SANDBOX] {reason}")

@@ -40,6 +40,30 @@ def hermetic_verification(monkeypatch):
     yield
 
 
+def _stub_passing_verification(monkeypatch) -> None:
+    """Override the suite-wide hermetic stub with a verification that actually passed.
+
+    The autouse fixture deliberately substitutes a *fallback* result so no test runs a
+    real container build; by the product's rule that is not a pass, so a test that
+    needs the pipeline to proceed past verification (to COMPLETED, or to the security
+    audit) must install its own passing result.
+    """
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+    import app.services.pipeline_runner as pr
+
+    passing = WorkspaceVerification(
+        result=DockerExecutionResult(
+            exit_code=0,
+            stdout="[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0\n",
+        ),
+        platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
+    )
+    monkeypatch.setattr(
+        pr, "run_workspace_verification", lambda path, log_callback=None: passing
+    )
+
+
 @pytest.fixture
 def runner_session(tmp_path, monkeypatch):
     session_id = "test-runner-sess"
@@ -72,11 +96,17 @@ def runner_session(tmp_path, monkeypatch):
     db.close()
 
 
-def test_pipeline_runner_full_run(runner_session):
+def test_pipeline_runner_full_run(runner_session, monkeypatch):
     session_id, ws_path = runner_session
     import threading
     _pause_events[session_id] = threading.Event()
     _stop_events[session_id] = threading.Event()
+
+    # A run may only reach COMPLETED when verification actually passed; the
+    # suite-wide hermetic stub substitutes a fallback result, which is correctly
+    # not a pass. Supply a passing verification for this test, which is about the
+    # steps and artifacts of a full run.
+    _stub_passing_verification(monkeypatch)
 
     # Execute all steps
     _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
@@ -125,11 +155,30 @@ def test_pipeline_runner_quality_gate_block(runner_session, monkeypatch):
     import app.services.pipeline_runner as pr
     monkeypatch.setattr(pr, "audit_workspace", lambda *args, **kwargs: mock_audit)
 
+    # The audit is only reached once hermetic verification has passed. The suite-wide
+    # hermetic stub substitutes a fallback result, which stops the run before the gate
+    # and would make the mocked gate unreachable.
+    _stub_passing_verification(monkeypatch)
+
     _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
 
     assert _pipeline_statuses.get(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
-    # DevOps assets should NOT be created due to block
-    assert not (ws_path / "docker-compose.yml").exists()
+
+    # The gate halts the run and names the reason on the session row. DevOps assets
+    # now exist by then: `generate_all_devops_assets` runs before verification because
+    # the hermetic container build consumes the workspace's Dockerfile, so their
+    # absence can no longer express "the gate blocked the run".
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(GenerationSessionDB)
+            .filter(GenerationSessionDB.id == session_id)
+            .first()
+        )
+        assert row.status == SessionStatus.BLOCKED
+        assert row.error_message == "Hardcoded password found in configuration"
+    finally:
+        db.close()
 
 
 

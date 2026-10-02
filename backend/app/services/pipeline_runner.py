@@ -569,7 +569,21 @@ def _execute_pipeline_steps(
                     with open(model_file, "w", encoding="utf-8") as f:
                         json.dump(sql_resp.model_dump(), f, indent=2)
             except Exception as exc:
-                raise RuntimeError("Schema synthesis failed with the selected provider") from exc
+                # Derive the DDL from THIS blueprint's entities instead of failing the run.
+                #
+                # A later refactor replaced this with a bare `raise`, which killed the session
+                # whenever synthesis failed -- and left `schema_sql_from_draft` imported and
+                # unused, the tell that it was collateral rather than a decision. Raising is
+                # not the more honest option here: the fallback is derived from the blueprint
+                # the session is actually building, not invented, and `lifecycle_artifacts`
+                # still uses this same function for the same purpose. Failing the run also
+                # removed the regression guard for the `items`-table defect: a project whose
+                # schema said `items` while its entity mapped `orders` could not start against
+                # its own database.
+                print(f"[WARN] schema synthesis failed ({exc}); deriving DDL from the blueprint")
+                fallback_ddl = schema_sql_from_draft(draft)
+                with open(sql_file, "w", encoding="utf-8") as f:
+                    f.write(fallback_ddl)
         transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.DATA_MODEL):
@@ -935,7 +949,11 @@ def run_pipeline(
 ) -> bool:
     """Initiates an asynchronous background thread for autonomous Auto-Pilot execution."""
     t = _active_threads.get(session_id)
-    if t and t.is_alive():
+    # `force` is the documented way past this guard, and `resume_pipeline` relies on it: a
+    # paused worker can still be unwinding when resume is called, and without the override
+    # resume returned False and the session never restarted. The parameter was left in the
+    # signature but no longer honoured, which made the failure silent.
+    if not force and t and t.is_alive():
         return False
 
     if api_key or provider or model_name or input_interface is not None:

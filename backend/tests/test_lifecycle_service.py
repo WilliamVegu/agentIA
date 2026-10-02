@@ -151,7 +151,7 @@ def test_project_overview_summary(mock_session):
     assert overview.database_engine == "POSTGRESQL"
 
 
-def test_lifecycle_security_audit_completed_and_100_percent(mock_session):
+def test_lifecycle_security_audit_completed_and_100_percent(mock_session, monkeypatch):
     session_id, ws_path = mock_session
     (ws_path / "spec.md").write_text("# Spec", encoding="utf-8")
     (ws_path / "user_stories.json").write_text(json.dumps([{"id": "US1"}]), encoding="utf-8")
@@ -162,6 +162,41 @@ def test_lifecycle_security_audit_completed_and_100_percent(mock_session):
     (ws_path / "src" / "main" / "java" / "App.java").write_text("public class App {}", encoding="utf-8")
     (ws_path / "src" / "main" / "java" / "GlobalExceptionHandler.java").write_text("@RestControllerAdvice\npublic class GlobalExceptionHandler {}", encoding="utf-8")
     (ws_path / "docker-compose.yml").write_text("version: '3'", encoding="utf-8")
+
+    # Phase 5 (Code & Tests) is only COMPLETED for a session whose verification
+    # evidence matches the workspace. The fixture creates a bare QUEUED session, so
+    # the evidence is recorded here; the phase ladder's own conditions are unchanged.
+    from app.services.verification_policy import workspace_fingerprint
+
+    db = SessionLocal()
+    try:
+        row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+        row.verification_metrics_json = json.dumps({
+            "totalTests": 3,
+            "passedTests": 3,
+            "failedTests": 0,
+            "allPassed": True,
+            "fallback_used": False,
+            "workspaceFingerprint": workspace_fingerprint(ws_path),
+        })
+        row.status = SessionStatus.COMPLETED
+        row.phase = SessionPhase.VERIFIED
+        row.error_message = None
+        db.commit()
+    finally:
+        db.close()
+
+    # Phase 7 (DevOps & Deploy) is only COMPLETED once the deployment is healthy.
+    # A HEALTHY deployment is the state under test, so it is provided rather than
+    # discovered from the host.
+    import app.services.lifecycle_service as lifecycle_module
+    from app.models.devops import DeploymentStatus, LocalDeploymentSession
+
+    monkeypatch.setattr(
+        lifecycle_module,
+        "get_deployment_status",
+        lambda sid: LocalDeploymentSession(sessionId=sid, status=DeploymentStatus.HEALTHY),
+    )
 
     lifecycle = get_session_lifecycle(session_id)
     # Check that security audit (Phase 6, index 5) is COMPLETED

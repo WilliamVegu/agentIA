@@ -73,6 +73,68 @@ def _create_session_row(session_id: str, **overrides) -> None:
         db.close()
 
 
+#: Compliant sources: a validation-annotated record and the advice that satisfies
+#: Principle III structurally. The Quality Gate now BLOCKS a workspace with no
+#: audited source ("No source code was audited"), so "the gate passes" needs a
+#: workspace that actually contains auditable, compliant code.
+_CLEAN_SOURCES = {
+    "src/main/java/com/corp/order/dto/OrderRequest.java": (
+        "package com.corp.order.dto;\n"
+        "import jakarta.validation.constraints.NotNull;\n"
+        "import java.math.BigDecimal;\n\n"
+        "public record OrderRequest(@NotNull BigDecimal amount) {}\n"
+    ),
+    "src/main/java/com/corp/order/advice/GlobalExceptionHandler.java": (
+        "package com.corp.order.advice;\n"
+        "import org.springframework.web.bind.annotation.RestControllerAdvice;\n\n"
+        "@RestControllerAdvice\n"
+        "public class GlobalExceptionHandler {}\n"
+    ),
+}
+
+
+def _write_clean_sources(workspace: Path) -> None:
+    for relative, content in _CLEAN_SOURCES.items():
+        target = workspace / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+
+def _mark_session_verified(session_id: str) -> None:
+    """Persist the verification evidence export/publish now require.
+
+    ``require_verified_session`` accepts a session only when it is COMPLETED/VERIFIED,
+    carries no error, and its metrics' ``workspaceFingerprint`` still matches the files
+    on disk. These examples are about the export/publish contract, so the evidence the
+    pipeline would normally write is seeded after the workspace is in its final state.
+    """
+    from app.services.verification_policy import workspace_fingerprint
+
+    workspace = Path(settings.WORKSPACE_DIR) / session_id
+    metrics = {
+        "totalTests": 4,
+        "passedTests": 4,
+        "failedTests": 0,
+        "allPassed": True,
+        "fallback_used": False,
+        "workspaceFingerprint": workspace_fingerprint(workspace),
+    }
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(GenerationSessionDB)
+            .filter(GenerationSessionDB.id == session_id)
+            .first()
+        )
+        row.status = SessionStatus.COMPLETED
+        row.phase = SessionPhase.VERIFIED
+        row.error_message = None
+        row.verification_metrics_json = json.dumps(metrics)
+        db.commit()
+    finally:
+        db.close()
+
+
 # --------------------------------------------------------------------------- #
 # Level 1 - Smoke test: the process boots and answers
 # --------------------------------------------------------------------------- #
@@ -394,7 +456,12 @@ def test_example_publish_to_git_with_mocked_boundary(tmp_path, monkeypatch):
     workspace = tmp_path / session_id
     workspace.mkdir(parents=True, exist_ok=True)
     (workspace / "pom.xml").write_text("<project></project>", encoding="utf-8")
+    # Publishing is gated on a verified session *and* a passing Quality Gate. The
+    # workspace therefore has to hold auditable, compliant code, and the session has
+    # to carry the verification evidence; the route's Git behaviour is unchanged.
+    _write_clean_sources(workspace)
     _create_session_row(session_id, status=SessionStatus.COMPLETED, phase=SessionPhase.VERIFIED)
+    _mark_session_verified(session_id)
 
     captured = {}
 
@@ -500,6 +567,8 @@ def test_example_export_blocked_when_quality_gate_fails(tmp_path, monkeypatch):
     )
     (workspace / "pom.xml").write_text("<project></project>", encoding="utf-8")
     _create_session_row(session_id, status=SessionStatus.COMPLETED, phase=SessionPhase.VERIFIED)
+    # The session is verified; the secret in the workspace is what must block export.
+    _mark_session_verified(session_id)
 
     try:
         audit = client.get(f"/api/v1/sessions/{session_id}/audit")
@@ -519,7 +588,10 @@ def test_example_export_returns_a_zip_when_gate_passes(tmp_path, monkeypatch):
     workspace = tmp_path / session_id
     workspace.mkdir(parents=True, exist_ok=True)
     (workspace / "pom.xml").write_text("<project></project>", encoding="utf-8")
+    # A gate that passes requires audited code, not just a build file.
+    _write_clean_sources(workspace)
     _create_session_row(session_id, status=SessionStatus.COMPLETED, phase=SessionPhase.VERIFIED)
+    _mark_session_verified(session_id)
 
     try:
         response = client.get(f"/api/v1/sessions/{session_id}/export")
@@ -555,6 +627,27 @@ def test_example_pipeline_stops_at_blocked_quality_gate(tmp_path, monkeypatch):
     blocked_audit.qualityGate.summaryMessage = "Hardcoded password found in configuration"
     monkeypatch.setattr(pipeline_runner, "audit_workspace", lambda *a, **kw: blocked_audit)
 
+    # The security audit is reached only after hermetic verification. Without this
+    # stub the sandbox result decides the run (fallback => AWAITING_INTERVENTION as
+    # well), and the mocked gate below is never consulted -- which would make this
+    # test pass without exercising its own subject. A passing verification lets the
+    # run reach the gate.
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+
+    passed_verification = WorkspaceVerification(
+        result=DockerExecutionResult(
+            exit_code=0,
+            stdout="[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0\n",
+        ),
+        platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
+    )
+    monkeypatch.setattr(
+        pipeline_runner,
+        "run_workspace_verification",
+        lambda path, log_callback=None: passed_verification,
+    )
+
     try:
         pipeline_runner._execute_pipeline_steps(
             session_id,
@@ -564,8 +657,22 @@ def test_example_pipeline_stops_at_blocked_quality_gate(tmp_path, monkeypatch):
         )
 
         assert pipeline_runner._pipeline_statuses.get(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
-        # DevOps assets must not be produced once the gate blocks the run.
-        assert not (tmp_path / session_id / "docker-compose.yml").exists()
+        # The gate halts the run and names the reason. It cannot prevent the DevOps
+        # assets from existing any more: `generate_all_devops_assets` runs before
+        # verification, because the hermetic container build needs the workspace's
+        # Dockerfile. The terminal state, not a file's absence, is the evidence that
+        # the pipeline stopped at the gate.
+        db = SessionLocal()
+        try:
+            row = (
+                db.query(GenerationSessionDB)
+                .filter(GenerationSessionDB.id == session_id)
+                .first()
+            )
+            assert row.status == SessionStatus.BLOCKED
+            assert row.error_message == "Hardcoded password found in configuration"
+        finally:
+            db.close()
     finally:
         _delete_session(session_id)
         pipeline_runner._pause_events.pop(session_id, None)
