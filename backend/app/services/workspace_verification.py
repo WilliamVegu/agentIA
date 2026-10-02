@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional, Tuple
 
 from app.sandbox.docker_runner import DockerExecutionResult, run_docker_sandbox
@@ -78,7 +79,38 @@ def run_workspace_verification(
                 f"{platform_test}"
             )
 
+    # Remove stale XML before execution so earlier builds cannot supply proof.
+    ws = Path(workspace_path).resolve()
+    report_dirs = [ws / "build/test-results/test", ws / "target/surefire-reports"]
+    for directory in report_dirs:
+        if directory.resolve().is_relative_to(ws):
+            for report in directory.glob("*.xml"):
+                if report.resolve().is_relative_to(ws):
+                    report.unlink()
     result = _run_sandbox_blocking(workspace_path, log_callback)
+    if not result.fallback_used:
+        import xml.etree.ElementTree as ET
+        totals = [0, 0, 0, 0]
+        found = False
+        for directory in report_dirs:
+            for report in directory.glob("*.xml"):
+                if not report.resolve().is_relative_to(ws):
+                    continue
+                try:
+                    root = ET.parse(report).getroot()
+                    suites = [root] if root.tag == "testsuite" else list(root.findall("testsuite"))
+                    for suite in suites:
+                        values = [int(suite.get(key, "0")) for key in ("tests", "failures", "errors", "skipped")]
+                        if any(value < 0 for value in values):
+                            raise ValueError("Negative test count")
+                        totals = [a+b for a,b in zip(totals, values)]
+                        found = True
+                except (ET.ParseError, ValueError, OSError):
+                    result.exit_code = 1
+                    result.stderr += "\nInvalid test report: " + report.name
+        if found:
+            result.stdout += f"\nTests run: {totals[0]}, Failures: {totals[1]}, Errors: {totals[2]}, Skipped: {totals[3]}\n"
+
     return WorkspaceVerification(
         result=result,
         platform_test_path=platform_test,
@@ -97,16 +129,8 @@ def _run_sandbox_blocking(
     ``run_until_complete``, so the coroutine goes to a worker thread).
     """
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    if loop.is_running():
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            return pool.submit(
-                asyncio.run, run_docker_sandbox(workspace_path, log_callback=log_callback)
-            ).result()
-    return loop.run_until_complete(
-        run_docker_sandbox(workspace_path, log_callback=log_callback)
-    )
+        return asyncio.run(run_docker_sandbox(workspace_path, log_callback=log_callback))
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        return pool.submit(asyncio.run, run_docker_sandbox(workspace_path, log_callback=log_callback)).result()

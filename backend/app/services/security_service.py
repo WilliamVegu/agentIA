@@ -527,6 +527,9 @@ def evaluate_quality_gate(
     metrics: CodeQualityMetrics,
 ) -> QualityGateVerdict:
     """Evaluates composite Quality Gate score and blocking status."""
+    if metrics.totalLinesOfCode == 0 and not vulnerabilities and not violations:
+        return QualityGateVerdict(status=QualityGateStatus.BLOCKED, score=0,
+                                  canExport=False, summaryMessage="No source code was audited.")
     critical_count = sum(1 for v in vulnerabilities if v.severity == SeverityLevel.CRITICAL) + sum(
         1 for v in violations if v.severity == SeverityLevel.CRITICAL
     )

@@ -63,7 +63,7 @@ def get_validated_workspace_path(session_id: str, require_exists: bool = False) 
         finally:
             db.close()
 
-        if not sess_exists and not ws_path.exists():
+        if not sess_exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Session '{session_id}' not found.",

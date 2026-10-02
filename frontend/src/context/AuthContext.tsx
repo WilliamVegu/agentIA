@@ -1,109 +1,52 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
+import apiClient from '../services/apiClient';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
+  isAutomaticAccess: boolean;
+  enterMvp: () => Promise<{ success: boolean; error?: string }>;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  loginDemo: () => void;
   logout: () => void;
 }
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const DEMO_USER: User = {
-  email: 'architect@tcs.com',
-  name: 'Rodrigo Mendoza',
-  role: 'Architect',
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const isLoggedOut = localStorage.getItem('agentia_logged_out') === 'true';
-    if (isLoggedOut) {
-      return null;
-    }
-    const saved = localStorage.getItem('agentia_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return null;
-      }
-    }
-    // Default to demo user for seamless onboarding on first launch
-    return DEMO_USER;
-  });
-
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('agentia_user', JSON.stringify(user));
-      localStorage.removeItem('agentia_logged_out');
-    } else {
-      localStorage.removeItem('agentia_user');
+    localStorage.removeItem('agentia_user');
+    apiClient.get<User>('/auth/session').then(({ data }) => setUser(data)).catch(() => setUser(null)).finally(() => setIsLoading(false));
+  }, []);
+  const login = async (email: string, password?: string) => {
+    try {
+      const { data } = await apiClient.post<User>('/auth/login', { email, password });
+      setUser(data);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.detail || 'No se pudo iniciar sesión' };
     }
-  }, [user]);
-
-  const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail.endsWith('@tcs.com')) {
-      return {
-        success: false,
-        error: 'Debe ingresar un correo corporativo válido con dominio @tcs.com',
-      };
-    }
-    if (!password || password.length < 4) {
-      return {
-        success: false,
-        error: 'La contraseña corporativa debe tener al menos 4 caracteres',
-      };
-    }
-
-    const namePart = cleanEmail.split('@')[0].replace('.', ' ');
-    const formattedName = namePart
-      .split(' ')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
-
-    const loggedUser: User = {
-      email: cleanEmail,
-      name: formattedName || 'Consultor TCS',
-      role: cleanEmail.includes('admin') ? 'Lead' : 'Architect',
-    };
-
-    setUser(loggedUser);
-    return { success: true };
   };
-
-  const loginDemo = () => {
-    localStorage.removeItem('agentia_logged_out');
-    setUser(DEMO_USER);
-  };
-
   const logout = () => {
-    localStorage.setItem('agentia_logged_out', 'true');
-    setUser(null);
+    apiClient.post('/auth/logout').then(() => { window.dispatchEvent(new Event('agentia:logout')); setUser(null); }).catch(() => {
+      // Keep the session visible if server revocation failed; allow retry.
+      window.alert('No se pudo cerrar la sesión. Intente nuevamente.');
+    });
   };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        login,
-        loginDemo,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const enterMvp = async () => {
+    try {
+      const { data } = await apiClient.post<User>('/auth/mvp');
+      setUser(data);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.response?.data?.detail || 'No se pudo entrar al MVP' };
+    }
+  };
+  return <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, isAutomaticAccess: user?.accessMode === 'mvp', login, enterMvp, logout }}>{children}</AuthContext.Provider>;
 };
-
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

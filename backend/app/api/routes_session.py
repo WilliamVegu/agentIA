@@ -42,6 +42,7 @@ SESSION_GENERATION_STATE: Dict[str, Dict[str, Any]] = {}
 
 class CreateSessionRequest(BaseModel):
     specId: str = Field(..., description="UUID of ingested specification")
+    modelName: Optional[str] = None
 
 def _verification_fallback_used(db_sess) -> bool:
     """Whether verification actually ran, read from the persisted metrics.
@@ -166,10 +167,13 @@ async def execute_generation_pipeline(
 ):
     """Background worker executing the LangGraph pipeline with concurrency controls."""
     GRAPH_CANCEL_EVENTS[session_id] = threading.Event()
+    slot_acquired = False
     db = SessionLocal()
     try:
         # 1. Enqueue & await worker slot
-        await queue_manager.acquire_slot(session_id)
+        if not await queue_manager.acquire_slot(session_id):
+            return
+        slot_acquired = True
 
         # 2. Update DB to RUNNING
         db_sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
@@ -468,7 +472,8 @@ async def execute_generation_pipeline(
             "status": "BLOCKED"
         })
     finally:
-        await queue_manager.release_slot(session_id)
+        if slot_acquired:
+            await queue_manager.release_slot(session_id)
         db.close()
 
 @router.get("", response_model=List[GenerationSessionListItem])
@@ -487,16 +492,14 @@ async def list_sessions(limit: int = 50):
         items = []
         for s in sessions:
             pct = 0.0
-            if s.status == SessionStatus.COMPLETED:
+            from app.services.verification_policy import session_is_verified
+            if session_is_verified(s):
                 pct = 100.0
             else:
                 try:
                     lifecycle = get_session_lifecycle(s.id)
                     pct = lifecycle.completion_percentage
-                    if pct >= 100.0 and s.status not in (SessionStatus.BLOCKED, SessionStatus.CANCELLED) and s.phase != SessionPhase.FAILED:
-                        s.status = SessionStatus.COMPLETED
-                        s.current_lifecycle_phase = "COMPLETED"
-                        db.commit()
+                    # Reading progress must never mutate execution status.
                 except Exception:
                     pct = 0.0
 
@@ -560,6 +563,7 @@ async def quick_start_session(payload: QuickStartSessionRequest):
             session_id,
             api_key=payload.api_key,
             provider=payload.llm_provider,
+            model_name=payload.model_name,
             input_interface=payload.input_interface,
         )
         pipeline_started = True
@@ -633,6 +637,7 @@ async def create_generation_session(
             blueprint_dict=blueprint.model_dump(),
             api_key=x_llm_api_key,
             provider=x_llm_provider,
+            model_name=payload.modelName,
         )
     )
 
@@ -695,7 +700,7 @@ async def cancel_session(session_id: str):
     except Exception:
         pass
 
-    await queue_manager.release_slot(session_id)
+    queue_manager.cancel_waiting(session_id)
     return
 
 @router.get("/{session_id}/stream")

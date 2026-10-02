@@ -139,6 +139,15 @@ def build_docker_cmd(
     # unchanged on hosts that do not need it.
     mount_suffix = getattr(settings, "DOCKER_MOUNT_SUFFIX", "") or ""
 
+    if (Path(workspace_host_path) / "build.gradle").exists() or (Path(workspace_host_path) / "build.gradle.kts").exists():
+        cache = os.environ.get("GRADLE_CACHE_DIR", str(Path.home() / ".gradle"))
+        return ["docker", "run", "--rm", "--network", "none",
+                "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix),
+                "-v", mount_spec(cache, "/opt/gradle-cache", read_only=True, suffix=mount_suffix),
+                "-e", "GRADLE_USER_HOME=/tmp/gradle-home", "-w", "/workspace",
+                os.environ.get("GRADLE_DOCKER_IMAGE", "gradle:8-jdk21"), "sh", "-c",
+                "mkdir -p /tmp/gradle-home && cp -R /opt/gradle-cache/. /tmp/gradle-home/ && gradle --no-daemon --offline test"]
+
     return [
         "docker", "run", "--rm",
         "--network", "none",

@@ -44,7 +44,7 @@ def generate_models_and_sql_endpoint(
     provider = request.provider or x_llm_provider
     api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
-        response = model_sql_service.synthesize_domain_models_and_sql(request.draft, api_key, provider=provider)
+        response = model_sql_service.synthesize_domain_models_and_sql(request.draft, api_key, provider=provider, model_name=request.modelName)
         return response
     except Exception as e:
         raise HTTPException(
@@ -80,6 +80,7 @@ def refine_models_and_sql_endpoint(
             target_entity=request.targetEntity,
             api_key=api_key,
             provider=provider,
+            model_name=request.modelName,
         )
         return refined
     except Exception as e:
@@ -101,7 +102,7 @@ async def save_models_design(session_id: str, payload: dict):
     from app.services.workspace_guard import get_validated_workspace_path
     from app.services.lifecycle_service import transition_phase, LifecyclePhase
 
-    ws_path = get_validated_workspace_path(session_id, require_exists=False)
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     ws_path.mkdir(parents=True, exist_ok=True)
     (ws_path / "domain_model.json").write_text(
         json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8"

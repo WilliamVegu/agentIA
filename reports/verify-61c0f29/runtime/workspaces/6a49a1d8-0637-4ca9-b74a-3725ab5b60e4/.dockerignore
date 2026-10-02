@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+target/
+*.log
+*.class
+*.jar
+.mvn/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+.env*
+secrets/

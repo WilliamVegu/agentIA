@@ -23,6 +23,7 @@ class ArtifactContent(BaseModel):
     sizeBytes: int
 
 class VerificationMetrics(BaseModel):
+    workspaceFingerprint: Optional[str] = None
     totalTests: int = Field(default=0, ge=0)
     passedTests: int = Field(default=0, ge=0)
     failedTests: int = Field(default=0, ge=0)

@@ -1,3 +1,5 @@
+from app.models.session import SessionStatus, SessionPhase
+from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed
 import uuid
 from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Header, status
@@ -49,6 +51,7 @@ BLOCKED_SESSIONS_STORE: Dict[str, Dict] = {}
 def synthesize_test_suites(
     request: TestSynthesisRequest,
     x_llm_api_key: Optional[str] = Header(None, alias="X-LLM-API-Key"),
+    x_llm_provider: Optional[str] = Header(None, alias="X-LLM-Provider"),
 ):
     """
     Synthesizes Mockito unit tests, @WebMvcTest controller tests, and @SpringBootTest context tests.
@@ -74,6 +77,9 @@ def synthesize_test_suites(
             blueprint=blueprint,
             test_types=request.testTypes,
             api_key=effective_key,
+            provider=request.provider or x_llm_provider,
+            model_name=request.modelName,
+            source_files=request.sourceFiles,
         )
         return response
     except Exception as e:
@@ -116,6 +122,7 @@ def analyze_code_and_failures(request: CodeAnalysisRequest):
 def execute_repair_iteration(
     request: RepairExecutionRequest,
     x_llm_api_key: Optional[str] = Header(None, alias="X-LLM-API-Key"),
+    x_llm_provider: Optional[str] = Header(None, alias="X-LLM-Provider"),
 ):
     """
     Plans and applies a surgical method/block patch bounded strictly by 3 iterations (Constitution Principle V).
@@ -135,7 +142,57 @@ def execute_repair_iteration(
             diagnostics=request.diagnostics,
             source_files=request.sourceFiles,
             api_key=effective_key,
+            provider=request.provider or x_llm_provider,
+            model_name=request.modelName,
         )
+
+        # Persist exact patches and establish the outcome through actual verification.
+        from app.services.workspace_guard import get_validated_workspace_path
+        from app.services.queue_service import queue_manager
+        from app.orchestrator.nodes.sandbox_node import sandbox_node
+        from app.models.session import GenerationSessionDB, SessionLocal, SessionStatus, SessionPhase
+        import json
+        ws = get_validated_workspace_path(request.sessionId, require_exists=True)
+        if not queue_manager.try_acquire_slot_sync(request.sessionId):
+            raise HTTPException(409, "Wait for the current worker before applying automatic repair")
+        try:
+            current = dict(request.sourceFiles)
+            paths = {}
+            for relative, content in current.items():
+                file = (ws / relative).resolve()
+                if not file.is_relative_to(ws) or not file.is_file():
+                    raise HTTPException(400, "Repair source must be an existing workspace file")
+                if file.read_text(encoding="utf-8") != content:
+                    raise HTTPException(409, "Repair source changed; reload before retrying")
+                paths[relative] = file
+            for patch in record.patchesApplied:
+                current, _ = test_analysis_service.apply_code_patch(current, patch)
+            db = SessionLocal()
+            try:
+                row = db.get(GenerationSessionDB, request.sessionId)
+                previous = json.loads(row.verification_metrics_json or "{}")
+                record.passedTestsBefore = previous.get("passedTests", 0)
+                record.failedTestsBefore = previous.get("failedTests", 0)
+                row.verification_metrics_json = None
+                row.status, row.phase = SessionStatus.BLOCKED, SessionPhase.FAILED
+                db.commit()
+                for relative, content in current.items():
+                    paths[relative].write_text(content, encoding="utf-8")
+                result = sandbox_node({"workspace_path": str(ws), "session_id": request.sessionId, "logs": []})
+                metrics = result.get("test_metrics", {})
+                verified = result.get("status") == "COMPLETED" and tests_really_passed(metrics)
+                row.verification_metrics_json = json.dumps(metrics)
+                row.status = SessionStatus.COMPLETED if verified else SessionStatus.BLOCKED
+                row.phase = SessionPhase.VERIFIED if verified else SessionPhase.FAILED
+                row.error_message = None if verified else result.get("error", "Repair did not pass sandbox verification")
+                db.commit()
+                record.passedTestsAfter = metrics.get("passedTests", 0)
+                record.failedTestsAfter = metrics.get("failedTests", 0)
+                record.outcome = RepairOutcome.SUCCESS if verified else RepairOutcome.FAILED_BLOCKED
+            finally:
+                db.close()
+        finally:
+            queue_manager.release_slot_sync(request.sessionId)
 
         # Record in memory store
         if request.sessionId not in REPAIR_HISTORIES_STORE:
@@ -188,7 +245,7 @@ def get_session_repairs(sessionId: str):
 
     is_verified = False
     if sess:
-        is_verified = sess.phase == SessionPhase.VERIFIED or (sess.status == SessionStatus.COMPLETED and not getattr(sess, "error_message", None))
+        is_verified = session_is_verified(sess)
 
     if sess and (sess.status == SessionStatus.BLOCKED or sess.phase == SessionPhase.FAILED):
         final_state = "BLOCKED"
@@ -255,7 +312,8 @@ def submit_manual_repair(
             detail="Absolute file paths are not permitted in manual repair.",
         )
 
-    ws_path = (Path(settings.WORKSPACE_DIR) / sessionId).resolve()
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(sessionId, require_exists=True)
     ws_file = (ws_path / request.filePath).resolve()
     if not ws_file.is_relative_to(ws_path):
         raise HTTPException(
@@ -265,28 +323,66 @@ def submit_manual_repair(
 
     ws_path.mkdir(parents=True, exist_ok=True)
 
-    # Clear blocked state
-    if sessionId in BLOCKED_SESSIONS_STORE:
-        del BLOCKED_SESSIONS_STORE[sessionId]
-
-    if request.modifiedCode is not None:
+    if request.modifiedCode is None:
+        raise HTTPException(400, "Provide modifiedCode to apply and verify a manual repair.")
+    from app.services.queue_service import queue_manager
+    if not queue_manager.try_acquire_slot_sync(sessionId):
+        raise HTTPException(409, "Wait for the active worker to stop before applying a repair.")
+    try:
+        db = SessionLocal()
         try:
-            ws_file.parent.mkdir(parents=True, exist_ok=True)
-            ws_file.write_text(request.modifiedCode, encoding="utf-8")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to write manual repair file: {str(e)}",
-            )
+            row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == sessionId).first()
+            if row:
+                row.verification_metrics_json = None
+                row.status = SessionStatus.BLOCKED
+                row.phase = SessionPhase.FAILED
+                db.commit()
+        finally:
+            db.close()
 
-        rel_key = str(ws_file.relative_to(ws_path)).replace("\\", "/")
-        if sessionId in SESSION_GENERATION_STATE and "generated_files" in SESSION_GENERATION_STATE[sessionId]:
-            SESSION_GENERATION_STATE[sessionId]["generated_files"][rel_key] = request.modifiedCode
+        if request.modifiedCode is not None:
+            try:
+                ws_file.parent.mkdir(parents=True, exist_ok=True)
+                ws_file.write_text(request.modifiedCode, encoding="utf-8")
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to write manual repair file: {str(e)}",
+                )
 
-    return ManualRepairResponse(
-        sessionId=sessionId,
-        status="REPAIR_APPLIED",
-        message=f"Manual modification applied to '{request.filePath}'. Re-running sandbox verification pending.",
-        diagnosticsResolved=False,
-    )
+            rel_key = str(ws_file.relative_to(ws_path)).replace("\\", "/")
+            if sessionId in SESSION_GENERATION_STATE and "generated_files" in SESSION_GENERATION_STATE[sessionId]:
+                SESSION_GENERATION_STATE[sessionId]["generated_files"][rel_key] = request.modifiedCode
 
+        from app.orchestrator.nodes.sandbox_node import sandbox_node
+        try:
+            result = sandbox_node({"workspace_path": str(ws_path), "logs": []})
+        except Exception as exc:
+            result = {"status": "BLOCKED", "current_phase": "FAILED", "test_metrics": {},
+                      "error": f"Verification could not run: {type(exc).__name__}"}
+        verified = tests_really_passed(result.get("test_metrics")) and result.get("status") == "COMPLETED"
+        import json
+        db = SessionLocal()
+        try:
+            row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == sessionId).first()
+            if row:
+                row.verification_metrics_json = json.dumps(result.get("test_metrics", {}))
+                row.status = SessionStatus.COMPLETED if verified else SessionStatus.BLOCKED
+                row.phase = SessionPhase.VERIFIED if verified else SessionPhase.FAILED
+                row.error_message = None if verified else result.get("error", "Manual repair did not pass verification")
+                db.commit()
+        finally:
+            db.close()
+        SESSION_GENERATION_STATE.setdefault(sessionId, {}).update(result)
+        if verified:
+            BLOCKED_SESSIONS_STORE.pop(sessionId, None)
+        else:
+            BLOCKED_SESSIONS_STORE[sessionId] = {"blocked": True}
+        return ManualRepairResponse(
+            sessionId=sessionId,
+            status="VERIFIED" if verified else "BLOCKED",
+            message="Repair passed sandbox verification." if verified else "Repair saved, but sandbox verification did not pass.",
+            diagnosticsResolved=verified,
+        )
+    finally:
+        queue_manager.release_slot_sync(sessionId)

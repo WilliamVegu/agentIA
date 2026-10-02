@@ -1,0 +1,466 @@
+{
+  "serviceName": "audit-library",
+  "packageName": "com.audit.library",
+  "basePort": 8080,
+  "components": [
+    {
+      "name": "BookController",
+      "layer": "controller",
+      "stereotype": "@RestController",
+      "packageName": "com.audit.library.controller",
+      "responsibilities": [
+        "Expose REST endpoints for book registration, update, retrieval and deletion",
+        "Bind and validate request DTOs using @Valid",
+        "Return ResponseEntity with appropriate HTTP status and Location header on creation",
+        "Delegate all business operations to BookService"
+      ],
+      "dependencies": [
+        "BookService"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ]
+    },
+    {
+      "name": "BookService",
+      "layer": "service",
+      "stereotype": "@Service",
+      "packageName": "com.audit.library.service",
+      "responsibilities": [
+        "Implement book catalog use cases: register, update title, retrieve by ISBN, delete by ISBN",
+        "Enforce unique ISBN invariant and book existence checks",
+        "Set createdAt and updatedAt timestamps",
+        "Map between domain Book and response DTO"
+      ],
+      "dependencies": [
+        "BookRepository"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ]
+    },
+    {
+      "name": "BookRepository",
+      "layer": "repository",
+      "stereotype": "@Repository",
+      "packageName": "com.audit.library.repository",
+      "responsibilities": [
+        "Persist and query Book entities by ISBN and id",
+        "Provide existsByIsbn, findByIsbn and deleteByIsbn operations"
+      ],
+      "dependencies": [
+        "Book"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ]
+    },
+    {
+      "name": "Book",
+      "layer": "model",
+      "stereotype": "@Entity",
+      "packageName": "com.audit.library.model",
+      "responsibilities": [
+        "Domain entity mapped to the books table",
+        "Encapsulate id, isbn, title, author, createdAt and updatedAt attributes",
+        "Declare bean validation constraints for persistence fields"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ]
+    },
+    {
+      "name": "CreateBookRequest",
+      "layer": "model",
+      "stereotype": "Java Record",
+      "packageName": "com.audit.library.model",
+      "responsibilities": [
+        "DTO for POST /api/v1/books request body",
+        "Carry isbn, title and author fields",
+        "Apply ISBN and text validation constraints"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1"
+      ]
+    },
+    {
+      "name": "UpdateBookRequest",
+      "layer": "model",
+      "stereotype": "Java Record",
+      "packageName": "com.audit.library.model",
+      "responsibilities": [
+        "DTO for PUT /api/v1/books/{isbn} request body",
+        "Carry title field for metadata correction",
+        "Apply non-blank and size validation constraints"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-2"
+      ]
+    },
+    {
+      "name": "BookResponse",
+      "layer": "model",
+      "stereotype": "Java Record",
+      "packageName": "com.audit.library.model",
+      "responsibilities": [
+        "DTO for book representation returned by REST endpoints",
+        "Carry id, isbn, title, author, createdAt and updatedAt fields"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ]
+    },
+    {
+      "name": "ErrorResponse",
+      "layer": "model",
+      "stereotype": "Java Record",
+      "packageName": "com.audit.library.model",
+      "responsibilities": [
+        "Standard error payload for REST API errors",
+        "Carry errorCode, message and field-level validation details"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ]
+    },
+    {
+      "name": "BookNotFoundException",
+      "layer": "model",
+      "stereotype": "RuntimeException",
+      "packageName": "com.audit.library.model",
+      "responsibilities": [
+        "Signal that no book exists for a requested ISBN",
+        "Support BOOK_NOT_FOUND error mapping"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-2",
+        "US-3",
+        "US-4"
+      ]
+    },
+    {
+      "name": "BookIsbnDuplicateException",
+      "layer": "model",
+      "stereotype": "RuntimeException",
+      "packageName": "com.audit.library.model",
+      "responsibilities": [
+        "Signal that a book with the same ISBN already exists",
+        "Support BOOK_ISBN_DUPLICATE error mapping"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1"
+      ]
+    },
+    {
+      "name": "GlobalExceptionHandler",
+      "layer": "infrastructure",
+      "stereotype": "@RestControllerAdvice",
+      "packageName": "com.audit.library.infrastructure",
+      "responsibilities": [
+        "Translate validation errors into HTTP 400 responses",
+        "Translate BookIsbnDuplicateException into HTTP 409 with errorCode BOOK_ISBN_DUPLICATE",
+        "Translate BookNotFoundException into HTTP 404 with errorCode BOOK_NOT_FOUND",
+        "Return consistent ErrorResponse payloads"
+      ],
+      "dependencies": [
+        "ErrorResponse"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3",
+        "US-4"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/api/v1/books",
+      "summary": "Register a new book with a unique ISBN, title and author",
+      "requestDto": "CreateBookRequest",
+      "responseDto": "BookResponse",
+      "successStatus": 201,
+      "errorStatuses": [
+        400,
+        409
+      ],
+      "mappedScenarioId": "AC-1.1"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/books/{isbn}",
+      "summary": "Update the title of an existing book identified by its ISBN",
+      "requestDto": "UpdateBookRequest",
+      "responseDto": "BookResponse",
+      "successStatus": 200,
+      "errorStatuses": [
+        400,
+        404
+      ],
+      "mappedScenarioId": "AC-2.1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/books/{isbn}",
+      "summary": "Retrieve a book by ISBN for catalog audit",
+      "requestDto": null,
+      "responseDto": "BookResponse",
+      "successStatus": 200,
+      "errorStatuses": [
+        400,
+        404
+      ],
+      "mappedScenarioId": "AC-3.1"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/books/{isbn}",
+      "summary": "Delete a book from the catalog by ISBN",
+      "requestDto": null,
+      "responseDto": null,
+      "successStatus": 204,
+      "errorStatuses": [
+        400,
+        404
+      ],
+      "mappedScenarioId": "AC-4.1"
+    }
+  ],
+  "interactions": [
+    {
+      "sourceComponent": "BookController",
+      "targetComponent": "BookService",
+      "interactionType": "calls"
+    },
+    {
+      "sourceComponent": "BookService",
+      "targetComponent": "BookRepository",
+      "interactionType": "calls"
+    },
+    {
+      "sourceComponent": "BookRepository",
+      "targetComponent": "Book",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "GlobalExceptionHandler",
+      "targetComponent": "ErrorResponse",
+      "interactionType": "persists"
+    }
+  ],
+  "mermaidDiagram": "flowchart TD\n    subgraph Presentation[\"Capa Controlador (REST / HTTP)\"]\n        BookController[\"BookController<br/><i>@RestController</i>\"]\n    end\n    subgraph Business[\"Capa Servicio (Lógica de Negocio)\"]\n        BookService[\"BookService<br/><i>@Service</i>\"]\n    end\n    subgraph Persistence[\"Capa Repositorio (Spring Data JPA)\"]\n        BookRepository[\"BookRepository<br/><i>@Repository</i>\"]\n    end\n    subgraph Domain[\"Capa Dominio & Modelos\"]\n        Book[\"Book<br/><i>@Entity</i>\"]\n        CreateBookRequest[\"CreateBookRequest<br/><i>Java Record</i>\"]\n        UpdateBookRequest[\"UpdateBookRequest<br/><i>Java Record</i>\"]\n        BookResponse[\"BookResponse<br/><i>Java Record</i>\"]\n        ErrorResponse[\"ErrorResponse<br/><i>Java Record</i>\"]\n        BookNotFoundException[\"BookNotFoundException<br/><i>RuntimeException</i>\"]\n        BookIsbnDuplicateException[\"BookIsbnDuplicateException<br/><i>RuntimeException</i>\"]\n    end\n    subgraph Infrastructure[\"Componentes Transversales & Soporte\"]\n        GlobalExceptionHandler[\"GlobalExceptionHandler<br/><i>@RestControllerAdvice</i>\"]\n    end\n    BookController --> BookService\n    BookService --> BookRepository\n    BookRepository -->|persists| Book\n    GlobalExceptionHandler -->|persists| ErrorResponse",
+  "architectureMarkdown": "# Architectural Blueprint: Audit Library\n\n**Package**: `com.audit.library` | **Port**: `8080`\n**Generated**: 2026-10-02 07:23:35 UTC\n\n## 1. Topología Arquitectónica en Capas\n\n```mermaid\nflowchart TD\n    subgraph Presentation[\"Capa Controlador (REST / HTTP)\"]\n        BookController[\"BookController<br/><i>@RestController</i>\"]\n    end\n    subgraph Business[\"Capa Servicio (Lógica de Negocio)\"]\n        BookService[\"BookService<br/><i>@Service</i>\"]\n    end\n    subgraph Persistence[\"Capa Repositorio (Spring Data JPA)\"]\n        BookRepository[\"BookRepository<br/><i>@Repository</i>\"]\n    end\n    subgraph Domain[\"Capa Dominio & Modelos\"]\n        Book[\"Book<br/><i>@Entity</i>\"]\n        CreateBookRequest[\"CreateBookRequest<br/><i>Java Record</i>\"]\n        UpdateBookRequest[\"UpdateBookRequest<br/><i>Java Record</i>\"]\n        BookResponse[\"BookResponse<br/><i>Java Record</i>\"]\n        ErrorResponse[\"ErrorResponse<br/><i>Java Record</i>\"]\n        BookNotFoundException[\"BookNotFoundException<br/><i>RuntimeException</i>\"]\n        BookIsbnDuplicateException[\"BookIsbnDuplicateException<br/><i>RuntimeException</i>\"]\n    end\n    subgraph Infrastructure[\"Componentes Transversales & Soporte\"]\n        GlobalExceptionHandler[\"GlobalExceptionHandler<br/><i>@RestControllerAdvice</i>\"]\n    end\n    BookController --> BookService\n    BookService --> BookRepository\n    BookRepository -->|persists| Book\n    GlobalExceptionHandler -->|persists| ErrorResponse\n```\n\n---\n\n## 2. Catálogo de Componentes\n\n| Componente | Capa | Estereotipo | Paquete | Responsabilidades | Dependencias |\n|:---|:---|:---|:---|:---|:---|\n| **BookController** | `controller` | `@RestController` | `com.audit.library.controller` | • Expose REST endpoints for book registration, update, retrieval and deletion<br/>• Bind and validate request DTOs using @Valid<br/>• Return ResponseEntity with appropriate HTTP status and Location header on creation<br/>• Delegate all business operations to BookService | BookService |\n| **BookService** | `service` | `@Service` | `com.audit.library.service` | • Implement book catalog use cases: register, update title, retrieve by ISBN, delete by ISBN<br/>• Enforce unique ISBN invariant and book existence checks<br/>• Set createdAt and updatedAt timestamps<br/>• Map between domain Book and response DTO | BookRepository |\n| **BookRepository** | `repository` | `@Repository` | `com.audit.library.repository` | • Persist and query Book entities by ISBN and id<br/>• Provide existsByIsbn, findByIsbn and deleteByIsbn operations | Book |\n| **Book** | `model` | `@Entity` | `com.audit.library.model` | • Domain entity mapped to the books table<br/>• Encapsulate id, isbn, title, author, createdAt and updatedAt attributes<br/>• Declare bean validation constraints for persistence fields | — |\n| **CreateBookRequest** | `model` | `Java Record` | `com.audit.library.model` | • DTO for POST /api/v1/books request body<br/>• Carry isbn, title and author fields<br/>• Apply ISBN and text validation constraints | — |\n| **UpdateBookRequest** | `model` | `Java Record` | `com.audit.library.model` | • DTO for PUT /api/v1/books/{isbn} request body<br/>• Carry title field for metadata correction<br/>• Apply non-blank and size validation constraints | — |\n| **BookResponse** | `model` | `Java Record` | `com.audit.library.model` | • DTO for book representation returned by REST endpoints<br/>• Carry id, isbn, title, author, createdAt and updatedAt fields | — |\n| **ErrorResponse** | `model` | `Java Record` | `com.audit.library.model` | • Standard error payload for REST API errors<br/>• Carry errorCode, message and field-level validation details | — |\n| **BookNotFoundException** | `model` | `RuntimeException` | `com.audit.library.model` | • Signal that no book exists for a requested ISBN<br/>• Support BOOK_NOT_FOUND error mapping | — |\n| **BookIsbnDuplicateException** | `model` | `RuntimeException` | `com.audit.library.model` | • Signal that a book with the same ISBN already exists<br/>• Support BOOK_ISBN_DUPLICATE error mapping | — |\n| **GlobalExceptionHandler** | `infrastructure` | `@RestControllerAdvice` | `com.audit.library.infrastructure` | • Translate validation errors into HTTP 400 responses<br/>• Translate BookIsbnDuplicateException into HTTP 409 with errorCode BOOK_ISBN_DUPLICATE<br/>• Translate BookNotFoundException into HTTP 404 with errorCode BOOK_NOT_FOUND<br/>• Return consistent ErrorResponse payloads | ErrorResponse |\n\n---\n\n## 3. Catálogo de Endpoints REST Derivados\n\n| Método | Ruta | Resumen | Request DTO | Response DTO | Éxito | Errores | Criterio BDD |\n|:---|:---|:---|:---|:---|:---:|:---:|:---:|\n| `POST` | `/api/v1/books` | Register a new book with a unique ISBN, title and author | `CreateBookRequest` | `BookResponse` | `201` | `400, 409` | `AC-1.1` |\n| `PUT` | `/api/v1/books/{isbn}` | Update the title of an existing book identified by its ISBN | `UpdateBookRequest` | `BookResponse` | `200` | `400, 404` | `AC-2.1` |\n| `GET` | `/api/v1/books/{isbn}` | Retrieve a book by ISBN for catalog audit | — | `BookResponse` | `200` | `400, 404` | `AC-3.1` |\n| `DELETE` | `/api/v1/books/{isbn}` | Delete a book from the catalog by ISBN | — | — | `204` | `400, 404` | `AC-4.1` |\n\n---\n\n## 4. Gobernanza y Cumplimiento Constitucional\n\n- **Principio I (Capas Estrictas)**: Dependencias unidireccionales Controller ➔ Service ➔ Repository ➔ Model.\n- **Principio II (Records DTOs)**: DTOs inmutables desacoplados de la persistencia con validación Jakarta.\n- **Principio III (Excepciones Centralizadas)**: Manejador `@RestControllerAdvice` uniforme.\n",
+  "openapiYaml": "openapi: 3.0.3\ninfo:\n  title: Audit Library API\n  description: Auto-generated API contracts for audit-library conforming to Spring\n    Boot 3 / Java 21 Records.\n  version: 1.0.0\nservers:\n- url: http://localhost:8080\n  description: Local server\npaths:\n  /api/v1/books:\n    post:\n      summary: Register a new book with a unique ISBN, title and author\n      operationId: post_api_v1_books\n      responses:\n        '201':\n          description: Successful operation\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/BookResponse'\n        '400':\n          description: Error response 400\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n        '409':\n          description: Error response 409\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: '#/components/schemas/CreateBookRequest'\n  /api/v1/books/{isbn}:\n    put:\n      summary: Update the title of an existing book identified by its ISBN\n      operationId: put_api_v1_books__isbn\n      responses:\n        '200':\n          description: Successful operation\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/BookResponse'\n        '400':\n          description: Error response 400\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n        '404':\n          description: Error response 404\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: '#/components/schemas/UpdateBookRequest'\n    get:\n      summary: Retrieve a book by ISBN for catalog audit\n      operationId: get_api_v1_books__isbn\n      responses:\n        '200':\n          description: Successful operation\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/BookResponse'\n        '400':\n          description: Error response 400\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n        '404':\n          description: Error response 404\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n    delete:\n      summary: Delete a book from the catalog by ISBN\n      operationId: delete_api_v1_books__isbn\n      responses:\n        '204':\n          description: Successful operation\n        '400':\n          description: Error response 400\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n        '404':\n          description: Error response 404\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\ncomponents:\n  schemas:\n    ProblemDetails:\n      type: object\n      required:\n      - timestamp\n      - status\n      - message\n      properties:\n        timestamp:\n          type: string\n          format: date-time\n        status:\n          type: integer\n        message:\n          type: string\n        details:\n          type: array\n          items:\n            type: string\n    BookResponse:\n      type: object\n      description: Immutable Java Record response for Book\n      properties:\n        id:\n          type: string\n          format: uuid\n        isbn: &id001\n          type: string\n        title: &id002\n          type: string\n        author: &id003\n          type: string\n        createdAt: &id004\n          type: string\n          format: date-time\n        updatedAt: &id005\n          type: string\n          format: date-time\n    CreateBookRequest:\n      type: object\n      description: Immutable Java Record request with Jakarta validation for Book\n      required:\n      - isbn\n      - title\n      - author\n      - createdAt\n      - updatedAt\n      properties:\n        isbn: *id001\n        title: *id002\n        author: *id003\n        createdAt: *id004\n        updatedAt: *id005\n",
+  "entities": [
+    {
+      "name": "Book",
+      "tableName": "books",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "validationRules": [
+            "@NotNull"
+          ]
+        },
+        {
+          "name": "isbn",
+          "type": "String",
+          "nullable": false,
+          "isPrimaryKey": false,
+          "isUnique": true,
+          "validationRules": [
+            "@NotBlank",
+            "@Size(min = 10, max = 17)",
+            "@Pattern(regexp = \"^(?:\\\\d{9}[\\\\dXx]|\\\\d{13})$\")"
+          ]
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "nullable": false,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "validationRules": [
+            "@NotBlank",
+            "@Size(min = 1, max = 255)"
+          ]
+        },
+        {
+          "name": "author",
+          "type": "String",
+          "nullable": false,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "validationRules": [
+            "@NotBlank",
+            "@Size(min = 1, max = 255)"
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "nullable": false,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "validationRules": [
+            "@NotNull",
+            "@PastOrPresent"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "validationRules": []
+        }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "Librarian",
+      "intent": "register a new book with a unique ISBN, title and author",
+      "benefit": "the library catalog is kept accurate and no duplicate titles can be registered under the same ISBN",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "the library catalog does not contain any book with ISBN '9783161484100'",
+          "when": "the Librarian sends POST /api/v1/books with body { \"isbn\": \"9783161484100\", \"title\": \"Clean Code\", \"author\": \"Robert C. Martin\" }",
+          "then": "the service persists the book with a generated UUID and createdAt timestamp and responds with HTTP 201 Created, a Location header '/api/v1/books/9783161484100' and the created representation including isbn, title and author"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a book with ISBN '9783161484100' already exists in the catalog",
+          "when": "the Librarian sends POST /api/v1/books with body { \"isbn\": \"9783161484100\", \"title\": \"Another Title\", \"author\": \"Another Author\" }",
+          "then": "the service does not create a second record and responds with HTTP 409 Conflict and errorCode 'BOOK_ISBN_DUPLICATE'"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "the library catalog is available and the client is authenticated as Librarian",
+          "when": "the Librarian sends POST /api/v1/books with body { \"isbn\": \"9783161484100\", \"title\": \"   \", \"author\": \"Robert C. Martin\" }",
+          "then": "the service rejects the request with HTTP 400 Bad Request and a field-level validation error indicating that 'title' must not be blank"
+        },
+        {
+          "scenarioId": "AC-1.4",
+          "given": "the library catalog is available",
+          "when": "the Librarian sends POST /api/v1/books with body { \"isbn\": \"ABC-123\", \"title\": \"Clean Code\", \"author\": \"Robert C. Martin\" }",
+          "then": "the service responds with HTTP 400 Bad Request and a field-level validation error indicating that 'isbn' does not match the expected format"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "Librarian",
+      "intent": "update the title of an existing book identified by its ISBN",
+      "benefit": "corrected or refined metadata is reflected in the catalog without changing the book identity",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a book with ISBN '9783161484100' and title 'Clean Code' exists in the catalog",
+          "when": "the Librarian sends PUT /api/v1/books/9783161484100 with body { \"title\": \"Clean Code: A Handbook of Agile Software Craftsmanship\" }",
+          "then": "the service updates the stored title, sets updatedAt, leaves isbn and author unchanged and responds with HTTP 200 OK containing the updated representation"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "no book with ISBN '9783161484100' exists in the catalog",
+          "when": "the Librarian sends PUT /api/v1/books/9783161484100 with body { \"title\": \"Valid New Title\" }",
+          "then": "the service responds with HTTP 404 Not Found and errorCode 'BOOK_NOT_FOUND', and no record is created"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "a book with ISBN '9783161484100' exists in the catalog",
+          "when": "the Librarian sends PUT /api/v1/books/9783161484100 with body { \"title\": \"\" }",
+          "then": "the service rejects the request with HTTP 400 Bad Request, the stored title remains 'Clean Code' and no updatedAt change is persisted"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P3",
+      "role": "Auditor",
+      "intent": "retrieve a book by its ISBN to verify catalog integrity",
+      "benefit": "catalog data can be inspected and audited without modifying any record",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "a book with ISBN '9783161484100', title 'Clean Code' and author 'Robert C. Martin' exists in the catalog",
+          "when": "the Auditor sends GET /api/v1/books/9783161484100",
+          "then": "the service responds with HTTP 200 OK and the full book representation including id, isbn, title, author and createdAt"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "no book with ISBN '9780000000000' exists in the catalog",
+          "when": "the Auditor sends GET /api/v1/books/9780000000000",
+          "then": "the service responds with HTTP 404 Not Found and errorCode 'BOOK_NOT_FOUND'"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "the catalog is available and read access is granted",
+          "when": "the Auditor sends GET /api/v1/books/not-an-isbn",
+          "then": "the service responds with HTTP 400 Bad Request and a validation error indicating that the ISBN format is invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "Librarian",
+      "intent": "delete a book from the catalog by its ISBN",
+      "benefit": "obsolete or incorrectly registered titles can be removed so the catalog stays reliable",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "a book with ISBN '9783161484100' exists in the catalog",
+          "when": "the Librarian sends DELETE /api/v1/books/9783161484100",
+          "then": "the service removes the record and responds with HTTP 204 No Content, and a subsequent GET for that ISBN returns HTTP 404"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "no book with ISBN '9783161484100' exists in the catalog",
+          "when": "the Librarian sends DELETE /api/v1/books/9783161484100",
+          "then": "the service responds with HTTP 404 Not Found and errorCode 'BOOK_NOT_FOUND' and the catalog remains unchanged"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "the catalog is available",
+          "when": "the Librarian sends DELETE /api/v1/books/12345",
+          "then": "the service responds with HTTP 400 Bad Request and a validation error indicating that the ISBN format is invalid"
+        }
+      ]
+    }
+  ]
+}

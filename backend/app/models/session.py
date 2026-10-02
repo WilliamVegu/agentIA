@@ -150,6 +150,7 @@ class QuickStartSessionRequest(BaseModel):
     auto_run: Optional[bool] = Field(False, alias="autoRun")
     api_key: Optional[str] = Field(None, alias="apiKey")
     llm_provider: Optional[str] = Field(None, alias="llmProvider")
+    model_name: Optional[str] = Field(None, alias="modelName")
     # The "interfaz de entrada" (levantando_observaciones): volume, data needs,
     # integrations, architecture/build-tool preference. Drives the InferenceEngine.
     input_interface: Optional[dict] = Field(None, alias="inputInterface")

@@ -114,6 +114,9 @@ class TestAnalysisService:
         blueprint: Dict[str, Any],
         test_types: Optional[List[TestType]] = None,
         api_key: Optional[str] = None,
+        provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+        source_files: Optional[Dict[str, str]] = None,
     ) -> TestSynthesisResponse:
         """
         Synthesizes hybrid test suites (unit tests with Mockito, web tests with @WebMvcTest,
@@ -123,6 +126,22 @@ class TestAnalysisService:
             blueprint = blueprint.model_dump()
         elif hasattr(blueprint, "dict"):
             blueprint = blueprint.dict()
+
+        from app.services.llm_factory import LLMFactory
+        if not LLMFactory.is_mock(api_key, provider):
+            from app.services.structured_output import invoke_structured
+            from langchain_core.messages import SystemMessage, HumanMessage
+            import json
+            llm = LLMFactory.get_chat_model(api_key=api_key, provider=provider, model_name=model_name, temperature=0.2)
+            if llm is None:
+                raise RuntimeError("The selected provider is unavailable")
+            response = invoke_structured(llm, TestSynthesisResponse, [
+                SystemMessage(content="Generate runnable Java 21 JUnit5 test suites for the actual blueprint and provided sources. Respect identifier types, attributes, package names and requested test types. No invented generic entities or placeholder code. All source must be complete. Never claim tests ran."),
+                HumanMessage(content=json.dumps({"blueprint": blueprint, "testTypes": [getattr(t, "value", t) for t in (test_types or list(TestType))], "sourceFiles": source_files or {}}))])
+            if not response or not response.suites:
+                raise RuntimeError("The selected provider returned no test suites")
+            response.totalTestCases = sum(len(suite.testCases) for suite in response.suites)
+            return response
 
         service_name = blueprint.get("serviceName", "app-service")
         package_name = blueprint.get("packageName", "com.example.service")
@@ -417,6 +436,8 @@ class {ent_name}IntegrationTest {{
         diagnostics: List[FailureDiagnostic],
         source_files: Dict[str, str],
         api_key: Optional[str] = None,
+        provider: Optional[str] = None,
+        model_name: Optional[str] = None,
     ) -> List[CodeRepairPatch]:
         """
         Plans targeted method/block surgical patches without rewriting entire classes.
@@ -427,6 +448,25 @@ class {ent_name}IntegrationTest {{
         - Level 4: Constitutional alignment (Lombok @Data to explicit annotations)
         - Level 5: Proactive source tree syntax & import audit if no patches matched
         """
+        from app.services.llm_factory import LLMFactory
+        if not LLMFactory.is_mock(api_key, provider):
+            from app.services.structured_output import invoke_structured
+            from langchain_core.messages import SystemMessage, HumanMessage
+            from pydantic import BaseModel
+            import json
+            class PatchPlan(BaseModel):
+                patches: List[CodeRepairPatch]
+            llm = LLMFactory.get_chat_model(api_key=api_key, provider=provider, model_name=model_name, temperature=0.2)
+            if llm is None:
+                raise RuntimeError("The selected provider is unavailable")
+            plan = invoke_structured(llm, PatchPlan, [
+                SystemMessage(content="Propose minimal repairs to the supplied Java sources for the actual diagnostics. Every originalSnippet must match exactly one occurrence in the provided sources, and every replacement must be complete. Never claim a test passed. Use STATEMENT_REPLACE or WHOLE_FILE patches."),
+                HumanMessage(content=json.dumps({"diagnostics": [d.model_dump(mode="json") for d in diagnostics], "sourceFiles": source_files}))])
+            for patch in plan.patches:
+                if not patch.originalSnippet or sum(source.count(patch.originalSnippet) for source in source_files.values()) != 1:
+                    raise ValueError("Provider repair is ambiguous or does not match the supplied source")
+            return plan.patches
+
         patches: List[CodeRepairPatch] = []
 
         COMMON_SYMBOLS = {
@@ -666,6 +706,8 @@ class {ent_name}IntegrationTest {{
         diagnostics: List[FailureDiagnostic],
         source_files: Dict[str, str],
         api_key: Optional[str] = None,
+        provider: Optional[str] = None,
+        model_name: Optional[str] = None,
     ) -> RepairIterationRecord:
         """
         Executes a single surgical self-repair attempt bounded by the adaptive constitutional limit of 5.
@@ -676,7 +718,7 @@ class {ent_name}IntegrationTest {{
         if iteration_number > max_attempts:
             raise ValueError(f"Constitution Principle V Violation: Auto-repair cycle hard-capped at {max_attempts} iterations.")
 
-        patches = self.plan_surgical_repair(diagnostics, source_files, api_key)
+        patches = self.plan_surgical_repair(diagnostics, source_files, api_key, provider, model_name)
         all_diffs = []
         current_files = dict(source_files)
 
@@ -688,18 +730,17 @@ class {ent_name}IntegrationTest {{
         combined_diff = "\n".join(all_diffs) or "-- Evaluated code contracts; adaptive verification active"
         duration = round(time.time() - start_time, 2)
 
-        outcome = RepairOutcome.SUCCESS if len(patches) > 0 and iteration_number < max_attempts else (
-            RepairOutcome.FAILED_BLOCKED if iteration_number >= max_attempts else RepairOutcome.FAILED_CONTINUE
-        )
+        # A proposed patch is not an executed test suite. The API verifies it after persistence.
+        outcome = RepairOutcome.FAILED_BLOCKED if iteration_number >= max_attempts else RepairOutcome.FAILED_CONTINUE
 
         return RepairIterationRecord(
             iterationNumber=iteration_number,
             diagnostics=diagnostics,
             patchesApplied=patches,
-            passedTestsBefore=max(0, 5 - len(diagnostics)),
-            failedTestsBefore=len(diagnostics),
-            passedTestsAfter=5 if outcome == RepairOutcome.SUCCESS else 0,
-            failedTestsAfter=0 if outcome == RepairOutcome.SUCCESS else len(diagnostics),
+            passedTestsBefore=0,
+            failedTestsBefore=0,
+            passedTestsAfter=0,
+            failedTestsAfter=0,
             diffSummary=combined_diff,
             durationSeconds=duration,
             outcome=outcome,

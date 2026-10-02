@@ -1,3 +1,4 @@
+from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -181,9 +182,12 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                         status = PhaseStatus.BLOCKED
                         is_blocked = True
                         reason = "Sesión cancelada"
-                    else:
+                    elif session_is_verified(sess):
                         status = PhaseStatus.COMPLETED
-                        summary["pom"] = "pom.xml"
+                        summary["build"] = "pom.xml" if pom_file.exists() else "Gradle"
+                    else:
+                        status = PhaseStatus.IN_PROGRESS
+                        reason = "Código generado; pruebas reales pendientes"
                 elif phase_states[3].status == PhaseStatus.COMPLETED:
                     status = PhaseStatus.NOT_STARTED
                 else:
@@ -220,7 +224,9 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 if compose_file.exists():
                     deploy_info = get_deployment_status(session_id)
                     summary["deploymentStatus"] = deploy_info.status
-                    status = PhaseStatus.COMPLETED
+                    status = PhaseStatus.COMPLETED if str(getattr(deploy_info.status, "value", deploy_info.status)) == "HEALTHY" else PhaseStatus.IN_PROGRESS
+                    if status != PhaseStatus.COMPLETED:
+                        reason = "Manifiestos generados; despliegue saludable pendiente"
                 elif phase_states[5].status == PhaseStatus.COMPLETED:
                     status = PhaseStatus.NOT_STARTED
                 else:
@@ -397,8 +403,7 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
                 real_tests_passed = True
         except Exception:
             pass
-    elif sess.phase == SessionPhase.VERIFIED:
-        real_tests_passed = True
+    real_tests_passed = session_is_verified(sess)
 
     return ProjectOverviewSummary(
         sessionId=session_id,

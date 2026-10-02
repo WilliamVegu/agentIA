@@ -40,7 +40,8 @@ except ImportError:
 
 class LLMComponentDecomposition(BaseModel):
     name: str = Field(description="PascalCase component name")
-    layer: str = Field(description="controller, service, repository, model, or infrastructure")
+    layer: str = Field(description="controller, service, repository, model, infrastructure, domain, or application")
+    packageName: Optional[str] = None
     stereotype: str = Field(description="@RestController, @Service, @Repository, @Entity, @RestControllerAdvice")
     responsibilities: List[str] = Field(description="Primary responsibilities")
     dependencies: List[str] = Field(description="Components this component depends on (must be strictly downward)")
@@ -194,6 +195,8 @@ def generate_mermaid_flowchart(
         LayerType.REPOSITORY: ("Persistence", "Capa Repositorio (Spring Data JPA)"),
         LayerType.MODEL: ("Domain", "Capa Dominio & Modelos"),
         LayerType.INFRASTRUCTURE: ("Infrastructure", "Componentes Transversales & Soporte"),
+        LayerType.DOMAIN: ("HexDomain", "Dominio y puertos"),
+        LayerType.APPLICATION: ("Application", "Casos de uso"),
     }
 
     comp_by_layer: Dict[LayerType, List[ComponentDefinition]] = {l: [] for l in LayerType}
@@ -330,6 +333,16 @@ def design_architecture(
         "4. REST ENDPOINTS: Derive endpoints from Given/When/Then scenarios with Java Record DTOs (Create*Request, *Response) and HTTP status codes."
     )
 
+    if "hex" in (request.architecturePreference or "").lower():
+        system_prompt = (
+            "Design a hexagonal Spring Boot architecture from the supplied requirements. "
+            "Use domain/model and domain/port for domain and ports, application/service for use cases, "
+            "application/dto for records, infrastructure/adapter/in for REST, infrastructure/adapter/out "
+            "for persistence adapters, and infrastructure/persistence for JPA entities. "
+            "Use layers domain, application and infrastructure. Include full packageName per component. "
+            "Dependencies point toward domain interfaces. Derive endpoints, HTTP statuses and DTOs from actual stories."
+        )
+
     content_summary = (
         f"Service Name: {request.draft.serviceName}\n"
         f"Package Name: {request.draft.packageName}\n"
@@ -348,7 +361,7 @@ def design_architecture(
     components: List[ComponentDefinition] = []
     for c in llm_payload.components:
         layer_enum = LayerType(c.layer.lower()) if c.layer.lower() in [l.value for l in LayerType] else LayerType.SERVICE
-        pkg = f"{request.draft.packageName}.{layer_enum.value}"
+        pkg = c.packageName or f"{request.draft.packageName}.{layer_enum.value}"
         components.append(ComponentDefinition(
             name=c.name,
             layer=layer_enum,
@@ -455,7 +468,7 @@ def refine_architecture(
     components: List[ComponentDefinition] = []
     for c in llm_payload.components:
         layer_enum = LayerType(c.layer.lower()) if c.layer.lower() in [l.value for l in LayerType] else LayerType.SERVICE
-        pkg = f"{request.currentDesign.packageName}.{layer_enum.value}"
+        pkg = c.packageName or f"{request.currentDesign.packageName}.{layer_enum.value}"
         components.append(ComponentDefinition(
             name=c.name,
             layer=layer_enum,

@@ -2,10 +2,14 @@ import axios from 'axios';
 
 // Ephemeral in-memory storage for LLM credentials (Constitution Principle VI)
 let ephemeralApiKey: string = '';
+let ephemeralModel = '';
+let activeSessionForApi: string | null = null;
+export const setActiveSessionForApi = (sessionId: string | null) => { activeSessionForApi = sessionId; };
 let ephemeralProvider: string = 'mock';
 
-export const setEphemeralLlmCredentials = (apiKey: string, provider: string) => {
+export const setEphemeralLlmCredentials = (apiKey: string, provider: string, model: string = '') => {
   ephemeralApiKey = apiKey || '';
+  ephemeralModel = model;
   ephemeralProvider = provider || 'mock';
 };
 
@@ -16,6 +20,7 @@ export const getEphemeralLlmCredentials = () => ({
 
 export const apiClient = axios.create({
   baseURL: '/api/v1',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,17 +39,10 @@ apiClient.interceptors.request.use((config) => {
   if (ephemeralProvider) {
     config.headers['X-LLM-Provider'] = ephemeralProvider;
   }
-  const userStr = localStorage.getItem('agentia_user');
-  if (userStr) {
-    try {
-      const u = JSON.parse(userStr);
-      if (u?.email) {
-        config.headers['X-User-Email'] = u.email;
-      }
-    } catch {
-      // ignore parsing failure
-    }
+  if (ephemeralModel && config.data && typeof config.data === 'object' && !('modelName' in config.data)) {
+    config.data.modelName = ephemeralModel;
   }
+  if (activeSessionForApi) config.headers['X-Session-ID'] = activeSessionForApi;
   return config;
 });
 

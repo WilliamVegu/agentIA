@@ -498,7 +498,7 @@ def detail_session():
         db.close()
 
 
-def test_session_detail_exposes_the_marking_across_a_restart(detail_session):
+def test_session_detail_exposes_the_marking_across_a_restart(detail_session, authenticated_client):
     """The marking is read back through a FRESH connection, so it is persisted.
 
     Uses a separate session/engine read rather than the object that wrote it: an
@@ -517,22 +517,22 @@ def test_session_detail_exposes_the_marking_across_a_restart(detail_session):
     finally:
         db.close()
 
-    response = TestClient(_app).get(f"/api/v1/sessions/{detail_session}")
+    response = authenticated_client.get(f"/api/v1/sessions/{detail_session}")
 
     assert response.status_code == 200
     assert response.json()["verificationFallbackUsed"] is True
     assert response.json()["errorMessage"] is None
 
 
-def test_session_detail_reports_false_without_metrics(detail_session):
+def test_session_detail_reports_false_without_metrics(detail_session, authenticated_client):
     """A session predating the column is a data gap, not a server error."""
-    response = TestClient(_app).get(f"/api/v1/sessions/{detail_session}")
+    response = authenticated_client.get(f"/api/v1/sessions/{detail_session}")
 
     assert response.status_code == 200, "a session without metrics broke the detail endpoint"
     assert response.json()["verificationFallbackUsed"] is False
 
 
-def test_session_detail_reports_false_on_unparseable_metrics(detail_session):
+def test_session_detail_reports_false_on_unparseable_metrics(detail_session, authenticated_client):
     """Corrupt metrics must degrade to False, never raise."""
     db = SessionLocal()
     try:
@@ -542,7 +542,7 @@ def test_session_detail_reports_false_on_unparseable_metrics(detail_session):
     finally:
         db.close()
 
-    response = TestClient(_app).get(f"/api/v1/sessions/{detail_session}")
+    response = authenticated_client.get(f"/api/v1/sessions/{detail_session}")
 
     assert response.status_code == 200
     assert response.json()["verificationFallbackUsed"] is False
@@ -678,3 +678,16 @@ async def test_sc003_real_build_pass_and_fail(monkeypatch, tmp_path):
     assert failing.fallback_used is False, "a real build was reported as a fallback"
     assert failing.exit_code != 0, "a failing test was reported as a pass"
     assert failing.is_success is False
+
+
+@pytest.fixture
+def authenticated_client(monkeypatch):
+    import secrets
+    password = secrets.token_urlsafe(32)
+    monkeypatch.setenv("STUDIO_ACCESS_TOKEN", password)
+    monkeypatch.setenv("STUDIO_USER_EMAIL", "test@example.test")
+    client = TestClient(_app)
+    response = client.post("/api/v1/auth/login", json={"email": "test@example.test", "password": password})
+    assert response.status_code == 200
+    yield client
+    client.post("/api/v1/auth/logout")

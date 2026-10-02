@@ -1,3 +1,4 @@
+from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed
 import io
 import uuid
 from pathlib import Path
@@ -194,6 +195,7 @@ async def stream_pipeline_progress(session_id: str):
 async def export_bundle_archive(session_id: str):
     """Downloads all workspace artifacts in a unified ZIP archive."""
     sess = _verify_session_exists(session_id)
+    require_verified_session(sess)
     from app.models.session import SessionStatus
     if getattr(sess, "status", None) == SessionStatus.BLOCKED:
         raise HTTPException(

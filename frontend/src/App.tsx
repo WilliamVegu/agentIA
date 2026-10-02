@@ -9,7 +9,11 @@ import { WorkspaceRouter } from './views/WorkspaceRouter';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center" role="status">Abriendo el estudio…</div>;
+  }
 
   if (!isAuthenticated) {
     return <LoginView />;

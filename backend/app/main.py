@@ -38,6 +38,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.services.auth_service import router as auth_router, authenticated_user
+app.include_router(auth_router, prefix="/api/v1")
+
+@app.middleware("http")
+async def require_authentication(request: Request, call_next):
+    if request.url.path.startswith("/api/v1/") and request.method != "OPTIONS":
+        public = {"/api/v1/auth/login", "/api/v1/auth/mvp", "/api/v1/auth/session", "/api/v1/auth/logout"}
+        if request.url.path not in public:
+            user = authenticated_user(request)
+            if user is None:
+                return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+            request.state.user = user
+    session_id = request.headers.get("X-Session-ID")
+    guided = request.method == "POST" and request.url.path.startswith(("/api/v1/requirements/", "/api/v1/architecture/", "/api/v1/models/"))
+    if session_id and guided:
+        from app.services.workspace_guard import get_validated_workspace_path
+        from app.cost.recording import recording_context
+        from fastapi import HTTPException
+        try:
+            get_validated_workspace_path(session_id, require_exists=True)
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        with recording_context(session_id, "GUIDED_" + request.url.path.rsplit("/", 1)[-1].upper()):
+            response = await call_next(request)
+        from app.models.session import SessionLocal, GenerationSessionDB
+        from app.api.routes_session import _record_session_cost
+        db = SessionLocal()
+        try:
+            row = db.get(GenerationSessionDB, session_id)
+            if row:
+                _record_session_cost(session_id, row.status.value, db_sess=row, db=db)
+        finally:
+            db.close()
+        return response
+    return await call_next(request)
+
 # Centralized Error Handlers (Constitution Principle III)
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

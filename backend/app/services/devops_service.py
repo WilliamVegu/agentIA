@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from app.models.devops import DatabaseEngine, DevOpsManifestBundle
 
 
-def generate_dockerfile(service_name: str = "microservice") -> str:
+def generate_dockerfile(service_name: str = "microservice", build_tool: str = "maven") -> str:
     """Generates an optimized, multi-stage Dockerfile based on Eclipse Temurin JRE 21 LTS using Spring Boot layertools."""
-    return f"""# ==============================================================================
+    content = f"""# ==============================================================================
 # Multi-Stage Layered Dockerfile for Spring Boot 3 / Java 21 LTS
 # Hermetic & Non-Root Execution (Constitution Principles IV & VI)
 # ==============================================================================
@@ -64,6 +64,15 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \\
 # Launch using Spring Boot JarLauncher
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
 """
+    if build_tool == "gradle":
+        content = content.replace("maven:3.9-eclipse-temurin-21-alpine", "gradle:8-jdk21")
+        content = content.replace("builder-mvn", "builder-gradle")
+        content = content.replace("COPY pom.xml .", "COPY . .")
+        content = content.replace("RUN mvn clean package -Dmaven.test.skip=true", "RUN gradle --no-daemon clean bootJar -x test")
+        content = content.replace("/workspace/target/*.jar", "/workspace/build/libs/*.jar")
+    return content
+
+
 
 
 def generate_dockerignore() -> str:
@@ -72,6 +81,8 @@ def generate_dockerignore() -> str:
 .gitignore
 .dockerignore
 target/
+build/
+.gradle/
 *.log
 *.class
 *.jar
@@ -102,7 +113,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: {service_name}
     ports:
       - "{host_port}:8080"
     environment:
@@ -126,7 +136,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: {service_name}
     ports:
       - "{host_port}:8080"
     environment:
@@ -147,7 +156,6 @@ services:
 
   db:
     image: mysql:8.0-debian
-    container_name: {service_name}-mysql
     ports:
       - "3306:3306"
     environment:
@@ -181,7 +189,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: {service_name}
     ports:
       - "{host_port}:8080"
     environment:
@@ -217,7 +224,6 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: {service_name}-postgres
     ports:
       - "5432:5432"
     environment:
@@ -512,7 +518,8 @@ def generate_all_devops_assets(
     ws.mkdir(parents=True, exist_ok=True)
 
     # 1. Dockerfile & .dockerignore
-    dockerfile = generate_dockerfile(service_name)
+    build_tool = "gradle" if (ws / "build.gradle").exists() or (ws / "build.gradle.kts").exists() else "maven"
+    dockerfile = generate_dockerfile(service_name, build_tool)
     dockerignore = generate_dockerignore()
     (ws / "Dockerfile").write_text(dockerfile, encoding="utf-8")
     (ws / ".dockerignore").write_text(dockerignore, encoding="utf-8")
@@ -544,6 +551,22 @@ def generate_all_devops_assets(
             pom_text = pom_text.replace("</dependencies>", injection, 1)
             pom_path.write_text(pom_text, encoding="utf-8")
 
+    if build_tool == "gradle":
+        gradle_file = ws / ("build.gradle.kts" if (ws / "build.gradle.kts").exists() else "build.gradle")
+        text = gradle_file.read_text(encoding="utf-8")
+        dependencies = []
+        kotlin = gradle_file.suffix == ".kts"
+        def dependency(kind, coordinate):
+            return f'    {kind}("{coordinate}")' if kotlin else f"    {kind} '{coordinate}'"
+        if "spring-boot-starter-actuator" not in text:
+            dependencies.append(dependency("implementation", "org.springframework.boot:spring-boot-starter-actuator"))
+        if db_engine.upper() == "POSTGRESQL" and "org.postgresql" not in text:
+            dependencies.append(dependency("runtimeOnly", "org.postgresql:postgresql"))
+        if db_engine.upper() == "MYSQL" and "com.mysql" not in text:
+            dependencies.append(dependency("runtimeOnly", "com.mysql:mysql-connector-j"))
+        if dependencies:
+            gradle_file.write_text(text + "\ndependencies {\n" + "\n".join(dependencies) + "\n}\n", encoding="utf-8")
+
     # 2. docker-compose.yml
     compose = generate_docker_compose(service_name, db_engine, host_port)
     (ws / "docker-compose.yml").write_text(compose, encoding="utf-8")
@@ -551,6 +574,11 @@ def generate_all_devops_assets(
     # 3. CI/CD Workflows
     github_actions = generate_github_actions(service_name)
     gitlab_ci = generate_gitlab_ci(service_name)
+    if build_tool == "gradle":
+        github_actions = github_actions.replace("mvn clean test -B", "gradle --no-daemon clean test").replace("mvn package -DskipTests -B", "gradle --no-daemon bootJar -x test").replace("cache: maven", "cache: gradle").replace("cache: 'maven'", "cache: 'gradle'").replace('cache: "maven"', 'cache: "gradle"')
+        github_actions = github_actions.replace('      - name: "Run Hermetic Maven Tests (Principle IV & Spec 005)"', '      - uses: gradle/actions/setup-gradle@v4\n        with:\n          gradle-version: "8"\n      - name: "Run Gradle Tests"').replace('      - name: "Package Application JAR"', '      - uses: gradle/actions/setup-gradle@v4\n        with:\n          gradle-version: "8"\n      - name: "Package Application JAR"')
+        gitlab_ci = gitlab_ci.replace("maven:3.9-eclipse-temurin-21", "gradle:8-jdk21").replace("mvn clean test -B", "gradle --no-daemon clean test").replace("target/", "build/")
+
 
     gh_dir = ws / ".github" / "workflows"
     gh_dir.mkdir(parents=True, exist_ok=True)

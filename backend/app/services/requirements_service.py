@@ -258,7 +258,7 @@ def transform_requirements(
             temperature=0.2,
         )
         if llm is None:
-            decomp = _generate_mock_decomposition(request.rawText, request.serviceName)
+            raise RuntimeError("The selected provider is unavailable")
         else:
 
             system_prompt = (

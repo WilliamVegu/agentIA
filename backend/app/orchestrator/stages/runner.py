@@ -99,6 +99,8 @@ STAGE_ARTIFACT_SCOPES: Mapping[str, Tuple[str, ...]] = {
         "src/main/java/*/model/entity/*.java",
         "src/main/java/*/model/dto/*.java",
         "src/main/java/*/domain/**",
+        "src/main/java/*/application/dto/**",
+        "src/main/java/*/infrastructure/persistence/**",
     ),
     "SERVICE": (
         "src/main/java/*/repository/*.java",
@@ -633,6 +635,9 @@ def render_stage_request(state: Mapping[str, Any], stage: str, instruction: str)
         truncated payload.
     """
     payload = build_stage_payload(state, stage)
+    from app.orchestrator.stages.architecture_profiles import is_hexagonal, hexagonal_instruction
+    if is_hexagonal(payload.get("architecture_preference")):
+        instruction = hexagonal_instruction(stage, instruction)
     request = (
         f"{_active_skill_prefix()}"
         f"{instruction}\n\n"
@@ -877,6 +882,36 @@ def out_of_scope_violations(
     )
 
 
+def architecture_profile_violations(candidate, stage, state):
+    from app.orchestrator.stages.architecture_profiles import is_hexagonal
+    payload = build_stage_payload(state, stage)
+    violations = []
+    def reject(path, message):
+        violations.append(ComplianceViolation(artifact_path=path, rule_id="ARCHITECTURE_PROFILE",
+            severity=SEVERITY_BLOCKING, message=message, suggested_fix="Follow the selected architecture and build-tool profile exactly.",
+            attribution=ATTRIBUTION_LOCAL, contributing_sources=("runner.architecture_profile_violations",)))
+    if is_hexagonal(payload.get("architecture_preference")):
+        base = "src/main/java/" + str(payload.get("package_name") or "").replace(".", "/") + "/"
+        import re
+        package = str(payload.get("package_name") or "")
+        for path, source in candidate.items():
+            imports = re.findall(r"^\s*import\s+(?:static\s+)?([\w.]+)", source, flags=re.MULTILINE)
+            if path.startswith(base + "domain/") and any(name.startswith((package + ".application.", package + ".infrastructure.", "org.springframework.", "jakarta.persistence.")) for name in imports):
+                reject(path, "Domain depends on application, infrastructure or persistence framework")
+            if path.startswith(base + "application/") and any(name.startswith(package + ".infrastructure.") for name in imports):
+                reject(path, "Application depends outward on infrastructure")
+            if any(path.startswith(base + folder + "/") for folder in ("model", "repository", "service", "controller", "exception")):
+                reject(path, "Layered package contradicts the requested hexagonal profile")
+        if stage == "DOMAIN" and payload.get("entities") and not any(path.startswith(base + "domain/") for path in candidate):
+            reject("<DOMAIN>", "Hexagonal domain objects and ports are missing")
+        if stage == "SERVICE" and payload.get("entities") and not any(path.startswith(base + "application/service/") for path in candidate):
+            reject("<SERVICE>", "Hexagonal application services are missing")
+    if stage == "SCAFFOLDER" and str(payload.get("build_tool_preference") or "").lower() == "gradle":
+        if "pom.xml" in candidate or not any(name in candidate for name in ("build.gradle", "build.gradle.kts")):
+            reject("<SCAFFOLDER>", "Gradle was requested, but its build contract is missing or replaced by Maven")
+    return tuple(violations)
+
+
 def partial_candidate_violations(
     candidate: Mapping[str, str], stage: str, state: Mapping[str, Any]
 ) -> Tuple[ComplianceViolation, ...]:
@@ -1118,6 +1153,7 @@ def _run_model_stage(
 
         extra: list = list(out_of_scope_violations(candidate, stage))
         extra.extend(partial_candidate_violations(candidate, stage, state))
+        extra.extend(architecture_profile_violations(candidate, stage, state))
         if stage == "SCAFFOLDER" and "pom.xml" in candidate:
             extra.extend(
                 check_dependency_allowlist(

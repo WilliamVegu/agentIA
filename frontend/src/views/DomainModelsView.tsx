@@ -46,7 +46,7 @@ export const DomainModelsView: React.FC = () => {
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey } = useLlm();
+  const { provider, apiKey, model } = useLlm();
 
   // Active state
   const [design, setDesign] = useState<any>(dataModelDesign || null);
@@ -149,6 +149,7 @@ export const DomainModelsView: React.FC = () => {
         draft: draftPayload,
         apiKey,
         provider,
+        modelName: model,
       });
       updateDesign(res);
       setFeedback('Modelos de dominio JPA y esquema SQL relacional sintetizados exitosamente.');
@@ -170,6 +171,7 @@ export const DomainModelsView: React.FC = () => {
         targetEntity: targetEntity === 'Todas las entidades' ? undefined : targetEntity,
         apiKey,
         provider,
+        modelName: model,
       });
       updateDesign(res);
       setIsRefining(false);

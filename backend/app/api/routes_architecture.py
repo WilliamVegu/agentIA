@@ -100,7 +100,8 @@ async def save_architecture_design(session_id: str, payload: dict):
     from pathlib import Path
     from app.config import settings
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     ws_path.mkdir(parents=True, exist_ok=True)
     (ws_path / "architecture.json").write_text(
         json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8"

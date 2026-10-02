@@ -140,12 +140,13 @@ export const RequirementsView: React.FC = () => {
     reloadCurrentOverview,
     setActiveTab,
     setCurrentDraft,
+    currentDraft,
     setCurrentSpecId,
     setParsedSpec,
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey } = useLlm();
+  const { provider, apiKey, model } = useLlm();
 
   const [promptText, setPromptText] = useState('');
   const [stories, setStories] = useState<BddStory[]>([]);
@@ -174,6 +175,7 @@ export const RequirementsView: React.FC = () => {
           setPromptText('');
         }
         if (data.hasDraft && data.draft) {
+          setCurrentDraft(data.draft);
           if (data.draft.entities && Array.isArray(data.draft.entities)) {
             setEntities(data.draft.entities);
           } else {
@@ -208,8 +210,10 @@ export const RequirementsView: React.FC = () => {
         serviceName: activeSession?.specName || undefined,
         apiKey,
         provider,
+        modelName: model,
       });
 
+      setCurrentDraft(res);
       let nextEntities = entities;
       if (res?.entities && Array.isArray(res.entities) && res.entities.length > 0) {
         nextEntities = res.entities;
@@ -278,8 +282,10 @@ export const RequirementsView: React.FC = () => {
         refinementPrompt: refinePrompt,
         apiKey,
         provider,
+        modelName: model,
       });
 
+      setCurrentDraft(res);
       let nextEntities = entities;
       if (res?.entities && Array.isArray(res.entities) && res.entities.length > 0) {
         nextEntities = res.entities;
@@ -442,9 +448,11 @@ export const RequirementsView: React.FC = () => {
     const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
 
     const draftObj = {
+      ...(currentDraft || {}),
       serviceName: rawServiceName,
-      packageName: cleanPackage,
-      basePort: 8080,
+      packageName: currentDraft?.packageName || cleanPackage,
+      basePort: currentDraft?.basePort || 8080,
+      markdownSpec: undefined,
       entities: normalizedEntities,
       userStories: stories.map((s, idx) => ({
         id: s.id || `US-${idx + 1}`,

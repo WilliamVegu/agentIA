@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -601,9 +602,9 @@ class ModelSqlService:
                         draft_copy = draft.model_copy(update={"entities": enriched_entities})
                         return _mock_domain_model_response(draft_copy)
 
-            return _mock_domain_model_response(draft)
-        except Exception:
-            return _mock_domain_model_response(draft)
+            raise RuntimeError("The selected provider returned no domain entities")
+        except Exception as exc:
+            raise RuntimeError("Domain model synthesis failed with the selected provider") from exc
 
     def refine_domain_models_and_sql(
         self,
@@ -617,6 +618,19 @@ class ModelSqlService:
         """Apply user feedback to adjust models, attributes, constraints, or relationships."""
         from app.services.injection_guard import assert_no_injection
         assert_no_injection(feedback_prompt, field="domain model refinement feedback")
+
+        if not LLMFactory.is_mock(api_key, provider):
+            from langchain_core.messages import SystemMessage, HumanMessage
+            from app.services.structured_output import invoke_structured
+            llm = LLMFactory.get_chat_model(api_key=api_key, provider=provider, model_name=model_name, temperature=0.2)
+            if llm is None:
+                raise RuntimeError("Selected provider is unavailable")
+            refined = invoke_structured(llm, DataModelSynthesisResponse, [
+                SystemMessage(content="Refine the supplied domain model using the feedback. Preserve unaffected entities, identifier types and unique constraints. Regenerate consistent JPA classes, SQL and ER diagram. Return the complete structured response."),
+                HumanMessage(content=json.dumps({"currentModel": current_response.model_dump(mode="json"), "feedback": feedback_prompt, "targetEntity": target_entity}))])
+            if not refined or not refined.entities:
+                raise RuntimeError("The selected provider returned no refined entities")
+            return refined
 
         entities = [DomainEntityDefinition(**e.model_dump()) for e in current_response.entities]
 

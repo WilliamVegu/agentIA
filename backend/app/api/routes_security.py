@@ -60,7 +60,8 @@ async def audit_session_workspace(session_id: str):
     finally:
         db.close()
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

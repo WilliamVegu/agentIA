@@ -15,7 +15,7 @@ export interface SessionListItem {
   sessionId: string;
   specId: string;
   specName: string;
-  status: 'CREATED' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED';
+  status: 'CREATED' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'PAUSED' | 'CANCELLED';
   phase?: string;
   currentLifecyclePhase: string;
   lifecycleMode: string;

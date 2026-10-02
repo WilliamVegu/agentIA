@@ -4,6 +4,7 @@ export interface ArchitectureDesignPayload {
   draft: any;
   apiKey?: string;
   provider?: string;
+  modelName?: string;
 }
 
 export interface ArchitectureRefinePayload {
@@ -12,6 +13,7 @@ export interface ArchitectureRefinePayload {
   targetComponent?: string;
   apiKey?: string;
   provider?: string;
+  modelName?: string;
 }
 
 export const architectureService = {

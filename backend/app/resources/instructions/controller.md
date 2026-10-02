@@ -37,6 +37,21 @@ microservice. Automated compliance validation runs before anything you write is 
 - **Validation**: request bodies are validated declaratively at the boundary, so an invalid
   payload is rejected before it reaches the service layer.
 
+
+### Requested architecture profile
+
+The task payload's architecture_preference takes precedence over the default layered paths above.
+For hexagonal / ports-and-adapters use domain/model for domain types, domain/port for interfaces,
+application/dto for immutable contracts, application/service for use cases, infrastructure/persistence
+for JPA entities, infrastructure/adapter/out for repository adapters, and infrastructure/adapter/in
+for REST controllers and exception handling. Domain and application depend on ports, never on
+Spring Data repositories or infrastructure. The SERVICE stage implements ports and outgoing adapters;
+the DOMAIN stage owns domain types, ports, DTOs and persistence entities. Reuse all prior artifacts and
+respect the selected identifier types. Tests must reference these actual package names.
+For layered architecture retain the default output contract. Never substitute layered packages for a
+requested hexagonal architecture. For Gradle use build.gradle/build.gradle.kts, never require pom.xml.
+
+
 ## Rules
 
 1. Read the blueprint payload and the artifacts already produced by the earlier stages. Use

@@ -1,3 +1,4 @@
+import { setActiveSessionForApi } from '../services/apiClient';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { SessionListItem, sessionService } from '../services/sessionService';
 import { orchestratorService, ProjectOverview } from '../services/orchestratorService';
@@ -45,6 +46,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentSpecId, setCurrentSpecId] = useState<string | null>(null);
   const [parsedSpec, setParsedSpec] = useState<any | null>(null);
   const initialLoadDone = useRef(false);
+  useEffect(() => { setActiveSessionForApi(activeSessionId); }, [activeSessionId]);
 
   const refreshSessions = useCallback(async () => {
     try {

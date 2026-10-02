@@ -4,6 +4,7 @@ export interface ModelSqlGeneratePayload {
   draft: any;
   apiKey?: string;
   provider?: string;
+  modelName?: string;
 }
 
 export interface ModelSqlRefinePayload {

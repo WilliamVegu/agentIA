@@ -67,19 +67,25 @@ export const DEFAULT_MODELS: Record<LlmProviderType, string> = {
 const LlmContext = createContext<LlmContextType | undefined>(undefined);
 
 export const LlmProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [provider, setProviderState] = useState<LlmProviderType>('mock');
+  const [provider, setProviderState] = useState<LlmProviderType>('deepseek');
   const [apiKey, setApiKeyState] = useState<string>('');
-  const [model, setModelState] = useState<string>(DEFAULT_MODELS.mock);
-  const [isVerified, setIsVerified] = useState<boolean>(true);
+  const [model, setModelState] = useState<string>(DEFAULT_MODELS.deepseek);
+  const [isVerified, setIsVerified] = useState<boolean>(false);
   const [latencyMs, setLatencyMs] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>(
-    'Modo offline (Mock Engine) activo. Generación sintética local sin consumo de red.'
+    'Configure la clave y verifique la conexión con DeepSeek.'
   );
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
 
   useEffect(() => {
-    setEphemeralLlmCredentials(apiKey, provider);
-  }, [apiKey, provider]);
+    setEphemeralLlmCredentials(apiKey, provider, model);
+  }, [apiKey, provider, model]);
+
+  useEffect(() => {
+    const clearCredentials = () => { setApiKeyState(''); setIsVerified(false); setStatusMessage('Ingrese su clave para verificar la conexión.'); };
+    window.addEventListener('agentia:logout', clearCredentials);
+    return () => window.removeEventListener('agentia:logout', clearCredentials);
+  }, []);
 
   const setProvider = (p: LlmProviderType) => {
     setProviderState(p);

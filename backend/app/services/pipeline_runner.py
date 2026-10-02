@@ -1,3 +1,4 @@
+from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed, workspace_fingerprint, session_has_current_evidence
 import json
 import queue
 import threading
@@ -140,7 +141,7 @@ def get_pipeline_status(session_id: str) -> PipelineRunStatus:
 
 def pause_pipeline(session_id: str) -> bool:
     """Signals an active Auto-Pilot thread to pause cooperatively and switch to Guided Step mode."""
-    if session_id not in _pause_events:
+    if session_id not in _pause_events or not _active_threads.get(session_id) or not _active_threads[session_id].is_alive():
         return False
 
     _pause_events[session_id].set()
@@ -162,6 +163,11 @@ def pause_pipeline(session_id: str) -> bool:
 
 def resume_pipeline(session_id: str) -> bool:
     """Resumes a paused Auto-Pilot pipeline."""
+    previous = _active_threads.get(session_id)
+    if previous and previous.is_alive():
+        previous.join(timeout=1.0)
+        if previous.is_alive():
+            return False
     db = SessionLocal()
     try:
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
@@ -171,11 +177,6 @@ def resume_pipeline(session_id: str) -> bool:
             db.commit()
     finally:
         db.close()
-
-    # Wait briefly if the previous thread is still unwinding from pause
-    t = _active_threads.get(session_id)
-    if t and t.is_alive():
-        t.join(timeout=1.0)
 
     creds = _session_credentials.get(session_id, {})
     return run_pipeline(
@@ -247,19 +248,24 @@ def _record_pipeline_cost(
 
 
 def _complete_target_phase(session_id: str, phase: LifecyclePhase, target_phase_label: str) -> None:
-    """Updates session status to COMPLETED and aggregates cost on target_phase early exit (H21, H23)."""
+    """Finish the requested run; keep unverified partial projects paused."""
     _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
     _emit_event(session_id, phase, "Meta Alcanzada", 100.0, f"Auto-Pilot completó la fase objetivo: {target_phase_label}", PhaseStatus.COMPLETED)
+    verified = False
     db = SessionLocal()
     try:
         s = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if s:
-            s.status = SessionStatus.COMPLETED
-            s.completed_at = datetime.now(timezone.utc)
+            verified = session_has_current_evidence(s)
+            s.status = SessionStatus.COMPLETED if verified else SessionStatus.PAUSED
+            if verified:
+                s.phase = SessionPhase.VERIFIED
+            s.current_lifecycle_phase = phase.value
+            s.completed_at = datetime.now(timezone.utc) if verified else None
             db.commit()
     finally:
         db.close()
-    _record_pipeline_cost(session_id, terminal_status="COMPLETED")
+    _record_pipeline_cost(session_id, terminal_status="COMPLETED" if verified else "PAUSED")
 
 
 
@@ -380,10 +386,13 @@ def _execute_pipeline_steps(
 
     pause_event = _pause_events[session_id]
     stop_event = _stop_events[session_id]
+    slot_acquired = False
 
     try:
         from app.services.queue_service import queue_manager
-        queue_manager.acquire_slot_sync(session_id)
+        if not queue_manager.acquire_slot_sync(session_id, stop_event):
+            return
+        slot_acquired = True
 
         # Everything below sits inside the handler, including the mode decision and the
         # instruction-set load. It used to start after them, so a failure there -- an
@@ -496,13 +505,13 @@ def _execute_pipeline_steps(
         # Step 3: Architecture Blueprint
         if pause_event.is_set() or stop_event.is_set():
             return
-        _emit_event(session_id, LifecyclePhase.ARCHITECTURE, "Diseño Arquitectónico", 45.0, f"Generando blueprint en 4 capas estrictas y catálogo DTO [{llm_label}]...", PhaseStatus.IN_PROGRESS)
+        _emit_event(session_id, LifecyclePhase.ARCHITECTURE, "Diseño Arquitectónico", 45.0, f"Generando topología solicitada y catálogo DTO [{llm_label}]...", PhaseStatus.IN_PROGRESS)
         arch_file = ws_path / "architecture.json"
         if not arch_file.exists():
             if api_key and not LLMFactory.is_mock(api_key, provider):
                 # Model mode: the LLM must produce the architecture. No silent
                 # hardcoded fallback -- let it raise so the pipeline blocks.
-                arch_req = ArchitectureDesignRequest(draft=draft, apiKey=api_key, provider=provider)
+                arch_req = ArchitectureDesignRequest(draft=draft, apiKey=api_key, provider=provider, modelName=model_name, architecturePreference=(input_interface or {}).get("architecturePreference"))
                 arch_resp = design_architecture(arch_req, api_key=api_key, provider=provider)
                 arch_data = arch_resp.model_dump()
             else:
@@ -526,7 +535,7 @@ def _execute_pipeline_steps(
         sql_file = ws_path / "schema.sql"
         if not sql_file.exists():
             try:
-                sql_resp = model_sql_service.synthesize_domain_models_and_sql(draft, api_key=api_key or "mock-key", provider=provider or "mock")
+                sql_resp = model_sql_service.synthesize_domain_models_and_sql(draft, api_key=api_key, provider=provider, model_name=model_name)
                 with open(sql_file, "w", encoding="utf-8") as f:
                     f.write(sql_resp.sqlSchema.schemaDdl)
                 data_sql_file = ws_path / "data.sql"
@@ -538,10 +547,7 @@ def _execute_pipeline_steps(
                     with open(model_file, "w", encoding="utf-8") as f:
                         json.dump(sql_resp.model_dump(), f, indent=2)
             except Exception as exc:
-                print(f"[WARN] schema synthesis failed ({exc}); deriving DDL from the blueprint")
-                fallback_ddl = schema_sql_from_draft(draft)
-                with open(sql_file, "w", encoding="utf-8") as f:
-                    f.write(fallback_ddl)
+                raise RuntimeError("Schema synthesis failed with the selected provider") from exc
         transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.DATA_MODEL):
@@ -636,6 +642,7 @@ def _execute_pipeline_steps(
             78.0, "Compilando y ejecutando la suite en el sandbox offline (mvn test -o)...",
             PhaseStatus.IN_PROGRESS,
         )
+        generate_all_devops_assets(str(ws_path), session_id, service_name=spec_name)
         verification_logs: List[str] = []
         try:
             verification = run_workspace_verification(
@@ -669,7 +676,10 @@ def _execute_pipeline_steps(
                 "fallback_used": bool(verification.result.fallback_used),
                 "fallback_reason": verification.result.fallback_reason,
                 "platformContractTestInjected": verification.platform_verified,
+                "workspaceFingerprint": workspace_fingerprint(ws_path),
             }
+
+        build_success = build_success and tests_really_passed(test_metrics)
 
         # Persist onto the session row, so the detail endpoint can report whether
         # verification actually ran even after a restart (feature 012, T019).
@@ -699,12 +709,12 @@ def _execute_pipeline_steps(
                 else ("Sandbox Docker no disponible; verificación no ejecutada" if (verification and verification.result.fallback_used)
                 else "La compilación o las pruebas fallaron en el sandbox hermético")
             ),
-            PhaseStatus.COMPLETED if (build_success or (verification and verification.result.fallback_used)) else PhaseStatus.BLOCKED,
-            error=None if (build_success or (verification and verification.result.fallback_used)) else "Hermetic verification failed.",
+            PhaseStatus.COMPLETED if build_success else PhaseStatus.BLOCKED,
+            error=None if build_success else "Hermetic verification failed.",
         )
         time.sleep(0.2)
 
-        if not build_success and not (verification and verification.result.fallback_used):
+        if not build_success:
             _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
             db_fail = SessionLocal()
             try:
@@ -754,6 +764,16 @@ def _execute_pipeline_steps(
                 error=audit.qualityGate.summaryMessage,
             )
             _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
+            db_gate = SessionLocal()
+            try:
+                row = db_gate.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
+                if row:
+                    row.status = SessionStatus.BLOCKED
+                    row.error_message = audit.qualityGate.summaryMessage
+                    db_gate.commit()
+            finally:
+                db_gate.close()
+            _record_pipeline_cost(session_id, terminal_status="BLOCKED")
             return
 
         transition_phase(session_id, LifecyclePhase.SECURITY_AUDIT, force=True)
@@ -835,16 +855,31 @@ def _execute_pipeline_steps(
     finally:
         try:
             from app.services.queue_service import queue_manager
-            queue_manager.release_slot_sync(session_id)
+            if slot_acquired:
+                queue_manager.release_slot_sync(session_id)
         except Exception:
             pass
         if stop_event.is_set():
+            db_cancel = SessionLocal()
+            try:
+                row = db_cancel.get(GenerationSessionDB, session_id)
+                if row:
+                    row.status = SessionStatus.CANCELLED
+                    db_cancel.commit()
+            finally:
+                db_cancel.close()
             _emit_event(session_id, LifecyclePhase.COMPLETED, "Cancel", 0.0, "Pipeline cancelado por el usuario.", PhaseStatus.BLOCKED)
             _pipeline_statuses[session_id] = PipelineRunStatus.CANCELLED
             _record_pipeline_cost(session_id, terminal_status="CANCELLED")
         elif pause_event.is_set():
             _emit_event(session_id, LifecyclePhase.INITIAL, "Pausa", 0.0, "Pipeline pausado cooperativamente. Se mantiene el progreso alcanzado.", PhaseStatus.IN_PROGRESS)
             _pipeline_statuses[session_id] = PipelineRunStatus.PAUSED
+
+
+def _execute_pipeline_with_cost(session_id, *args):
+    from app.cost.recording import recording_context
+    with recording_context(session_id, "AUTOPILOT"):
+        return _execute_pipeline_steps(session_id, *args)
 
 
 def run_pipeline(
@@ -860,7 +895,7 @@ def run_pipeline(
 ) -> bool:
     """Initiates an asynchronous background thread for autonomous Auto-Pilot execution."""
     t = _active_threads.get(session_id)
-    if not force and t and t.is_alive() and _pipeline_statuses.get(session_id) == PipelineRunStatus.RUNNING:
+    if t and t.is_alive():
         return False
 
     if api_key or provider or model_name or input_interface is not None:
@@ -881,6 +916,8 @@ def run_pipeline(
 
     input_interface = input_interface if input_interface is not None else _session_credentials.get(session_id, {}).get("input_interface")
 
+    from app.services.queue_service import queue_manager
+    queue_manager.reset_cancellation(session_id)
     _pause_events[session_id] = threading.Event()
     _stop_events[session_id] = threading.Event()
     _pipeline_statuses[session_id] = PipelineRunStatus.RUNNING
@@ -899,7 +936,7 @@ def run_pipeline(
         db.close()
 
     thread = threading.Thread(
-        target=_execute_pipeline_steps,
+        target=_execute_pipeline_with_cost,
         args=(session_id, target_phase, stop_on_gate, auto_deploy, api_key, provider, model_name, input_interface),
         daemon=True,
     )

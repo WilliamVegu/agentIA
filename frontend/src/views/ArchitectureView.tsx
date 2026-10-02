@@ -44,7 +44,7 @@ export const ArchitectureView: React.FC = () => {
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey } = useLlm();
+  const { provider, apiKey, model } = useLlm();
 
   // Active design or null if not yet synthesized
   const [design, setDesign] = useState<any>(architectureDesign || null);
@@ -138,6 +138,7 @@ export const ArchitectureView: React.FC = () => {
         draft: draftPayload,
         apiKey,
         provider,
+        modelName: model,
       });
       updateDesign(res);
       setFeedback('Diseño arquitectónico y componentes sintetizados exitosamente.');
@@ -159,6 +160,7 @@ export const ArchitectureView: React.FC = () => {
         targetComponent: targetComponent === 'GLOBAL' ? undefined : targetComponent,
         apiKey,
         provider,
+        modelName: model,
       });
       updateDesign(res);
       setIsRefining(false);
@@ -208,6 +210,7 @@ export const ArchitectureView: React.FC = () => {
         draft: draftPayload,
         apiKey,
         provider,
+        modelName: model,
       });
       setDataModelDesign(res);
       if (activeSessionId) {
@@ -323,7 +326,7 @@ export const ArchitectureView: React.FC = () => {
       {/* Top Banner Card */}
       <SingleRowCard
         title="Fase 2: Diseño Arquitectónico & Catálogo de Componentes"
-        subtitle="Topología en 4 capas estrictas (Controller ➔ Service ➔ Repository ➔ Model) con Java Records y @RestControllerAdvice"
+        subtitle="Topología y contratos derivados de los requisitos de la sesión"
         badge={
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
             Spring Boot 3.x / Java 21
@@ -384,7 +387,7 @@ export const ArchitectureView: React.FC = () => {
               Arquitectura no sintetizada para este microservicio
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Presione <strong className="text-slate-700 dark:text-slate-300">"Sintetizar con IA"</strong> para deducir automáticamente la topología en 4 capas (Controllers, Services, Repositories, JPA Entities), endpoints REST y contratos inmutables a partir de los requerimientos de la sesión activa.
+              Presione <strong className="text-slate-700 dark:text-slate-300">"Sintetizar con IA"</strong> para deducir automáticamente la topología, los componentes y sus dependencias, endpoints REST y contratos inmutables a partir de los requerimientos de la sesión activa.
             </p>
           </div>
           <div className="pt-2">
