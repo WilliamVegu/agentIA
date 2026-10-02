@@ -111,3 +111,87 @@ def test_an_unreachable_docker_degrades_to_not_deployed():
     """Recovery is read-only and best-effort: failure means "cannot establish", not an error."""
     with patch("app.services.docker_service.subprocess.run", side_effect=OSError("no docker")):
         assert docker_service._containers_for_session("anything") == []
+
+
+# ---------------------------------------------------------------------------
+# A port already published is a conflict the platform can name
+# ---------------------------------------------------------------------------
+def test_a_port_held_by_another_session_is_reported_before_anything_is_created(monkeypatch):
+    """The failure this replaces, verbatim from the daemon:
+
+        Error response from daemon: rootlessport listen tcp 0.0.0.0:8080: bind: address
+        already in use
+
+    Compose had already created the containers by then, so they sat in `Created` and the
+    operator was told nothing about which deployment held the port -- or that the answer is
+    to stop it or choose another. A second service cannot share 8080, and the platform knew
+    which session owned it.
+    """
+    monkeypatch.setattr(
+        "app.services.docker_service._port_holder",
+        lambda port: {"name": "help-desk", "session": "other-session"},
+    )
+    monkeypatch.setattr("app.services.docker_service.check_docker_daemon", lambda: True)
+
+    def _no_compose(*args, **kwargs):  # pragma: no cover - only runs on a regression
+        raise AssertionError("compose was invoked despite a known port conflict")
+
+    monkeypatch.setattr("app.services.docker_service.subprocess.Popen", _no_compose)
+
+    session = docker_service.deploy_local("mine", "/tmp/does-not-matter", host_port=8080)
+
+    assert session.status == DeploymentStatus.FAILED
+    assert session.containerId is None
+    assert "already published" in session.errorMessage
+    assert "help-desk" in session.errorMessage
+    assert "other-session" in session.errorMessage
+
+
+def test_a_container_this_session_already_owns_is_not_a_conflict(monkeypatch):
+    """A redeploy replaces its own container; it must not be refused as a conflict."""
+    monkeypatch.setattr(
+        "app.services.docker_service._port_holder",
+        lambda port: {"name": "mine-1", "session": "mine"},
+    )
+    monkeypatch.setattr("app.services.docker_service.check_docker_daemon", lambda: True)
+
+    session = docker_service.deploy_local("mine", "/tmp/does-not-matter", host_port=8080)
+
+    assert session.status != DeploymentStatus.FAILED
+
+
+@pytest.mark.parametrize("listing,port,expected", [
+    ("help-desk\t0.0.0.0:8080->8080/tcp\tsess-a", 8080, "help-desk"),
+    ("api\t0.0.0.0:9092->8080/tcp\tsess-b", 9092, "api"),
+    # Exposed but NOT published: not a conflict, nothing is bound on the host.
+    ("api\t8080/tcp\tsess-c", 8080, None),
+    ("other\t0.0.0.0:9999->8080/tcp\tsess-d", 8080, None),
+    ("", 8080, None),
+])
+def test_the_port_lookup_reads_the_published_side_only(monkeypatch, listing, port, expected):
+    """`docker ps --filter publish=<port>` is rejected by some daemons and returns empty,
+    which is indistinguishable from "no conflict". The listing format is stable."""
+    class _Done:
+        returncode = 0
+        stdout = listing
+
+    monkeypatch.setattr(
+        "app.services.docker_service.subprocess.run", lambda *a, **k: _Done()
+    )
+
+    holder = docker_service._port_holder(port)
+
+    assert (holder or {}).get("name") == expected
+
+
+def test_a_daemon_that_rejects_the_listing_yields_no_conflict(monkeypatch):
+    """Failing closed here would refuse every deployment on an unrecognised daemon."""
+    class _Done:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(
+        "app.services.docker_service.subprocess.run", lambda *a, **k: _Done()
+    )
+
+    assert docker_service._port_holder(8080) is None

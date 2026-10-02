@@ -1,5 +1,6 @@
 import os
 import queue
+import re
 import subprocess
 import threading
 import time
@@ -114,6 +115,39 @@ def _recover_deployment(session_id: str) -> "LocalDeploymentSession | None":
     return session
 
 
+
+def _port_holder(host_port: int) -> dict | None:
+    """The running container already publishing `host_port`, if any.
+
+    Read-only, and version-independent on purpose. The obvious `docker ps --filter
+    publish=<port>` is **not** accepted by every daemon -- this host answers "publish is an
+    invalid filter" -- and a filter that errors returns an empty result, which is
+    indistinguishable from "no conflict". The port mapping is parsed from the listing
+    instead, whose format is stable.
+
+    Returns the container's name and the compose project that owns it, so a conflict can
+    name the deployment responsible instead of surfacing a bare bind error.
+    """
+    try:
+        proc = subprocess.run(
+            ["docker", "ps", "--format",
+             '{{.Names}}\t{{.Ports}}\t{{.Label "com.docker.compose.project"}}'],
+            capture_output=True, text=True, timeout=3.0, check=False,
+        )
+        if proc.returncode != 0:
+            return None
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return None
+
+    # `0.0.0.0:8080->8080/tcp` -- match the PUBLISHED side only, or a container listening
+    # elsewhere and merely exposing 8080 would look like a conflict.
+    published = re.compile(rf"(?:^|,)\s*[\d.]+:{host_port}->")
+    for line in proc.stdout.strip().splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 2 and published.search(parts[1]):
+            return {"name": parts[0], "session": parts[2] if len(parts) > 2 else ""}
+    return None
+
 def get_deployment_status(session_id: str, host_port: int = 8080) -> LocalDeploymentSession:
     """Returns the current deployment tracking state for a session, actively checking actual container health."""
     session = _active_deployments.get(session_id)
@@ -202,7 +236,40 @@ def deploy_local(
         _log_message(session_id, "[ERROR] Docker daemon is unreachable. Local deployment disabled.")
         return session
 
-    # 2. Setup Active Deployment Tracking
+    # 2. Preventive Port Check.
+    #
+    # Without this, compose created the containers and only then discovered the port was
+    # taken, leaving them in `Created` and reporting the daemon's own words:
+    #
+    #     rootlessport listen tcp 0.0.0.0:8080: bind: address already in use
+    #
+    # which says nothing about WHICH deployment holds the port, or that the answer is to
+    # stop it or pick another one. A container this session already owns is not a conflict:
+    # that is a redeploy, and compose replaces it.
+    holder = _port_holder(host_port)
+    if holder and holder.get("session") != session_id:
+        owner = holder.get("session") or "another project"
+        session = LocalDeploymentSession(
+            sessionId=session_id,
+            status=DeploymentStatus.FAILED,
+            hostPort=host_port,
+            containerPort=8080,
+            errorMessage=(
+                f"Port {host_port} is already published by container "
+                f"'{holder['name']}' (session {owner}). Stop that deployment, or deploy "
+                f"this session on a different port."
+            ),
+            startedAt=datetime.now(timezone.utc).isoformat(),
+        )
+        _active_deployments[session_id] = session
+        _log_message(
+            session_id,
+            f"[ERROR] Port {host_port} is already in use by '{holder['name']}' "
+            f"(session {owner}). Nothing was created.",
+        )
+        return session
+
+    # 3. Setup Active Deployment Tracking
     session = LocalDeploymentSession(
         sessionId=session_id,
         status=DeploymentStatus.BUILDING,
@@ -216,7 +283,7 @@ def deploy_local(
 
     _log_message(session_id, f"[INFO] Initializing Docker Compose deployment for session {session_id} on port {host_port}...")
 
-    # 3. Spawn Background Execution Thread
+    # 4. Spawn Background Execution Thread
     def _run_compose():
         try:
             cmd = ["docker", "compose", "-p", session_id, "up", "-d"]

@@ -195,7 +195,8 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
         containerId: 'docker-container-abc123',
         dbEngine: 'POSTGRESQL',
         healthStatus: 'UP',
-        message: 'Contenedor Spring Boot 3 desplegado y saludable en el puerto 8080',
+        // `message` is not a field the API returns; the fixture asserted a shape the
+        // server never produces, which is how the always-undefined read went unnoticed.
       });
 
       renderWithProviders(<DevOpsDeploymentView />);

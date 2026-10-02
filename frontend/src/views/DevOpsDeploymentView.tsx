@@ -250,10 +250,33 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       const res = await devopsService.deployLocal(activeSessionId, hostPort, true);
       setDeployment(res);
-      setFeedback(res.message || '🚀 Contenedor levantado localmente en http://localhost:' + hostPort);
+      // The route answers 200 with a deployment record, so a FAILED deployment arrives
+      // HERE and never reaches the catch. This showed "🚀 Contenedor levantado
+      // localmente" for every outcome, because `message` is not a field on the model and
+      // the fallback asserted success.
+      const failed = res?.status === 'FAILED' || res?.status === 'DOCKER_UNAVAILABLE';
+      if (failed) {
+        setFeedback(
+          `❌ El despliegue no se completó. ${res?.errorMessage || 'Sin detalle del servidor.'}`,
+        );
+      } else {
+        // No `res.message`: the server does not send one, so the URL is stated from the
+        // record. A success message that cannot be absent is not a message.
+        setFeedback(
+          `🚀 Contenedor levantado localmente en http://localhost:${res?.hostPort ?? hostPort}`,
+        );
+      }
       await reloadCurrentOverview();
     } catch (err: any) {
-      setFeedback(err.response?.data?.detail || 'Modo degradado: Docker local no disponible. Manifiestos exportables listos.');
+      // Was a fixed "Docker local no disponible", claimed for ANY failure -- a port
+      // conflict, a build error, a timeout. It sends the operator to check whether Docker
+      // is installed and running, which it may well be: that question was asked because of
+      // this string. The server's own reason is reported instead.
+      const detail = err?.response?.data?.detail;
+      setFeedback(
+        (typeof detail === 'string' ? detail : detail?.message) ||
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setIsDeploying(false);
     }
@@ -569,6 +592,23 @@ export const DevOpsDeploymentView: React.FC = () => {
             >
               ⚙️ Generar Manifiestos DevOps
             </button>
+            {/* Without this, "deploy on a different port" was advice the UI could not
+                carry out: `hostPort` existed in state but was only ever set from the
+                server's last status, so every deployment competed for 8080 and the second
+                one could not start. */}
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              Puerto
+              <input
+                type="number"
+                min={1024}
+                max={65535}
+                value={hostPort}
+                onChange={(e) => setHostPort(Number(e.target.value) || 8080)}
+                disabled={isDeploying}
+                className="w-20 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none disabled:opacity-50"
+                title="Puerto del host donde se publicará el servicio"
+              />
+            </label>
             <button
               onClick={handleDeployLocal}
               disabled={isDeploying || isDockerUnavailable}

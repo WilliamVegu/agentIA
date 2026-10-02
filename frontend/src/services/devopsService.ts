@@ -1,15 +1,33 @@
 import apiClient from './apiClient';
 
+/**
+ * Mirrors the server's deployment record.
+ *
+ * It previously declared `serviceName`, `dbEngine` and `message`, none of which the API
+ * returns, and omitted `errorMessage`, which it does. The consequence was not cosmetic:
+ * the deploy handler read `res.message || '🚀 Contenedor levantado localmente'`, so the
+ * always-undefined `message` made the success fallback fire for **every** outcome,
+ * including a FAILED deployment. The failure text the server had written was never read.
+ *
+ * The two optional fields are kept because the UI displays them; they arrive only from
+ * endpoints that enrich the record, so their absence is now expressed in the type rather
+ * than hidden behind a plausible default.
+ */
 export interface LocalDeploymentSession {
   sessionId: string;
-  serviceName: string;
-  status: 'NOT_DEPLOYED' | 'STARTING' | 'BUILDING' | 'RUNNING' | 'HEALTHY' | 'STOPPED' | 'ERROR' | 'FAILED' | 'IDLE' | 'DOCKER_UNAVAILABLE';
+  status: 'IDLE' | 'BUILDING' | 'RUNNING' | 'HEALTHY' | 'FAILED' | 'STOPPED' | 'DOCKER_UNAVAILABLE';
   hostPort: number;
-  containerId?: string;
-  dbEngine: string;
-  healthStatus: 'UP' | 'DOWN' | 'UNKNOWN';
-  message: string;
-  startedAt?: string;
+  containerId?: string | null;
+  databaseContainerId?: string | null;
+  containerPort?: number;
+  testUrl?: string | null;
+  healthStatus?: 'UP' | 'DOWN' | 'UNKNOWN' | null;
+  /** Why a deployment did not complete. Was missing here while `message` was declared. */
+  errorMessage?: string | null;
+  startedAt?: string | null;
+  /** Enriched by some endpoints; absent from the deployment record itself. */
+  serviceName?: string;
+  dbEngine?: string;
 }
 
 export interface PlaygroundProxyResult {
