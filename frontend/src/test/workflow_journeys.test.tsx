@@ -152,7 +152,7 @@ describe('Flujo de trabajo: contratos de petición y respuesta', () => {
     expect(quickStart.body).toEqual({
       service_name: 'orders-service',
       prompt: 'un servicio de pedidos',
-      database: 'POSTGRESQL',
+      database_engine: 'POSTGRESQL',
       auto_run: false,
     });
 

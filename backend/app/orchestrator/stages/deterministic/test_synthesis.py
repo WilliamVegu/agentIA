@@ -92,8 +92,10 @@ class {pascal_name}ApplicationTests {{
                 dummy_args.append("10")
             elif t in ("long", "id"):
                 dummy_args.append("10L")
-            elif t in ("double", "float"):
+            elif t == "double":
                 dummy_args.append("10.5")
+            elif t == "float":
+                dummy_args.append("10.5f")
             elif t in ("decimal", "bigdecimal"):
                 dummy_args.append("new java.math.BigDecimal(\"99.99\")")
             elif t in ("boolean", "bool"):

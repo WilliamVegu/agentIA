@@ -1,4 +1,4 @@
-from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed, session_allows_source_delivery
+from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed, session_allows_source_delivery, verification_outcome
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -187,7 +187,7 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                         summary["build"] = "pom.xml" if pom_file.exists() else "Gradle"
                     elif session_allows_source_delivery(sess):
                         status = PhaseStatus.COMPLETED
-                        summary["verification"] = "No ejecutada: entorno sin virtualización"
+                        summary["verification"] = "No ejecutada: entrega de fuentes elegida sin Docker"
                         reason = "Código generado; compilación y pruebas no ejecutadas."
                     else:
                         status = PhaseStatus.IN_PROGRESS
@@ -228,9 +228,9 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 if compose_file.exists():
                     deploy_info = get_deployment_status(session_id)
                     summary["deploymentStatus"] = deploy_info.status
-                    if not settings.DOCKER_ENABLED and phase_states[5].status == PhaseStatus.COMPLETED:
+                    if sess.execution_mode == "SOURCE_ONLY" and phase_states[5].status == PhaseStatus.COMPLETED:
                         status = PhaseStatus.COMPLETED
-                        summary["deployment"] = "No ejecutado: entorno sin virtualización"
+                        summary["deployment"] = "No ejecutado: entrega de fuentes elegida sin Docker"
                         reason = "Manifiestos generados; despliegue no ejecutado."
                     else:
                         status = PhaseStatus.COMPLETED if str(getattr(deploy_info.status, "value", deploy_info.status)) == "HEALTHY" else PhaseStatus.IN_PROGRESS
@@ -373,17 +373,13 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
 
     # Calculate entities count & database
     entities_count = 0
-    db_engine = "POSTGRESQL"
+    db_engine = sess.database_engine if sess else "POSTGRESQL"
     sql_file = ws_path / "schema.sql"
     if sql_file.exists():
         try:
             with open(sql_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 entities_count = content.count("CREATE TABLE")
-                if "SERIAL" in content or "VARCHAR" in content:
-                    db_engine = "POSTGRESQL"
-                elif "AUTO_INCREMENT" in content:
-                    db_engine = "MYSQL"
         except Exception:
             pass
 
@@ -422,6 +418,8 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
 
     return ProjectOverviewSummary(
         sessionId=session_id,
+        executionMode=sess.execution_mode if sess else "SOURCE_ONLY",
+        verificationOutcome=verification_outcome(sess).value if sess else "NOT_RUN",
         specName=spec_name,
         lifecycle=lifecycle,
         framework="Java 21 / Spring Boot 3",
@@ -432,7 +430,7 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
         testsExecuted=tests_executed,
         securityAuditVerdict=sec_verdict,
         deploymentStatus=deploy_info.status.value if hasattr(deploy_info.status, "value") else str(deploy_info.status),
-        deploymentUrl=test_url,
+        deploymentUrl=deploy_info.testUrl,
         pipelineStatus=lifecycle.pipeline_status,
     )
 

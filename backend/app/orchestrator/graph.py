@@ -20,7 +20,7 @@ def _route_after_sandbox(state: GenerationAgentState) -> str:
         return END
     if state.get("build_success", False):
         return END
-    if state.get("status") == "BLOCKED":
+    if state.get("status") in ("BLOCKED", "PAUSED"):
         return END
     return "repair"
 

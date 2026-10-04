@@ -12,7 +12,7 @@ from app.services.workspace_verification import run_workspace_verification
 def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     logs = state.get("logs", [])
-    logs.append("[SANDBOX] Executing hermetic offline Docker build and tests (mvn test -o --network none)")
+    logs.append("[SANDBOX] Preparando verificación según la elección de ejecución de la sesión.")
 
     def log_cb(line: str):
         logs.append(line.rstrip())
@@ -24,9 +24,15 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     # Deployment dependencies must be present before tests establish evidence.
     from app.services.devops_service import generate_all_devops_assets
     blueprint = state.get("blueprint") or {}
+    from app.models.session import SessionLocal, GenerationSessionDB
+    session_id = state.get("session_id") or Path(workspace_path).name
+    with SessionLocal() as db:
+        session = db.get(GenerationSessionDB, session_id)
+        service_name = blueprint.get("serviceName") or (session.spec_name if session else "microservice")
+        database = blueprint.get("databaseMode") or (session.database_engine if session else "POSTGRESQL")
     if (Path(workspace_path) / "pom.xml").exists() or any((Path(workspace_path) / file).exists() for file in ("build.gradle", "build.gradle.kts")):
-        generate_all_devops_assets(workspace_path, state.get("session_id", "workspace"), blueprint.get("serviceName", "microservice"))
-    verification = run_workspace_verification(workspace_path, log_callback=log_cb)
+        generate_all_devops_assets(workspace_path, session_id, service_name, db_engine=database)
+    verification = run_workspace_verification(workspace_path, log_callback=log_cb, mode=state.get("execution_mode"))
     result = verification.result
     platform_verified = verification.platform_verified
 
@@ -34,7 +40,7 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
         logs.append("[SANDBOX] Pruebas no ejecutadas: modo sin virtualización. Continuando con entrega de fuentes.")
         metrics = VerificationMetrics(totalTests=0, passedTests=0, failedTests=0,
             allPassed=False, fallback_used=True, fallback_reason=result.fallback_reason,
-            verificationSkipped=True, workspaceFingerprint=workspace_fingerprint(workspace_path))
+            verificationSkipped=True, verificationOutcome="SKIPPED_BY_CHOICE", workspaceFingerprint=workspace_fingerprint(workspace_path))
         return {"current_phase": SessionPhase.CODE_GENERATION.value,
                 "status": SessionStatus.COMPLETED.value, "build_success": False,
                 "verification_fallback_used": True, "test_metrics": metrics.model_dump(),
@@ -52,6 +58,7 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
         if result.fallback_reason:
             logs.append(f"[SANDBOX] Reason: {result.fallback_reason}")
         metrics = VerificationMetrics(
+            verificationOutcome="ENVIRONMENT_UNAVAILABLE",
             totalTests=0,
             passedTests=0,
             failedTests=0,
@@ -66,13 +73,12 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
         reason = result.fallback_reason or "the sandbox could not verify this workspace"
         return {
             "current_phase": SessionPhase.FAILED.value,
-            "status": SessionStatus.BLOCKED.value,
+            "status": SessionStatus.PAUSED.value,
             "build_success": False,
             "verification_fallback_used": True,
             "test_metrics": metrics.model_dump(),
             "error": (
-                f"[SANDBOX] Human intervention required: verification could not be "
-                f"performed. {reason}"
+                f"[SANDBOX] Reintentar o continuar sin Docker: {reason}"
             ),
             "logs": logs,
         }

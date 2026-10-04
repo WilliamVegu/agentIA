@@ -221,7 +221,7 @@ def test_recovered_entities_produce_a_usable_schema(tmp_path):
     entity = tmp_path / "src/main/java/com/corp/x/model/entity/Order.java"
     entity.parent.mkdir(parents=True)
     entity.write_text(
-        "package com.corp.x.model.entity;\n@Table(name = \"orders\")\n"
+        "package com.corp.x.model.entity;\n@Entity\n@Table(name = \"orders\")\n"
         "public class Order {\n    @Id\n    private Long id;\n"
         "    @Column(nullable = false)\n    private String reference;\n}\n",
         encoding="utf-8",

@@ -4,6 +4,8 @@
 
 Microservice Code Studio es una plataforma integral que ingesta especificaciones formales de microservicios (blueprints de arquitectura, entidades de dominio e historias de usuario con criterios Given/When/Then), orquesta la síntesis de código mediante un agente **LangGraph**, ejecuta compilaciones y pruebas en un sandbox **Docker hermético y fuera de línea** (`--network none`), y entrega proyectos listos para producción mediante descarga en ZIP o publicación atómica a una rama de Git.
 
+La implementación de despliegue local iniciada el 04/10/2026 permite elegir **Sin Docker** por sesión (valor predeterminado) para generar, auditar y exportar fuentes en laboratorios sin virtualización. **Con Docker** solicita verificación real y despliegue; si el entorno no está disponible, permite Reintentar o Continuar sin Docker. La generación de pruebas no equivale a su ejecución. Consulte [estado actual](docs/ESTADO_DESPLIEGUE_LOCAL_DOCKER.md), [plan y pendientes](docs/PLAN_IMPLEMENTACION_DESPLIEGUE_LOCAL.md) y [guía Windows](specs/007-docker-cicd-orchestration/quickstart.md). El despliegue real, la matriz offline y Kubernetes siguen pendientes de validación; el kit offline y la inicialización SQL aún no están completos.
+
 ---
 
 ## 🏛️ Arquitectura del Sistema (Opción B)
@@ -62,7 +64,7 @@ cd agentIA
 pip install -r backend/requirements.txt
 
 # Iniciar servidor backend FastAPI en el puerto 8000
-python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
 ```
 *Documentación interactiva Swagger UI disponible en:* `http://localhost:8000/docs`
 
@@ -81,7 +83,7 @@ npm run dev
 
 ## 🧪 Ejecución de la Suite de Pruebas Automatizadas
 
-El proyecto cuenta con una batería completa de **125 pruebas automatizadas** (unitarias, de integración, contract tests y end-to-end), con un 100% de tasa de aprobación:
+El proyecto contiene pruebas de backend y frontend. El estado y los resultados medidos de la regresión están registrados en el documento de despliegue local; actualmente la suite completa presenta fallos y no se afirma un 100% de aprobación:
 
 ```bash
 # Ejecutar todas las pruebas con pytest

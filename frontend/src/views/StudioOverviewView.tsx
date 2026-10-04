@@ -24,6 +24,8 @@ import type { TabKey } from '../config/workspaceTabs';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
 import { sessionService } from '../services/sessionService';
+import type { ExecutionMode } from '../services/sessionService';
+import { ExecutionModeSelector } from '../components/common/ExecutionModeSelector';
 import { orchestratorService } from '../services/orchestratorService';
 
 export const StudioOverviewView: React.FC = () => {
@@ -43,6 +45,8 @@ export const StudioOverviewView: React.FC = () => {
 
   // Quick Start Form state
   const [serviceName, setServiceName] = useState('');
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>('SOURCE_ONLY');
+  const [autoDeploy, setAutoDeploy] = useState(false);
   const [database, setDatabase] = useState<'POSTGRESQL' | 'MYSQL' | 'H2'>('POSTGRESQL');
   const [prompt, setPrompt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,6 +77,8 @@ export const StudioOverviewView: React.FC = () => {
         service_name: serviceName.trim(),
         prompt: prompt.trim(),
         database: database,
+        execution_mode: executionMode,
+        auto_deploy: isAuto && executionMode === 'DOCKER' && autoDeploy,
         auto_run: isAuto,
         llm_provider: provider,
         api_key: apiKey,
@@ -307,6 +313,8 @@ export const StudioOverviewView: React.FC = () => {
                 </label>
               </div>
 
+              <ExecutionModeSelector value={executionMode} onChange={setExecutionMode} />
+              {executionMode === 'DOCKER' && <label className="block text-sm"><input type="checkbox" checked={autoDeploy} onChange={e => setAutoDeploy(e.target.checked)} /> Desplegar automáticamente al finalizar las pruebas</label>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <button
                   type="button"

@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
 import tempfile
+import yaml
 
 from app.models.devops import DatabaseEngine
 from app.services.devops_service import (
@@ -16,12 +17,13 @@ from app.services.devops_service import (
 
 def test_generate_dockerfile():
     dockerfile = generate_dockerfile("order-service")
-    # Verify multi-stage layertools
-    assert "FROM eclipse-temurin:21-jre-alpine AS builder" in dockerfile
-    assert "java -Djarmode=layertools -jar application.jar extract" in dockerfile
-    assert "FROM eclipse-temurin:21-jre-alpine AS runner" in dockerfile
+    assert "FROM agentia-builder:" in dockerfile
+    assert "FROM agentia-runtime:21-v1" in dockerfile
+    assert "mvn -B -o" in dockerfile and "verify" in dockerfile
+    assert "RUN --network=none" in dockerfile
+    assert "BOOT-INF/" in dockerfile
     # Verify non-root user
-    assert "USER appuser:appgroup" in dockerfile
+    assert "USER 10001:10001" in dockerfile
     assert "10001" in dockerfile
     # Verify JVM flags
     assert "-XX:MaxRAMPercentage=75.0" in dockerfile
@@ -39,12 +41,16 @@ def test_generate_dockerignore():
 
 def test_generate_docker_compose_postgresql():
     compose = generate_docker_compose("order-service", "POSTGRESQL", 8080)
-    assert "version: '3.8'" in compose
-    assert "image: postgres:16-alpine" in compose
-    assert "5432:5432" in compose
-    assert "pgdata:/var/lib/postgresql/data" in compose
-    assert "condition: service_healthy" in compose
-    assert "SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/order-service_db" in compose
+    services = yaml.safe_load(compose)['services']
+    assert services['db']['image'].startswith('postgres:16.')
+    assert 'ports' not in services['db']
+    assert 'dbdata:/var/lib/postgresql/data' in services['db']['volumes']
+    app = services['order-service']
+    assert app['image'] == '${COMPOSE_PROJECT_NAME}-order-service:local'
+    assert app['ports'] == ['127.0.0.1:${HOST_PORT:-8080}:8080']
+    assert app['pull_policy'] == 'never'
+    assert app['environment']['SPRING_DATASOURCE_URL'] == 'jdbc:postgresql://db:5432/order_service_db'
+    assert app['depends_on']['db']['condition'] == 'service_healthy'
 
 
 def test_the_compose_file_does_not_initialise_the_schema_from_a_bind_mount():
@@ -56,34 +62,35 @@ def test_the_compose_file_does_not_initialise_the_schema_from_a_bind_mount():
     root inside the container, SELinux disabled, no ACLs, XFS, fresh volume and
     --force-recreate. Reproduced by the user, so it was not an artefact of one shell.
 
-    The replacement contract is stronger: the schema is on the classpath, Spring applies
-    it (SPRING_SQL_INIT_MODE=always), and Hibernate is told `none` so it cannot silently
-    alter a schema the platform authored.
+    Liquibase applies classpath migrations once. Hibernate validates the authored
+    schema, and Spring's unversioned SQL initializer remains disabled on restarts.
     """
     compose = generate_docker_compose("order-service", "POSTGRESQL", 8080)
 
     assert "docker-entrypoint-initdb.d" not in compose, (
         "database initialisation depends on a host bind mount again"
     )
-    assert "SPRING_SQL_INIT_MODE=always" in compose
-    assert "SPRING_JPA_HIBERNATE_DDL_AUTO=none" in compose
-    assert "ddl_auto=update" not in compose, (
-        "`update` silently alters the authored schema and hides schema defects"
-    )
+    env = yaml.safe_load(compose)['services']['order-service']['environment']
+    assert str(env['SPRING_LIQUIBASE_ENABLED']).lower() == 'true'
+    assert env['SPRING_SQL_INIT_MODE'] == 'never'
+    assert env['SPRING_JPA_HIBERNATE_DDL_AUTO'] == 'validate'
 
 
 def test_generate_docker_compose_mysql():
     compose = generate_docker_compose("inventory-service", "MYSQL", 8081)
-    assert "image: mysql:8.0-debian" in compose
-    assert "3306:3306" in compose
-    assert "mysqldata:/var/lib/mysql" in compose
-    assert "SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/inventory-service_db" in compose
+    services = yaml.safe_load(compose)['services']
+    assert services['db']['image'].startswith('mysql:8.0.')
+    assert 'ports' not in services['db']
+    assert 'dbdata:/var/lib/mysql' in services['db']['volumes']
+    assert services['inventory-service']['environment']['SPRING_DATASOURCE_URL'].startswith('jdbc:mysql://db:3306/inventory_service_db')
 
 
 def test_generate_docker_compose_h2():
     compose = generate_docker_compose("test-service", "H2", 8082)
-    assert "SPRING_PROFILES_ACTIVE=h2" in compose
-    assert "jdbc:h2:mem:test-service_db" in compose
+    services = yaml.safe_load(compose)['services']
+    assert services['test-service']['environment']['SPRING_DATASOURCE_URL'].startswith('jdbc:h2:file:')
+    assert services['test-service']['volumes'] == ['appdata:/app/data']
+    assert 'db' not in services
     # H2 standalone should NOT have a separate db container
     assert "image: postgres" not in compose
     assert "image: mysql" not in compose

@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 
 class DeploymentStatus(str, Enum):
+    SKIPPED_BY_CHOICE = "SKIPPED_BY_CHOICE"
+    DEGRADED = "DEGRADED"
     IDLE = "IDLE"
     BUILDING = "BUILDING"
     RUNNING = "RUNNING"
@@ -54,11 +56,33 @@ class LocalDeploymentSession(BaseModel):
     healthStatus: Optional[str] = None
     errorMessage: Optional[str] = None
     startedAt: Optional[str] = None
+    operationId: Optional[str] = None
+    message: Optional[str] = None
 
 
 class DevOpsDeployRequest(BaseModel):
-    hostPort: Optional[int] = 8080
+    hostPort: int = Field(8080, ge=1024, le=65535)
     rebuild: Optional[bool] = False
+
+
+class DockerDiagnosticCheck(BaseModel):
+    name: str
+    status: str
+    detail: str
+    freeBytes: Optional[int] = None
+    image: Optional[str] = None
+    imageId: Optional[str] = None
+    repoDigests: List[str] = Field(default_factory=list)
+
+
+class DockerCapabilityReport(BaseModel):
+    sessionId: str
+    executionMode: str
+    readyForPreparation: bool = False
+    preparedImagesAvailable: bool = False
+    offlineVerified: bool = False
+    checks: List[DockerDiagnosticCheck] = Field(default_factory=list)
+    availableActions: List[str] = Field(default_factory=list)
 
 
 

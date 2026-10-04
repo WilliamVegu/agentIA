@@ -5,6 +5,8 @@ import { specService } from '../services/specService';
 import { sessionService } from '../services/sessionService';
 import { useStudio } from '../context/StudioContext';
 import apiClient from '../services/apiClient';
+import type { ExecutionMode } from '../services/sessionService';
+import { ExecutionModeSelector } from '../components/common/ExecutionModeSelector';
 
 export const SpecIngestionView: React.FC = () => {
   const { refreshSessions, selectSession, setActiveTab, parsedSpec, setParsedSpec, setCurrentSpecId } = useStudio();
@@ -12,6 +14,7 @@ export const SpecIngestionView: React.FC = () => {
   const [activeTabMode, setActiveTabMode] = useState<'upload' | 'json' | 'interface'>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [jsonText, setJsonText] = useState('');
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>('SOURCE_ONLY');
 
   const [iface, setIface] = useState({
     requestVolume: 'low',
@@ -418,12 +421,13 @@ export const SpecIngestionView: React.FC = () => {
             Paquete Java configurado: <strong>{parsedSpec.packageName || 'com.tcs.microservice'}</strong> (Java 21 LTS / Spring Boot 3.x)
           </div>
 
+          <ExecutionModeSelector value={executionMode} onChange={setExecutionMode} />
           <div className="flex justify-end pt-1">
             <button
               onClick={async () => {
                 if (parsedSpec?.specId) {
                   try {
-                    const sessResp = await apiClient.post('/sessions', { specId: parsedSpec.specId });
+                    const sessResp = await apiClient.post('/sessions', { specId: parsedSpec.specId, executionMode });
                     const newSessId = sessResp.data?.sessionId || sessResp.data?.session_id;
                     if (newSessId) {
                       await refreshSessions();

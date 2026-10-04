@@ -183,7 +183,7 @@ def execute_repair_iteration(
                 verified = result.get("status") == "COMPLETED" and tests_really_passed(metrics)
                 skipped = result.get("status") == "COMPLETED" and metrics.get("verificationSkipped") is True
                 row.verification_metrics_json = json.dumps(metrics)
-                row.status = SessionStatus.COMPLETED if verified or skipped else SessionStatus.BLOCKED
+                row.status = SessionStatus.COMPLETED if verified or skipped else (SessionStatus.PAUSED if result.get("status") == "PAUSED" else SessionStatus.BLOCKED)
                 row.phase = SessionPhase.VERIFIED if verified else (SessionPhase.CODE_GENERATION if skipped else SessionPhase.FAILED)
                 row.error_message = None if verified or skipped else result.get("error", "Repair did not pass sandbox verification")
                 db.commit()
@@ -359,7 +359,7 @@ def submit_manual_repair(
 
         from app.orchestrator.nodes.sandbox_node import sandbox_node
         try:
-            result = sandbox_node({"workspace_path": str(ws_path), "logs": []})
+            result = sandbox_node({"workspace_path": str(ws_path), "session_id": sessionId, "logs": []})
         except Exception as exc:
             result = {"status": "BLOCKED", "current_phase": "FAILED", "test_metrics": {},
                       "error": f"Verification could not run: {type(exc).__name__}"}
@@ -371,7 +371,7 @@ def submit_manual_repair(
             row = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == sessionId).first()
             if row:
                 row.verification_metrics_json = json.dumps(result.get("test_metrics", {}))
-                row.status = SessionStatus.COMPLETED if verified or skipped else SessionStatus.BLOCKED
+                row.status = SessionStatus.COMPLETED if verified or skipped else (SessionStatus.PAUSED if result.get("status") == "PAUSED" else SessionStatus.BLOCKED)
                 row.phase = SessionPhase.VERIFIED if verified else (SessionPhase.CODE_GENERATION if skipped else SessionPhase.FAILED)
                 row.error_message = None if verified or skipped else result.get("error", "Manual repair did not pass verification")
                 db.commit()

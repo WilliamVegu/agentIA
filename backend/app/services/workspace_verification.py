@@ -31,6 +31,8 @@ from typing import Callable, Optional, Tuple
 from app.sandbox.docker_runner import DockerExecutionResult, run_docker_sandbox
 from app.services.platform_verification import inject_contract_test, strip_vcs_metadata
 from app.config import settings
+from app.models.execution import ExecutionMode
+from app.services.execution_policy import execution_mode
 
 
 @dataclass(frozen=True)
@@ -53,6 +55,7 @@ class WorkspaceVerification:
 def run_workspace_verification(
     workspace_path: str,
     log_callback: Optional[Callable[[str], None]] = None,
+    mode: Optional[ExecutionMode] = None,
 ) -> WorkspaceVerification:
     """Prepare a workspace and run the hermetic build against it.
 
@@ -83,26 +86,36 @@ def run_workspace_verification(
     # Remove stale XML before execution so earlier builds cannot supply proof.
     ws = Path(workspace_path).resolve()
     report_dirs = [ws / "build/test-results/test", ws / "target/surefire-reports"]
-    for directory in report_dirs:
-        if directory.resolve().is_relative_to(ws):
-            for report in directory.glob("*.xml"):
-                if report.resolve().is_relative_to(ws):
-                    report.unlink()
-    if not settings.DOCKER_ENABLED:
-        reason = "No ejecutadas: entorno sin virtualización (DOCKER_ENABLED=false)."
+    # Aggregate reactor reports as well as a single-module project.
+    report_dirs = sorted(set(report_dirs + [p for p in ws.rglob('surefire-reports') if p.is_dir()] + [p for p in ws.rglob('test-results/test') if p.is_dir()]))
+    selected_mode = execution_mode(workspace_path=workspace_path, explicit=mode)
+    if selected_mode == ExecutionMode.SOURCE_ONLY:
+        reason = "No ejecutadas por elección del usuario: sesión sin Docker."
         (ws / "VERIFICATION_STATUS.md").write_text(
             "# Estado de verificación\n\nCompilación, pruebas y despliegue Docker: NO EJECUTADOS.\n"
-            "Entorno sin virtualización. Este proyecto se entrega como código fuente sin verificación de ejecución.\n"
+            "Elección de esta sesión: sin Docker. Entrega de fuentes sin verificación de ejecución.\n"
             "La auditoría SAST se registra por separado en security_audit_report.json.\n",
             encoding="utf-8")
         if log_callback:
             log_callback("[VERIFY] " + reason)
         result = DockerExecutionResult(exit_code=1, fallback_used=True,
                                        verification_skipped=True, fallback_reason=reason)
+    elif not settings.DOCKER_ENABLED:
+        result = DockerExecutionResult(exit_code=1, fallback_used=True,
+            fallback_reason="Docker elegido, pero deshabilitado por el administrador. Reintentar o continuar sin Docker.")
     else:
+        # Keep previous evidence when execution is skipped or prohibited.
+        # Delete it only immediately before an actual new execution.
+        for directory in report_dirs:
+            if directory.resolve().is_relative_to(ws):
+                for report in directory.glob("*.xml"):
+                    if report.resolve().is_relative_to(ws):
+                        report.unlink()
         (ws / "VERIFICATION_STATUS.md").unlink(missing_ok=True)
         result = _run_sandbox_blocking(workspace_path, log_callback)
     if not result.fallback_used:
+        # A cold build can create module report directories for the first time.
+        report_dirs = sorted(set(report_dirs + [p for p in ws.rglob('surefire-reports') if p.is_dir()] + [p for p in ws.rglob('test-results/test') if p.is_dir()]))
         import xml.etree.ElementTree as ET
         totals = [0, 0, 0, 0]
         found = False

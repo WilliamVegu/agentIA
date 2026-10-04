@@ -86,7 +86,7 @@ def _resolve_port(session_id: str) -> int:
     deployment = get_deployment_status(session_id)
     state = getattr(getattr(deployment, "status", None), "value", None) or "IDLE"
 
-    if not getattr(deployment, "containerId", None):
+    if not getattr(deployment, "containerId", None) or state not in {"RUNNING", "HEALTHY", "DEGRADED"}:
         raise PlaygroundProxyError(
             f"this session has no container of its own (state: {state}). A call would go to "
             "whichever service is listening on the shared port, which belongs to a different "

@@ -164,8 +164,8 @@ def test_generate_seed_data_sql_inserts():
     ]
 
     dml = generate_seed_data_sql(entities)
-    assert "INSERT INTO customers (id, email) VALUES" in dml
-    assert "1" in dml
+    assert "INSERT INTO customers (email) VALUES" in dml
+    assert '(id,' not in dml, 'Identity keys must be allocated by the database'
 
 def test_generate_mermaid_er_diagram():
     entities = [

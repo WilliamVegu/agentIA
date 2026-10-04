@@ -59,6 +59,9 @@ def _daemon(monkeypatch, available: bool) -> None:
 
 
 def _spawn(monkeypatch, process) -> None:
+    # This fake build presupposes its prepared image, independently of the daemon.
+    from types import SimpleNamespace
+    monkeypatch.setattr('app.sandbox.docker_runner.subprocess.run', lambda *a, **kw: SimpleNamespace(returncode=0))
     async def _fake(*args, **kwargs):
         return process
     monkeypatch.setattr(asyncio, "create_subprocess_exec", _fake)

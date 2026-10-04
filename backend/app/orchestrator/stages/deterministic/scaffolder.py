@@ -177,7 +177,10 @@ public class {pascal_name}Application {{
 """
         generated_files[f"{prefix}src/main/resources/application-prod.yml"] = prod_yml
 
-    if multi:
+    selected_build = (blueprint.get("inputInterface") or {}).get("buildToolPreference") or (plan or {}).get("buildTool", "maven")
+    if selected_build == "gradle":
+        generated_files.update(module_layout.render_gradle_builds(service_name, package_name, multi))
+    elif multi:
         # "capa X en proyecto Y": one Maven module per layer.
         generated_files.update(module_layout.render_reactor_poms(service_name, package_name, plan))
     else:

@@ -1,6 +1,9 @@
 import apiClient from './apiClient';
+export type ExecutionMode = 'SOURCE_ONLY' | 'DOCKER';
 
 export interface QuickStartPayload {
+  execution_mode?: ExecutionMode;
+  auto_deploy?: boolean;
   service_name: string;
   prompt?: string;
   raw_text?: string;
@@ -12,6 +15,8 @@ export interface QuickStartPayload {
 }
 
 export interface SessionListItem {
+  executionMode?: ExecutionMode;
+  verificationOutcome?: string;
   sessionId: string;
   specId: string;
   specName: string;
@@ -27,6 +32,9 @@ export interface SessionListItem {
 }
 
 export interface SessionDetail {
+  executionMode: ExecutionMode;
+  verificationOutcome?: string;
+  availableActions?: string[];
   id: string;
   specId: string;
   specName: string;
@@ -54,12 +62,21 @@ export const sessionService = {
   },
 
   async quickStart(payload: QuickStartPayload) {
-    const response = await apiClient.post('/sessions/quick-start', payload);
+    const { database, ...rest } = payload;
+    const response = await apiClient.post('/sessions/quick-start', { ...rest, database_engine: database });
     return response.data;
   },
 
   async cancelSession(sessionId: string) {
     await apiClient.delete(`/sessions/${sessionId}`);
+  },
+
+  async changeExecutionMode(sessionId: string, executionMode: ExecutionMode) {
+    return (await apiClient.patch(`/sessions/${sessionId}/execution-mode`, { executionMode })).data;
+  },
+
+  async verify(sessionId: string) {
+    return (await apiClient.post(`/sessions/${sessionId}/verify`)).data;
   },
 
   async unblockManualRepair(sessionId: string, filePath: string, modifiedCode?: string, promptHint?: string) {

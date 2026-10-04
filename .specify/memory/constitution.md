@@ -13,6 +13,15 @@ SYNC IMPACT REPORT
 
 # Java/Spring Boot Microservices Platform Constitution
 
+## Aclaración autorizada: despliegue local opcional (2026-10-04)
+
+Esta aclaración aplica a las sesiones nuevas y prevalece sobre las referencias posteriores a ejecución obligatoria mediante Docker o exclusivamente mediante Maven:
+
+- La elección `SOURCE_ONLY` permite generar y entregar fuentes, pruebas como archivos y artefactos DevOps sin Docker, virtualización ni herramientas Java en el host. La auditoría estática permanece obligatoria para exportar. Compilación, pruebas y despliegue se informan como **no ejecutados por elección**; la sesión no adquiere el estado `VERIFIED`.
+- `DOCKER` requiere ejecución real, offline después de preparación inicial online. Maven y Gradle están admitidos; la imagen preparada debe corresponder a los manifiestos de dependencias actuales. Una infraestructura inaccesible pausa y ofrece **Reintentar / Continuar sin Docker**, sin consumir reparaciones de código ni cambiar de modo automáticamente.
+- Ninguna elección de modo borra o convierte en éxito un fallo de pruebas ejecutadas. La configuración global limita el uso administrativo de Docker; no sustituye la elección persistida por sesión.
+- Las restricciones de Windows no se modifican automáticamente. El flujo de fuentes es válido en laboratorios donde la virtualización está deshabilitada.
+
 ## Core Principles
 
 ### I. Arquitectura en Capas Estricta y Separación de Responsabilidades

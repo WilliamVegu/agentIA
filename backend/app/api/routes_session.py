@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from app.config import settings
+from app.models.execution import ExecutionMode
+from app.services.execution_policy import execution_mode
+from app.services.verification_policy import verification_outcome
 from app.models.session import (
     SessionLocal,
     GenerationSessionDB,
@@ -42,7 +45,49 @@ SESSION_GENERATION_STATE: Dict[str, Dict[str, Any]] = {}
 
 class CreateSessionRequest(BaseModel):
     specId: str = Field(..., description="UUID of ingested specification")
+    executionMode: ExecutionMode = ExecutionMode.SOURCE_ONLY
     modelName: Optional[str] = None
+
+
+class ExecutionModeRequest(BaseModel):
+    executionMode: ExecutionMode
+
+
+@router.patch("/{session_id}/execution-mode")
+async def change_execution_mode(session_id: str, payload: ExecutionModeRequest):
+    from app.services import docker_service
+    import threading
+    with docker_service._operations_lock:
+        lock = docker_service._operation_locks.setdefault(session_id, threading.Lock())
+    if not lock.acquire(blocking=False):
+        raise HTTPException(409, "Espere a que finalice la operación actual.")
+    try:
+        return _change_execution_mode(session_id, payload)
+    finally:
+        lock.release()
+
+
+def _change_execution_mode(session_id: str, payload: ExecutionModeRequest):
+    from app.services.docker_service import get_deployment_status
+    with SessionLocal() as db:
+        row = db.get(GenerationSessionDB, session_id)
+        if not row:
+            raise HTTPException(404, "Session not found")
+        if row.status in (SessionStatus.RUNNING, SessionStatus.QUEUED):
+            raise HTTPException(409, "No se puede cambiar el modo durante una ejecución.")
+        if row.execution_mode == ExecutionMode.DOCKER and payload.executionMode == ExecutionMode.SOURCE_ONLY:
+            deployment = get_deployment_status(session_id)
+            if deployment.status.value in ("BUILDING", "RUNNING", "HEALTHY", "DEGRADED"):
+                raise HTTPException(409, "Detenga el despliegue antes de cambiar a sin Docker.")
+        row.execution_mode = payload.executionMode.value
+        db.commit()
+    return {"sessionId": session_id, "executionMode": payload.executionMode.value}
+
+
+@router.post("/{session_id}/verify")
+async def retry_session_verification(session_id: str):
+    from app.services.session_execution import verify_existing_sources
+    return await asyncio.to_thread(verify_existing_sources, session_id)
 
 def _verification_fallback_used(db_sess) -> bool:
     """Whether verification actually ran, read from the persisted metrics.
@@ -222,6 +267,7 @@ async def execute_generation_pipeline(
 
         initial_state = {
             "session_id": session_id,
+            "execution_mode": execution_mode(session_id).value,
             "blueprint": blueprint_dict,
             "workspace_path": ws_path,
             "current_phase": SessionPhase.INITIALIZATION.value,
@@ -434,7 +480,7 @@ async def execute_generation_pipeline(
             # Blocked / Human intervention required
             blocked_metrics = final_state.get("test_metrics") or {}
             if db_sess:
-                db_sess.status = SessionStatus.BLOCKED
+                db_sess.status = SessionStatus.PAUSED if final_status == "PAUSED" else SessionStatus.BLOCKED
                 db_sess.phase = SessionPhase.FAILED
                 db_sess.error_message = final_state.get("error", "Human intervention required")
                 db_sess.completed_at = datetime.now(timezone.utc)
@@ -455,7 +501,7 @@ async def execute_generation_pipeline(
                 "attempt": final_state.get("repair_attempts", 3),
                 "maxAttempts": settings.MAX_REPAIR_ATTEMPTS,
                 "failureReason": final_state.get("error", "Human intervention required"),
-                "status": "BLOCKED",
+                "status": final_status,
                 # FR-005: distinguishes "could not verify" from a real build failure.
                 "verificationFallbackUsed": bool(blocked_metrics.get("fallback_used", False)),
                 "fallbackReason": blocked_metrics.get("fallback_reason"),
@@ -511,6 +557,9 @@ async def list_sessions(limit: int = 50):
                     specId=s.spec_id,
                     specName=s.spec_name,
                     status=s.status,
+                    executionMode=s.execution_mode,
+                    verificationOutcome=verification_outcome(s),
+                    errorMessage=s.error_message,
                     phase=s.phase,
                     currentLifecyclePhase=s.current_lifecycle_phase or "INITIAL",
                     lifecycleMode=s.lifecycle_mode or "GUIDED_STEP",
@@ -590,6 +639,8 @@ async def quick_start_session(payload: QuickStartSessionRequest):
         db_session = GenerationSessionDB(
             id=session_id,
             spec_id=spec_id,
+            execution_mode=payload.execution_mode.value,
+            database_engine=(payload.database_engine or "POSTGRESQL").upper(),
             spec_name=spec_name,
             status=SessionStatus.QUEUED,
             phase=SessionPhase.INITIALIZATION,
@@ -611,11 +662,13 @@ async def quick_start_session(payload: QuickStartSessionRequest):
             provider=payload.llm_provider,
             model_name=payload.model_name,
             input_interface=payload.input_interface,
+            auto_deploy=payload.auto_deploy,
         )
         pipeline_started = True
 
     return QuickStartSessionResponse(
         sessionId=session_id,
+        executionMode=payload.execution_mode,
         specId=spec_id,
         specName=spec_name,
         status=SessionStatus.QUEUED,
@@ -652,6 +705,8 @@ async def create_generation_session(
         db_session = GenerationSessionDB(
             id=session_id,
             spec_id=payload.specId,
+            execution_mode=payload.executionMode.value,
+            database_engine=str(getattr(blueprint, "databaseMode", "POSTGRESQL")).upper(),
             spec_name=spec_name,
             status=SessionStatus.QUEUED,
             phase=SessionPhase.INITIALIZATION,
@@ -691,6 +746,7 @@ async def create_generation_session(
         sessionId=session_id,
         status=SessionStatus.QUEUED,
         queuePosition=position,
+        executionMode=payload.executionMode,
         streamUrl=f"/api/v1/sessions/{session_id}/stream"
     )
 
@@ -709,6 +765,9 @@ async def get_session_by_id(session_id: str):
             specId=db_sess.spec_id,
             specName=db_sess.spec_name,
             status=db_sess.status,
+            executionMode=db_sess.execution_mode,
+            verificationOutcome=verification_outcome(db_sess),
+            availableActions=["RETRY", "CONTINUE_WITHOUT_DOCKER"] if verification_outcome(db_sess).value == "ENVIRONMENT_UNAVAILABLE" else [],
             phase=db_sess.phase,
             queuePosition=pos,
             repairAttempts=db_sess.repair_attempts,

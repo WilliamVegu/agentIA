@@ -28,6 +28,11 @@ from pathlib import Path
 
 import pytest
 import requests
+from types import SimpleNamespace
+from app.models.execution import ExecutionMode
+from app.config import settings
+from app.services import local_runtime, execution_policy
+from app.services.devops_service import generate_all_devops_assets
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
@@ -94,7 +99,7 @@ class _FakeResponse:
 
 
 @pytest.fixture(autouse=True)
-def clean_deploy_state(monkeypatch):
+def clean_deploy_state(monkeypatch, tmp_path, request):
     """Isolate the module-level stores, which are process-global by design.
 
     Without this, one test's deployment row leaks into the next and ``get_deployment_status``
@@ -103,7 +108,40 @@ def clean_deploy_state(monkeypatch):
     monkeypatch.setattr(ds, "_active_deployments", {})
     monkeypatch.setattr(ds, "_log_queues", {})
     monkeypatch.setattr(ds, "_raw_log_history", {})
+    monkeypatch.setattr(ds, "_operation_locks", {})
+    monkeypatch.setattr(settings, "WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setattr(settings, "DOCKER_ENABLED", True)
+    monkeypatch.setattr(execution_policy, "execution_mode", lambda *a, **kw: ExecutionMode.DOCKER)
     monkeypatch.setattr(ds.threading, "Thread", _InlineThread)
+    monkeypatch.setattr(ds.subprocess, "Popen", lambda *a, **kw: _FakeProcess())
+    generate_all_devops_assets(str(tmp_path), SESSION_ID, db_engine='H2')
+    state = SimpleNamespace(started=False, port=8080)
+    def inspected(sid):
+        return LocalDeploymentSession(sessionId=sid, containerId='owned-container', hostPort=state.port, status=DeploymentStatus.RUNNING) if state.started else None
+    monkeypatch.setattr(local_runtime, 'inspect_session', inspected)
+    monkeypatch.setattr(local_runtime, 'available_port', lambda port: port)
+    def run(cmd, **kwargs):
+        if 'build' in cmd or 'up' in cmd:
+            proc = ds.subprocess.Popen(cmd, **kwargs)
+            stdout = ''.join(proc.stdout)
+            code = proc.wait()
+            if 'up' in cmd and not code:
+                state.started, state.port = True, int(kwargs['env']['HOST_PORT'])
+            return subprocess.CompletedProcess(cmd, code, stdout=stdout, stderr='')
+        if 'down' in cmd: state.started = False
+        return subprocess.CompletedProcess(cmd, 0, stdout='', stderr='')
+    monkeypatch.setattr(ds.subprocess, 'run', run)
+    # Daemon unit tests keep the real gate; operation tests simulate its availability.
+    if 'daemon' not in request.node.name and 'docker_info' not in request.node.name:
+        monkeypatch.setattr(ds, 'check_docker_daemon', lambda: True)
+    readiness = {'test_a_healthy_actuator_passes_the_smoke_test_and_updates_the_session', 'test_a_missing_health_field_is_not_treated_as_up', 'test_a_non_json_body_degrades_to_the_raw_text_instead_of_crashing', 'test_an_unreachable_endpoint_is_retried_and_reported_as_a_timeout', 'test_a_smoke_test_passes_on_a_later_attempt_rather_than_the_first'}
+    if request.node.name in readiness:
+        state.started, state.port = True, 19090
+        def status(sid):
+            row = inspected(sid)
+            ds._active_deployments[sid] = row
+            return row
+        monkeypatch.setattr(ds, 'get_deployment_status', status)
     yield
 
 
@@ -180,10 +218,10 @@ def test_deploy_without_a_daemon_enters_export_only_mode_without_starting_anythi
     session = ds.deploy_local(SESSION_ID, str(tmp_path))
 
     assert session.status == DeploymentStatus.DOCKER_UNAVAILABLE
-    assert "Export-Only" in session.errorMessage
-    assert session.startedAt is not None
+    assert "Reintentar" in session.errorMessage
+    assert session.startedAt is None
     assert ds.get_deployment_status(SESSION_ID).status == DeploymentStatus.DOCKER_UNAVAILABLE
-    assert any("unreachable" in line for line in ds.get_deployment_logs(SESSION_ID))
+    assert not ds.get_deployment_logs(SESSION_ID)
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +242,7 @@ def test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up(monke
     monkeypatch.setattr(
         ds,
         "run_smoke_test",
-        lambda sid, port, **kw: SmokeTestResult(
+        lambda sid, port=18080, **kw: SmokeTestResult(
             passed=True,
             statusCode=200,
             statusPayload={"status": "UP"},
@@ -216,7 +254,7 @@ def test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up(monke
 
     session = ds.deploy_local(SESSION_ID, str(tmp_path), host_port=18080)
 
-    assert seen["cmd"] == ["docker", "compose", "up", "-d"], "no rebuild was requested"
+    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180"]
     assert seen["cwd"] == str(tmp_path), "compose must run inside the session workspace"
     assert session.status == DeploymentStatus.HEALTHY
     assert session.healthStatus == "UP"
@@ -224,7 +262,7 @@ def test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up(monke
 
     logs = " | ".join(ds.get_deployment_logs(SESSION_ID))
     assert "Container order-db  Started" in logs, "compose stdout must reach the operator"
-    assert "[SUCCESS]" in logs
+    assert "[HEALTHY]" in logs
 
 
 def test_rebuild_is_forwarded_to_compose(monkeypatch, tmp_path):
@@ -242,7 +280,8 @@ def test_rebuild_is_forwarded_to_compose(monkeypatch, tmp_path):
 
     ds.deploy_local(SESSION_ID, str(tmp_path), rebuild=True)
 
-    assert seen["cmd"] == ["docker", "compose", "up", "-d", "--build"]
+    assert 'up' in seen['cmd'] and '--no-build' in seen['cmd']
+    assert '--pull' in seen['cmd'] and 'never' in seen['cmd']
 
 
 def test_the_deploy_returns_building_before_the_worker_finishes(monkeypatch, tmp_path):
@@ -339,7 +378,7 @@ def test_an_exception_in_the_worker_marks_the_session_failed(monkeypatch, tmp_pa
 
     assert session.status == DeploymentStatus.FAILED
     assert "docker socket closed" in session.errorMessage
-    assert any("[FATAL]" in line for line in ds.get_deployment_logs(SESSION_ID))
+    assert any("[FAILED]" in line for line in ds.get_deployment_logs(SESSION_ID))
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +413,7 @@ def test_a_missing_health_field_is_not_treated_as_up(monkeypatch):
     result = ds.run_smoke_test(SESSION_ID, host_port=19091, max_retries=2)
 
     assert result.passed is False
-    assert result.statusCode == 503
+    assert result.statusCode == 200, "preserve the actual HTTP code, without inventing success"
 
 
 def test_a_non_json_body_degrades_to_the_raw_text_instead_of_crashing(monkeypatch):
@@ -403,7 +442,7 @@ def test_an_unreachable_endpoint_is_retried_and_reported_as_a_timeout(monkeypatc
 
     assert len(attempts) == 4, "the probe must retry; a container needs time to boot"
     assert result.passed is False
-    assert result.statusCode == 503
+    assert result.statusCode == 0, "no HTTP response was received"
     assert "timed out after 4 attempts" in result.details
 
 
@@ -464,9 +503,7 @@ def test_a_container_started_outside_this_process_is_discovered(monkeypatch):
     discovered by its `com.docker.compose.project` label, which compose sets to the session
     id. Discovery is now per-session, which is what "still be reported" requires.
     """
-    monkeypatch.setattr(ds, "_containers_for_session", lambda sid: [
-        {"id": "app555", "name": "externally-started", "ports": "0.0.0.0:18081->8080/tcp", "status": "Up"},
-    ])
+    monkeypatch.setattr(local_runtime, "inspect_session", lambda sid: LocalDeploymentSession(sessionId=sid, containerId='app555', hostPort=18081, status=DeploymentStatus.RUNNING))
     monkeypatch.setattr(ds.requests, "get", lambda url, **kw: _FakeResponse(200, {"status": "UP"}))
 
     status = ds.get_deployment_status(SESSION_ID)
@@ -504,6 +541,7 @@ def test_an_existing_failed_session_is_cleared_when_the_endpoint_recovers(monkey
             errorMessage="Smoke test failed: timed out",
         )
     })
+    monkeypatch.setattr(local_runtime, "inspect_session", lambda sid: LocalDeploymentSession(sessionId=sid, containerId='recovered', status=DeploymentStatus.RUNNING))
     monkeypatch.setattr(ds.requests, "get", lambda url, **kw: _FakeResponse(200, {"status": "UP"}))
 
     status = ds.get_deployment_status(SESSION_ID)
@@ -529,11 +567,12 @@ def test_a_known_session_survives_an_unreachable_endpoint(monkeypatch):
     def refuse(url, **kwargs):
         raise requests.ConnectionError("refused")
 
+    monkeypatch.setattr(local_runtime, "inspect_session", lambda sid: LocalDeploymentSession(sessionId=sid, containerId='owned', status=DeploymentStatus.RUNNING))
     monkeypatch.setattr(ds.requests, "get", refuse)
 
     status = ds.get_deployment_status(SESSION_ID)
 
-    assert status.status == DeploymentStatus.RUNNING
+    assert status.status == DeploymentStatus.DEGRADED
 
 
 # ---------------------------------------------------------------------------
@@ -546,8 +585,8 @@ def test_streaming_replays_history_before_live_lines():
 
     stream = ds.stream_logs(SESSION_ID)
 
-    assert next(stream) == "data: first\n\n"
-    assert next(stream) == "data: second\n\n"
+    assert next(stream) == 'id: 1\ndata: "first"\n\n'
+    assert next(stream) == 'id: 2\ndata: "second"\n\n'
     stream.close()
 
 
@@ -563,7 +602,7 @@ def test_streaming_delivers_a_line_logged_after_the_client_connected():
     stream = ds.stream_logs("qe-live-session")
     ds._log_message("qe-live-session", "compiling")
 
-    assert next(stream) == "data: compiling\n\n"
+    assert next(stream) == 'id: 1\ndata: "compiling"\n\n'
     stream.close()
 
 
@@ -593,7 +632,7 @@ def test_stopping_runs_compose_down_and_records_the_stop(monkeypatch, tmp_path):
 
     session = ds.stop_deployment(SESSION_ID, str(tmp_path))
 
-    assert seen["cmd"] == ["docker", "compose", "down", "-v"], "volumes must go too"
+    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "down"], "stop must preserve volumes"
     assert seen["cwd"] == str(tmp_path)
     assert session.status == DeploymentStatus.STOPPED
     assert any("[STOPPED]" in line for line in ds.get_deployment_logs(SESSION_ID))
@@ -610,11 +649,7 @@ def test_stopping_an_unknown_session_still_reports_stopped(monkeypatch, tmp_path
 
 
 def test_a_failed_compose_down_does_not_raise(monkeypatch, tmp_path):
-    """Teardown is best-effort: the operator asked to stop, and the session must be marked stopped.
-
-    The docker call is wrapped in a bare ``except``. A teardown that raised would leave
-    the session in its old state and the UI offering to stop it again.
-    """
+    """Return a failed operation with its error; never invent STOPPED after timeout."""
     def explode(cmd, **kwargs):
         raise subprocess.TimeoutExpired(cmd, 15.0)
 
@@ -622,19 +657,22 @@ def test_a_failed_compose_down_does_not_raise(monkeypatch, tmp_path):
 
     session = ds.stop_deployment(SESSION_ID, str(tmp_path))
 
-    assert session.status == DeploymentStatus.STOPPED
+    assert session.status == DeploymentStatus.FAILED
+    assert session.errorMessage
 
 
 # ---------------------------------------------------------------------------
 # log plumbing
 # ---------------------------------------------------------------------------
 def test_log_history_and_the_queue_stay_in_step():
-    """``stream_logs`` replays history and then drains the queue; a line in one and not the
-    other is either a lost log or a duplicated one, depending on which side is missing."""
+    """History is broadcast independently: neither subscriber consumes the other's line."""
     ds._log_message(SESSION_ID, "only line")
 
     assert ds.get_deployment_logs(SESSION_ID) == ["only line"]
-    assert ds._log_queues[SESSION_ID].get_nowait() == "only line"
+    first, second = ds.stream_logs(SESSION_ID), ds.stream_logs(SESSION_ID)
+    assert next(first) == next(second) == 'id: 1\ndata: "only line"\n\n'
+    first.close()
+    second.close()
 
 
 def test_logs_of_an_unknown_session_are_empty_not_an_error():
@@ -644,4 +682,6 @@ def test_logs_of_an_unknown_session_are_empty_not_an_error():
 def test_a_log_queue_is_created_on_first_message():
     ds._log_message("qe-fresh", "hello")
 
-    assert isinstance(ds._log_queues["qe-fresh"], queue.Queue)
+    assert ds.get_deployment_logs("qe-fresh") == ['hello']
+    ds._raw_log_history.clear()
+    assert ds.get_deployment_logs("qe-fresh") == ['hello'], 'history must survive memory eviction'

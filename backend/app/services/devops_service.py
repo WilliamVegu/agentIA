@@ -5,72 +5,9 @@ from datetime import datetime, timezone
 from app.models.devops import DatabaseEngine, DevOpsManifestBundle
 
 
-def generate_dockerfile(service_name: str = "microservice", build_tool: str = "maven") -> str:
-    """Generates an optimized, multi-stage Dockerfile based on Eclipse Temurin JRE 21 LTS using Spring Boot layertools."""
-    content = f"""# ==============================================================================
-# Multi-Stage Layered Dockerfile for Spring Boot 3 / Java 21 LTS
-# Hermetic & Non-Root Execution (Constitution Principles IV & VI)
-# ==============================================================================
-
-# Stage 1: Build fat JAR inside container with Maven (Hermetic build)
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder-mvn
-WORKDIR /workspace
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -Dmaven.test.skip=true
-
-# Stage 2: Spring Boot Layer Extractor
-FROM eclipse-temurin:21-jre-alpine AS builder
-WORKDIR /workspace
-
-# Copy pre-built fat JAR from Maven build stage
-COPY --from=builder-mvn /workspace/target/*.jar application.jar
-
-# Extract Spring Boot layers (dependencies, spring-boot-loader, snapshot-dependencies, application)
-RUN java -Djarmode=layertools -jar application.jar extract
-
-# ------------------------------------------------------------------------------
-# Stage 3: Minimal Non-Root Runtime Image
-# ------------------------------------------------------------------------------
-FROM eclipse-temurin:21-jre-alpine AS runner
-WORKDIR /app
-
-# Create unprivileged non-root user and group
-RUN addgroup -g 10001 -S appgroup && \\
-    adduser -u 10001 -S appuser -G appgroup
-
-# Copy extracted layers in optimal caching order
-COPY --from=builder /workspace/dependencies/ ./
-COPY --from=builder /workspace/spring-boot-loader/ ./
-COPY --from=builder /workspace/snapshot-dependencies/ ./
-COPY --from=builder /workspace/application/ ./
-
-# Change ownership of application files
-RUN chown -R appuser:appgroup /app
-
-# Switch to non-root execution
-USER appuser:appgroup
-
-# Configure JVM container memory management & network defaults
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
-ENV SERVER_PORT=8080
-
-EXPOSE 8080
-
-# Native container healthcheck polling Spring Boot Actuator
-HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \\
-  CMD wget -q -O - http://localhost:8080/actuator/health | grep UP || exit 1
-
-# Launch using Spring Boot JarLauncher
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
-"""
-    if build_tool == "gradle":
-        content = content.replace("maven:3.9-eclipse-temurin-21-alpine", "gradle:8-jdk21")
-        content = content.replace("builder-mvn", "builder-gradle")
-        content = content.replace("COPY pom.xml .", "COPY . .")
-        content = content.replace("RUN mvn clean package -Dmaven.test.skip=true", "RUN gradle --no-daemon clean bootJar -x test")
-        content = content.replace("/workspace/target/*.jar", "/workspace/build/libs/*.jar")
-    return content
+def generate_dockerfile(service_name: str = "microservice", build_tool: str = "maven", prepared_image: str = "agentia-builder:prepare-first") -> str:
+    from app.services.local_deployment_assets import dockerfile
+    return dockerfile(build_tool, prepared_image)
 
 
 
@@ -94,161 +31,16 @@ build/
 Thumbs.db
 .env*
 secrets/
+.agentia-runtime/
+**/target/
+**/build/
+**/.gradle/
 """
 
 
-def generate_docker_compose(
-    service_name: str = "microservice",
-    db_engine: str = "POSTGRESQL",
-    host_port: int = 8080
-) -> str:
-    """Generates docker-compose.yml orchestrating the microservice with its detected database engine."""
-    db_engine_upper = db_engine.upper()
-
-    if db_engine_upper == "H2":
-        return f"""version: '3.8'
-
-services:
-  {service_name}:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "{host_port}:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=h2
-      - SERVER_PORT=8080
-      - SPRING_DATASOURCE_URL=jdbc:h2:mem:{service_name}_db;MODE=PostgreSQL
-    networks:
-      - app-network
-    restart: unless-stopped
-
-networks:
-  app-network:
-    driver: bridge
-"""
-
-    elif db_engine_upper == "MYSQL":
-        return f"""version: '3.8'
-
-services:
-  {service_name}:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "{host_port}:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SERVER_PORT=8080
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/{service_name}_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${{DB_PASSWORD:-root}}
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
-      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.MySQLDialect
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  db:
-    image: mysql:8.0-debian
-    ports:
-      - "3306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=${{DB_PASSWORD:-root}}
-      - MYSQL_DATABASE={service_name}_db
-    volumes:
-      - mysqldata:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-    restart: unless-stopped
-
-volumes:
-  mysqldata:
-    driver: local
-
-networks:
-  app-network:
-    driver: bridge
-"""
-
-    else:  # Default to PostgreSQL
-        return f"""version: '3.8'
-
-services:
-  {service_name}:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "{host_port}:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SERVER_PORT=8080
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/{service_name}_db
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=${{DB_PASSWORD:-postgres}}
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
-      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
-      # The schema is applied by Spring Boot from the classpath
-      # (src/main/resources/schema.sql, mounted into the image at build time), NOT by
-      # mounting schema.sql into the database container's init directory.
-      #
-      # That bind mount is gone because it failed on a real host: the source path is
-      # created as a DIRECTORY by `docker compose up` when missing, and even once it
-      # was a 0644 regular file the container could not read it -- root inside the
-      # container got "Permission denied" with SELinux disabled, no ACLs, XFS, and on
-      # a fresh volume with --force-recreate. Rather than leave database initialisation
-      # dependent on a mount that a real environment refused, it now depends on
-      # nothing but the artifact itself.
-      - SPRING_SQL_INIT_MODE=always
-      # `none`, not `update`: the schema is authored and shipped, so Hibernate must not
-      # silently alter it. `update` was hiding every schema defect, and `create-drop`
-      # (the base config) dropped the schema on every shutdown.
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  db:
-    image: postgres:16-alpine
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB={service_name}_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${{DB_PASSWORD:-postgres}}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d {service_name}_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-    restart: unless-stopped
-
-volumes:
-  pgdata:
-    driver: local
-
-networks:
-  app-network:
-    driver: bridge
-"""
+def generate_docker_compose(service_name: str = "microservice", db_engine: str = "POSTGRESQL", host_port: int = 8080) -> str:
+    from app.services.local_deployment_assets import compose
+    return compose(service_name, db_engine, host_port)
 
 
 def generate_github_actions(service_name: str = "microservice") -> str:
@@ -510,12 +302,24 @@ def generate_all_devops_assets(
     workspace_dir: str,
     session_id: str,
     service_name: str = "microservice",
-    db_engine: str = "POSTGRESQL",
+    db_engine: Optional[str] = None,
     host_port: int = 8080
 ) -> DevOpsManifestBundle:
     """Generates and writes all Docker, Compose, CI/CD, and Kubernetes assets to the session workspace."""
     ws = Path(workspace_dir)
     ws.mkdir(parents=True, exist_ok=True)
+    if db_engine is None:
+        from app.models.session import SessionLocal, GenerationSessionDB
+        with SessionLocal() as db:
+            row = db.get(GenerationSessionDB, session_id)
+            db_engine = row.database_engine if row else "POSTGRESQL"
+    db_engine = (db_engine.value if isinstance(db_engine, DatabaseEngine) else str(db_engine)).upper()
+    if db_engine not in {"POSTGRESQL", "MYSQL", "H2"}:
+        raise ValueError("Base de datos no admitida: " + db_engine)
+    import re
+    service_name = re.sub(r"[^a-z0-9-]+", "-", service_name.lower()).strip("-")
+    if not service_name or not service_name[0].isalpha():
+        service_name = "service-" + (service_name or "app")
 
     # 1. Dockerfile & .dockerignore
     build_tool = "gradle" if (ws / "build.gradle").exists() or (ws / "build.gradle.kts").exists() else "maven"
@@ -525,10 +329,15 @@ def generate_all_devops_assets(
     (ws / ".dockerignore").write_text(dockerignore, encoding="utf-8")
 
     # Ensure pom.xml includes Actuator for health checks and database driver if present
-    pom_path = ws / "pom.xml"
+    pom_path = ws / "bootstrap/pom.xml" if (ws / "bootstrap/pom.xml").exists() else ws / "pom.xml"
     if pom_path.exists():
         pom_text = pom_path.read_text(encoding="utf-8")
         deps_to_add = []
+        if 'liquibase-core' not in pom_text:
+            deps_to_add.append('''        <dependency>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
+        </dependency>''')
         if "spring-boot-starter-actuator" not in pom_text:
             deps_to_add.append("""        <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -552,12 +361,15 @@ def generate_all_devops_assets(
             pom_path.write_text(pom_text, encoding="utf-8")
 
     if build_tool == "gradle":
-        gradle_file = ws / ("build.gradle.kts" if (ws / "build.gradle.kts").exists() else "build.gradle")
+        gradle_root = ws / "bootstrap" if (ws / "bootstrap/build.gradle").exists() else ws
+        gradle_file = gradle_root / ("build.gradle.kts" if (gradle_root / "build.gradle.kts").exists() else "build.gradle")
         text = gradle_file.read_text(encoding="utf-8")
         dependencies = []
         kotlin = gradle_file.suffix == ".kts"
         def dependency(kind, coordinate):
             return f'    {kind}("{coordinate}")' if kotlin else f"    {kind} '{coordinate}'"
+        if 'liquibase-core' not in text:
+            dependencies.append(dependency('implementation', 'org.liquibase:liquibase-core'))
         if "spring-boot-starter-actuator" not in text:
             dependencies.append(dependency("implementation", "org.springframework.boot:spring-boot-starter-actuator"))
         if db_engine.upper() == "POSTGRESQL" and "org.postgresql" not in text:
@@ -566,6 +378,15 @@ def generate_all_devops_assets(
             dependencies.append(dependency("runtimeOnly", "com.mysql:mysql-connector-j"))
         if dependencies:
             gradle_file.write_text(text + "\ndependencies {\n" + "\n".join(dependencies) + "\n}\n", encoding="utf-8")
+
+    from app.services.local_database_migrations import write_migrations
+    write_migrations(ws, db_engine)
+    from app.services.local_deployment_assets import builder_image, write_windows_scripts
+    dockerfile = generate_dockerfile(service_name, build_tool, builder_image(ws))
+    (ws / "Dockerfile").write_text(dockerfile, encoding="utf-8")
+    write_windows_scripts(ws, build_tool, db_engine)
+    from app.services.offline_kit_assets import write_kit_scripts
+    write_kit_scripts(ws, db_engine)
 
     # 2. docker-compose.yml
     compose = generate_docker_compose(service_name, db_engine, host_port)

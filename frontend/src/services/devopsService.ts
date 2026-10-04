@@ -2,13 +2,14 @@ import apiClient from './apiClient';
 
 export interface LocalDeploymentSession {
   sessionId: string;
-  serviceName: string;
-  status: 'NOT_DEPLOYED' | 'STARTING' | 'BUILDING' | 'RUNNING' | 'HEALTHY' | 'STOPPED' | 'ERROR' | 'FAILED' | 'IDLE' | 'DOCKER_UNAVAILABLE';
+  serviceName?: string;
+  status: 'NOT_DEPLOYED' | 'STARTING' | 'BUILDING' | 'RUNNING' | 'HEALTHY' | 'STOPPED' | 'ERROR' | 'FAILED' | 'IDLE' | 'DOCKER_UNAVAILABLE' | 'SKIPPED_BY_CHOICE' | 'DEGRADED';
   hostPort: number;
   containerId?: string;
-  dbEngine: string;
-  healthStatus: 'UP' | 'DOWN' | 'UNKNOWN';
-  message: string;
+  dbEngine?: string;
+  healthStatus?: 'UP' | 'DOWN' | 'UNKNOWN' | null;
+  errorMessage?: string | null;
+  message?: string;
   startedAt?: string;
 }
 
@@ -25,13 +26,17 @@ export interface PlaygroundProxyResult {
 }
 
 export interface SmokeTestResult {
-  sessionId: string;
-  endpointTested: string;
-  status: 'SUCCESS' | 'FAILURE' | 'SKIPPED';
+  passed: boolean;
+  testUrl: string;
+  statusCode: number;
+  statusPayload?: Record<string, unknown>;
+  sessionId?: string;
+  endpointTested?: string;
+  status?: 'SUCCESS' | 'FAILURE' | 'SKIPPED';
   httpStatusCode?: number;
   latencyMs?: number;
-  details?: Record<string, any>;
-  message: string;
+  details?: string;
+  message?: string;
 }
 
 /**
@@ -57,7 +62,23 @@ export interface ManifestBundle {
   generatedAt: string;
 }
 
+export interface DockerCapabilityReport {
+  sessionId: string;
+  executionMode: 'SOURCE_ONLY' | 'DOCKER';
+  readyForPreparation: boolean;
+  preparedImagesAvailable: boolean;
+  offlineVerified: boolean;
+  checks: Array<{ name: string; status: string; detail: string }>;
+  availableActions: string[];
+}
+
 export const devopsService = {
+  async getDiagnostics(sessionId: string): Promise<DockerCapabilityReport> {
+    return (await apiClient.get<DockerCapabilityReport>(`/devops/${sessionId}/diagnostics`)).data;
+  },
+  async prepareLocal(sessionId: string): Promise<LocalDeploymentSession> {
+    return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/prepare`)).data;
+  },
   async generateManifests(sessionId: string, dbEngine = 'POSTGRESQL', hostPort = 8080): Promise<ManifestBundle> {
     const response = await apiClient.post<ManifestBundle>(`/devops/${sessionId}/generate`, null, {
       params: { db_engine: dbEngine, host_port: hostPort },

@@ -6,6 +6,14 @@
 
 **Status**: Draft
 
+## Revisión de alcance vigente — 2026-10-04
+
+La interfaz vigente es React. Esta revisión prevalece sobre los comportamientos históricos descritos más abajo: elección `SOURCE_ONLY`/`DOCKER` por sesión, Windows como host principal, microservicios generados como único objeto de contenerización, preparación inicial online permitida y operación posterior offline con IA excluida. El flujo sin Docker termina y permite exportar fuentes auditadas, sin pedir Java/Maven/Gradle ni virtualización. Se mantienen generación asistida y Auto-Pilot.
+
+La indisponibilidad de Docker requiere una decisión explícita: reintentar o continuar sin Docker. Pruebas omitidas, fallos ejecutados y evidencia vigente se distinguen. El despliegue se publica exclusivamente en localhost, conserva datos al detenerse y elige otro puerto si el solicitado está ocupado. La integración remota con GitLab queda aplazada; sus artefactos locales siguen incluidos en el plan de revisión.
+
+El alcance detallado y las tareas pendientes están en `docs/PLAN_IMPLEMENTACION_DESPLIEGUE_LOCAL.md`; el diagnóstico y las evidencias, en `docs/ESTADO_DESPLIEGUE_LOCAL_DOCKER.md`. No se considera completada esta función hasta demostrar los criterios de esas tareas.
+
 **Input**: User description: "El sistema debe gestionar la contenerización Docker, la generación de pipelines de CI/CD y la orquestación del despliegue para los microservicios Java 21 / Spring Boot 3 generados, integrándose con el ciclo de vida existente (specs 001 a 006): 1. Generación de Dockerfile multi-stage hermético y optimizado (Eclipse Temurin JRE 21, Spring Boot layered jars, usuario no-root, .dockerignore) y docker-compose.yml que orqueste el microservicio con la base de datos detectada en la spec 004 (PostgreSQL/MySQL/H2) y sus variables de entorno. 2. Generación de pipelines de CI/CD automatizados (GitHub Actions y GitLab CI) que contemplen: compilación hermética Maven, ejecución de tests unitarios y de integración (spec 005), escaneo de seguridad SAST y secretos (spec 006), build de imagen Docker y escaneo de vulnerabilidades con Trivy. 3. Motor de despliegue local en el Studio: endpoints en FastAPI (/api/v1/devops/generate, /deploy, /status) y una nueva pestaña en Streamlit ('7. DevOps & Despliegue') que permita ejecutar 'docker build' y 'docker run/compose' conectándose al daemon local de Docker, transmitiendo los logs en vivo vía Server-Sent Events (SSE). 4. Smoke testing y Healthcheck automatizado: verificación post-despliegue consultando el endpoint /actuator/health hasta confirmar estado UP y exponer la URL local de prueba. 5. Manifiestos de despliegue para producción: generación de manifiestos Kubernetes básicos (Deployment con probes liveness/readiness, Service, ConfigMap e Ingress). 6. Cumplimiento de la Constitución (Principio VI): cero secretos en disco, inyección efímera de variables de entorno y credenciales para registries."
 
 ---

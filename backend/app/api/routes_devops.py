@@ -1,11 +1,13 @@
 from pathlib import Path
+import asyncio
 from typing import Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Query, Header
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.models.devops import (
     DeploymentStatus,
+    DatabaseEngine,
     DevOpsDeployRequest,
     DevOpsManifestBundle,
     LocalDeploymentSession,
@@ -13,6 +15,7 @@ from app.models.devops import (
     PlaygroundProxyResponse,
     PlaygroundResources,
     SmokeTestResult,
+    DockerCapabilityReport,
 )
 from app.models.session import GenerationSessionDB, SessionLocal
 from app.services.devops_service import generate_all_devops_assets
@@ -53,11 +56,18 @@ def _resolve_session_context(session_id: str):
     return ws_path, service_name
 
 
+@router.get("/{session_id}/diagnostics", response_model=DockerCapabilityReport)
+async def docker_diagnostics(session_id: str):
+    from app.services.docker_diagnostics import diagnose
+    workspace, _ = _resolve_session_context(session_id)
+    return await asyncio.to_thread(diagnose, session_id, workspace)
+
+
 @router.post("/{session_id}/generate", response_model=DevOpsManifestBundle)
 async def generate_manifests(
     session_id: str,
-    db_engine: Optional[str] = "POSTGRESQL",
-    host_port: Optional[int] = 8080
+    db_engine: Optional[DatabaseEngine] = None,
+    host_port: int = Query(8080, ge=1024, le=65535)
 ):
     """Generates all Docker, Compose, CI/CD, and Kubernetes assets for the workspace session."""
     ws_path, service_name = _resolve_session_context(session_id)
@@ -74,7 +84,7 @@ async def generate_manifests(
         workspace_dir=str(ws_path),
         session_id=session_id,
         service_name=service_name,
-        db_engine=db_engine or "POSTGRESQL",
+        db_engine=db_engine,
         host_port=host_port or 8080,
     )
     return bundle
@@ -84,6 +94,12 @@ async def generate_manifests(
 async def deploy_container(session_id: str, payload: Optional[DevOpsDeployRequest] = None):
     """Initiates local Docker deployment and compose orchestration."""
     ws_path, service_name = _resolve_session_context(session_id)
+    from app.services.execution_policy import execution_mode
+    if execution_mode(session_id).value == "SOURCE_ONLY":
+        return get_deployment_status(session_id)
+    from app.services.verification_policy import require_verified_session
+    with SessionLocal() as db:
+        require_verified_session(db.get(GenerationSessionDB, session_id))
 
     # Enforce Quality Gate check before deploying
     audit = audit_workspace(str(ws_path), session_id, service_name)
@@ -109,17 +125,47 @@ async def deploy_container(session_id: str, payload: Optional[DevOpsDeployReques
     return session_status
 
 
+@router.post("/{session_id}/prepare", response_model=LocalDeploymentSession)
+async def prepare_environment(session_id: str):
+    from app.services.execution_policy import execution_mode
+    from app.services.local_preparation import prepare_local
+    workspace, name = _resolve_session_context(session_id)
+    if execution_mode(session_id).value == "SOURCE_ONLY":
+        return get_deployment_status(session_id)
+    with SessionLocal() as db:
+        row = db.get(GenerationSessionDB, session_id)
+        database = row.database_engine
+        if row.status.value in ("RUNNING", "QUEUED"):
+            raise HTTPException(409, "Espere a que termine la generación.")
+    audit = audit_workspace(str(workspace), session_id, name)
+    if not audit.qualityGate.canExport:
+        raise HTTPException(403, audit.qualityGate.summaryMessage)
+    current = get_deployment_status(session_id)
+    if current.status.value in ("BUILDING", "RUNNING", "HEALTHY", "DEGRADED"):
+        raise HTTPException(409, "Termine o detenga la operación actual antes de preparar.")
+    generate_all_devops_assets(str(workspace), session_id, name, db_engine=database)
+    return prepare_local(session_id, str(workspace), database)
+
+
 @router.get("/{session_id}/status", response_model=LocalDeploymentSession)
 async def deployment_status(session_id: str):
     """Retrieves current container and deployment execution status."""
+    _resolve_session_context(session_id)
     return get_deployment_status(session_id)
 
 
-@router.get("/{session_id}/logs/stream")
-async def stream_container_logs(session_id: str):
-    """Streams real-time build and execution logs via Server-Sent Events (SSE)."""
+@router.get("/{session_id}/logs/stream", response_class=StreamingResponse,
+            responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}})
+async def stream_container_logs(session_id: str, last_event_id: Optional[str] = Header(None)):
+    """Replay retained deployment logs after Last-Event-ID; not live container capture."""
+    _resolve_session_context(session_id)
+    cursor = 0
+    if last_event_id is not None:
+        if not last_event_id.isascii() or not last_event_id.isdecimal() or len(last_event_id) > 20:
+            raise HTTPException(400, 'Last-Event-ID debe ser un entero no negativo de hasta 20 dígitos.')
+        cursor = int(last_event_id)
     return StreamingResponse(
-        stream_logs(session_id),
+        stream_logs(session_id, after_id=cursor),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -132,6 +178,7 @@ async def stream_container_logs(session_id: str):
 @router.get("/{session_id}/logs")
 async def get_container_logs(session_id: str):
     """Retrieves all historical container execution logs without streaming."""
+    _resolve_session_context(session_id)
     return {"logs": get_deployment_logs(session_id)}
 
 

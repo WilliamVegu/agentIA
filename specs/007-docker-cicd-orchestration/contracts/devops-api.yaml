@@ -1,283 +1,1091 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  title: DevOps, Containerization & Deployment API
-  description: REST API for generating multi-stage Dockerfiles, compose orchestrations, CI/CD pipelines, Kubernetes manifests, and managing local container execution.
-  version: 1.0.0
-servers:
-  - url: http://localhost:8000/api/v1
-    description: Local FastAPI Backend
-
+  title: AgentIA local deployment API
+  version: '2026-10-04'
 paths:
-  /devops/{session_id}/generate:
-    post:
-      summary: Generate all DevOps assets
-      description: Generates multi-stage Dockerfile, .dockerignore, docker-compose.yml, GitHub Actions, GitLab CI, and Kubernetes manifests for the workspace session.
-      operationId: generateDevOpsManifests
+  /api/v1/sessions/{session_id}/execution-mode:
+    patch:
+      tags:
+      - Sessions
+      summary: Change Execution Mode
+      operationId: change_execution_mode_api_v1_sessions__session_id__execution_mode_patch
       parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Session identifier
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionModeRequest'
       responses:
         '200':
-          description: DevOps manifests generated successfully
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/sessions/{session_id}/verify:
+    post:
+      tags:
+      - Sessions
+      summary: Retry Session Verification
+      operationId: retry_session_verification_api_v1_sessions__session_id__verify_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/sessions/quick-start:
+    post:
+      tags:
+      - Sessions
+      summary: Quick Start Session
+      description: Creates a new generation session immediately from natural language
+        input or service name.
+      operationId: quick_start_session_api_v1_sessions_quick_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuickStartSessionRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuickStartSessionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/sessions/{session_id}:
+    get:
+      tags:
+      - Sessions
+      summary: Get Session By Id
+      description: Retrieves session details and lifecycle phase.
+      operationId: get_session_by_id_api_v1_sessions__session_id__get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationSessionDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Sessions
+      summary: Cancel Session
+      description: Cancels active or queued session.
+      operationId: cancel_session_api_v1_sessions__session_id__delete
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/diagnostics:
+    get:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Docker Diagnostics
+      operationId: docker_diagnostics_api_v1_devops__session_id__diagnostics_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DockerCapabilityReport'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/generate:
+    post:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Generate Manifests
+      description: Generates all Docker, Compose, CI/CD, and Kubernetes assets for
+        the workspace session.
+      operationId: generate_manifests_api_v1_devops__session_id__generate_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      - name: db_engine
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DatabaseEngine'
+          - type: 'null'
+          title: Db Engine
+      - name: host_port
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 65535
+          minimum: 1024
+          default: 8080
+          title: Host Port
+      responses:
+        '200':
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DevOpsManifestBundle'
-        '403':
-          description: Blocked by Quality Gate (Principio V / Feature 006)
+        '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
-        '404':
-          description: Session workspace not found
-
-  /devops/{session_id}/deploy:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/deploy:
     post:
-      summary: Trigger local container deployment
-      description: Builds the Docker image and executes docker compose up to launch microservice and database containers.
-      operationId: deployLocalContainer
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Deploy Container
+      description: Initiates local Docker deployment and compose orchestration.
+      operationId: deploy_container_api_v1_devops__session_id__deploy_post
       parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
       requestBody:
-        required: false
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DevOpsDeployRequest'
+              anyOf:
+              - $ref: '#/components/schemas/DevOpsDeployRequest'
+              - type: 'null'
+              title: Payload
       responses:
         '200':
-          description: Local deployment initiated
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LocalDeploymentSession'
-        '403':
-          description: Blocked by Quality Gate
-        '503':
-          description: Docker Daemon unreachable (triggers Export-Only mode)
+        '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LocalDeploymentSession'
-
-  /devops/{session_id}/status:
-    get:
-      summary: Get local deployment status and health
-      description: Returns container status, mapped ports, uptime, and actuator healthcheck results.
-      operationId: getDeploymentStatus
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/prepare:
+    post:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Prepare Environment
+      operationId: prepare_environment_api_v1_devops__session_id__prepare_post
       parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
       responses:
         '200':
-          description: Current deployment status
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LocalDeploymentSession'
-        '404':
-          description: Session not found
-
-  /devops/{session_id}/logs/stream:
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/status:
     get:
-      summary: Stream live Docker logs
-      description: Streams real-time build and container execution logs using Server-Sent Events (SSE).
-      operationId: streamDeploymentLogs
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Deployment Status
+      description: Retrieves current container and deployment execution status.
+      operationId: deployment_status_api_v1_devops__session_id__status_get
       parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
       responses:
         '200':
-          description: SSE stream of Docker logs
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/logs/stream:
+    get:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Stream Container Logs
+      description: Replay retained deployment logs after Last-Event-ID; not live container
+        capture.
+      operationId: stream_container_logs_api_v1_devops__session_id__logs_stream_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      - name: last-event-id
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last-Event-Id
+      responses:
+        '200':
+          description: Successful Response
           content:
             text/event-stream:
               schema:
                 type: string
-
-  /devops/{session_id}/stop:
-    post:
-      summary: Stop local deployment containers
-      description: Gracefully shuts down and cleans up containers, networks, and resources for the session.
-      operationId: stopDeployment
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/logs:
+    get:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Get Container Logs
+      description: Retrieves all historical container execution logs without streaming.
+      operationId: get_container_logs_api_v1_devops__session_id__logs_get
       parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
       responses:
         '200':
-          description: Containers stopped successfully
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/stop:
+    post:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Stop Containers
+      description: Stops and cleans up active local containers for the session.
+      operationId: stop_containers_api_v1_devops__session_id__stop_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LocalDeploymentSession'
-
-  /devops/{session_id}/smoke-test:
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/smoke-test:
     post:
-      summary: Execute automated smoke test
-      description: Polls /actuator/health to verify runtime readiness and measure latency.
-      operationId: runSmokeTest
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Execute Smoke Test
+      description: Executes automated post-deployment health validation against /actuator/health.
+      operationId: execute_smoke_test_api_v1_devops__session_id__smoke_test_post
       parameters:
-        - name: session_id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      - name: host_port
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: 8080
+          title: Host Port
       responses:
         '200':
-          description: Smoke test outcome
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SmokeTestResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/playground:
+    post:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Proxy Playground Call
+      description: 'Forward one Live Playground call to this session''s deployed container.
 
+
+        The browser calls the platform (same origin); the platform calls the container.
+
+        That removes the cross-origin request entirely, which the generated service
+        cannot
+
+        satisfy -- it ships no CORS configuration, so a direct browser call is rejected
+
+        with 403 and appears as "Failed to fetch" while Docker is perfectly healthy.'
+      operationId: proxy_playground_call_api_v1_devops__session_id__playground_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaygroundProxyRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaygroundProxyResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/devops/{session_id}/playground/resources:
+    get:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Get Playground Resources
+      description: 'The REST paths this service exposes, read from its generated controllers.
+
+
+        Exists so the CRUD form stops guessing. It previously posted to a hardcoded
+
+        `/api/v1/orders`, which is wrong for every blueprint without an `Order` entity.'
+      operationId: get_playground_resources_api_v1_devops__session_id__playground_resources_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaygroundResources'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    DevOpsManifestBundle:
-      type: object
-      required:
-        - sessionId
-        - serviceName
-        - databaseEngine
-        - dockerfileContent
-        - dockerignoreContent
-        - dockerComposeContent
-        - githubActionsWorkflow
-        - gitlabCiWorkflow
-        - kubernetesManifests
-        - generatedAt
+    DatabaseEngine:
+      type: string
+      enum:
+      - POSTGRESQL
+      - MYSQL
+      - H2
+      title: DatabaseEngine
+    DeploymentStatus:
+      type: string
+      enum:
+      - SKIPPED_BY_CHOICE
+      - DEGRADED
+      - IDLE
+      - BUILDING
+      - RUNNING
+      - HEALTHY
+      - FAILED
+      - STOPPED
+      - DOCKER_UNAVAILABLE
+      title: DeploymentStatus
+    DevOpsDeployRequest:
       properties:
-        sessionId:
-          type: string
-        serviceName:
-          type: string
-        databaseEngine:
-          type: string
-          enum: [POSTGRESQL, MYSQL, H2]
-        dockerfileContent:
-          type: string
-        dockerignoreContent:
-          type: string
-        dockerComposeContent:
-          type: string
-        githubActionsWorkflow:
-          type: string
-        gitlabCiWorkflow:
-          type: string
-        kubernetesManifests:
-          type: object
-          additionalProperties:
-            type: string
-        generatedAt:
-          type: string
-          format: date-time
-
-    LocalDeploymentSession:
-      type: object
-      required:
-        - sessionId
-        - status
-        - hostPort
-        - containerPort
-      properties:
-        sessionId:
-          type: string
-        containerId:
-          type: string
-          nullable: true
-        databaseContainerId:
-          type: string
-          nullable: true
-        status:
-          type: string
-          enum: [IDLE, BUILDING, RUNNING, HEALTHY, FAILED, STOPPED, DOCKER_UNAVAILABLE]
         hostPort:
           type: integer
+          maximum: 65535.0
+          minimum: 1024.0
+          title: Hostport
+          default: 8080
+        rebuild:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Rebuild
+          default: false
+      type: object
+      title: DevOpsDeployRequest
+    DevOpsManifestBundle:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        serviceName:
+          type: string
+          title: Servicename
+        databaseEngine:
+          $ref: '#/components/schemas/DatabaseEngine'
+          default: POSTGRESQL
+        dockerfileContent:
+          type: string
+          title: Dockerfilecontent
+        dockerignoreContent:
+          type: string
+          title: Dockerignorecontent
+        dockerComposeContent:
+          type: string
+          title: Dockercomposecontent
+        githubActionsWorkflow:
+          type: string
+          title: Githubactionsworkflow
+        gitlabCiWorkflow:
+          type: string
+          title: Gitlabciworkflow
+        kubernetesManifests:
+          additionalProperties:
+            type: string
+          type: object
+          title: Kubernetesmanifests
+        generatedAt:
+          type: string
+          title: Generatedat
+      type: object
+      required:
+      - sessionId
+      - serviceName
+      - dockerfileContent
+      - dockerignoreContent
+      - dockerComposeContent
+      - githubActionsWorkflow
+      - gitlabCiWorkflow
+      title: DevOpsManifestBundle
+    DockerCapabilityReport:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        executionMode:
+          type: string
+          title: Executionmode
+        readyForPreparation:
+          type: boolean
+          title: Readyforpreparation
+          default: false
+        preparedImagesAvailable:
+          type: boolean
+          title: Preparedimagesavailable
+          default: false
+        offlineVerified:
+          type: boolean
+          title: Offlineverified
+          default: false
+        checks:
+          items:
+            $ref: '#/components/schemas/DockerDiagnosticCheck'
+          type: array
+          title: Checks
+        availableActions:
+          items:
+            type: string
+          type: array
+          title: Availableactions
+      type: object
+      required:
+      - sessionId
+      - executionMode
+      title: DockerCapabilityReport
+    DockerDiagnosticCheck:
+      properties:
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          title: Status
+        detail:
+          type: string
+          title: Detail
+        freeBytes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Freebytes
+        image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image
+        imageId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Imageid
+        repoDigests:
+          items:
+            type: string
+          type: array
+          title: Repodigests
+      type: object
+      required:
+      - name
+      - status
+      - detail
+      title: DockerDiagnosticCheck
+    ExecutionMode:
+      type: string
+      enum:
+      - SOURCE_ONLY
+      - DOCKER
+      title: ExecutionMode
+    ExecutionModeRequest:
+      properties:
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+      type: object
+      required:
+      - executionMode
+      title: ExecutionModeRequest
+    GenerationSessionDetail:
+      properties:
+        id:
+          type: string
+          title: Id
+        specId:
+          type: string
+          title: Specid
+        specName:
+          type: string
+          title: Specname
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+          default: SOURCE_ONLY
+        verificationOutcome:
+          $ref: '#/components/schemas/VerificationOutcome'
+          default: NOT_RUN
+        availableActions:
+          items:
+            type: string
+          type: array
+          title: Availableactions
+        phase:
+          $ref: '#/components/schemas/SessionPhase'
+        queuePosition:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Queueposition
+          default: 0
+        repairAttempts:
+          type: integer
+          title: Repairattempts
+          default: 0
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        startedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Startedat
+        completedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completedat
+        errorMessage:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Errormessage
+        verificationFallbackUsed:
+          type: boolean
+          title: Verificationfallbackused
+          default: false
+      type: object
+      required:
+      - id
+      - specId
+      - specName
+      - status
+      - phase
+      - createdAt
+      title: GenerationSessionDetail
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LocalDeploymentSession:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        containerId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Containerid
+        databaseContainerId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Databasecontainerid
+        status:
+          $ref: '#/components/schemas/DeploymentStatus'
+          default: IDLE
+        hostPort:
+          type: integer
+          title: Hostport
           default: 8080
         containerPort:
           type: integer
+          title: Containerport
           default: 8080
         testUrl:
-          type: string
-          nullable: true
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Testurl
         healthStatus:
-          type: string
-          nullable: true
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Healthstatus
         errorMessage:
-          type: string
-          nullable: true
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Errormessage
         startedAt:
-          type: string
-          format: date-time
-          nullable: true
-
-    DevOpsDeployRequest:
-      type: object
-      properties:
-        hostPort:
-          type: integer
-          default: 8080
-        rebuild:
-          type: boolean
-          default: false
-
-    SmokeTestResult:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Startedat
+        operationId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operationid
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message
       type: object
       required:
-        - passed
-        - statusCode
-        - latencyMs
-        - testUrl
-        - checkedAt
-        - details
+      - sessionId
+      title: LocalDeploymentSession
+    PlaygroundProxyRequest:
+      properties:
+        method:
+          type: string
+          title: Method
+          description: HTTP method; validated against an allow-list
+          default: GET
+        path:
+          type: string
+          title: Path
+          description: Absolute path on the deployed service, e.g. /api/v1/customers
+        body:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Body
+          description: JSON body for POST/PUT/PATCH
+      type: object
+      required:
+      - path
+      title: PlaygroundProxyRequest
+      description: 'One call the browser wants the platform to forward to the deployed
+        container.
+
+
+        The caller names a path, not a destination: the host and port are resolved
+        from
+
+        the session''s deployment record server-side. See `services/playground_proxy`.'
+    PlaygroundProxyResponse:
+      properties:
+        statusCode:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Statuscode
+        url:
+          type: string
+          title: Url
+          default: ''
+        latencyMs:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Latencyms
+        contentType:
+          type: string
+          title: Contenttype
+          default: ''
+        truncated:
+          type: boolean
+          title: Truncated
+          default: false
+        body:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Body
+        bodyText:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bodytext
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      type: object
+      title: PlaygroundProxyResponse
+      description: 'What actually happened. `statusCode is None` with a populated
+        `error` means the
+
+        call did not complete -- never a synthesised success.'
+    PlaygroundResources:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        resources:
+          items:
+            type: string
+          type: array
+          title: Resources
+        defaultResource:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Defaultresource
+      type: object
+      required:
+      - sessionId
+      title: PlaygroundResources
+      description: The REST paths the generated service exposes, read from its controllers.
+    QuickStartSessionRequest:
+      properties:
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+          default: SOURCE_ONLY
+        autoDeploy:
+          type: boolean
+          title: Autodeploy
+          default: false
+        serviceName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Servicename
+        specName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Specname
+        rawText:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rawtext
+        prompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prompt
+        databaseEngine:
+          $ref: '#/components/schemas/DatabaseEngine'
+          default: POSTGRESQL
+        autoRun:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Autorun
+          default: false
+        apiKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Apikey
+        llmProvider:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Llmprovider
+        modelName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Modelname
+        inputInterface:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Inputinterface
+      additionalProperties: true
+      type: object
+      title: QuickStartSessionRequest
+    QuickStartSessionResponse:
+      properties:
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+          default: SOURCE_ONLY
+        sessionId:
+          type: string
+          title: Sessionid
+        specId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Specid
+        specName:
+          type: string
+          title: Specname
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        currentLifecyclePhase:
+          type: string
+          title: Currentlifecyclephase
+          default: REQUIREMENTS
+        lifecycleMode:
+          type: string
+          title: Lifecyclemode
+          default: GUIDED_STEP
+        pipelineStarted:
+          type: boolean
+          title: Pipelinestarted
+          default: false
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - sessionId
+      - specName
+      - status
+      - message
+      title: QuickStartSessionResponse
+    SessionPhase:
+      type: string
+      enum:
+      - INITIALIZATION
+      - SCAFFOLDING
+      - CODE_GENERATION
+      - TEST_SYNTHESIS
+      - SANDBOX_BUILD
+      - TEST_EXECUTION
+      - SELF_REPAIR
+      - SELF_REPAIR_LOOP
+      - VERIFIED
+      - FAILED
+      title: SessionPhase
+    SessionStatus:
+      type: string
+      enum:
+      - QUEUED
+      - RUNNING
+      - PAUSED
+      - COMPLETED
+      - BLOCKED
+      - CANCELLED
+      title: SessionStatus
+    SmokeTestResult:
       properties:
         passed:
           type: boolean
+          title: Passed
         statusCode:
           type: integer
+          title: Statuscode
+          default: 200
         statusPayload:
+          additionalProperties: true
           type: object
+          title: Statuspayload
         latencyMs:
           type: number
+          title: Latencyms
+          default: 0.0
         testUrl:
           type: string
+          title: Testurl
         checkedAt:
           type: string
-          format: date-time
+          title: Checkedat
         details:
           type: string
-
-    ApiError:
+          title: Details
+          default: ''
       type: object
       required:
-        - timestamp
-        - status
-        - message
+      - passed
+      - testUrl
+      title: SmokeTestResult
+    ValidationError:
       properties:
-        timestamp:
-          type: string
-        status:
-          type: integer
-        message:
-          type: string
-        details:
-          type: array
+        loc:
           items:
-            type: string
-
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    VerificationOutcome:
+      type: string
+      enum:
+      - NOT_RUN
+      - SKIPPED_BY_CHOICE
+      - ENVIRONMENT_UNAVAILABLE
+      - PASSED
+      - FAILED
+      - OUTDATED
+      title: VerificationOutcome

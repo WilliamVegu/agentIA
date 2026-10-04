@@ -47,6 +47,43 @@ MODULE_MAVEN_DEPS: Dict[str, List[str]] = {
 }
 
 
+def render_gradle_builds(service_name, package_name, multi=False):
+    """Generate Gradle builds for the same Java source layout as Maven."""
+    plugins = """plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.3'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+"""
+    config = f"group = '{package_name}'\nversion = '0.0.1-SNAPSHOT'\n" + """java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+repositories { mavenCentral() }
+tasks.withType(Test).configureEach { useJUnitPlatform() }
+"""
+    result = {"settings.gradle": f"rootProject.name = '{service_name}'\n"}
+    if not multi:
+        result["build.gradle"] = plugins + config + """dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    runtimeOnly 'com.h2database:h2'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+"""
+        return result
+    result["settings.gradle"] += "include " + ", ".join(f"'{module}'" for module in MODULE_ORDER) + "\n"
+    result["build.gradle"] = plugins.replace("    id 'java'\n", "").replace("version '3.2.3'", "version '3.2.3' apply false").replace("version '1.1.4'", "version '1.1.4' apply false")
+    result["build.gradle"] += "subprojects {\n    apply plugin: 'java'\n    apply plugin: 'io.spring.dependency-management'\n" + config + "    dependencyManagement { imports { mavenBom 'org.springframework.boot:spring-boot-dependencies:3.2.3' } }\n}\n"
+    for module in MODULE_ORDER:
+        text = "apply plugin: 'org.springframework.boot'\n" if module == "bootstrap" else ""
+        dependencies = [f"    implementation project(':{dependency}')" for dependency in MODULE_DEPS[module]]
+        for library in MODULE_MAVEN_DEPS[module]:
+            coordinate = "com.h2database:h2" if library == "h2" else "org.springframework.boot:" + library
+            kind = "runtimeOnly" if library == "h2" else ("testImplementation" if library.endswith("-test") else "implementation")
+            dependencies.append(f"    {kind} '{coordinate}'")
+        result[f"{module}/build.gradle"] = text + "dependencies {\n" + "\n".join(dependencies) + "\n}\n"
+    return result
+
+
 def is_multi_module(plan: Optional[Dict[str, Any]]) -> bool:
     """True when the plan asks for a multi-module reactor (any non-layered profile)."""
     return bool(plan) and plan.get("profile") != "layered"

@@ -5,6 +5,25 @@ from pathlib import Path
 from app.config import settings
 from fastapi import HTTPException
 from app.models.session import SessionPhase, SessionStatus
+from app.models.execution import ExecutionMode, VerificationOutcome
+
+
+def verification_outcome(session) -> VerificationOutcome:
+    try:
+        metrics = json.loads(session.verification_metrics_json or "{}")
+    except (TypeError, ValueError):
+        return VerificationOutcome.NOT_RUN
+    if not isinstance(metrics, dict):
+        return VerificationOutcome.NOT_RUN
+    if not metrics:
+        return VerificationOutcome.NOT_RUN
+    if metrics.get("workspaceFingerprint") and metrics["workspaceFingerprint"] != workspace_fingerprint(Path(settings.WORKSPACE_DIR) / session.id):
+        return VerificationOutcome.OUTDATED
+    if metrics.get("verificationSkipped"):
+        return VerificationOutcome.SKIPPED_BY_CHOICE
+    if metrics.get("fallback_used"):
+        return VerificationOutcome.ENVIRONMENT_UNAVAILABLE
+    return VerificationOutcome.PASSED if tests_really_passed(metrics) else VerificationOutcome.FAILED
 
 
 def tests_really_passed(metrics) -> bool:
@@ -30,7 +49,7 @@ def workspace_fingerprint(workspace) -> str:
         return ""
     files = sorted(p for p in root.rglob("*") if p.is_file()
                    and not any(part in {".git", "target", "build", ".gradle", "node_modules"} for part in p.relative_to(root).parts)
-                   and (p.relative_to(root).parts[0] == "src" or p.name in {"pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "schema.sql", "data.sql", "spec.md", "specification_draft.json", "user_stories.json", "architecture.json", "domain_model.json"}))
+                   and ("src" in p.relative_to(root).parts or p.name in {"pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradle.properties", "schema.sql", "data.sql", "spec.md", "specification_draft.json", "user_stories.json", "architecture.json", "domain_model.json", "Dockerfile", "Dockerfile.prepare", "Dockerfile.runtime", ".dockerignore", "docker-compose.yml"}))
     for file in files:
         if not file.resolve().is_relative_to(root):
             return ""
@@ -62,10 +81,12 @@ def session_allows_source_delivery(session) -> bool:
     """Source-only delivery in no-Docker mode; never a verification verdict."""
     if session_is_verified(session):
         return True
-    if settings.DOCKER_ENABLED or not session or session.status != SessionStatus.COMPLETED or session.error_message:
+    if not session or session.execution_mode != ExecutionMode.SOURCE_ONLY or session.status != SessionStatus.COMPLETED or session.error_message:
         return False
     try:
         metrics = json.loads(session.verification_metrics_json or "{}")
+        if metrics.get("sourceDeliveryReady"):
+            return bool(metrics.get("sourceDeliveryFingerprint") and metrics["sourceDeliveryFingerprint"] == workspace_fingerprint(Path(settings.WORKSPACE_DIR) / session.id))
         return bool(metrics.get("verificationSkipped") is True
                     and metrics.get("allPassed") is False
                     and metrics.get("workspaceFingerprint")

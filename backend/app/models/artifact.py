@@ -23,6 +23,7 @@ class ArtifactContent(BaseModel):
     sizeBytes: int
 
 class VerificationMetrics(BaseModel):
+    verificationOutcome: str = "NOT_RUN"
     verificationSkipped: bool = False
     workspaceFingerprint: Optional[str] = None
     totalTests: int = Field(default=0, ge=0)

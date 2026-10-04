@@ -661,6 +661,9 @@ def test_the_overview_reports_a_mysql_schema_as_mysql(session):
     from the script rather than defaulted."""
     session_id, ws = session
     _make_session(session_id)
+    with SessionLocal() as db:
+        db.get(GenerationSessionDB, session_id).database_engine = 'MYSQL'
+        db.commit()
     (ws / "schema.sql").write_text(
         "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY);", encoding="utf-8"
     )

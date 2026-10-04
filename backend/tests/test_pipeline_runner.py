@@ -29,13 +29,16 @@ def hermetic_verification(monkeypatch):
     from app.services.workspace_verification import WorkspaceVerification
     import app.services.pipeline_runner as pr
 
-    fake = WorkspaceVerification(
-        result=DockerExecutionResult(exit_code=0, stdout="", fallback_used=True,
-                                     fallback_reason="stubbed for the hermetic suite"),
-        platform_test_path=None,
-    )
+    def fake(path, log_callback=None, mode=None):
+        source_only = mode == "SOURCE_ONLY"
+        return WorkspaceVerification(
+            result=DockerExecutionResult(exit_code=0 if source_only else 125, stdout="", fallback_used=True,
+                                         verification_skipped=source_only,
+                                         fallback_reason="source delivery chosen" if source_only else "stubbed unavailable Docker"),
+            platform_test_path=None,
+        )
     monkeypatch.setattr(
-        pr, "run_workspace_verification", lambda path, log_callback=None: fake
+        pr, "run_workspace_verification", fake
     )
     yield
 
@@ -128,8 +131,12 @@ def test_pipeline_runner_quality_gate_block(runner_session, monkeypatch):
     _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
 
     assert _pipeline_statuses.get(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
-    # DevOps assets should NOT be created due to block
-    assert not (ws_path / "docker-compose.yml").exists()
+    # Manifests must exist before verification to include driver/Actuator dependencies.
+    # Their existence does not permit execution or export after a blocked audit.
+    with SessionLocal() as db:
+        row = db.get(GenerationSessionDB, session_id)
+        assert row.status == SessionStatus.BLOCKED
+        assert "Hardcoded password" in row.error_message
 
 
 
@@ -157,7 +164,7 @@ def test_the_sequential_path_verifies_the_workspace(runner_session, monkeypatch)
         platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
     )
 
-    def fake_verify(path, log_callback=None):
+    def fake_verify(path, log_callback=None, mode=None):
         calls.append(path)
         return fake
 
@@ -211,7 +218,7 @@ def test_a_substituted_verification_is_not_reported_as_a_pass(runner_session, mo
         platform_test_path=None,
     )
     monkeypatch.setattr(
-        pr, "run_workspace_verification", lambda path, log_callback=None: fake
+        pr, "run_workspace_verification", lambda path, log_callback=None, mode=None: fake
     )
 
     session_id, ws_path = runner_session
@@ -242,7 +249,7 @@ def test_a_verifier_that_raises_is_recorded_as_unverified(runner_session, monkey
 
     import app.services.pipeline_runner as pr
 
-    def explode(path, log_callback=None):
+    def explode(path, log_callback=None, mode=None):
         raise RuntimeError("sandbox unavailable")
 
     monkeypatch.setattr(pr, "run_workspace_verification", explode)

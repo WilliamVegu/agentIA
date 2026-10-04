@@ -119,7 +119,8 @@ def mount_spec(
 def build_docker_cmd(
     workspace_host_path: str,
     maven_cache_host_path: str,
-    docker_image: str = "maven:3.9-eclipse-temurin-21"
+    docker_image: str = "maven:3.9-eclipse-temurin-21",
+    prepared: bool = False,
 ) -> List[str]:
     """
     Builds the Docker execution command following Constitution Principle IV:
@@ -139,6 +140,12 @@ def build_docker_cmd(
     # a real build failure at the report level. Empty by default so behaviour is
     # unchanged on hosts that do not need it.
     mount_suffix = getattr(settings, "DOCKER_MOUNT_SUFFIX", "") or ""
+
+    if prepared:
+        gradle = any((Path(workspace_host_path) / name).exists() for name in ("build.gradle", "build.gradle.kts"))
+        command = ("mkdir -p /tmp/gradle-home && cp -R /opt/agentia-cache/. /tmp/gradle-home/ && GRADLE_USER_HOME=/tmp/gradle-home gradle --no-daemon --offline test bootJar" if gradle
+                   else "mkdir -p /tmp/m2 && cp -R /opt/agentia-cache/. /tmp/m2/ && mvn -B -o -Dmaven.repo.local=/tmp/m2 verify")
+        return ["docker", "run", "--rm", "--pull", "never", "--network", "none", "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix), "-w", "/workspace", docker_image, "sh", "-c", command]
 
     if (Path(workspace_host_path) / "build.gradle").exists() or (Path(workspace_host_path) / "build.gradle.kts").exists():
         cache = os.environ.get("GRADLE_CACHE_DIR", str(Path.home() / ".gradle"))
@@ -247,8 +254,17 @@ async def run_docker_sandbox(
         )
 
     m2_cache = maven_cache_path or settings.MAVEN_CACHE_DIR
-    image = docker_image or settings.DOCKER_IMAGE
-    cmd = build_docker_cmd(workspace_path, m2_cache, image)
+    from app.services.local_deployment_assets import builder_image
+    image = docker_image or builder_image(workspace_path)
+    prepared = docker_image is None
+    if prepared:
+        try:
+            image_check = subprocess.run(["docker", "image", "inspect", image], capture_output=True, timeout=5, check=False)
+            if image_check.returncode:
+                return _build_hermetic_fallback_result(start_time, log_callback, reason=f"Imagen preparada ausente: {image}. Ejecute prepare-local.ps1 con conexión y reintente.")
+        except (OSError, subprocess.SubprocessError):
+            return _build_hermetic_fallback_result(start_time, log_callback, reason=REASON_RUNTIME_COMMUNICATION)
+    cmd = build_docker_cmd(workspace_path, m2_cache, image, prepared=prepared)
 
     stdout_chunks: List[str] = []
     stderr_chunks: List[str] = []

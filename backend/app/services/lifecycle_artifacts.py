@@ -63,6 +63,8 @@ class _Attribute:
     isPrimaryKey: bool = False
     nullable: bool = True
     tableName: Optional[str] = None
+    columnName: Optional[str] = None
+    isUnique: bool = False
 
 
 @dataclass
@@ -106,6 +108,8 @@ def _entities_from_blueprint(blueprint: Mapping[str, Any]) -> List[_Entity]:
                 type=str(attr.get("type") or "String"),
                 isPrimaryKey=bool(attr.get("isPrimaryKey") or attr.get("is_primary_key")),
                 nullable=bool(attr.get("nullable", True)),
+                columnName=attr.get('columnName'),
+                isUnique=bool(attr.get('isUnique', False)),
             ))
         entities.append(_Entity(
             name=name,
@@ -248,7 +252,7 @@ def _schema_sql(blueprint: Mapping[str, Any]) -> str:
     class _Draft:
         entities = _entities_from_blueprint(blueprint)
 
-    return schema_sql_from_draft(_Draft())
+    return schema_sql_from_draft(_Draft(), str(blueprint.get('databaseMode') or 'POSTGRESQL'))
 
 
 def _write_if_absent(path: Path, content: str, *, written: List[str], skipped: List[str]) -> None:
@@ -332,10 +336,8 @@ def ensure_lifecycle_artifacts(workspace: str | Path, blueprint: Mapping[str, An
         skipped=skipped,
     )
 
-    # Also place it on the classpath so it travels inside the built artifact. Spring
-    # Boot applies it at startup (SPRING_SQL_INIT_MODE=always), which is what lets the
-    # deployment stop depending on a host bind mount into the database container's init
-    # directory -- the mechanism that failed on a real host.
+    # Keep the legacy classpath copy as an artifact. New deployment assets package
+    # versioned Liquibase migrations; Spring's unversioned SQL initializer is disabled.
     resources = ws / "src" / "main" / "resources"
     resources.mkdir(parents=True, exist_ok=True)
     _write_if_absent(resources / "schema.sql", schema, written=written, skipped=skipped)
@@ -367,10 +369,14 @@ def blueprint_from_generated_code(workspace: str | Path) -> Dict[str, Any]:
     base = Path(workspace)
     entities: List[Dict[str, Any]] = []
 
-    for java_file in sorted(base.glob("src/main/java/**/model/entity/*.java")):
+    for java_file in sorted(base.glob("**/src/main/java/**/*.java")):
+        if not java_file.resolve().is_relative_to(base.resolve()):
+            continue
         try:
             source = java_file.read_text(encoding="utf-8", errors="replace")
         except OSError:
+            continue
+        if not re.search(r'@Entity\b', source):
             continue
 
         name_match = _ENTITY_CLASS.search(source)
@@ -388,11 +394,14 @@ def blueprint_from_generated_code(workspace: str | Path) -> Dict[str, Any]:
             block = source[cursor:match.start()]
             cursor = match.end()
             java_type, field = match.group(1).strip(), match.group(2)
+            column_match = re.search(r'@Column\s*\([^)]*\bname\s*=\s*"([^"]+)"', block)
             attributes.append({
                 "name": field,
                 "type": java_type,
                 "isPrimaryKey": "@Id" in block,
-                "nullable": "nullable = false" not in block and "@NotNull" not in block,
+                "nullable": not re.search(r'nullable\s*=\s*false|@NotNull\b|@NotBlank\b', block),
+                'columnName': column_match.group(1) if column_match else _snake(field),
+                'isUnique': bool(re.search(r'unique\s*=\s*true', block)),
             })
 
         entities.append({

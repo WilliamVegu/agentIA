@@ -8,6 +8,8 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.models.execution import ExecutionMode, VerificationOutcome
+from app.models.devops import DatabaseEngine
 
 Base = declarative_base()
 engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {})
@@ -46,6 +48,8 @@ class GenerationSessionDB(Base):
     current_lifecycle_phase = Column(String(50), nullable=True, default="INITIAL")
     lifecycle_mode = Column(String(50), nullable=True, default="GUIDED_STEP")
     phase_progress_json = Column(Text, nullable=True)
+    execution_mode = Column(String(20), nullable=False, default=ExecutionMode.SOURCE_ONLY.value)
+    database_engine = Column(String(20), nullable=False, default="POSTGRESQL")
     # Feature 011 additive storage (T013). Deliberately NEW columns rather than
     # reuse of phase_progress_json: the specification does not permit assuming an
     # existing column changes meaning. Records provider and model identifiers only
@@ -74,6 +78,10 @@ def _ensure_sqlite_lifecycle_columns():
             res = conn.execute(text("PRAGMA table_info(generation_sessions)")).fetchall()
             existing_cols = [r[1] for r in res]
             if existing_cols:
+                if "execution_mode" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN execution_mode VARCHAR(20) NOT NULL DEFAULT 'SOURCE_ONLY'"))
+                if "database_engine" not in existing_cols:
+                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN database_engine VARCHAR(20) NOT NULL DEFAULT 'POSTGRESQL'"))
                 if "current_lifecycle_phase" not in existing_cols:
                     conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN current_lifecycle_phase VARCHAR(50) DEFAULT 'INITIAL'"))
                 if "lifecycle_mode" not in existing_cols:
@@ -123,6 +131,7 @@ class GenerationSessionSummary(BaseModel):
 
     session_id: str = Field(..., alias="sessionId")
     status: SessionStatus
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
     queue_position: Optional[int] = Field(0, alias="queuePosition")
     stream_url: str = Field(..., alias="streamUrl")
 
@@ -133,6 +142,9 @@ class GenerationSessionListItem(BaseModel):
     spec_id: Optional[str] = Field(None, alias="specId")
     spec_name: str = Field(..., alias="specName")
     status: SessionStatus
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
+    verification_outcome: VerificationOutcome = Field(VerificationOutcome.NOT_RUN, alias="verificationOutcome")
+    error_message: Optional[str] = Field(None, alias="errorMessage")
     phase: Optional[SessionPhase] = Field(None, alias="phase")
     current_lifecycle_phase: Optional[str] = Field("INITIAL", alias="currentLifecyclePhase")
     lifecycle_mode: Optional[str] = Field("GUIDED_STEP", alias="lifecycleMode")
@@ -141,12 +153,14 @@ class GenerationSessionListItem(BaseModel):
 
 class QuickStartSessionRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
+    auto_deploy: bool = Field(False, alias="autoDeploy")
 
     service_name: Optional[str] = Field(None, alias="serviceName")
     spec_name: Optional[str] = Field(None, alias="specName")
     raw_text: Optional[str] = Field(None, alias="rawText")
     prompt: Optional[str] = Field(None, alias="prompt")
-    database_engine: Optional[str] = Field("POSTGRESQL", alias="databaseEngine")
+    database_engine: DatabaseEngine = Field(DatabaseEngine.POSTGRESQL, alias="databaseEngine")
     auto_run: Optional[bool] = Field(False, alias="autoRun")
     api_key: Optional[str] = Field(None, alias="apiKey")
     llm_provider: Optional[str] = Field(None, alias="llmProvider")
@@ -156,6 +170,7 @@ class QuickStartSessionRequest(BaseModel):
     input_interface: Optional[dict] = Field(None, alias="inputInterface")
 
 class QuickStartSessionResponse(BaseModel):
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
     model_config = ConfigDict(populate_by_name=True)
 
     session_id: str = Field(..., alias="sessionId")
@@ -174,6 +189,9 @@ class GenerationSessionDetail(BaseModel):
     spec_id: str = Field(..., alias="specId")
     spec_name: str = Field(..., alias="specName")
     status: SessionStatus
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
+    verification_outcome: VerificationOutcome = Field(VerificationOutcome.NOT_RUN, alias="verificationOutcome")
+    available_actions: list[str] = Field(default_factory=list, alias="availableActions")
     phase: SessionPhase
     queue_position: Optional[int] = Field(0, alias="queuePosition")
     repair_attempts: int = Field(0, alias="repairAttempts")

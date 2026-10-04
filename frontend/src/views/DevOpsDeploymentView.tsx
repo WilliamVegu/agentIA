@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Server,
   Play,
@@ -23,8 +23,9 @@ import {
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { CodeViewer } from '../components/common/CodeViewer';
 import { useStudio } from '../context/StudioContext';
-import { devopsService, LocalDeploymentSession, SmokeTestResult } from '../services/devopsService';
+import { devopsService, LocalDeploymentSession, SmokeTestResult, DockerCapabilityReport } from '../services/devopsService';
 import { exportService } from '../services/exportService';
+import { sessionService } from '../services/sessionService';
 
 
 
@@ -51,9 +52,13 @@ const K8S_FILES: Record<string, string> = {
 };
 
 export const DevOpsDeploymentView: React.FC = () => {
-  const { activeSessionId, reloadCurrentOverview } = useStudio();
+  const { activeSessionId, activeSession, projectOverview, reloadCurrentOverview, refreshSessions } = useStudio();
 
   const [deployment, setDeployment] = useState<LocalDeploymentSession | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DockerCapabilityReport | null>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const sessionRef = useRef(activeSessionId);
+  sessionRef.current = activeSessionId;
 
   const [hostPort, setHostPort] = useState<number>(8080);
   const [activeManifestTab, setActiveManifestTab] = useState<'docker' | 'compose' | 'cicd' | 'k8s'>('docker');
@@ -123,9 +128,23 @@ export const DevOpsDeploymentView: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeSessionId) {
-      fetchStatus();
-    }
+    let cancelled = false;
+    setDeployment(null);
+    setTerminalLogs([]);
+    setSmokeResult(null);
+    setFeedback(null);
+    setDiagnostics(null);
+    setIsDiagnosing(false);
+    if (!activeSessionId) return;
+    const poll = async () => {
+      try {
+        const [status, logs] = await Promise.all([devopsService.getDeploymentStatus(activeSessionId), devopsService.getLogs(activeSessionId)]);
+        if (!cancelled) { setDeployment(status); setHostPort(status.hostPort); setTerminalLogs(logs); }
+      } catch { if (!cancelled) setDeployment(null); }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [activeSessionId]);
 
   useEffect(() => {
@@ -225,7 +244,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       // The response was previously discarded -- `await` with no assignment -- which is
       // how the Kubernetes tab ended up rendering samples instead of these files.
-      const bundle = await devopsService.generateManifests(activeSessionId, 'POSTGRESQL', hostPort);
+      const bundle = await devopsService.generateManifests(activeSessionId, projectOverview?.databaseEngine, hostPort);
       setK8sManifests(bundle.kubernetesManifests || {});
       setDevopsFiles({
         Dockerfile: bundle.dockerfileContent,
@@ -250,7 +269,8 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       const res = await devopsService.deployLocal(activeSessionId, hostPort, true);
       setDeployment(res);
-      setFeedback(res.message || '🚀 Contenedor levantado localmente en http://localhost:' + hostPort);
+      setHostPort(res.hostPort);
+      setFeedback(res.errorMessage || `Estado del despliegue: ${res.status}. Puerto efectivo: ${res.hostPort}.`);
       await reloadCurrentOverview();
     } catch (err: any) {
       setFeedback(err.response?.data?.detail || 'Modo degradado: Docker local no disponible. Manifiestos exportables listos.');
@@ -265,7 +285,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       const res = await devopsService.stopContainers(activeSessionId);
       setDeployment(res);
-      setFeedback('Contenedores y redes detenidos correctamente.');
+      setFeedback(res.status === 'STOPPED' ? 'Contenedores detenidos. Datos conservados.' : res.errorMessage || `Estado: ${res.status}`);
       await reloadCurrentOverview();
     } catch (err: any) {
       // Report the real outcome. This used to say "Contenedores detenidos." even
@@ -293,6 +313,7 @@ export const DevOpsDeploymentView: React.FC = () => {
       // use: *verified*, *verified with findings*, and *not evaluable* must never be
       // conflated, and "the check could not run" is the third one.
       setSmokeResult({
+        passed: false, statusCode: 0, testUrl: '',
         sessionId: activeSessionId,
         endpointTested: `http://localhost:${hostPort}/actuator/health`,
         status: 'SKIPPED',
@@ -539,12 +560,32 @@ export const DevOpsDeploymentView: React.FC = () => {
 
   const currentStatus = deployment?.status || 'STOPPED';
   const isRunning = currentStatus === 'RUNNING' || currentStatus === 'HEALTHY';
-  const isDockerUnavailable = currentStatus === 'DOCKER_UNAVAILABLE';
+  const isDockerUnavailable = currentStatus === 'DOCKER_UNAVAILABLE' || activeSession?.verificationOutcome === 'ENVIRONMENT_UNAVAILABLE';
+  const isSourceOnly = activeSession?.executionMode === 'SOURCE_ONLY' || currentStatus === 'SKIPPED_BY_CHOICE';
+
+  const handleExecutionChoice = async (mode: 'SOURCE_ONLY' | 'DOCKER') => {
+    if (!activeSessionId) return;
+    setIsTesting(true);
+    try {
+      await sessionService.changeExecutionMode(activeSessionId, mode);
+      const result = await sessionService.verify(activeSessionId);
+      setFeedback(result.status === 'COMPLETED' ? (mode === 'SOURCE_ONLY' ? 'Fuentes disponibles; ejecución omitida por elección.' : 'Verificación completada.') : 'Verificación pendiente. Consulte el estado de la sesión.');
+      await Promise.all([fetchStatus(), refreshSessions(), reloadCurrentOverview()]);
+    } catch (err: any) { setFeedback(err.response?.data?.detail || err.message); }
+    finally { setIsTesting(false); }
+  };
 
   return (
     <div className="space-y-6">
       {isDockerUnavailable && <div role="status" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm">
         Despliegue no ejecutado: Docker no está disponible. Puede generar los manifiestos y continuar con la entrega del código; el servicio y las pruebas de ejecución no se muestran como aprobados.
+        <div className="flex gap-3 mt-3">
+          <button disabled={isTesting} onClick={() => handleExecutionChoice('DOCKER')}>Reintentar</button>
+          <button disabled={isTesting} onClick={() => handleExecutionChoice('SOURCE_ONLY')}>Continuar sin Docker</button>
+        </div>
+      </div>}
+      {isSourceOnly && <div role="status" className="p-4 border rounded">{activeSession?.verificationOutcome === 'FAILED' ? 'Entrega de fuentes sin nueva ejecución. Las pruebas anteriores fallaron y su resultado se conserva.' : 'Sesión sin Docker: no se solicita ejecución. Puede exportar las fuentes auditadas; consulte el estado de verificación para conocer resultados anteriores.'}
+        <button className="ml-3 underline" disabled={isTesting} onClick={() => handleExecutionChoice('DOCKER')}>Activar Docker y verificar</button>
       </div>}
       {/* 1. Status Banner & Metrics */}
       <SingleRowCard
@@ -565,6 +606,31 @@ export const DevOpsDeploymentView: React.FC = () => {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <button disabled={isSourceOnly || isDiagnosing || currentStatus === 'BUILDING'} onClick={async () => {
+              if (!activeSessionId) return;
+              const identity = activeSessionId;
+              setIsDiagnosing(true);
+              try {
+                const result = await devopsService.getDiagnostics(identity);
+                if (sessionRef.current === identity) setDiagnostics(result);
+              } catch {
+                if (sessionRef.current === identity) setFeedback('No se pudo consultar el diagnóstico Docker. Reintente.');
+              } finally {
+                if (sessionRef.current === identity) setIsDiagnosing(false);
+              }
+            }} className="py-2 px-3 border rounded text-xs">{isDiagnosing ? 'Consultando entorno...' : 'Diagnosticar Docker'}</button>
+            {diagnostics?.sessionId === activeSessionId && <div className="text-xs space-y-2" aria-label="Diagnóstico Docker">
+              {diagnostics.checks.map((check, index) => <p key={index}>{check.status === 'AVAILABLE' ? '✓' : '•'} {check.detail}</p>)}
+              <p>Este diagnóstico no sustituye la compilación ni las pruebas offline del microservicio.</p>
+            </div>}
+            <button disabled={isSourceOnly || isDeploying || currentStatus === 'BUILDING'} onClick={async () => {
+              if (!activeSessionId) return;
+              setIsDeploying(true);
+              try { const result = await devopsService.prepareLocal(activeSessionId); setDeployment(result); setFeedback(result.errorMessage || result.message || 'Preparación inicial solicitada.'); }
+              catch (err: any) { setFeedback(err.response?.data?.detail || err.message); }
+              finally { setIsDeploying(false); }
+            }} className="py-2 px-3 border rounded text-xs">Preparar Docker con conexión</button>
+            <button disabled={isSourceOnly || isTesting || currentStatus === 'BUILDING'} onClick={() => handleExecutionChoice('DOCKER')} className="py-2 px-3 border rounded text-xs">Verificar fuentes con Docker</button>
             <button
               onClick={handleGenerateManifests}
               disabled={isGenerating}
@@ -574,7 +640,7 @@ export const DevOpsDeploymentView: React.FC = () => {
             </button>
             <button
               onClick={handleDeployLocal}
-              disabled={isDeploying || isDockerUnavailable}
+              disabled={isDeploying || isSourceOnly || currentStatus === 'BUILDING'}
               className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -598,6 +664,7 @@ export const DevOpsDeploymentView: React.FC = () => {
         }
       >
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
+          {deployment?.message && <span>{deployment.message}</span>}
           <span>
             Puerto Mapeado: <strong className="text-slate-900 dark:text-white">{deployment ? `${hostPort}:8080` : '—'}</strong>
           </span>
@@ -607,7 +674,7 @@ export const DevOpsDeploymentView: React.FC = () => {
           </span>
           <span>•</span>
           <span>
-            Base de Datos: <strong className="text-slate-900 dark:text-white">{deployment?.dbEngine || 'POSTGRESQL'}</strong>
+            Base de Datos: <strong className="text-slate-900 dark:text-white">{projectOverview?.databaseEngine || '—'}</strong>
           </span>
         </div>
 
@@ -634,7 +701,7 @@ export const DevOpsDeploymentView: React.FC = () => {
           // SKIPPED carries no latency, so it printed "undefinedms".
           <div
             className={`mt-2.5 p-2.5 rounded-lg border text-xs flex items-center justify-between ${
-              smokeResult.status === 'SUCCESS'
+              smokeResult.passed
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
                 : smokeResult.status === 'SKIPPED'
                   ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
@@ -642,12 +709,12 @@ export const DevOpsDeploymentView: React.FC = () => {
             }`}
           >
             <div className="flex items-center gap-2">
-              {smokeResult.status === 'SUCCESS' ? (
+              {smokeResult.passed ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               ) : (
                 <AlertTriangle className="w-4 h-4 shrink-0" />
               )}
-              <span>{smokeResult.message}</span>
+              <span>{smokeResult.details || smokeResult.message}</span>
             </div>
             {typeof smokeResult.latencyMs === 'number' && (
               <span className="font-mono font-bold">{smokeResult.latencyMs}ms</span>

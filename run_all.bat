@@ -7,7 +7,7 @@ echo.
 cd /d "%~dp0"
 
 echo [1/2] Iniciando Backend Orchestrator (FastAPI en http://localhost:8000)...
-start "AgentIA - Backend Orchestrator (:8000)" cmd /k "cd /d "%~dp0backend" && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+start "AgentIA - Backend Orchestrator (:8000)" cmd /k "cd /d "%~dp0backend" && python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
 
 echo [2/2] Esperando inicializacion del backend (3 segundos)...
 timeout /t 3 /nobreak >nul

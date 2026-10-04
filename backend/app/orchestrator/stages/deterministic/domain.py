@@ -1,9 +1,8 @@
 """Deterministic (offline) implementation of a generation stage.
 
-Moved verbatim from ``app/orchestrator/nodes/domain_node.py`` as part of T020.
-The f-string logic is unchanged: identical input MUST yield identical output,
-identical disk writes, and identical return values. That equivalence is what
-keeps the frozen pre-migration baseline a valid comparison target.
+Originally moved from ``app/orchestrator/nodes/domain_node.py`` as part of T020.
+Entity mappings now preserve table/column names and supported Java types so the
+generated database migrations can be validated against the actual JPA model.
 
 The node module of the same name now delegates to the stage execution
 boundary, which dispatches here for DETERMINISTIC sessions.
@@ -15,21 +14,27 @@ from app.orchestrator.state import GenerationAgentState
 from app.orchestrator.stages.deterministic import module_layout
 
 def _map_java_type(attr_type: str) -> str:
-    t = attr_type.lower()
+    t = attr_type.rsplit('.', 1)[-1].lower()
     if t in ("string", "str", "text"):
         return "String"
     elif t in ("int", "integer"):
         return "Integer"
     elif t in ("long", "id"):
         return "Long"
-    elif t in ("double", "float"):
+    elif t == "double":
         return "Double"
+    elif t == "float":
+        return "Float"
     elif t in ("decimal", "bigdecimal"):
         return "java.math.BigDecimal"
     elif t in ("boolean", "bool"):
         return "Boolean"
-    elif t in ("date", "datetime", "timestamp"):
+    elif t in ("date", "datetime", "timestamp", "localdatetime"):
         return "java.time.LocalDateTime"
+    elif t == "localdate":
+        return "java.time.LocalDate"
+    elif t == "instant":
+        return "java.time.Instant"
     elif t == "uuid":
         return "java.util.UUID"
     return "String"
@@ -49,6 +54,8 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
 
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        from app.services.model_sql_service import to_plural_table_name, to_snake_case
+        table_name = ent.get("tableName") or ent.get("table_name") or to_plural_table_name(ent_name)
         attrs = ent.get("attributes", [])
         
         # Ensure 'id' exists
@@ -69,6 +76,10 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
             is_required = a.get("required", False) or (not a.get("nullable", True))
             
             field_annotations = []
+            column_name = a.get('columnName') or to_snake_case(name)
+            unique = ', unique = true' if a.get('isUnique') else ''
+            precision = ', precision = 19, scale = 2' if jtype == 'java.math.BigDecimal' else ''
+            field_annotations.append(f'    @Column(name = "{column_name}", nullable = {str(not (is_required or is_id)).lower()}{unique}{precision})')
             if is_id:
                 field_annotations.append("    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)")
             else:
@@ -97,7 +108,7 @@ import jakarta.validation.constraints.*;
 import java.util.Objects;
 
 @Entity
-@Table(name = "{ent_name.lower()}s")
+@Table(name = "{table_name}")
 public class {ent_name} {{
 
 {chr(10).join(fields_code)}

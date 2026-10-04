@@ -1,4 +1,6 @@
 from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed, workspace_fingerprint, session_has_current_evidence
+from app.services.execution_policy import execution_mode
+from app.models.execution import ExecutionMode
 import json
 import queue
 import threading
@@ -258,7 +260,7 @@ def _complete_target_phase(session_id: str, phase: LifecyclePhase, target_phase_
         if s:
             verified = session_has_current_evidence(s)
             metrics = json.loads(s.verification_metrics_json or "{}")
-            sources_ready = (not settings.DOCKER_ENABLED and metrics.get("verificationSkipped") is True
+            sources_ready = (s.execution_mode == ExecutionMode.SOURCE_ONLY and metrics.get("verificationSkipped") is True
                              and metrics.get("workspaceFingerprint") == workspace_fingerprint(Path(settings.WORKSPACE_DIR) / session_id)
                              and phase in (LifecyclePhase.CODE_TESTS, LifecyclePhase.SECURITY_AUDIT, LifecyclePhase.DEVOPS_DEPLOY))
             s.status = SessionStatus.COMPLETED if verified or sources_ready else SessionStatus.PAUSED
@@ -481,6 +483,7 @@ def _execute_pipeline_steps(
             sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
             if sess and sess.spec_name:
                 spec_name = sess.spec_name
+            selected_database = sess.database_engine if sess else "POSTGRESQL"
         finally:
             db.close()
 
@@ -550,6 +553,10 @@ def _execute_pipeline_steps(
         if not sql_file.exists():
             try:
                 sql_resp = model_sql_service.synthesize_domain_models_and_sql(draft, api_key=api_key, provider=provider, model_name=model_name)
+                from app.services.model_sql_service import generate_schema_sql, generate_seed_data_sql
+                sql_resp.sqlSchema.schemaDdl = generate_schema_sql(sql_resp.entities, selected_database)
+                sql_resp.sqlSchema.seedDml = generate_seed_data_sql(sql_resp.entities, draft, selected_database)
+                sql_resp.sqlSchema.dialect = selected_database.lower()
                 with open(sql_file, "w", encoding="utf-8") as f:
                     f.write(sql_resp.sqlSchema.schemaDdl)
                 data_sql_file = ws_path / "data.sql"
@@ -572,14 +579,15 @@ def _execute_pipeline_steps(
         if pause_event.is_set() or stop_event.is_set():
             return
         _emit_event(session_id, LifecyclePhase.CODE_TESTS, "Código & Pruebas", 75.0, "Estructurando proyecto Spring Boot 3, entidades JPA y suites Mockito...", PhaseStatus.IN_PROGRESS)
-        pom_file = ws_path / "pom.xml"
-        src_java = ws_path / "src" / "main" / "java"
-        has_java = src_java.exists() and any(src_java.glob("**/*.java"))
-        if not (pom_file.exists() and has_java):
+        has_build = any((ws_path / name).is_file() for name in ("pom.xml", "build.gradle", "build.gradle.kts"))
+        source_roots = [ws_path / relative for relative in ("src/main/java", "bootstrap/src/main/java", "model/src/main/java")]
+        has_java = any(root.is_dir() and any(root.rglob("*.java")) for root in source_roots)
+        if not (has_build and has_java):
             blueprint_dict = {
                 "serviceName": draft.serviceName,
                 "packageName": draft.packageName,
                 "basePort": draft.basePort,
+                "databaseMode": selected_database,
                 "entities": [e.model_dump() for e in draft.entities],
                 "userStories": [s.model_dump() for s in draft.userStories],
             }
@@ -653,14 +661,14 @@ def _execute_pipeline_steps(
             return
         _emit_event(
             session_id, LifecyclePhase.CODE_TESTS, "Verificación hermética",
-            78.0, "Compilando y ejecutando la suite en el sandbox offline (mvn test -o)...",
+            78.0, "Preparando entrega de fuentes sin ejecutar pruebas..." if execution_mode(session_id) == ExecutionMode.SOURCE_ONLY else "Compilando y ejecutando pruebas con la herramienta del proyecto en el sandbox offline...",
             PhaseStatus.IN_PROGRESS,
         )
-        generate_all_devops_assets(str(ws_path), session_id, service_name=spec_name)
+        generate_all_devops_assets(str(ws_path), session_id, service_name=spec_name, db_engine=selected_database)
         verification_logs: List[str] = []
         try:
             verification = run_workspace_verification(
-                str(ws_path), log_callback=verification_logs.append
+                str(ws_path), log_callback=verification_logs.append, mode=execution_mode(session_id)
             )
         except Exception as exc:  # noqa: BLE001
             # A verifier that raises has verified nothing. Recording that honestly
@@ -717,13 +725,13 @@ def _execute_pipeline_steps(
 
         _emit_event(
             session_id, LifecyclePhase.CODE_TESTS,
-            "Verificación hermética completada" if build_success else ("Verificación hermética omitida (sandbox inaccesible)" if (verification and verification.result.fallback_used) else "Verificación hermética fallida"),
+            "Fuentes preparadas; ejecución omitida por elección" if verification_skipped else ("Verificación hermética completada" if build_success else ("Verificación pendiente: infraestructura no disponible" if (verification and verification.result.fallback_used) else "Verificación hermética fallida")),
             80.0,
             (
                 f"BUILD SUCCESS: {test_metrics['passedTests']}/{test_metrics['totalTests']} tests"
                 if build_success
-                else ("Sandbox Docker no disponible; verificación no ejecutada" if (verification and verification.result.fallback_used)
-                else "La compilación o las pruebas fallaron en el sandbox hermético")
+                else ("No se ejecutó compilación ni pruebas: entrega de fuentes elegida sin Docker" if verification_skipped else ("Sandbox Docker no disponible; verificación no ejecutada" if (verification and verification.result.fallback_used)
+                else "La compilación o las pruebas fallaron en el sandbox hermético"))
             ),
             PhaseStatus.COMPLETED if build_success or verification_skipped else PhaseStatus.BLOCKED,
             error=None if build_success or verification_skipped else "Hermetic verification failed.",
@@ -736,14 +744,15 @@ def _execute_pipeline_steps(
             try:
                 s = db_fail.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
                 if s:
-                    s.status = SessionStatus.BLOCKED
+                    s.status = SessionStatus.PAUSED if test_metrics.get("fallback_used") else SessionStatus.BLOCKED
                     s.phase = SessionPhase.FAILED
-                    s.error_message = "Hermetic verification failed in sandbox"
+                    s.error_message = test_metrics.get("fallback_reason") or "Hermetic verification failed in sandbox"
                     db_fail.commit()
             finally:
                 db_fail.close()
 
-            _record_pipeline_cost(session_id, terminal_status="BLOCKED")
+            terminal_status = "PAUSED" if test_metrics.get("fallback_used") else "BLOCKED"
+            _record_pipeline_cost(session_id, terminal_status=terminal_status)
 
             try:
                 from app.api.routes_session import broadcast_session_event
@@ -751,8 +760,8 @@ def _execute_pipeline_steps(
                     "sessionId": session_id,
                     "attempt": 0,
                     "maxAttempts": settings.MAX_REPAIR_ATTEMPTS,
-                    "failureReason": "La compilación o pruebas unitarias fallaron en el sandbox hermético.",
-                    "status": "BLOCKED",
+                    "failureReason": test_metrics.get("fallback_reason") or "La compilación o pruebas unitarias fallaron en el sandbox hermético.",
+                    "status": terminal_status,
                 })
             except Exception:
                 pass
@@ -802,14 +811,25 @@ def _execute_pipeline_steps(
         if pause_event.is_set() or stop_event.is_set():
             return
         _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "DevOps & Manifiestos", 95.0, "Generando Dockerfile, Compose, CI/CD y manifiestos Kubernetes...", PhaseStatus.IN_PROGRESS)
-        generate_all_devops_assets(str(ws_path), session_id, spec_name)
+        generate_all_devops_assets(str(ws_path), session_id, spec_name, db_engine=selected_database)
 
-        if auto_deploy and settings.DOCKER_ENABLED:
+        if auto_deploy and execution_mode(session_id) == ExecutionMode.DOCKER:
             _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "Despliegue Local", 98.0, "Orquestando contenedores en Docker local...", PhaseStatus.IN_PROGRESS)
-            deploy_local(session_id, str(ws_path))
-        elif not settings.DOCKER_ENABLED:
+            from app.services.docker_service import wait_for_deployment
+            deployment = deploy_local(session_id, str(ws_path))
+            deployment = wait_for_deployment(session_id) if deployment.status.value == "BUILDING" else deployment
+            if deployment.status.value != "HEALTHY":
+                _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
+                with SessionLocal() as deploy_db:
+                    row = deploy_db.get(GenerationSessionDB, session_id)
+                    if row:
+                        row.status = SessionStatus.PAUSED
+                        row.error_message = deployment.errorMessage or "El despliegue no alcanzó estado saludable."
+                        deploy_db.commit()
+                return
+        elif execution_mode(session_id) == ExecutionMode.SOURCE_ONLY:
             _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "Despliegue no ejecutado", 98.0,
-                        "Entorno sin virtualización: manifiestos generados; contenedores no ejecutados.", PhaseStatus.COMPLETED)
+                        "Elección sin Docker: manifiestos generados; contenedores no ejecutados.", PhaseStatus.COMPLETED)
 
         transition_phase(session_id, LifecyclePhase.DEVOPS_DEPLOY, force=True)
         clear_outdated_phases(session_id)

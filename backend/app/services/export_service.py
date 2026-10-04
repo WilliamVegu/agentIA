@@ -11,16 +11,18 @@ def create_project_zip(workspace_path: str) -> bytes:
     ws_dir = Path(workspace_path).resolve()
     buffer = io.BytesIO()
 
-    ignored_dirs = {".git", "target", ".idea", "__pycache__", ".m2"}
+    ignored_dirs = {".git", "target", "build", ".gradle", ".idea", "__pycache__", ".m2", ".agentia-runtime", "node_modules"}
     ignored_files = {".DS_Store", "Thumbs.db"}
 
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(ws_dir):
             dirs[:] = [d for d in dirs if d not in ignored_dirs]
             for file in files:
-                if file in ignored_files or file.endswith(".pyc"):
+                if file in ignored_files or file.endswith(".pyc") or (file.startswith(".env") and file != ".env.example"):
                     continue
                 full_path = Path(root) / file
+                if full_path.is_symlink() or not full_path.resolve().is_relative_to(ws_dir):
+                    continue
                 rel_path = str(full_path.relative_to(ws_dir)).replace("\\", "/")
                 zf.write(full_path, arcname=rel_path)
 
