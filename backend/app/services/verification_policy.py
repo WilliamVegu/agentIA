@@ -49,6 +49,7 @@ def tests_really_passed(metrics) -> bool:
             and metrics.get("fallback_used") is False
             and metrics.get('verificationInterrupted') is not True
             and metrics.get('verificationOutdated') is not True
+            and not metrics.get('evidenceError')
         )
     except (ValueError, TypeError):
         return False

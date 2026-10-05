@@ -23,6 +23,8 @@ def prepare_local(session_id, workspace, database):
     from app.services.local_operations import register, phase, finish
     control = register(row, 'PREPARE')
     try:
+        from app.services.generated_code_fixes import normalise_generated_sources
+        normalise_generated_sources(workspace)
         from app.services.dependency_inputs import dependency_manifest
         requested_dependencies = dependency_manifest(workspace)
         requested_builder = builder_image(workspace)

@@ -11,7 +11,7 @@
 - **Estado general:** implementación parcial; despliegue básico real demostrado en seis combinaciones, con aceptación integral y pendientes del plan todavía abiertos.
 - **Plan vigente:** [PLAN_IMPLEMENTACION_DESPLIEGUE_LOCAL.md](C:/Users/willi/Downloads/agentIA/docs/PLAN_IMPLEMENTACION_DESPLIEGUE_LOCAL.md), creado después de las aclaraciones del usuario. GitLab remoto queda aplazado; Docker opcional por sesión es la prioridad.
 
-**Lectura actual:** consultar primero [Gradle y cachés](#42-compatibilidad-gradle-y-caches-privadas-t15), fuentes nativas 41, catálogo 40, migraciones 39, snapshot 38 y kits 29/19. **32/54 tareas marcadas, 22 sin marcar**, varias parciales. T15 implementada para perfil preparado. Siguen SQL completo, cancelación BuildKit, kit integral/paquete T40, CI/CD/Kubernetes y aceptación completa.
+**Lectura actual:** consultar primero la sección 44 (correcciones tras prueba DeepSeek/Docker), sección 43 (entrega ejecutable, CI/Kubernetes y operaciones) y después los bloques anteriores. Los conteos de tareas y pendientes de cada sección corresponden a su fecha; esta corrección no cierra anticipadamente el plan completo.
 
 ### Cómo mantener esta referencia
 
@@ -1485,3 +1485,13 @@ El usuario indicó **«lo del offline dejalo de lado por ahora»**. Se aplazan n
 ### Pendientes activos
 
 Modelos/SQL completos y matriz actual, integración final de operaciones y builds, contratos backend históricos relevantes, build frontend y regresión final, casos de concurrencia/recuperación y documentación final. T08/T09/T25/T27/T48–T50/T52/T53 no se cierran por anticipado. Offline y servicios GitLab remotos quedan aplazados. No se mantienen procesos manuales AgentIA ni se modifican permisos/virtualización/firewall. Sin commits o publicación.
+
+## 44. Correcciones tras única sesión DeepSeek y Docker
+
+05/10/2026. El usuario solicitó una sola prueba completa y después resolver sus errores. Sesión `4c849f7c-4240-4aa2-8dca-83ae9a4a837d`, Maven/PostgreSQL. Generación IA real produjo el proyecto; sandbox ejecutó 28 tests aprobados, pero falló guardar XML de snapshot en ruta de 280 caracteres. Preparación posterior falló por MockitoBean en fuentes originales con Spring Boot 3.2.3: la normalización se aplicaba solo a la copia temporal.
+
+Correcciones: rutas extendidas Windows para informes/JAR/validación/limpieza; normalización canónica antes de preparación/fingerprint/snapshot y sin cambios posteriores en copia sellada; errores de evidencia conservan salida/conteos y bloquean aceptación sin fallback ni reparación automática. Campo evidenceError propagado a métricas y rechazado por política de aprobación.
+
+Regresión conjunta: **195 PASS / 2 SKIP**, 13 archivos, 68.85 s. Recuperación real reutilizó las fuentes y sesión originales, sin nuevas llamadas IA: preparación COMPLETE, **28/28 tests PASS**, snapshot sellado, despliegue HEALTHY PostgreSQL, CRUD y validación, persistencia tras stop/restart, ZIP de fuentes e imagen ejecutable. CRC de ambos ZIP correcto. Un fallo adicional del comprobador por DB_PASSWORD ausente se resolvió aportando credencial aleatoria local temporal; el backend ya admitía env-file externo. El archivo se eliminó al terminar.
+
+Fuentes y evidencia: [CORRECCIONES.md](../reports/docker-flow-20261005-112428-ad8273/CORRECCIONES.md), `recovery-result.json`, logs de recuperación y dos ZIP en esa carpeta. Resultado inicial conservado. Parada final comprobada, sin contenedores activos de la sesión; datos/imagen/volúmenes preservados. Sin nueva generación, navegador, cambios de políticas Windows, commit ni publicación. Esta aceptación no certifica toda la suite global ni la matriz completa de modelos/herramientas/BD.

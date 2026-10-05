@@ -15,6 +15,19 @@ EXCLUDED = {'.git', '.agentia-runtime', '.operation-locks', 'target', 'build', '
             '__pycache__', '.venv', '.run', '.idea'}
 
 
+def _io_path(path):
+    """Use Windows extended paths for I/O without changing canonical identities."""
+    path = Path(path)
+    if os.name != 'nt':
+        return path
+    absolute = str(path.absolute())
+    if absolute.startswith('\\\\?\\'):
+        return path
+    if absolute.startswith('\\\\'):
+        return Path('\\\\?\\UNC\\' + absolute[2:])
+    return Path('\\\\?\\' + absolute)
+
+
 def snapshot_directory(workspace, snapshot_id):
     if not isinstance(snapshot_id, str) or len(snapshot_id) != 32 or any(c not in '0123456789abcdef' for c in snapshot_id):
         raise ValueError('Identidad de snapshot inválida')
@@ -93,10 +106,10 @@ class SourceSnapshot:
                 if name.endswith('.xml') and ('surefire-reports' in relative.parts or 'test-results' in relative.parts):
                     if source.is_symlink() or not source.resolve().is_relative_to(self.working):
                         raise ValueError('Informe enlazado no admitido')
-                    data = source.read_bytes()
+                    data = _io_path(source).read_bytes()
                     target = self.directory / 'reports' / relative
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(data)
+                    _io_path(target.parent).mkdir(parents=True, exist_ok=True)
+                    _io_path(target).write_bytes(data)
                     reports[relative.as_posix()] = hashlib.sha256(data).hexdigest()
         self.manifest['reports'] = reports
         jars = {}
@@ -107,15 +120,15 @@ class SourceSnapshot:
             if source.is_symlink() or not source.resolve().is_relative_to(self.working):
                 raise ValueError('JAR enlazado no admitido')
             try:
-                with zipfile.ZipFile(source) as jar:
+                with zipfile.ZipFile(_io_path(source)) as jar:
                     if jar.testzip() or not any(n.startswith('BOOT-INF/') for n in jar.namelist()) or b'Main-Class: org.springframework.boot.loader.' not in jar.read('META-INF/MANIFEST.MF'):
                         continue
             except (OSError, KeyError, zipfile.BadZipFile):
                 continue
-            data = source.read_bytes()
+            data = _io_path(source).read_bytes()
             target = self.directory / 'artifacts' / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
+            _io_path(target.parent).mkdir(parents=True, exist_ok=True)
+            _io_path(target).write_bytes(data)
             jars[relative.as_posix()] = hashlib.sha256(data).hexdigest()
         self.manifest['executableJars'] = jars
         self._save()
@@ -123,7 +136,7 @@ class SourceSnapshot:
     def close(self):
         if self.stage.resolve().parent != STAGING.resolve():
             raise ValueError('Directorio de ejecución inesperado')
-        shutil.rmtree(self.stage)
+        shutil.rmtree(_io_path(self.stage))
 
 
 def validate_snapshot(workspace, snapshot_id, fingerprint):
@@ -163,7 +176,7 @@ def _validate_snapshot(workspace, snapshot_id, fingerprint):
     for category, key in [('reports', 'reports'), ('artifacts', 'executableJars')]:
         for relative, expected in manifest.get(key, {}).items():
             file = directory / category / relative
-            if file.is_symlink() or not file.resolve().is_relative_to(directory.resolve()) or hashlib.sha256(file.read_bytes()).hexdigest() != expected:
+            if file.is_symlink() or not file.resolve().is_relative_to(directory.resolve()) or hashlib.sha256(_io_path(file).read_bytes()).hexdigest() != expected:
                 raise ValueError('Integridad del artefacto de snapshot inválida')
     return manifest, archive
 
@@ -190,7 +203,7 @@ def materialize_snapshot(workspace, snapshot_id, fingerprint):
             raise ValueError('Snapshot cambió al materializar')
         relative, jar_hash = next(iter(manifest['executableJars'].items()))
         jar = snapshot_directory(workspace, snapshot_id) / 'artifacts' / relative
-        payload = jar.read_bytes()
+        payload = _io_path(jar).read_bytes()
         if hashlib.sha256(payload).hexdigest() != jar_hash:
             raise ValueError('JAR verificado corrupto')
         (working / '.verified-artifact').mkdir()
@@ -199,4 +212,4 @@ def materialize_snapshot(workspace, snapshot_id, fingerprint):
     finally:
         if stage.resolve().parent != STAGING.resolve():
             raise ValueError('Directorio de ejecución inesperado')
-        shutil.rmtree(stage)
+        shutil.rmtree(_io_path(stage))

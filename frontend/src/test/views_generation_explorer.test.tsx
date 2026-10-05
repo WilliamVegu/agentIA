@@ -69,6 +69,7 @@ vi.mock('../services/exportService', () => ({
 
 vi.mock('../services/testsService', () => ({
   testsService: {
+    getVerificationMetrics: vi.fn().mockResolvedValue({ totalTests: 24, passedTests: 24 }),
     getRepairHistory: vi.fn().mockResolvedValue({
       sessionId: 'sess-gen-001',
       totalIterations: 0,
@@ -124,6 +125,13 @@ describe('Views: GenerationMonitorView & CodeExplorerView', () => {
   });
 
   describe('CodeExplorerView', () => {
+    it('shows persisted verification results when reopening the code explorer', async () => {
+      vi.mocked(exportService.listArtifacts).mockResolvedValueOnce([]);
+      renderWithProviders(<CodeExplorerView />);
+      fireEvent.click(screen.getByText(/🧪 Suites de Pruebas & Cobertura/i));
+      expect(await screen.findByText('24 / 24 Pasadas (100%)')).toBeInTheDocument();
+    });
+
     it('renders empty state when there are no generated artifacts', async () => {
       vi.mocked(exportService.listArtifacts).mockResolvedValueOnce([]);
 

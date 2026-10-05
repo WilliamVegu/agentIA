@@ -249,6 +249,12 @@ def fix_spring_test_annotations(source: str) -> Tuple[str, List[str]]:
     return out, changed
 
 
+def normalise_generated_sources(workspace: str | Path) -> None:
+    """Normalize canonical sources before preparation, fingerprinting or sealing."""
+    normalise_generated_entities(workspace)
+    normalise_generated_tests(workspace)
+
+
 def normalise_generated_tests(workspace: str | Path) -> Dict[str, List[str]]:
     """Apply the corrections to every generated test source in the workspace."""
     ws = Path(workspace)

@@ -112,6 +112,16 @@ export const CodeExplorerView: React.FC = () => {
         setManualCode('');
       });
 
+    if (typeof testsService.getVerificationMetrics === 'function') {
+      testsService.getVerificationMetrics(activeSessionId).then((metrics) => {
+        if (cancelled) return;
+        if (Number.isInteger(metrics.totalTests) && Number.isInteger(metrics.passedTests)
+            && metrics.totalTests >= metrics.passedTests && metrics.passedTests >= 0) {
+          setMetricsData({ totalTests: metrics.totalTests, passedTests: metrics.passedTests });
+        }
+      }).catch(() => {});
+    }
+
     testsService
       .getRepairHistory(activeSessionId)
       .then((data: RepairHistoryResponse) => {

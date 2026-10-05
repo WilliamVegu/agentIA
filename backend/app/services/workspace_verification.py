@@ -130,16 +130,28 @@ def _verify_workspace(workspace_path, log_callback=None, mode=None):
         return _verify_workspace_live(workspace_path, log_callback, selected)
     from app.services.source_snapshot import SourceSnapshot
     from app.services.verification_policy import workspace_fingerprint
+    from app.services.generated_code_fixes import normalise_generated_sources
     stripped = strip_vcs_metadata(workspace_path)
+    normalise_generated_sources(workspace_path)
     inject_contract_test(workspace_path)
     snapshot = SourceSnapshot(workspace_path)
     try:
-        outcome = _verify_workspace_live(str(snapshot.working), log_callback, selected)
+        outcome = _verify_workspace_live(str(snapshot.working), log_callback, selected, normalise_sources=False)
         changed = outcome.source_changed or workspace_fingerprint(workspace_path) != snapshot.manifest['workspaceFingerprint']
         if changed and not outcome.source_changed:
             outcome.result.exit_code = outcome.result.exit_code or 1
             outcome.result.stderr += '\nLas fuentes cambiaron durante la verificación; evidencia OUTDATED. Reintente sobre las fuentes actuales.'
-        snapshot.finish(outcome.result, changed)
+        try:
+            snapshot.finish(outcome.result, changed)
+        except (OSError, ValueError) as exc:
+            # Docker already ran: preserve its output/counts, fail closed and
+            # distinguish evidence persistence from missing infrastructure.
+            outcome.result.evidence_error = f'No se pudo conservar evidencia del snapshot: {exc}'
+            outcome.result.exit_code = outcome.result.exit_code or 1
+            outcome.result.stderr += '\n' + outcome.result.evidence_error
+            return WorkspaceVerification(result=outcome.result, platform_test_path=outcome.platform_test_path,
+                stripped=tuple(stripped) + outcome.stripped, workspace_fingerprint=snapshot.manifest['workspaceFingerprint'],
+                source_changed=changed)
         return WorkspaceVerification(result=outcome.result, platform_test_path=outcome.platform_test_path,
             stripped=tuple(stripped) + outcome.stripped, workspace_fingerprint=snapshot.manifest['workspaceFingerprint'],
             source_changed=changed, snapshot_id=snapshot.id)
@@ -151,6 +163,7 @@ def _verify_workspace_live(
     workspace_path: str,
     log_callback: Optional[Callable[[str], None]] = None,
     mode: Optional[ExecutionMode] = None,
+    normalise_sources: bool = True,
 ) -> WorkspaceVerification:
     """Prepare a workspace and run the hermetic build against it.
 
@@ -181,6 +194,10 @@ def _verify_workspace_live(
     # Remove stale XML before execution so earlier builds cannot supply proof.
     ws = Path(workspace_path).resolve()
     from app.services.verification_policy import workspace_fingerprint
+    selected_mode = execution_mode(workspace_path=workspace_path, explicit=mode)
+    if normalise_sources and selected_mode == ExecutionMode.DOCKER and settings.DOCKER_ENABLED:
+        from app.services.generated_code_fixes import normalise_generated_sources
+        normalise_generated_sources(workspace_path)
     input_fingerprint = workspace_fingerprint(ws)
     report_dirs = [ws / "build/test-results/test", ws / "target/surefire-reports"]
     # Aggregate reactor reports as well as a single-module project.
@@ -209,13 +226,6 @@ def _verify_workspace_live(
                     if report.resolve().is_relative_to(ws):
                         report.unlink()
         (ws / "VERIFICATION_STATUS.md").unlink(missing_ok=True)
-        try:
-            from app.services.generated_code_fixes import normalise_generated_entities, normalise_generated_tests
-            normalise_generated_entities(workspace_path)
-            normalise_generated_tests(workspace_path)
-        except Exception as norm_err:
-            if log_callback:
-                log_callback(f"[VERIFY] Normalisation warning: {norm_err}")
         result = _run_sandbox_blocking(workspace_path, log_callback)
     if not result.fallback_used:
         # A cold build can create module report directories for the first time.

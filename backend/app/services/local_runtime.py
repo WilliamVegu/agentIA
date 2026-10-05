@@ -24,6 +24,21 @@ def persist(row):
     with _record_lock:
         directory = record_directory(row.sessionId)
         directory.mkdir(parents=True, exist_ok=True)
+        # A status probe can finish after the worker has persisted completion.
+        # Preserve terminal operation metadata when that probe carries an older
+        # copy, while still saving the newly observed container health.
+        try:
+            stored = LocalDeploymentSession.model_validate_json(
+                (directory / 'deployment.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            stored = None
+        if (stored is not None and stored.sessionId == row.sessionId
+                and stored.operationId == row.operationId and stored.operationId
+                and stored.finishedAt and not row.finishedAt):
+            row.finishedAt = stored.finishedAt
+            row.operationPhase = stored.operationPhase
+            row.cancelRequested = row.cancelRequested or stored.cancelRequested
+            row.message = stored.message
         temporary = directory / ("deployment-" + uuid.uuid4().hex + ".tmp")
         temporary.write_text(row.model_dump_json(), encoding="utf-8")
         temporary.replace(directory / "deployment.json")

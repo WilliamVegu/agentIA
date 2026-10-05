@@ -39,6 +39,7 @@ class DockerExecutionResult(BaseModel):
     attribution_ambiguous: bool = False
     verification_interrupted: bool = False
     cleanup_confirmed: Optional[bool] = None
+    evidence_error: Optional[str] = None
 
     @property
     def is_success(self) -> bool:

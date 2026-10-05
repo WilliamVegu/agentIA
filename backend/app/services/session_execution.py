@@ -70,6 +70,7 @@ def _verify_existing_sources(session_id: str):
             "workspaceFingerprint": getattr(verification, 'workspace_fingerprint', None) or workspace_fingerprint(ws),
             "verificationOutdated": getattr(verification, 'source_changed', False),
             "sourceSnapshotId": getattr(verification, 'snapshot_id', None),
+            "evidenceError": result.evidence_error,
         }
         if previous:
             metrics["previousAttempt"] = {key: value for key, value in previous.items() if key != "previousAttempt"}
@@ -90,7 +91,7 @@ def _verify_existing_sources(session_id: str):
             row.verification_metrics_json = json.dumps(metrics)
             row.status = SessionStatus.COMPLETED if completed else (SessionStatus.PAUSED if result.fallback_used else SessionStatus.BLOCKED)
             row.phase = SessionPhase.CODE_GENERATION if result.verification_skipped else (SessionPhase.VERIFIED if completed else SessionPhase.FAILED)
-            row.error_message = None if completed else (result.stderr if result.verification_interrupted else (result.fallback_reason or "La compilación o las pruebas ejecutadas fallaron."))
+            row.error_message = None if completed else (result.evidence_error or (result.stderr if result.verification_interrupted else (result.fallback_reason or "La compilación o las pruebas ejecutadas fallaron.")))
             row.completed_at = datetime.now(timezone.utc) if completed else None
             db.commit()
         return {"sessionId": session_id, "metrics": metrics, "status": "COMPLETED" if completed else ("PAUSED" if result.fallback_used else "BLOCKED")}

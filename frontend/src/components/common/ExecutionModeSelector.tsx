@@ -7,6 +7,8 @@ export function ExecutionModeSelector({ value, onChange }: { value: ExecutionMod
       <option value="SOURCE_ONLY">Sin Docker — generar y exportar fuentes</option>
       <option value="DOCKER">Con Docker — compilar, probar y desplegar</option>
     </select>
-    <span className="block text-xs text-slate-500">Sin Docker permite terminar en laboratorios sin virtualización. Las pruebas de ejecución figurarán como no ejecutadas.</span>
+    <span className="block text-xs text-slate-500">{value === 'DOCKER'
+      ? 'Docker compila y ejecuta las pruebas en el sandbox. El despliegue requiere evidencia aprobada y las credenciales locales de la base de datos.'
+      : 'Sin Docker permite terminar en laboratorios sin virtualización. Las pruebas de ejecución figurarán como no ejecutadas.'}</span>
   </label>;
 }

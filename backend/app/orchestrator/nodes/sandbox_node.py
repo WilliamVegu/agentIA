@@ -36,6 +36,17 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     result = verification.result
     platform_verified = verification.platform_verified
     snapshot_id = getattr(verification, 'snapshot_id', None)
+    if result.evidence_error:
+        counts = parse_test_counts(result.stdout)
+        metrics = VerificationMetrics(totalTests=counts.total if counts else 0,
+            passedTests=counts.passed if counts else 0,
+            failedTests=counts.failures + counts.errors if counts else 0,
+            allPassed=False, fallback_used=result.fallback_used, evidenceError=result.evidence_error,
+            verificationOutcome='FAILED', workspaceFingerprint=verification.workspace_fingerprint)
+        logs.append('[SANDBOX] Falló la conservación de evidencia; sin reparación automática de fuentes.')
+        return {'current_phase': SessionPhase.FAILED.value, 'status': SessionStatus.BLOCKED.value,
+                'build_success': False, 'verification_fallback_used': result.fallback_used,
+                'test_metrics': metrics.model_dump(), 'error': result.evidence_error, 'logs': logs}
     if getattr(verification, 'source_changed', False):
         counts = parse_test_counts(result.stdout)
         metrics = VerificationMetrics(totalTests=counts.total if counts else 0,

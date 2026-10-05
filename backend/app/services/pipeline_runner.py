@@ -713,6 +713,7 @@ def _execute_pipeline_steps(
                 "workspaceFingerprint": getattr(verification, 'workspace_fingerprint', None) or workspace_fingerprint(ws_path),
                 "verificationOutdated": getattr(verification, 'source_changed', False),
                 "sourceSnapshotId": getattr(verification, 'snapshot_id', None),
+                "evidenceError": verification.result.evidence_error,
             }
 
         build_success = build_success and tests_really_passed(test_metrics)
@@ -759,7 +760,7 @@ def _execute_pipeline_steps(
                 if s:
                     s.status = SessionStatus.PAUSED if test_metrics.get("fallback_used") else SessionStatus.BLOCKED
                     s.phase = SessionPhase.FAILED
-                    s.error_message = test_metrics.get("fallback_reason") or "Hermetic verification failed in sandbox"
+                    s.error_message = test_metrics.get("evidenceError") or test_metrics.get("fallback_reason") or "Hermetic verification failed in sandbox"
                     db_fail.commit()
             finally:
                 db_fail.close()

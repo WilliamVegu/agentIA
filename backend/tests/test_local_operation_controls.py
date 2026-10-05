@@ -99,6 +99,17 @@ def test_restart_and_prepare_share_control_and_finish_metadata(runtime):
     assert not service._operation_locks[runtime.id].locked()
 
 
+def test_preparation_normalises_canonical_sources_before_build(runtime):
+    from app.services import local_preparation
+    test = runtime.ws / 'src/test/java/com/example/ControllerTest.java'
+    test.parent.mkdir(parents=True, exist_ok=True)
+    test.write_text('import org.springframework.test.context.bean.override.mockito.MockitoBean;\nclass ControllerTest { @MockitoBean Object service; }')
+    row = local_preparation.prepare_local(runtime.id, str(runtime.ws), 'H2')
+    assert '@MockBean' in test.read_text() and 'MockitoBean' not in test.read_text()
+    runtime.workers[0]()
+    assert row.status == Status.IDLE, row.errorMessage
+
+
 def test_cancel_route_checks_operation_identity_and_session(runtime, monkeypatch):
     from fastapi import FastAPI, HTTPException
     from fastapi.testclient import TestClient
@@ -149,3 +160,28 @@ def test_recovered_operation_without_worker_does_not_keep_ui_busy(runtime):
     recovered = restore(runtime.id)
     assert recovered.finishedAt and recovered.operationPhase == 'INTERRUPTED'
     assert 'no se confirma' in recovered.message
+
+
+def test_status_probe_cannot_reopen_completed_operation(runtime):
+    from app.models.devops import LocalDeploymentSession
+    from app.services.local_runtime import persist
+    import json
+    worker = LocalDeploymentSession(sessionId=runtime.id, operationId='deploy-race',
+        operationKind='DEPLOY', operationPhase='READINESS', status=Status.RUNNING)
+    persist(worker)
+    stale_probe = worker.model_copy(deep=True)
+    worker.operationPhase = 'COMPLETE'
+    worker.finishedAt = '2026-10-05T18:00:00+00:00'
+    worker.status = Status.HEALTHY
+    persist(worker)
+    stale_probe.status = Status.DEGRADED
+    persist(stale_probe)
+    saved = json.loads((runtime.ws / '.agentia-runtime' / 'deployment.json').read_text())
+    assert saved['finishedAt'] == worker.finishedAt
+    assert saved['operationPhase'] == 'COMPLETE'
+    assert saved['status'] == 'DEGRADED'
+    retry = stale_probe.model_copy(update={'operationId': 'new-deploy', 'finishedAt': None,
+        'operationPhase': 'QUEUED', 'status': Status.BUILDING})
+    persist(retry)
+    saved = json.loads((runtime.ws / '.agentia-runtime' / 'deployment.json').read_text())
+    assert saved['finishedAt'] is None and saved['operationId'] == 'new-deploy'

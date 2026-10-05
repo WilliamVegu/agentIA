@@ -21,6 +21,10 @@ export interface RepairHistoryResponse {
 }
 
 export const testsService = {
+  async getVerificationMetrics(sessionId: string): Promise<{ totalTests: number; passedTests: number }> {
+    return (await apiClient.get(`/sessions/${sessionId}/metrics`)).data;
+  },
+
   async getRepairHistory(sessionId: string): Promise<RepairHistoryResponse> {
     const response = await apiClient.get<RepairHistoryResponse>(`/sessions/${sessionId}/repairs`);
     return response.data;

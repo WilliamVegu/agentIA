@@ -161,3 +161,83 @@ def test_build_configuration_changes_invalidate_fingerprint(runtime, relative):
     before = workspace_fingerprint(runtime.ws)
     file.write_text('new build input')
     assert workspace_fingerprint(runtime.ws) != before
+
+
+def test_normalisation_precedes_sealing_and_matches_original_sources(runtime, monkeypatch):
+    test = runtime.ws / 'src/test/java/com/example/ItemControllerTest.java'
+    test.parent.mkdir(parents=True, exist_ok=True)
+    test.write_text('import org.springframework.test.context.bean.override.mockito.MockitoBean;\nclass ItemControllerTest { @MockitoBean Object service; }')
+    def run(path, callback):
+        relative = test.relative_to(runtime.ws)
+        assert (Path(path) / relative).read_bytes() == test.read_bytes()
+        assert '@MockBean' in test.read_text() and 'MockitoBean' not in test.read_text()
+        return DockerExecutionResult(exit_code=0, stdout='Tests run: 3, Failures: 0, Errors: 0, Skipped: 0')
+    monkeypatch.setattr(workspace_verification, '_run_sandbox_blocking', run)
+    outcome = workspace_verification.run_workspace_verification(str(runtime.ws))
+    assert outcome.result.is_success and not outcome.source_changed
+    manifest, archive = validate_snapshot(runtime.ws, outcome.snapshot_id, outcome.workspace_fingerprint)
+    assert workspace_fingerprint(runtime.ws) == manifest['workspaceFingerprint']
+    with zipfile.ZipFile(archive) as sealed_sources:
+        assert sealed_sources.read(test.relative_to(runtime.ws).as_posix()) == test.read_bytes()
+
+
+def test_snapshot_write_failure_preserves_execution_without_fallback(runtime, monkeypatch):
+    monkeypatch.setattr(workspace_verification, '_run_sandbox_blocking', lambda *args:
+        DockerExecutionResult(exit_code=0, stdout='Tests run: 28, Failures: 0, Errors: 0, Skipped: 0'))
+    def fail(*args):
+        raise OSError('disk write denied')
+    monkeypatch.setattr(SourceSnapshot, 'finish', fail)
+    outcome = workspace_verification.run_workspace_verification(str(runtime.ws))
+    assert not outcome.result.is_success and not outcome.result.fallback_used
+    assert outcome.result.evidence_error and 'disk write denied' in outcome.result.stderr
+    assert 'Tests run: 28' in outcome.result.stdout and outcome.snapshot_id is None
+
+
+@pytest.mark.parametrize('consumer', ['graph', 'manual'])
+def test_evidence_failure_keeps_test_counts_and_blocks_without_repair(runtime, monkeypatch, consumer):
+    from types import SimpleNamespace
+    from app.services import devops_service, security_service, session_execution
+    from app.orchestrator.nodes import sandbox_node as node
+    (runtime.ws / 'src/main/java/App.java').write_text('class App {}')
+    result = workspace_verification.WorkspaceVerification(
+        result=DockerExecutionResult(exit_code=1, stdout='Tests run: 28, Failures: 0, Errors: 0, Skipped: 0',
+                                    evidence_error='Snapshot write failed'),
+        platform_test_path=None, workspace_fingerprint=workspace_fingerprint(runtime.ws))
+    monkeypatch.setattr(workspace_verification, 'run_workspace_verification', lambda *a, **k: result)
+    monkeypatch.setattr(node, 'run_workspace_verification', lambda *a, **k: result)
+    monkeypatch.setattr(devops_service, 'generate_all_devops_assets', lambda *a, **k: None)
+    monkeypatch.setattr(security_service, 'audit_workspace', lambda *a, **k:
+        SimpleNamespace(qualityGate=SimpleNamespace(canExport=True)))
+    if consumer == 'graph':
+        outcome = node.sandbox_node({'workspace_path': str(runtime.ws), 'session_id': runtime.id})
+        metrics = outcome['test_metrics']
+    else:
+        outcome = session_execution.verify_existing_sources(runtime.id)
+        metrics = outcome['metrics']
+        with SessionLocal() as db:
+            row = db.get(GenerationSessionDB, runtime.id)
+            assert row.status == SessionStatus.BLOCKED and row.error_message == 'Snapshot write failed'
+    assert outcome['status'] == 'BLOCKED'
+    assert metrics['totalTests'] == metrics['passedTests'] == 28
+    assert not metrics['allPassed'] and not metrics['fallback_used']
+    assert metrics['evidenceError'] == 'Snapshot write failed'
+
+
+@pytest.mark.skipif(__import__('os').name != 'nt', reason='Windows extended path regression')
+def test_long_junit_path_is_sealed_validated_and_detects_corruption(runtime):
+    from app.services.source_snapshot import _io_path
+    snapshot = SourceSnapshot(runtime.ws)
+    try:
+        relative = Path('target/surefire-reports') / ('TEST-' + 'longpackage.' * 14 + 'ItemControllerTest.xml')
+        source = snapshot.working / relative
+        _io_path(source.parent).mkdir(parents=True, exist_ok=True)
+        _io_path(source).write_text('<testsuite tests="1" failures="0" errors="0"/>')
+        target = snapshot.directory / 'reports' / relative
+        assert len(str(target.absolute())) > 260
+        snapshot.finish(DockerExecutionResult(exit_code=0, stdout='Tests run: 1, Failures: 0, Errors: 0, Skipped: 0'), False)
+        validate_snapshot(runtime.ws, snapshot.id, snapshot.manifest['workspaceFingerprint'])
+        _io_path(target).write_bytes(b'corrupt')
+        with pytest.raises(ValueError, match='Integridad'):
+            validate_snapshot(runtime.ws, snapshot.id, snapshot.manifest['workspaceFingerprint'])
+    finally:
+        snapshot.close()

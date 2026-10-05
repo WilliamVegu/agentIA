@@ -39,5 +39,6 @@ class VerificationMetrics(BaseModel):
     fallback_reason: Optional[str] = None
     verificationInterrupted: bool = False
     verificationOutdated: bool = False
+    evidenceError: Optional[str] = None
     sourceSnapshotId: Optional[str] = None
 
