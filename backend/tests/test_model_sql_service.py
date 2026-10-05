@@ -237,3 +237,72 @@ def test_refine_domain_models_updates_schema(sample_draft: SpecificationDraft):
     product = next(e for e in refined.entities if e.name == "Product")
     assert any(a.name == "trackingNumber" for a in product.attributes)
     assert "tracking_number" in refined.sqlSchema.schemaDdl
+
+
+def test_synthesize_domain_models_prevents_duplicate_foreign_key_column():
+    """Verify that when a draft or LLM already includes an FK attribute (e.g. orderId / order_id),
+    relationship inference does not insert a duplicate column that breaks schema validation."""
+    draft = SpecificationDraft(
+        serviceName="orders-service",
+        packageName="com.example.orders",
+        basePort=8080,
+        entities=[
+            DomainEntity(
+                name="Order",
+                tableName="orders",
+                attributes=[
+                    EntityAttribute(name="orderNumber", type="String", isPrimaryKey=False),
+                    EntityAttribute(name="totalAmount", type="BigDecimal", isPrimaryKey=False),
+                ]
+            ),
+            DomainEntity(
+                name="OrderItem",
+                tableName="order_items",
+                attributes=[
+                    EntityAttribute(name="productName", type="String", isPrimaryKey=False),
+                    EntityAttribute(name="orderId", type="Long", isPrimaryKey=False),  # Already present!
+                    EntityAttribute(name="quantity", type="Integer", isPrimaryKey=False),
+                ]
+            )
+        ],
+        userStories=[]
+    )
+
+    response = model_sql_service.synthesize_domain_models_and_sql(draft)
+    assert response is not None
+    order_item = next(e for e in response.entities if e.name == "OrderItem")
+    # Verify exactly one order_id column
+    order_id_cols = [a for a in order_item.attributes if a.columnName == "order_id"]
+    assert len(order_id_cols) == 1
+    # Verify no duplicate columns across all attributes
+    all_col_names = [a.columnName for a in order_item.attributes]
+    assert len(all_col_names) == len(set(all_col_names))
+    # Verify DDL contains valid foreign key
+    assert "FOREIGN KEY (order_id) REFERENCES orders" in response.sqlSchema.schemaDdl
+
+
+def test_synthesize_domain_models_deduplicates_raw_attributes():
+    """Verify that duplicate attributes in raw entity drafts are deduplicated cleanly."""
+    draft = SpecificationDraft(
+        serviceName="customer-service",
+        packageName="com.example.customers",
+        basePort=8080,
+        entities=[
+            DomainEntity(
+                name="Customer",
+                tableName="customers",
+                attributes=[
+                    EntityAttribute(name="email", type="String", isPrimaryKey=False),
+                    EntityAttribute(name="email", type="String", isPrimaryKey=False),  # Duplicate
+                    EntityAttribute(name="phone", type="String", isPrimaryKey=False),
+                ]
+            )
+        ],
+        userStories=[]
+    )
+
+    response = model_sql_service.synthesize_domain_models_and_sql(draft)
+    customer = next(e for e in response.entities if e.name == "Customer")
+    email_cols = [a for a in customer.attributes if a.columnName == "email"]
+    assert len(email_cols) == 1
+

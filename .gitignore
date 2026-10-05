@@ -103,3 +103,6 @@ mlruns/
 # start_services.sh runtime state (pids, logs)
 .run/
 docs/fig/*-1.png
+
+# Browser verification reports and run artifacts
+reports/verification-real-browser*/

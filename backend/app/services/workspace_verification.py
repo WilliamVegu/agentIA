@@ -209,6 +209,13 @@ def _verify_workspace_live(
                     if report.resolve().is_relative_to(ws):
                         report.unlink()
         (ws / "VERIFICATION_STATUS.md").unlink(missing_ok=True)
+        try:
+            from app.services.generated_code_fixes import normalise_generated_entities, normalise_generated_tests
+            normalise_generated_entities(workspace_path)
+            normalise_generated_tests(workspace_path)
+        except Exception as norm_err:
+            if log_callback:
+                log_callback(f"[VERIFY] Normalisation warning: {norm_err}")
         result = _run_sandbox_blocking(workspace_path, log_callback)
     if not result.fallback_used:
         # A cold build can create module report directories for the first time.

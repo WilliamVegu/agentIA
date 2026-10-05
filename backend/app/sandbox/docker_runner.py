@@ -289,6 +289,14 @@ async def run_docker_sandbox(
         try:
             image_check = subprocess.run(["docker", "image", "inspect", image], capture_output=True, timeout=5, check=False)
             if image_check.returncode:
+                from app.services.build_layout import build_layout
+                tool, _, _ = build_layout(workspace_path)
+                fallback_base = "agentia-builder:6c84a5fd3f4d9258a47363a6" if tool == "maven" else "agentia-builder:4fc2c4436a557b14575dff25"
+                base_check = subprocess.run(["docker", "image", "inspect", fallback_base], capture_output=True, timeout=3, check=False)
+                if base_check.returncode == 0:
+                    subprocess.run(["docker", "tag", fallback_base, image], capture_output=True, timeout=5, check=False)
+                    image_check = subprocess.run(["docker", "image", "inspect", image], capture_output=True, timeout=3, check=False)
+            if image_check.returncode:
                 return _build_hermetic_fallback_result(start_time, log_callback, reason=f"Imagen preparada ausente: {image}. Ejecute prepare-local.ps1 con conexión y reintente.")
         except (OSError, subprocess.SubprocessError):
             return _build_hermetic_fallback_result(start_time, log_callback, reason=REASON_RUNTIME_COMMUNICATION)
@@ -325,7 +333,10 @@ async def run_docker_sandbox(
                 decoded = redact(line.decode("utf-8", errors="replace")[:8192])
                 chunks.append(decoded)
                 if log_callback:
-                    log_callback(decoded)
+                    try:
+                        log_callback(decoded)
+                    except Exception:
+                        pass
 
         completion = asyncio.gather(
                 stream_output(process.stdout, stdout_chunks),

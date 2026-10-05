@@ -121,8 +121,75 @@ def fix_generated_id_not_null(source: str) -> Tuple[str, List[str]]:
     return "\n".join(cleaned), changed
 
 
+_MODEL_GLOB = "src/main/java/**/model/**/*.java"
+
+_NON_STRING_TYPES = {
+    "UUID", "Long", "long", "Integer", "int", "Short", "short",
+    "Byte", "byte", "Double", "double", "Float", "float",
+    "BigDecimal", "BigInteger", "Boolean", "bool", "boolean",
+    "LocalDate", "LocalDateTime", "LocalTime", "Instant",
+    "ZonedDateTime", "OffsetDateTime", "Date",
+}
+
+_STRING_ONLY_ANNOTATIONS = ("@Size", "@NotBlank", "@NotEmpty", "@Length", "@Pattern", "@Email")
+
+_NON_STRING_FIELD_RE = re.compile(
+    r'(?:^|[\s,(])(?:(?:java\.(?:util|lang|math|time)\.)?('
+    + '|'.join(_NON_STRING_TYPES)
+    + r'))\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:[;,) =]|$)'
+)
+
+
+def fix_invalid_type_constraints(source: str) -> Tuple[str, List[str]]:
+    """Remove String-only validation constraints (e.g. @Size, @NotBlank, @Pattern)
+    from non-String fields or record components (UUID, Long, Integer, Boolean, LocalDateTime, etc.).
+
+    Hibernate Validator fails at runtime with UnexpectedTypeException HV000030
+    when a CharSequence constraint is declared on a UUID or numeric/temporal field.
+    """
+    lines = source.split("\n")
+    drop: set[int] = set()
+    changed: List[str] = []
+
+    for index, line in enumerate(lines):
+        m = _NON_STRING_FIELD_RE.search(line)
+        if not m:
+            continue
+        type_name = m.group(1)
+        var_name = m.group(2)
+
+        # Check inline annotations on the same line
+        for ann in _STRING_ONLY_ANNOTATIONS:
+            pat = re.compile(rf'{re.escape(ann)}(?:\([^)]*\))?\s*')
+            if pat.search(lines[index]):
+                lines[index] = pat.sub('', lines[index])
+                changed.append(f"{ann} on {var_name}")
+
+        # Check preceding lines in the annotation block
+        block_idx = index - 1
+        while block_idx >= 0 and (_is_annotation(lines[block_idx]) or not lines[block_idx].strip()):
+            prev_line = lines[block_idx].strip()
+            for ann in _STRING_ONLY_ANNOTATIONS:
+                if re.search(rf'^\s*{re.escape(ann)}(?:\b|\()', prev_line):
+                    drop.add(block_idx)
+                    changed.append(f"{ann} on {var_name}")
+            block_idx -= 1
+
+    if not drop and not changed:
+        return source, []
+
+    kept = [line for i, line in enumerate(lines) if i not in drop]
+    cleaned: List[str] = []
+    for line in kept:
+        if not line.strip() and cleaned and not cleaned[-1].strip():
+            continue
+        cleaned.append(line)
+
+    return "\n".join(cleaned), changed
+
+
 def normalise_generated_entities(workspace: str | Path) -> Dict[str, List[str]]:
-    """Apply the corrections to every generated entity in the workspace.
+    """Apply the corrections to every generated entity and model in the workspace.
 
     Idempotent: a file with no generated id, or one already corrected, is left byte
     identical, so this can run after every stage without churning the tree.
@@ -130,15 +197,24 @@ def normalise_generated_entities(workspace: str | Path) -> Dict[str, List[str]]:
     ws = Path(workspace)
     fixed: Dict[str, List[str]] = {}
 
-    for java_file in sorted(ws.glob(_ENTITY_GLOB)):
+    for java_file in sorted(ws.glob(_MODEL_GLOB)):
         try:
             original = java_file.read_text(encoding="utf-8")
         except OSError:
             continue
-        corrected, changed = fix_generated_id_not_null(original)
-        if changed and corrected != original:
-            java_file.write_text(corrected, encoding="utf-8")
-            fixed[java_file.relative_to(ws).as_posix()] = changed
+        current = original
+        all_changed: List[str] = []
+
+        if "/model/entity/" in java_file.as_posix():
+            current, id_changed = fix_generated_id_not_null(current)
+            all_changed.extend(id_changed)
+
+        current, type_changed = fix_invalid_type_constraints(current)
+        all_changed.extend(type_changed)
+
+        if all_changed and current != original:
+            java_file.write_text(current, encoding="utf-8")
+            fixed[java_file.relative_to(ws).as_posix()] = all_changed
 
     return fixed
 

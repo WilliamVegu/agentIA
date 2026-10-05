@@ -327,3 +327,58 @@ def test_a_file_without_the_advice_is_ignored(tmp_path):
 
     assert ensure_not_found_handler(tmp_path) == {}
     assert target.read_text(encoding="utf-8") == original
+
+
+def test_invalid_size_constraint_on_uuid_is_removed():
+    from app.services.generated_code_fixes import fix_invalid_type_constraints
+
+    source = """package com.corp.almacen.stock.model.entity;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import java.util.UUID;
+
+@Entity
+public class Producto {
+    @Column(name = "categoria_id")
+    @Size(max = 36)
+    private UUID categoriaId;
+
+    @NotBlank
+    @Size(min = 2, max = 150)
+    private String nombre;
+}
+"""
+    corrected, changed = fix_invalid_type_constraints(source)
+    assert any("categoriaId" in c for c in changed)
+    assert "@Size(max = 36)" not in corrected
+    assert "private UUID categoriaId;" in corrected
+    assert "@Size(min = 2, max = 150)" in corrected
+    assert "@NotBlank" in corrected
+
+
+def test_invalid_size_constraint_on_record_dto_is_removed():
+    from app.services.generated_code_fixes import fix_invalid_type_constraints
+
+    source = """package com.corp.almacen.stock.model.dto;
+import jakarta.validation.constraints.*;
+import java.util.UUID;
+
+public record CreateProductoRequest(
+    @NotBlank
+    @Size(min = 4, max = 40)
+    String sku,
+
+    @Size(max = 36)
+    UUID categoriaId,
+
+    @NotNull
+    Boolean activo
+) {}
+"""
+    corrected, changed = fix_invalid_type_constraints(source)
+    assert any("categoriaId" in c for c in changed)
+    assert "@Size(max = 36)" not in corrected
+    assert "UUID categoriaId," in corrected
+    assert "@Size(min = 4, max = 40)" in corrected
+    assert "@NotBlank" in corrected
+

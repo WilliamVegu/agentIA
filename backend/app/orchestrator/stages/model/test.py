@@ -23,7 +23,8 @@ STAGE = "TEST"
 
 #: Stage-specific emphasis appended to the authored instruction.
 STAGE_EMPHASIS = (
-    "Derive one test per declared acceptance scenario rather than emitting a fixed set of method names."
+    "Derive one test per declared acceptance scenario rather than emitting a fixed set of method names. "
+    "Use Spring Boot 3 and Java 21 standards with Mockito and MockMvc; do not import deprecated classes such as org.springframework.data.web.config.SpringDataWebAutoConfiguration."
 )
 
 

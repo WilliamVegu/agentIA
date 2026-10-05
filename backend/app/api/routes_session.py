@@ -371,6 +371,14 @@ async def execute_generation_pipeline(
                     next_phase = SessionPhase.SELF_REPAIR_LOOP.value
 
                 if next_phase != current_phase:
+                    try:
+                        with SessionLocal() as phase_db:
+                            phase_row = phase_db.get(GenerationSessionDB, session_id)
+                            if phase_row:
+                                phase_row.phase = SessionPhase(next_phase)
+                                phase_db.commit()
+                    except Exception:
+                        pass
                     broadcast_session_event(session_id, "phase_transition", {
                         "sessionId": session_id,
                         "previousPhase": current_phase,

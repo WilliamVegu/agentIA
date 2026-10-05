@@ -558,6 +558,8 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
                     break
 
             col_name = to_snake_case(raw_attr.name)
+            if any(a.columnName == col_name for a in attrs):
+                continue
             is_unique = (
                 bool(getattr(raw_attr, "isUnique", False))
                 or "number" in col_name
@@ -581,7 +583,7 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
             )
 
         # Audit fields per Question 2 clarification (createdAt, updatedAt)
-        attrs.extend([
+        for audit_attr in [
             EntityAttributeDefinition(
                 name="createdAt",
                 columnName="created_at",
@@ -600,33 +602,51 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
                 isPrimaryKey=False,
                 defaultValue="CURRENT_TIMESTAMP",
             ),
-        ])
+        ]:
+            if not any(a.columnName == audit_attr.columnName for a in attrs):
+                attrs.append(audit_attr)
 
         # Infer relationships: if child entity (e.g. OrderItem to Order)
         relationships: List[EntityRelationshipDefinition] = []
         for other_name in entity_names:
             if other_name != e_name and e_name.startswith(other_name):
                 # E.g. OrderItem belongs to Order
+                fk_col = f"{to_snake_case(other_name)}_id"
+                fk_name = f"{to_snake_case(other_name)}Id"
                 relationships.append(
                     EntityRelationshipDefinition(
                         sourceEntity=e_name,
                         targetEntity=other_name,
                         relationshipType=RelationshipType.MANY_TO_ONE,
-                        joinColumnName=f"{to_snake_case(other_name)}_id",
+                        joinColumnName=fk_col,
                         inversePropertyName=to_snake_case(e_name) + "s",
                         cascadeType="ALL",
                         fetchType="LAZY",
                     )
                 )
-                # Add foreign key attribute
-                attrs.insert(1, EntityAttributeDefinition(
-                    name=f"{to_snake_case(other_name)}Id",
-                    columnName=f"{to_snake_case(other_name)}_id",
-                    javaType=JavaPropertyType.LONG,
-                    sqlType=SqlDataType.BIGINT,
-                    nullable=False,
-                    hasIndex=True,
-                ))
+                # Add foreign key attribute only if not already present
+                existing_fk = next((a for a in attrs if a.columnName == fk_col or a.name.lower() in (fk_name.lower(), f"{other_name.lower()}id")), None)
+                if existing_fk is None:
+                    attrs.insert(1, EntityAttributeDefinition(
+                        name=fk_name,
+                        columnName=fk_col,
+                        javaType=JavaPropertyType.LONG,
+                        sqlType=SqlDataType.BIGINT,
+                        nullable=False,
+                        hasIndex=True,
+                    ))
+                else:
+                    existing_fk.columnName = fk_col
+                    existing_fk.hasIndex = True
+
+        # Deduplicate attributes by column name to guarantee uniqueness under all circumstances
+        deduped_attrs: List[EntityAttributeDefinition] = []
+        seen_cols = set()
+        for a in attrs:
+            if a.columnName not in seen_cols:
+                seen_cols.add(a.columnName)
+                deduped_attrs.append(a)
+        attrs = deduped_attrs
 
         entities.append(
             DomainEntityDefinition(
@@ -643,27 +663,30 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
     for entity in entities:
         for rel in entity.relationships:
             if rel.relationshipType == RelationshipType.MANY_TO_ONE:
-                parent = next(e for e in entities if e.name == rel.targetEntity)
-                primary = next(a for a in parent.attributes if a.isPrimaryKey)
-                scalar = next(a for a in entity.attributes if a.columnName == rel.joinColumnName)
-                scalar.javaType, scalar.sqlType, scalar.length = primary.javaType, primary.sqlType, primary.length
+                parent = next((e for e in entities if e.name == rel.targetEntity), None)
+                if parent:
+                    primary = next((a for a in parent.attributes if a.isPrimaryKey), None)
+                    scalar = next((a for a in entity.attributes if a.columnName == rel.joinColumnName), None)
+                    if primary and scalar:
+                        scalar.javaType, scalar.sqlType, scalar.length = primary.javaType, primary.sqlType, primary.length
 
     # If parent entities exist, link inverse one-to-many
     for entity in entities:
         for child_entity in entities:
             for rel in child_entity.relationships:
                 if rel.targetEntity == entity.name and rel.relationshipType == RelationshipType.MANY_TO_ONE:
-                    entity.relationships.append(
-                        EntityRelationshipDefinition(
-                            sourceEntity=entity.name,
-                            targetEntity=child_entity.name,
-                            relationshipType=RelationshipType.ONE_TO_MANY,
-                            joinColumnName=rel.joinColumnName,
-                            inversePropertyName=to_snake_case(child_entity.name) + "s",
-                            cascadeType="ALL",
-                            fetchType="LAZY",
+                    if not any(r.targetEntity == child_entity.name and r.relationshipType == RelationshipType.ONE_TO_MANY for r in entity.relationships):
+                        entity.relationships.append(
+                            EntityRelationshipDefinition(
+                                sourceEntity=entity.name,
+                                targetEntity=child_entity.name,
+                                relationshipType=RelationshipType.ONE_TO_MANY,
+                                joinColumnName=rel.joinColumnName,
+                                inversePropertyName=to_snake_case(child_entity.name) + "s",
+                                cascadeType="ALL",
+                                fetchType="LAZY",
+                            )
                         )
-                    )
 
     schema_ddl = generate_schema_sql(entities, db_engine)
     seed_dml = generate_seed_data_sql(entities, draft, db_engine)

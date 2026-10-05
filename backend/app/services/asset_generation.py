@@ -9,7 +9,7 @@ from pathlib import Path
 
 TEMPLATE_VERSION = 5
 STAGING_ROOT = Path(__file__).resolve().parents[3] / '.run' / 'asset-staging'
-EXCLUDED = {'.git', '.agentia-runtime', '.operation-locks', 'target', 'build', '.gradle', '.m2', 'node_modules', '__pycache__'}
+EXCLUDED = {'.git', '.agentia-runtime', '.operation-locks', 'target', 'build', '.gradle', '.m2', 'node_modules', '__pycache__', 'security_audit_report.json'}
 OWNED = {
     'Dockerfile', '.dockerignore', 'docker-compose.yml', 'Dockerfile.prepare', 'Dockerfile.runtime',
     'prepare-local.ps1', 'start-local.ps1', 'stop-local.ps1', 'restart-local.ps1', 'cleanup-local.ps1',

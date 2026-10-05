@@ -204,17 +204,33 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 if phase_states[4].status == PhaseStatus.COMPLETED:
                     # Run or inspect security audit
                     try:
-                        audit = audit_workspace(str(ws_path), session_id, sess.spec_name or "microservice")
-                        qg_status = audit.qualityGate.status.value if hasattr(audit.qualityGate.status, "value") else str(audit.qualityGate.status)
-                        summary["qualityGate"] = qg_status
-                        summary["findingsCount"] = len(audit.vulnerabilities) + len(audit.violations)
-                        if qg_status == "BLOCKED":
-                            status = PhaseStatus.BLOCKED
-                            is_blocked = True
-                            # Same discarded-assignment defect as the repair limit above.
-                            reason = f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
+                        report_file = ws_path / "security_audit_report.json"
+                        if report_file.exists():
+                            with open(report_file, "r", encoding="utf-8") as f:
+                                audit_data = json.load(f)
+                            qg = audit_data.get("qualityGate", {})
+                            qg_status = qg.get("status", "COMPLETED")
+                            summary["qualityGate"] = qg_status
+                            vulns = audit_data.get("vulnerabilities", [])
+                            viols = audit_data.get("violations", [])
+                            summary["findingsCount"] = len(vulns) + len(viols)
+                            if qg_status == "BLOCKED":
+                                status = PhaseStatus.BLOCKED
+                                is_blocked = True
+                                reason = f"Quality Gate BLOQUEADO: {qg.get('summaryMessage', '')}"
+                            else:
+                                status = PhaseStatus.COMPLETED
                         else:
-                            status = PhaseStatus.COMPLETED
+                            audit = audit_workspace(str(ws_path), session_id, sess.spec_name or "microservice")
+                            qg_status = audit.qualityGate.status.value if hasattr(audit.qualityGate.status, "value") else str(audit.qualityGate.status)
+                            summary["qualityGate"] = qg_status
+                            summary["findingsCount"] = len(audit.vulnerabilities) + len(audit.violations)
+                            if qg_status == "BLOCKED":
+                                status = PhaseStatus.BLOCKED
+                                is_blocked = True
+                                reason = f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
+                            else:
+                                status = PhaseStatus.COMPLETED
                     except Exception:
                         status = PhaseStatus.NOT_STARTED
                 else:

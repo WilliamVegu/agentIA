@@ -21,9 +21,9 @@ from app.services.llm_factory import LLMFactory
 
 STAGE = "DOMAIN"
 
-#: Stage-specific emphasis appended to the authored instruction.
 STAGE_EMPHASIS = (
-    "Entity and data-contract artifacts. Every declared attribute constraint MUST be expressed as a Jakarta Validation annotation; invent none that the payload does not declare."
+    "Entity and data-contract artifacts. Every declared attribute constraint MUST be expressed as a Jakarta Validation annotation; invent none that the payload does not declare. "
+    "CRITICAL: @Size, @Length, @NotBlank, and @Pattern MUST ONLY be applied to String and Collection types. NEVER place @Size, @NotBlank, or @Pattern on UUID, Long, Integer, Double, Boolean, or Date/Time fields, as Hibernate Validator will throw UnexpectedTypeException HV000030."
 )
 
 

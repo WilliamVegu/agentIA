@@ -151,8 +151,9 @@ def test_project_overview_summary(mock_session):
     assert overview.database_engine == "POSTGRESQL"
 
 
-def test_lifecycle_security_audit_completed_and_100_percent(mock_session):
+def test_lifecycle_security_audit_completed_and_100_percent(mock_session, monkeypatch):
     session_id, ws_path = mock_session
+    monkeypatch.setattr("app.services.lifecycle_service.session_is_verified", lambda s: True)
     (ws_path / "spec.md").write_text("# Spec", encoding="utf-8")
     (ws_path / "user_stories.json").write_text(json.dumps([{"id": "US1"}]), encoding="utf-8")
     (ws_path / "architecture.json").write_text("{}", encoding="utf-8")

@@ -1,6 +1,8 @@
 """Bounded, atomic deployment history with durable SSE sequence numbers."""
 import json
 import re
+import time
+import uuid
 from datetime import datetime, timezone
 from app.services.local_runtime import record_directory
 
@@ -68,9 +70,24 @@ def append(session_id, history, message, source='system', timestamp=None):
 def save(session_id, updated):
     directory = record_directory(session_id)
     directory.mkdir(parents=True, exist_ok=True)
-    temporary = directory / 'logs.tmp'
-    temporary.write_text(json.dumps(updated, ensure_ascii=False), encoding='utf-8')
-    temporary.replace(directory / 'logs.json')
+    target = directory / 'logs.json'
+    temp_file = directory / f'logs.{uuid.uuid4().hex}.tmp'
+    content = json.dumps(updated, ensure_ascii=False)
+    try:
+        temp_file.write_text(content, encoding='utf-8')
+        last_err = None
+        for attempt in range(5):
+            try:
+                temp_file.replace(target)
+                return
+            except (PermissionError, OSError) as err:
+                last_err = err
+                if attempt < 4:
+                    time.sleep(0.02 * (attempt + 1))
+        if last_err:
+            raise last_err
+    finally:
+        temp_file.unlink(missing_ok=True)
 
 
 def display(entry):
