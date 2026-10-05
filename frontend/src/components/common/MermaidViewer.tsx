@@ -16,6 +16,32 @@ interface ParsedErEntity {
   }>;
 }
 
+interface ParsedErRelation {
+  source: string;
+  target: string;
+  cardinality: string;
+  label?: string;
+}
+
+function parseErRelations(chartText: string): ParsedErRelation[] {
+  const relations: ParsedErRelation[] = [];
+  const lines = chartText.split('\n');
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('%%') || line.toLowerCase().startsWith('erdiagram')) continue;
+    const relMatch = line.match(/^([A-Za-z0-9_\-]+)\s*(\|\|--o\{|\|\|--\|\{|\|\|--\|\||\}o--o\{|}\|--o\{|\|o--o\{|\}o--\|\{)\s*([A-Za-z0-9_\-]+)(?:\s*:\s*["']?([^"'\n]+)["']?)?/);
+    if (relMatch) {
+      relations.push({
+        source: relMatch[1].trim(),
+        cardinality: relMatch[2].trim(),
+        target: relMatch[3].trim(),
+        label: relMatch[4] ? relMatch[4].trim() : undefined,
+      });
+    }
+  }
+  return relations;
+}
+
 function parseErDiagram(chartText: string): ParsedErEntity[] {
   const entities: ParsedErEntity[] = [];
   const blockRegex = /([A-Za-z0-9_]+)\s*\{([^}]*)\}/g;
@@ -273,6 +299,7 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
 
   const isEr = chart.includes('erDiagram');
   const parsedEntities = React.useMemo(() => (isEr ? parseErDiagram(chart) : []), [isEr, chart]);
+  const parsedRelations = React.useMemo(() => (isEr ? parseErRelations(chart) : []), [isEr, chart]);
   const parsedFlow = React.useMemo(() => (!isEr ? parseFlowDiagram(chart) : { subgraphs: [], nodes: [], edges: [] }), [isEr, chart]);
 
   return (
@@ -329,20 +356,20 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
         ) : (
           <div className="flex flex-col gap-3 items-center justify-center py-4">
             {isEr ? (
-              <div className="w-full max-w-2xl bg-white dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-inner">
-                <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
-                  Entidades y Relaciones (ER)
+              <div className="w-full max-w-3xl bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner space-y-4">
+                <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                  Entidades de Datos ({parsedEntities.length})
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {parsedEntities.map((ent, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800">
-                      <div className="text-xs font-bold text-slate-900 dark:text-white border-b pb-1 mb-2 border-slate-200 dark:border-slate-800">
+                    <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white border-b pb-1 mb-2 border-slate-200 dark:border-slate-800 font-mono">
                         {ent.name}
                       </div>
                       <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono space-y-0.5">
                         {ent.attributes.length > 0 ? (
                           ent.attributes.map((attr, aIdx) => (
-                            <div key={aIdx}>
+                            <div key={aIdx} className="truncate">
                               + {attr.name} {attr.type ? `: ${attr.type}` : ''} {attr.key ? `[${attr.key}]` : ''}
                             </div>
                           ))
@@ -353,6 +380,31 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {parsedRelations.length > 0 && (
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                    <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
+                      Relaciones y Cardinalidad ({parsedRelations.length})
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                      {parsedRelations.map((rel, rIdx) => (
+                        <div
+                          key={rIdx}
+                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                        >
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{rel.source}</span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                            {rel.cardinality}
+                          </span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{rel.target}</span>
+                          {rel.label && (
+                            <span className="text-[10px] text-slate-500 italic">({rel.label})</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : parsedFlow.nodes.length > 0 ? (
               <div className="w-full max-w-3xl flex flex-col gap-4">

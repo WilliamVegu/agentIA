@@ -22,6 +22,8 @@ import { SingleRowCard } from '../components/common/SingleRowCard';
 import { MermaidViewer } from '../components/common/MermaidViewer';
 import { CodeViewer } from '../components/common/CodeViewer';
 import { SlideOverDrawer } from '../components/common/SlideOverDrawer';
+import { VisualDataModelViewer } from '../components/models/VisualDataModelViewer';
+import { VisualSqlViewer } from '../components/models/VisualSqlViewer';
 import { exportService } from '../services/exportService';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
@@ -88,14 +90,12 @@ export const DomainModelsView: React.FC = () => {
     };
   }, [activeSessionId, dataModelDesign]);
 
-  const [activeSqlTab, setActiveSqlTab] = useState<'schema' | 'data'>('schema');
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [targetEntity, setTargetEntity] = useState('Todas las entidades');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showErSource, setShowErSource] = useState(false);
   const [expandedEntity, setExpandedEntity] = useState<string | null>(null);
   const [viewJavaCode, setViewJavaCode] = useState<string | null>(null);
 
@@ -424,31 +424,26 @@ export const DomainModelsView: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* 1. Mermaid Entity-Relationship Diagram */}
-          <div className="space-y-2">
+          {/* 1. Mermaid Entity-Relationship Diagram & Visual Data Models */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                 <Workflow className="w-4 h-4 text-emerald-600" />
                 <span>1. Diagrama Entidad-Relación Visual (Mermaid erDiagram)</span>
               </h3>
-              <button
-                onClick={() => setShowErSource(!showErSource)}
-                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                {showErSource ? 'Ocultar código fuente' : 'Ver código Mermaid erDiagram'}
-              </button>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono hidden sm:inline-block">
+                Modelo Lógico • Modelo Físico • Grafo ER • Mermaid
+              </span>
             </div>
 
-            <MermaidViewer
-              chart={design.mermaidErDiagram || ''}
-              title="Modelo Relacional Normalizado"
+            <VisualDataModelViewer
+              entities={entities}
+              serviceName={design.serviceName}
+              packageName={design.packageName}
+              mermaidChart={design.mermaidErDiagram || ''}
+              activeEntityName={expandedEntity}
+              onSelectEntity={(name) => setExpandedEntity(name)}
             />
-
-            {showErSource && (
-              <pre className="p-3 bg-slate-950 text-emerald-400 rounded-xl font-mono text-xs overflow-x-auto border border-slate-800">
-                {design.mermaidErDiagram || ''}
-              </pre>
-            )}
           </div>
 
       {/* 2. Interactive JPA Domain Entities & Attributes Table */}
@@ -639,52 +634,22 @@ export const DomainModelsView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Synchronized SQL Scripts Tabs */}
+      {/* 3. Synchronized SQL Scripts & Visual Tables Explorer */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-blue-600" />
-            <span>3. Scripts SQL Relacionales Sincronizados (PostgreSQL & H2)</span>
-          </h3>
-          <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-xs">
-            <button
-              onClick={() => setActiveSqlTab('schema')}
-              className={`px-3 py-1 rounded-md transition-all font-medium ${
-                activeSqlTab === 'schema'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              schema.sql (DDL)
-            </button>
-            <button
-              onClick={() => setActiveSqlTab('data')}
-              className={`px-3 py-1 rounded-md transition-all font-medium ${
-                activeSqlTab === 'data'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              data.sql (Semillas DML)
-            </button>
-          </div>
-        </div>
+        <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+          <Code2 className="w-4 h-4 text-blue-600" />
+          <span>3. Scripts SQL Relacionales Sincronizados (PostgreSQL & H2)</span>
+        </h3>
 
-        {activeSqlTab === 'schema' ? (
-          <CodeViewer
-            code={design?.sqlSchema?.schemaDdl || ''}
-            language="sql"
-            filename="src/main/resources/schema.sql"
-            maxHeight="max-h-[380px]"
-          />
-        ) : (
-          <CodeViewer
-            code={design?.sqlSchema?.seedDml || ''}
-            language="sql"
-            filename="src/main/resources/data.sql"
-            maxHeight="max-h-[380px]"
-          />
-        )}
+        <VisualSqlViewer
+          schemaDdl={design?.sqlSchema?.schemaDdl || ''}
+          seedDml={design?.sqlSchema?.seedDml || ''}
+          dialect={projectOverview?.databaseEngine ? `${projectOverview.databaseEngine} & H2` : 'PostgreSQL 16 & H2'}
+          entities={entities}
+          serviceName={design?.serviceName || 'service'}
+          onDownloadSchema={handleDownloadSchemaSql}
+          onDownloadData={handleDownloadDataSql}
+        />
       </div>
 
       {/* 4. Downloads & Pipeline Handoff */}
