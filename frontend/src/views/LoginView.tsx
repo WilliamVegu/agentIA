@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, ArrowRight, Lock, Mail, Sparkles, Server, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Lock, Mail, Sparkles, Server, CheckCircle2, Layers, Zap, LayoutGrid } from 'lucide-react';
 import { TcsLogo } from '../components/common/TcsLogo';
 import { useAuth } from '../context/AuthContext';
 import { useLlm } from '../context/LlmContext';
@@ -13,9 +13,12 @@ export const LoginView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleMvp = async () => {
+  const handleMvp = async (targetEco: 'launcher' | 'spring' | 'quarkus' = 'launcher') => {
     setError(null);
     setIsLoading(true);
+    // Explicitly guarantee the chosen ecosystem target (defaulting to the selector hub)
+    localStorage.setItem('agentia_active_ecosystem', targetEco);
+    sessionStorage.setItem('agentia_target_ecosystem', targetEco);
     try {
       const result = await enterMvp();
       if (!result.success) setError(result.error || 'No se pudo entrar al MVP');
@@ -61,25 +64,25 @@ export const LoginView: React.FC = () => {
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
-            Ingeniería de Software Automatizada para Arquitecturas Spring Boot 3 y Java 21
+            Ingeniería de Software Automatizada para Spring Boot 3 y Quarkus 3.x en Java 21
           </h1>
 
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-            Plataforma corporativa de Tata Consultancy Services para síntesis rigurosa de código fuente, validación sandbox en contenedores aislados, auditoría SAST continua y despliegue local verificado.
+            Plataforma corporativa unificada de Tata Consultancy Services para síntesis rigurosa de código fuente, validación en contenedores aislados, auditoría SAST continua y publicación atómica a Git.
           </p>
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Orquestación de ciclo de vida con LangGraph y auto-reparación en sandbox</span>
+              <span><strong>Spring Boot Studio:</strong> Arquitectura hexagonal DDD, ingesta OpenAPI y verificación hermética</span>
             </div>
             <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Quality Gate automatizado con detección de secretos y reporte SAST</span>
+              <CheckCircle2 className="w-4 h-4 text-red-400 shrink-0" />
+              <span><strong>Fábrica Quarkus 3.x:</strong> Orquestación de 8 agentes autónomos, auto-sanación y compuertas de control humano</span>
             </div>
             <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Manifiestos DevOps listos para producción (Docker, K8s, GitHub CI/CD)</span>
+              <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+              <span><strong>DevOps Corporativo:</strong> Manifiestos Docker, K8s, Jenkinsfile y push directo a ramas Git con tokens efímeros</span>
             </div>
           </div>
         </div>
@@ -174,14 +177,45 @@ export const LoginView: React.FC = () => {
             </button>
           </form>
 
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
-            <button type="button" onClick={handleMvp} disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-60">
-              <Sparkles className="w-4 h-4" />
-              <span>{isLoading ? 'Ingresando…' : 'Entrar al MVP'}</span>
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
+            <button
+              type="button"
+              onClick={() => handleMvp('launcher')}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-blue-600/30 transition-all disabled:opacity-60 cursor-pointer"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span>{isLoading ? 'Ingresando…' : 'Entrar al MVP · Elegir Ecosistema (Hub)'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
-            <p className="text-center text-xs text-slate-500 dark:text-slate-400">Acceso local sin correo ni contraseña.</p>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleMvp('spring')}
+                disabled={isLoading}
+                title="Entrar directamente a Spring Boot Studio"
+                className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Spring Boot MVP</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleMvp('quarkus')}
+                disabled={isLoading}
+                title="Entrar directamente a Fábrica Quarkus 3.x"
+                className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 text-red-600" />
+                <span>Quarkus 3.x MVP</span>
+              </button>
+            </div>
+
+            <p className="text-center text-[11px] text-slate-500 dark:text-slate-400">
+              Acceso local sin credenciales. Usa el botón principal para comparar ambos o entra directo al que prefieras.
+            </p>
           </div>
 
         </div>

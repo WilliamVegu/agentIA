@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { EcosystemProvider, useEcosystem } from '../context/EcosystemContext';
 import { UnifiedLauncherHeroView } from '../views/launcher/UnifiedLauncherHeroView';
 import { Header } from '../components/layout/Header';
@@ -96,5 +96,17 @@ describe('Unified Platform Launcher & Ecosystem Switcher', () => {
     // 3. Should be back in launcher
     expect(screen.getByTestId('current-ecosystem')).toHaveTextContent('launcher');
     expect(screen.getByText(/Elige tu Ecosistema de Desarrollo/i)).toBeInTheDocument();
+  });
+
+  it('resets ecosystem to launcher when logout event is dispatched', () => {
+    localStorage.setItem('agentia_active_ecosystem', 'quarkus');
+    renderWithProviders();
+
+    act(() => {
+      window.dispatchEvent(new Event('agentia:logout'));
+    });
+
+    expect(localStorage.getItem('agentia_active_ecosystem')).toBe('launcher');
+    expect(screen.getByTestId('current-ecosystem')).toHaveTextContent('launcher');
   });
 });

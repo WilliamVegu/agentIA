@@ -12,6 +12,7 @@ import {
   ArrowLeftRight,
   Layers,
   Zap,
+  LayoutGrid,
 } from 'lucide-react';
 import { TcsLogo } from '../common/TcsLogo';
 import { useStudio } from '../../context/StudioContext';
@@ -19,7 +20,7 @@ import { useQuarkus } from '../../context/QuarkusContext';
 import { useEcosystem } from '../../context/EcosystemContext';
 
 export const Sidebar: React.FC = () => {
-  const { activeEcosystem, goToLauncher } = useEcosystem();
+  const { activeEcosystem, goToLauncher, goToSpring, goToQuarkus } = useEcosystem();
 
   // Spring Boot Studio Context
   const {
@@ -107,23 +108,32 @@ export const Sidebar: React.FC = () => {
             {isQuarkus ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                <span>Quarkus 3.x Factory</span>
+                <span className="truncate">Quarkus 3.x</span>
               </>
             ) : (
               <>
                 <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Spring Boot Studio</span>
+                <span className="truncate">Spring Boot</span>
               </>
             )}
           </div>
-          <button
-            onClick={goToLauncher}
-            title="Cambiar de ecosistema (volver al launcher)"
-            className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium transition-colors"
-          >
-            <ArrowLeftRight className="w-3 h-3 text-slate-500" />
-            <span>Cambiar</span>
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={isQuarkus ? goToSpring : goToQuarkus}
+              title={isQuarkus ? "Cambiar a Spring Boot Studio" : "Cambiar a Fábrica Quarkus"}
+              className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium transition-colors"
+            >
+              <ArrowLeftRight className="w-3 h-3 text-slate-500" />
+              <span>{isQuarkus ? 'Spring' : 'Quarkus'}</span>
+            </button>
+            <button
+              onClick={goToLauncher}
+              title="Volver al Hub Selector de Ecosistemas"
+              className="p-1 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              <LayoutGrid className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
 
