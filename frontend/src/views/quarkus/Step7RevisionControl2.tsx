@@ -23,6 +23,12 @@ export const Step7RevisionControl2: React.FC = () => {
   const [branchName, setBranchName] = useState(
     currentOrder ? `feat/quarkus-${currentOrder.basic_data?.service_name || 'service'}` : 'feat/quarkus-service'
   );
+  const [gitToken, setGitToken] = useState('');
+  const [commitMsg, setCommitMsg] = useState(
+    currentOrder
+      ? `feat(quarkus): microservicio ${currentOrder.basic_data?.service_name || 'service'} generado y verificado`
+      : 'feat(quarkus): microservicio generado y verificado'
+  );
 
   const files = currentOrder?.generated_files || {};
   const fileKeys = Object.keys(files);
@@ -34,7 +40,14 @@ export const Step7RevisionControl2: React.FC = () => {
 
   const handleApprove = async (e: React.FormEvent) => {
     e.preventDefault();
-    await approveDelivery(approvedBy, comments, gitRepo, branchName);
+    await approveDelivery(
+      approvedBy,
+      comments,
+      gitRepo,
+      branchName,
+      gitToken || undefined,
+      commitMsg
+    );
   };
 
   if (!currentOrder || fileKeys.length === 0) {
@@ -250,6 +263,33 @@ export const Step7RevisionControl2: React.FC = () => {
                 value={branchName}
                 onChange={(e) => setBranchName(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-amber-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Personal Access Token (PAT Efímero - Opcional)
+              </label>
+              <input
+                type="password"
+                value={gitToken}
+                onChange={(e) => setGitToken(e.target.value)}
+                placeholder="ghp_xxxxxxxxxxxx o glpat-xxxxxxxxxxxx"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-amber-500 outline-none"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Uso en memoria exclusivamente. Nunca se persiste en disco ni en logs (Principio VI).
+              </p>
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Mensaje de Commit</label>
+              <input
+                type="text"
+                value={commitMsg}
+                onChange={(e) => setCommitMsg(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none"
               />
             </div>
           </div>

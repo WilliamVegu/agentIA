@@ -6,6 +6,7 @@ la auditoría transversal de tokens y la persistencia de los pedidos.
 
 from datetime import datetime, timezone
 import io
+from pathlib import Path
 import time
 import zipfile
 from typing import Dict, List, Optional, Any
@@ -708,4 +709,59 @@ class FactoryOrchestrator:
 
         zip_buffer.seek(0)
         return zip_buffer.getvalue()
+
+    @classmethod
+    def publish_order_to_git(
+        cls,
+        order_id: str,
+        repository_url: str,
+        branch_name: str,
+        git_token: Optional[str] = None,
+        commit_message: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Publica el código generado del microservicio Quarkus en una rama remota de Git (GitHub/GitLab).
+        Escribe los archivos generados en disco en un workspace dedicado e invoca publish_to_git.
+        """
+        from app.services.git_service import publish_to_git
+        from app.config import settings
+
+        order = cls.get_order(order_id)
+        if not order:
+            raise ValueError(f"Pedido {order_id} no encontrado")
+
+        if not order.generated_files:
+            raise ValueError(f"El pedido {order_id} no tiene archivos de código generados aún.")
+
+        ws_dir = Path(settings.WORKSPACE_DIR) / f"quarkus_{order_id}"
+        ws_dir.mkdir(parents=True, exist_ok=True)
+
+        for file_path, content in order.generated_files.items():
+            dest = ws_dir / file_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8")
+
+        msg = commit_message or f"feat(quarkus): microservicio {order.basic_data.service_name} generado por Fábrica Quarkus 3.x"
+        result = publish_to_git(
+            workspace_path=str(ws_dir),
+            repository_url=repository_url,
+            branch_name=branch_name,
+            git_token=git_token,
+            commit_message=msg
+        )
+
+        if not order.control_2_approval_info:
+            order.control_2_approval_info = {}
+        order.control_2_approval_info["published_to_git"] = True
+        order.control_2_approval_info["git_result"] = result
+
+        order.timeline_events.append({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event": "PUBLICACION_GIT_EXITOSA",
+            "message": f"Microservicio publicado exitosamente en Git ({result.get('branchUrl', branch_name)}).",
+            "tokens": 0
+        })
+
+        return result
+
 

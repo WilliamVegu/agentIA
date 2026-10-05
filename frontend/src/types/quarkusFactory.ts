@@ -189,6 +189,23 @@ export interface ApproveDeliveryRequest {
   comments?: string;
   target_git_repo?: string;
   branch_name?: string;
+  git_token?: string;
+  commit_message?: string;
+}
+
+export interface PublishQuarkusGitRequest {
+  repository_url: string;
+  branch_name: string;
+  git_token?: string;
+  commit_message?: string;
+}
+
+export interface PublishQuarkusGitResponse {
+  branchUrl: string;
+  commitHash: string;
+  pullRequestUrl?: string;
+  branchName: string;
+  status: string;
 }
 
 export interface SpecializedAgentInfo {
@@ -295,6 +312,10 @@ export interface FactoryOrder {
     comments?: string;
     target_git_repo?: string;
     branch_name?: string;
+    git_token?: string;
+    commit_message?: string;
+    published_to_git?: boolean;
+    git_result?: PublishQuarkusGitResponse;
   } | null;
   devops_artifacts: Record<string, string>;
   tokens_audit: TokensAudit;

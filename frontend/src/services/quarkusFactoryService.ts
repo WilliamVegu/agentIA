@@ -6,7 +6,9 @@ import {
   ApproveContractRequest,
   SelectArchitectureRequest,
   ApproveDeliveryRequest,
-  ArchitectureProposal
+  ArchitectureProposal,
+  PublishQuarkusGitRequest,
+  PublishQuarkusGitResponse
 } from '../types/quarkusFactory';
 
 export const quarkusFactoryService = {
@@ -75,6 +77,14 @@ export const quarkusFactoryService = {
 
   getExportZipUrl: (orderId: string): string => {
     return `/api/v1/quarkus/orders/${orderId}/export-zip`;
+  },
+
+  publishToGit: async (
+    orderId: string,
+    request: PublishQuarkusGitRequest
+  ): Promise<PublishQuarkusGitResponse> => {
+    const res = await apiClient.post<PublishQuarkusGitResponse>(`/quarkus/orders/${orderId}/publish-git`, request);
+    return res.data;
   }
 };
 

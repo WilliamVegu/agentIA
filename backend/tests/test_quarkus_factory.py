@@ -204,3 +204,29 @@ def test_quarkus_factory_full_lifecycle():
         assert any("pom.xml" in name for name in namelist)
         assert any("Jenkinsfile" in name for name in namelist)
         assert any("README.md" in name for name in namelist)
+
+    # 8. Publicación real a Git
+    from unittest.mock import patch
+    with patch("app.services.git_service.publish_to_git") as mock_publish:
+        mock_publish.return_value = {
+            "branchUrl": "https://github.com/empresa/orders-service/tree/feat/orders-microservice-quarkus",
+            "commitHash": "e8f192b0c1",
+            "pullRequestUrl": "https://github.com/empresa/orders-service/pull/new/feat/orders-microservice-quarkus",
+            "branchName": "feat/orders-microservice-quarkus"
+        }
+        res_publish = client.post(
+            f"/api/v1/quarkus/orders/{order_id}/publish-git",
+            json={
+                "repository_url": "https://github.com/empresa/orders-service.git",
+                "branch_name": "feat/orders-microservice-quarkus",
+                "git_token": "ghp_testtoken123",
+                "commit_message": "feat(quarkus): entrega de microservicio"
+            }
+        )
+        assert res_publish.status_code == 200
+        pub_data = res_publish.json()
+        assert pub_data["status"] == "PUBLICADO"
+        assert pub_data["branchUrl"] == "https://github.com/empresa/orders-service/tree/feat/orders-microservice-quarkus"
+        assert pub_data["commitHash"] == "e8f192b0c1"
+        assert pub_data["pullRequestUrl"] is not None
+

@@ -18,7 +18,9 @@ from app.models.quarkus_factory import (
     GenerateArchetypeRequest,
     SuggestExtensionRequest,
     ApproveDeliveryRequest,
-    ArchitectureProposal
+    ArchitectureProposal,
+    PublishQuarkusGitRequest,
+    PublishQuarkusGitResponse
 )
 from app.services.quarkus_factory.factory_orchestrator import FactoryOrchestrator
 
@@ -242,4 +244,32 @@ def export_project_zip(order_id: str):
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@router.post("/orders/{order_id}/publish-git", response_model=PublishQuarkusGitResponse)
+def publish_order_to_git(order_id: str, request: PublishQuarkusGitRequest):
+    """
+    Publicación atómica a Git: Escribe el proyecto Quarkus y empuja los cambios
+    a la rama remota de Git especificada, retornando las URLs de inspección y Pull Request.
+    """
+    try:
+        result = FactoryOrchestrator.publish_order_to_git(
+            order_id=order_id,
+            repository_url=request.repository_url,
+            branch_name=request.branch_name,
+            git_token=request.git_token,
+            commit_message=request.commit_message
+        )
+        return PublishQuarkusGitResponse(
+            branchUrl=result["branchUrl"],
+            commitHash=result["commitHash"],
+            pullRequestUrl=result.get("pullRequestUrl"),
+            branchName=result["branchName"],
+            status="PUBLICADO"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error en publicación a Git: {str(e)}")
+
 

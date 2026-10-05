@@ -8,7 +8,9 @@ import {
   ArchitectureProposal,
   UserStory,
   DatabaseModelProposal,
-  QuarkusExtensionItem
+  QuarkusExtensionItem,
+  PublishQuarkusGitRequest,
+  PublishQuarkusGitResponse
 } from '../types/quarkusFactory';
 import { quarkusFactoryService } from '../services/quarkusFactoryService';
 
@@ -37,7 +39,15 @@ interface QuarkusContextType {
   suggestExtension: (query: string) => Promise<any>;
   generateSkeleton: () => Promise<void>;
   buildAndTest: () => Promise<void>;
-  approveDelivery: (approvedBy: string, comments: string, repo: string, branch: string) => Promise<void>;
+  approveDelivery: (
+    approvedBy: string,
+    comments: string,
+    repo: string,
+    branch: string,
+    gitToken?: string,
+    commitMessage?: string
+  ) => Promise<void>;
+  publishToGit: (request: PublishQuarkusGitRequest) => Promise<PublishQuarkusGitResponse>;
 }
 
 const QuarkusContext = createContext<QuarkusContextType | undefined>(undefined);
@@ -253,7 +263,14 @@ export const QuarkusProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const approveDelivery = async (approvedBy: string, comments: string, repo: string, branch: string) => {
+  const approveDelivery = async (
+    approvedBy: string,
+    comments: string,
+    repo: string,
+    branch: string,
+    gitToken?: string,
+    commitMessage?: string
+  ) => {
     if (!currentOrder) return;
     setIsLoading(true);
     setError(null);
@@ -262,11 +279,31 @@ export const QuarkusProvider: React.FC<{ children: React.ReactNode }> = ({ child
         approved_by: approvedBy,
         comments,
         target_git_repo: repo,
-        branch_name: branch
+        branch_name: branch,
+        git_token: gitToken,
+        commit_message: commitMessage
       });
       setCurrentOrder(updated);
       await refreshOrders();
       setActiveStep(6); // Ir a Entrega DevOps & Descarga ZIP
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const publishToGit = async (
+    request: PublishQuarkusGitRequest
+  ): Promise<PublishQuarkusGitResponse> => {
+    if (!currentOrder) throw new Error("No hay un pedido activo seleccionado.");
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await quarkusFactoryService.publishToGit(currentOrder.id, request);
+      await refreshOrders();
+      return res;
     } catch (err: any) {
       setError(err?.response?.data?.detail || err.message);
       throw err;
@@ -295,7 +332,8 @@ export const QuarkusProvider: React.FC<{ children: React.ReactNode }> = ({ child
         suggestExtension,
         generateSkeleton,
         buildAndTest,
-        approveDelivery
+        approveDelivery,
+        publishToGit
       }}
     >
       {children}

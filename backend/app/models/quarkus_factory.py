@@ -275,6 +275,27 @@ class ApproveDeliveryRequest(BaseModel):
     comments: Optional[str] = None
     target_git_repo: Optional[str] = Field("https://github.com/empresa/orders-service.git")
     branch_name: Optional[str] = Field("feat/quarkus-microservice-orders")
+    git_token: Optional[str] = Field(None, description="Personal Access Token (PAT) efímero para Git")
+    commit_message: Optional[str] = Field(None, description="Mensaje de commit opcional")
+
+
+class PublishQuarkusGitRequest(BaseModel):
+    repository_url: str = Field(..., description="URL destino del repositorio Git (HTTPS)")
+    branch_name: str = Field(..., description="Nombre de la rama feature")
+    git_token: Optional[str] = Field(None, description="Personal Access Token (PAT) efímero")
+    commit_message: Optional[str] = Field(
+        default="feat(quarkus): microservicio Quarkus 3.x generado y verificado",
+        description="Mensaje del commit en Git"
+    )
+
+
+class PublishQuarkusGitResponse(BaseModel):
+    branch_url: str = Field(..., alias="branchUrl")
+    commit_hash: str = Field(..., alias="commitHash")
+    pull_request_url: Optional[str] = Field(None, alias="pullRequestUrl")
+    branch_name: str = Field(..., alias="branchName")
+    status: str = "PUBLICADO"
+
 
 
 # ==========================================
