@@ -6,6 +6,10 @@ from app.services.build_layout import build_layout
 PREPARED_GRADLE_VERSION = '8.10.2'
 
 
+def installed_gradle_guard():
+    return f"gradle --offline --no-daemon --version | grep -Fx 'Gradle {PREPARED_GRADLE_VERSION}' >/dev/null"
+
+
 def validate_gradle_version(workspace):
     if build_layout(workspace)[0] != 'gradle':
         return

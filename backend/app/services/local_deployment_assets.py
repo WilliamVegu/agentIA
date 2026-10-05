@@ -42,7 +42,8 @@ def dockerfile(build_tool, prepared_image="agentia-builder:prepare-first", build
     if build_directory not in {'.', 'bootstrap'}:
         raise ValueError('Directorio de build no admitido')
     if build_tool == "gradle":
-        build = "cp -R /opt/agentia-cache/. /tmp/gradle-home/ && GRADLE_USER_HOME=/tmp/gradle-home gradle --no-daemon --offline test bootJar"
+        from app.services.gradle_compatibility import installed_gradle_guard
+        build = "cp -R /opt/agentia-cache/. /tmp/gradle-home/ && export GRADLE_USER_HOME=/tmp/gradle-home && " + installed_gradle_guard() + " && gradle --no-daemon --offline test bootJar"
         mkdir = "mkdir -p /tmp/gradle-home"
     else:
         build = "cp -R /opt/agentia-cache/. /tmp/m2/ && mvn -B -o -Dmaven.repo.local=/tmp/m2 verify"

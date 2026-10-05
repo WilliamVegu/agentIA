@@ -1,5 +1,6 @@
 import { setupServer } from 'msw/node';
 import type { HttpHandler } from 'msw';
+import { http, HttpResponse } from 'msw';
 
 /**
  * A backend simulated at the HTTP boundary.
@@ -32,4 +33,13 @@ export { http, HttpResponse } from 'msw';
 
 export const useHandlers = (...handlers: HttpHandler[]) => {
   server.use(...handlers);
+};
+
+export const registerLocalAuth = () => {
+  const user = { name: 'Rodrigo Mendoza', email: 'rodrigo@tcs.com', role: 'Developer', accessMode: 'authenticated' };
+  server.use(
+    http.get(pathEndsWith('/auth/session'), () => HttpResponse.json(user)),
+    http.post(pathEndsWith('/auth/logout'), () => HttpResponse.json({ success: true })),
+    http.post(pathEndsWith('/auth/mvp'), () => HttpResponse.json({ ...user, accessMode: 'mvp' })),
+  );
 };

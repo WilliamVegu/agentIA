@@ -44,7 +44,7 @@ def generate_models_and_sql_endpoint(
     provider = request.provider or x_llm_provider
     api_key = resolve_api_key(request.apiKey, x_llm_api_key, provider=provider)
     try:
-        response = model_sql_service.synthesize_domain_models_and_sql(request.draft, api_key, provider=provider, model_name=request.modelName)
+        response = model_sql_service.synthesize_domain_models_and_sql(request.draft, api_key, provider=provider, model_name=request.modelName, db_engine=request.databaseEngine.value)
         return response
     except Exception as e:
         raise HTTPException(
@@ -81,6 +81,7 @@ def refine_models_and_sql_endpoint(
             api_key=api_key,
             provider=provider,
             model_name=request.modelName,
+            db_engine=request.databaseEngine.value if request.databaseEngine else None,
         )
         return refined
     except Exception as e:

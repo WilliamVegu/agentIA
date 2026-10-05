@@ -5,7 +5,7 @@
 **Referencia obligatoria:** [diagnóstico y decisiones](C:/Users/willi/Downloads/agentIA/docs/ESTADO_DESPLIEGUE_LOCAL_DOCKER.md).  
 **Prioridad principal:** completar el flujo en un laboratorio sin virtualización cuando el usuario elige no usar Docker.
 
-**Última revisión:** 05/10/2026. **31/54 tareas marcadas; 23 sin marcar**, varias parciales. T11/T54 implementadas y aceptadas en el entorno Windows nativo existente: instalación offline previa, backend/frontend con PATH vacío y flujo API de fuentes con Docker prohibido por instrumentación, exportación y recuperación. Evidencia/límites actuales en sección 41 del estado; catálogo y migraciones en 40/39. Aceptación en equipo limpio, navegador y políticas reales adicionales sigue en T50/T51; aceptación integral pendiente.
+**Última revisión:** 05/10/2026. **39/54 tareas marcadas; 15 sin marcar**, varias parciales o aplazadas. Actualización vigente en sección 43 del estado; el usuario aplazó el trabajo offline. T15 implementada para el perfil preparado: versión Gradle declarada/instalada y cachés privadas concurrentes comprobadas. Evidencia/límites actuales en sección 42 del estado. T11/T54 nativas en 41, catálogo/migraciones en 40/39. Equipo limpio, navegador, builds concurrentes completos y aceptación integral siguen pendientes.
 
 ## 1. Resultado que debe alcanzarse
 
@@ -115,7 +115,7 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 - [x] T12. Implementar diagnóstico bajo demanda: CLI, daemon/contexto Linux, Compose/BuildKit, imágenes, cachés, permisos de paths y espacio. La mera lectura de una sesión sin Docker no debe activar estas operaciones.
 - [ ] T13. Añadir preparación online explícita de versiones fijadas: builder Maven/Gradle, runtime Java, BD, herramientas/scanners y, para validación Kubernetes, imagen de nodo y herramientas locales. Verificar integridad y registrar versiones/digests sin secretos.
 - [ ] T14. Preparar dependencias y plugins con los proyectos/contratos realmente utilizados. Incluir Actuator, drivers, tests inyectados y dependencias de empaquetado, no solo el POM inicial. Congelar un catálogo soportado y detectar dependencias nuevas propuestas por IA antes de una ejecución offline. Avance sección 40: catálogo común incluye .mvn, catálogos/wrappers Gradle, lockfiles, scripts e inputs buildSrc; cambios invalidan identidad y se rechazan antes de arranque/importación. Preparación comprueba cambios entre comandos. Falta catálogo completo de paquetes/versiones soportados y aceptación integral.
-- [ ] T15. Distribuir una base de dependencias preparada e inmutable; dar a cada build un área temporal de escritura para metadatos/locks. Comprobar compatibilidad de versiones Gradle y no compartir directorios modificables entre builds concurrentes.
+- [x] T15. Distribuir una base de dependencias preparada e inmutable; dar a cada build un área temporal de escritura para metadatos/locks. Comprobar compatibilidad de versiones Gradle y no compartir directorios modificables entre builds concurrentes. Sección 42: capas base separadas de escrituras, copia privada Maven/Gradle, wrapper/ejecutable del perfil 8.10.2 validados y dos contenedores concurrentes por herramienta con imagen base intacta. Builds completos simultáneos, tags modificados por operador y fallos del daemon mantienen sus controles/aceptación separados.
 - [ ] T16. Crear manifiesto de preparación por versión/conjunto de dependencias, verificación de integridad e importación/exportación de kit offline. Incluir imágenes, herramientas y bases locales de scanners cuando correspondan. No afirmar disponibilidad basándose solo en que una carpeta existe.
 - [ ] T17. Bloquear descargas implícitas en ejecución offline. Reportar dependencia/imagen faltante con acción útil; no habilitar red automáticamente. Para scanners, indicar fecha de la base preparada y distinguir análisis estático local de vulnerabilidades obtenidas por herramientas externas.
 - [x] T54. Cubrir también dependencias locales de AgentIA en la preparación inicial: instalación reproducible de Python/Node y paquetes sin permisos de administrador cuando el entorno lo permita, frontend con assets locales y telemetría no bloqueante. Sustituir las fuentes Google Fonts remotas de `frontend/index.html` por archivos locales o fuentes de sistema. No contenerizar la plataforma ni hacer de Docker un requisito de esta preparación. Kit nativo con integridad/locks e instalación local demostrada en sección 19; runtime/flujo aceptados en sección 41. No garantiza ejecutar binarios bloqueados por políticas administrativas ni offline global/equipo limpio (T51).
@@ -171,7 +171,7 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 
 - [x] T38. Incluir script PowerShell de preparación y script de arranque de microservicio; ofrecer wrapper `.cmd` si hace falta para políticas de PowerShell. No cambiar automáticamente políticas de ejecución ni habilitar virtualización/WSL.
 - [x] T39. El script de arranque validará kit/configuración, resolverá puerto y ejecutará build/verificación/despliegue según el alcance elegido; esperará readiness e imprimirá URL o diagnóstico. No requiere que AgentIA esté abierta ni invoca IA.
-- [ ] T40. Ofrecer paquete de fuentes siempre que la política lo permita y paquete ejecutable offline cuando exista imagen/evidencia real. Separar el kit pesado compartido de cada ZIP y documentar cómo importarlo.
+- [x] T40. Ofrecer paquete de fuentes siempre que la política lo permita y paquete ejecutable offline cuando exista imagen/evidencia real. Separar el kit pesado compartido de cada ZIP y documentar cómo importarlo.
 - [x] T41. Mantener parada sin borrado, reconstrucción y limpieza explícita en scripts y UI; el paquete indicará estado de verificación, versiones y recursos persistentes.
 
 **Límite:** el modo Docker necesita Docker instalado y virtualización utilizable. En el laboratorio se completa el flujo de fuentes sin ese requisito. Los scripts no intentarán sortear restricciones administrativas.
@@ -180,12 +180,12 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 
 **Dependencias:** P2–P3 y P6. **Salida:** artefactos entregados tienen comportamiento comprobado localmente en el nivel declarado.
 
-- [ ] T42. Reutilizar comandos de verificación/empaquetado como pasos CI locales; sustituir pasos de auditoría que solo imprimen mensajes por controles reales. Corregir artefactos que aplican a Maven/Gradle y documentar su entorno, sin ejecutar servicios remotos.
-- [ ] T43. Validar YAML y reglas de los pipelines con herramientas locales preparadas; ejecutar pasos equivalentes y registrar que esto no demuestra ejecución en GitLab/GitHub ni compatibilidad de un runner no probado. No introducir dependencia remota en el flujo local.
-- [ ] T44. Generar perfil Kubernetes de prueba local completo: app, configuración, probes, imagen identificada, BD/Service/PVC cuando corresponda y H2 sin BD externa. No dar por desplegable un manifiesto que carece de su BD o credenciales requeridas.
-- [ ] T45. Validar esquemas Kubernetes con catálogo local preparado; comprobar referencias, puertos, recursos, secretos por entrada y readiness/liveness. No generar credenciales reales en archivos exportados.
-- [ ] T46. En Windows con Docker funcional, crear entorno Kubernetes de prueba aislado —propuesta: kind— usando herramientas/imágenes preparadas; cargar imagen local sin registry, aplicar manifests, verificar rollout, salud, CRUD y persistencia para BD externa. Acceso por port-forward en localhost; Ingress no será requisito.
-- [ ] T47. Limpiar únicamente el cluster/contexto y recursos de validación creados para la prueba. Sin Docker, validar lo que permiten herramientas locales y marcar la ejecución Kubernetes como no ejecutada, sin impedir entregar el proyecto.
+- [x] T42. Reutilizar comandos de verificación/empaquetado como pasos CI locales; sustituir pasos de auditoría que solo imprimen mensajes por controles reales. Corregir artefactos que aplican a Maven/Gradle y documentar su entorno, sin ejecutar servicios remotos.
+- [x] T43. Validar YAML y reglas de los pipelines con herramientas locales preparadas; ejecutar pasos equivalentes y registrar que esto no demuestra ejecución en GitLab/GitHub ni compatibilidad de un runner no probado. No introducir dependencia remota en el flujo local.
+- [x] T44. Generar perfil Kubernetes de prueba local completo: app, configuración, probes, imagen identificada, BD/Service/PVC cuando corresponda y H2 sin BD externa. No dar por desplegable un manifiesto que carece de su BD o credenciales requeridas.
+- [x] T45. Validar esquemas Kubernetes con catálogo local preparado; comprobar referencias, puertos, recursos, secretos por entrada y readiness/liveness. No generar credenciales reales en archivos exportados.
+- [x] T46. En Windows con Docker funcional, crear entorno Kubernetes de prueba aislado —propuesta: kind— usando herramientas/imágenes preparadas; cargar imagen local sin registry, aplicar manifests, verificar rollout, salud, CRUD y persistencia para BD externa. Acceso por port-forward en localhost; Ingress no será requisito.
+- [x] T47. Limpiar únicamente el cluster/contexto y recursos de validación creados para la prueba. Sin Docker, validar lo que permiten herramientas locales y marcar la ejecución Kubernetes como no ejecutada, sin impedir entregar el proyecto.
 
 No se desplegará remotamente ni se instalará Kubernetes como requisito del laboratorio. La prioridad de P7 es posterior al flujo local fundamental.
 
@@ -494,3 +494,12 @@ Refinamiento de T39: LOCAL_DELIVERY.json incorpora hostPort, templateVersion pas
 **104 PASS backend/17 SKIP**, .run/config-ui-backend-final-v2.txt; **24 PASS frontend**, .run/config-ui-frontend-final.txt; TypeScript y build Vite PASS. **1 PASS Docker real**, .run/config-ui-real.txt: proyecto nuevo 6ca36bed-2685-4fcf-9b31-828484fbdc44, start sin -Port tomó puerto guardado ocupado y eligió localhost:49896, ocho tests Maven offline, readiness/CRUD, imagen reutilizada y datos conservados; cleanup propio confirmado, builder compartido inalterado. Incidencias y límites en sección 33 del estado. Instancia AgentIA detenida, sin recorrido integral de navegador ni suite global repetida.
 
 **23/54 marcadas; 31 sin marcar**, varias parciales. T08/T09 mantienen pendientes de cierre integral; siguen snapshot/imagen, cancelación BuildKit, kit integral/offline, paquete ejecutable, CI/CD/Kubernetes y aceptación completa. Sin commits/publicación ni cambios de permisos/virtualización/firewall/políticas.
+
+
+### Cambio de alcance y bloque conjunto del 05/10/2026
+
+**Offline aplazado por petición explícita del usuario.** T14/T16/T17/T51 y las partes offline adicionales de T13/T53 quedan sin marcar como aplazadas, conservando avances/evidencia existentes. No confundir aplazamiento con PASS. La entrega T40 ya dispone de imagen real y evidencia; ampliar su aceptación offline queda fuera del trabajo activo.
+
+T40/T42–T47 implementadas dentro del perfil local canónico: entrega ejecutable sellada, CI equivalente real Maven/Gradle y auditoría, pipelines manuales sin ejecución remota, manifiestos Kubernetes completos y validación limitada al catálogo propio, pruebas kind reales PostgreSQL/MySQL con CRUD/persistencia y cleanup propio. No acreditan runners remotos ni validación general de todas las APIs Kubernetes. Detalle, fallos conservados y evidencia en sección 43 del estado.
+
+**39/54 marcadas; 15 sin marcar**: T08/T09/T13/T14/T16/T17/T22/T25/T27/T48/T49/T50/T51/T52/T53. El trabajo activo continúa con las partes no aplazadas; no se certifica regresión backend global verde ni se cierra SQL/operaciones por adelantado.

@@ -44,258 +44,19 @@ def generate_docker_compose(service_name: str = "microservice", db_engine: str =
 
 
 def generate_github_actions(service_name: str = "microservice") -> str:
-    """Generates .github/workflows/ci-cd.yml with hermetic Maven build, testing, SAST/secrets gates, and Trivy scan."""
-    return f"""name: "CI/CD Pipeline - {service_name}"
-
-on:
-  push:
-    branches: [ "main", "feature/**" ]
-  pull_request:
-    branches: [ "main" ]
-
-concurrency:
-  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
-  cancel-in-progress: true
-
-jobs:
-  # ----------------------------------------------------------------------------
-  # Stage 1: Hermetic Compilation, Test Execution & Security Audit
-  # ----------------------------------------------------------------------------
-  build-and-verify:
-    name: "Hermetic Build, Tests & Security Gate"
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout Source Code"
-        uses: actions/checkout@v4
-
-      - name: "Set up Java 21 (Eclipse Temurin)"
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
-          cache: "maven"
-
-      - name: "Run Hermetic Maven Tests (Principle IV & Spec 005)"
-        run: mvn clean test -B
-
-      - name: "Verify Quality Gate & Secret Leaks (Principle VI & Spec 006)"
-        run: |
-          echo "Executing SAST and Secret Scan verification..."
-          # In CI runners, exit non-zero if credentials or high vulnerabilities exist
-
-  # ----------------------------------------------------------------------------
-  # Stage 2: Multi-Stage Container Build & Trivy Vulnerability Scan
-  # ----------------------------------------------------------------------------
-  container-build-scan:
-    name: "Docker Build & Trivy CVE Scan"
-    needs: build-and-verify
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout Repository"
-        uses: actions/checkout@v4
-
-      - name: "Set up Java 21 for Package Layer"
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
-          cache: "maven"
-
-      - name: "Package Application JAR"
-        run: mvn package -DskipTests -B
-
-      - name: "Set up Docker Buildx"
-        uses: docker/setup-buildx-action@v3
-
-      - name: "Build Local Docker Image"
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          load: true
-          tags: {service_name}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: "Scan Docker Image with Trivy"
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "{service_name}:latest"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
-"""
+    from app.services.local_ci_assets import github
+    return github(service_name)
 
 
 def generate_gitlab_ci(service_name: str = "microservice") -> str:
-    """Generates .gitlab-ci.yml with pipeline stages for GitLab runners."""
-    return f"""# ==============================================================================
-# GitLab CI Pipeline for {service_name}
-# ==============================================================================
-
-stages:
-  - build-test
-  - security-audit
-  - container-scan
-
-variables:
-  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
-  IMAGE_NAME: "$CI_REGISTRY_IMAGE/{service_name}:$CI_COMMIT_SHA"
-
-cache:
-  paths:
-    - .m2/repository/
-
-# Stage 1: Hermetic Maven Compilation & Unit/Integration Tests
-maven-test:
-  stage: build-test
-  image: maven:3.9-eclipse-temurin-21
-  script:
-    - mvn clean test -B
-  artifacts:
-    paths:
-      - target/
-
-# Stage 2: SAST & Secret Leak Audit
-security-gate:
-  stage: security-audit
-  image: alpine:latest
-  script:
-    - echo "Validating Constitution Principles & Quality Gate..."
-
-# Stage 3: Docker Build & Trivy Scan
-docker-trivy:
-  stage: container-scan
-  image: docker:24.0.5
-  services:
-    - docker:24.0.5-dind
-  before_script:
-    - apk add --no-cache curl
-    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-  script:
-    - docker build -t {service_name}:latest .
-    - trivy image --exit-code 1 --severity CRITICAL {service_name}:latest
-"""
+    from app.services.local_ci_assets import gitlab
+    return gitlab(service_name)
 
 
-def generate_kubernetes_manifests(
-    service_name: str = "microservice",
-    host_port: int = 8080
-) -> Dict[str, str]:
-    """Generates declarative production Kubernetes manifests: deployment, service, configmap, and ingress."""
-    deployment_yaml = f"""apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {service_name}
-  labels:
-    app.kubernetes.io/name: {service_name}
-    app.kubernetes.io/part-of: microservices-platform
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: {service_name}
-  template:
-    metadata:
-      labels:
-        app: {service_name}
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 10001
-        runAsGroup: 10001
-        fsGroup: 10001
-      containers:
-        - name: {service_name}
-          image: {service_name}:latest
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8080
-              name: http
-          envFrom:
-            - configMapRef:
-                name: {service_name}-config
-          resources:
-            requests:
-              cpu: "200m"
-              memory: "512Mi"
-            limits:
-              cpu: "1000m"
-              memory: "1024Mi"
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 3
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 2
-"""
-
-    service_yaml = f"""apiVersion: v1
-kind: Service
-metadata:
-  name: {service_name}-service
-  labels:
-    app.kubernetes.io/name: {service_name}
-spec:
-  type: ClusterIP
-  ports:
-    - port: 80
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app: {service_name}
-"""
-
-    configmap_yaml = f"""apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {service_name}-config
-data:
-  SPRING_PROFILES_ACTIVE: "prod"
-  SERVER_PORT: "8080"
-  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
-"""
-
-    ingress_yaml = f"""apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {service_name}-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/proxy-body-size: "16m"
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: {service_name}.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: {service_name}-service
-                port:
-                  number: 80
-"""
-
-    return {
-        "deployment.yaml": deployment_yaml,
-        "service.yaml": service_yaml,
-        "configmap.yaml": configmap_yaml,
-        "ingress.yaml": ingress_yaml,
-    }
+def generate_kubernetes_manifests(service_name: str = "microservice", host_port: int = 8080,
+                                  db_engine: str = "POSTGRESQL", image: Optional[str] = None) -> Dict[str, str]:
+    from app.services.local_kubernetes import manifests
+    return manifests(service_name, db_engine, image)
 
 
 def generate_all_devops_assets(
@@ -417,11 +178,10 @@ def _write_devops_assets(
     # 3. CI/CD Workflows
     github_actions = generate_github_actions(service_name)
     gitlab_ci = generate_gitlab_ci(service_name)
-    if build_tool == "gradle":
-        github_actions = github_actions.replace("mvn clean test -B", "gradle --no-daemon clean test").replace("mvn package -DskipTests -B", "gradle --no-daemon bootJar -x test").replace("cache: maven", "cache: gradle").replace("cache: 'maven'", "cache: 'gradle'").replace('cache: "maven"', 'cache: "gradle"')
-        github_actions = github_actions.replace('      - name: "Run Hermetic Maven Tests (Principle IV & Spec 005)"', '      - uses: gradle/actions/setup-gradle@v4\n        with:\n          gradle-version: "8"\n      - name: "Run Gradle Tests"').replace('      - name: "Package Application JAR"', '      - uses: gradle/actions/setup-gradle@v4\n        with:\n          gradle-version: "8"\n      - name: "Package Application JAR"')
-        gitlab_ci = gitlab_ci.replace("maven:3.9-eclipse-temurin-21", "gradle:8-jdk21").replace("mvn clean test -B", "gradle --no-daemon clean test").replace("target/", "build/")
-
+    from app.services.local_ci_assets import AUDIT_SCRIPT
+    (ws / "local-ci.py").write_text(AUDIT_SCRIPT, encoding="utf-8")
+    tools_script = Path(__file__).resolve().parents[2] / 'scripts' / 'prepare_local_tools.py'
+    (ws / 'prepare-tools.py').write_bytes(tools_script.read_bytes())
 
     gh_dir = ws / ".github" / "workflows"
     gh_dir.mkdir(parents=True, exist_ok=True)
@@ -429,7 +189,10 @@ def _write_devops_assets(
     (ws / ".gitlab-ci.yml").write_text(gitlab_ci, encoding="utf-8")
 
     # 4. Kubernetes Manifests
-    k8s_manifests = generate_kubernetes_manifests(service_name, host_port)
+    k8s_manifests = generate_kubernetes_manifests(service_name, host_port, db_engine,
+                                                f"{session_id}-{service_name}:local")
+    from app.services.local_kubernetes import validate_catalogue
+    validate_catalogue(k8s_manifests, db_engine)
     k8s_dir = ws / "k8s"
     k8s_dir.mkdir(parents=True, exist_ok=True)
     for filename, content in k8s_manifests.items():

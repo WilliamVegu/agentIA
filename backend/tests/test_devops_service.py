@@ -98,19 +98,20 @@ def test_generate_docker_compose_h2():
 
 def test_generate_github_actions():
     gh = generate_github_actions("payment-service")
-    assert "name: \"CI/CD Pipeline - payment-service\"" in gh
-    assert "mvn clean test" in gh
-    assert "aquasecurity/trivy-action" in gh
-    assert "payment-service:latest" in gh
+    assert 'name: "Local verification - payment-service"' in gh
+    assert 'python local-ci.py --docker' in gh
+    assert 'self-hosted, Windows' in gh
+    assert 'default: false' in gh
+    assert '@master' not in gh
 
 
 def test_generate_gitlab_ci():
     gl = generate_gitlab_ci("payment-service")
     assert "stages:" in gl
-    assert "build-test" in gl
-    assert "security-audit" in gl
-    assert "container-scan" in gl
-    assert "trivy image" in gl
+    assert 'python local-ci.py' in gl
+    assert 'when: manual' in gl
+    assert 'curl' not in gl
+    assert 'docker:' not in gl
 
 
 def test_generate_kubernetes_manifests():
@@ -128,8 +129,9 @@ def test_generate_kubernetes_manifests():
     assert "/actuator/health/readiness" in deploy
 
     ingress = k8s["ingress.yaml"]
-    assert "ingressClassName: nginx" in ingress
-    assert "networking.k8s.io/v1" in ingress
+    assert yaml.safe_load(ingress)['items'] == []
+    assert 'database.yaml' in k8s
+    assert 'database-pvc.yaml' in k8s
 
 
 def test_generate_all_devops_assets():

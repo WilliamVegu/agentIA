@@ -6,6 +6,43 @@ from sqlalchemy import create_engine
 import app.models.session as session_module
 from app.models.session import Base, SessionLocal
 
+# These pre-authentication API suites exercise their endpoint contracts, not login.
+# Use the real loopback MVP endpoint; never bypass middleware or fabricate cookies.
+_LEGACY_AUTHENTICATED_SUITES = {
+    'test_app_examples', 'test_artifact_retrieval', 'test_code_generation_module',
+    'test_e2e_flow', 'test_qe_api_surface', 'test_qe_injection_guard',
+    'test_qe_specification_persistence', 'test_routes_architecture',
+    'test_routes_artifact', 'test_routes_devops', 'test_routes_llm',
+    'test_routes_orchestrator', 'test_routes_publish', 'test_routes_requirements',
+    'test_routes_security', 'test_routes_session', 'test_routes_spec',
+    'test_routes_tests',
+}
+
+
+@pytest.fixture(autouse=True)
+def legacy_endpoint_authentication(request, monkeypatch, tmp_path):
+    module = request.module
+    if module.__name__.split('.')[-1] not in _LEGACY_AUTHENTICATED_SUITES:
+        return
+    from fastapi.testclient import TestClient
+    from app.config import settings
+    monkeypatch.setenv('STUDIO_AUTO_LOGIN', 'true')
+    monkeypatch.setattr(settings, 'WORKSPACE_DIR', str(tmp_path / 'workspaces'))
+    monkeypatch.setattr(settings, 'SPECIFICATION_DIR', str(tmp_path / 'specifications'))
+
+    def authenticated_client(application, **kwargs):
+        kwargs.update(base_url='http://localhost', client=('127.0.0.1', 50000))
+        result = TestClient(application, **kwargs)
+        assert result.post('/api/v1/auth/mvp').status_code == 200
+        return result
+
+    original = getattr(module, 'client', None)
+    if isinstance(original, TestClient):
+        monkeypatch.setattr(module, 'client', authenticated_client(original.app,
+            raise_server_exceptions=original.raise_server_exceptions if hasattr(original, 'raise_server_exceptions') else False))
+    if hasattr(module, 'TestClient'):
+        monkeypatch.setattr(module, 'TestClient', authenticated_client)
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
     """

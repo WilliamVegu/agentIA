@@ -3,6 +3,7 @@ import json
 import socket
 import subprocess
 import threading
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from app.config import settings
@@ -23,7 +24,7 @@ def persist(row):
     with _record_lock:
         directory = record_directory(row.sessionId)
         directory.mkdir(parents=True, exist_ok=True)
-        temporary = directory / "deployment.tmp"
+        temporary = directory / ("deployment-" + uuid.uuid4().hex + ".tmp")
         temporary.write_text(row.model_dump_json(), encoding="utf-8")
         temporary.replace(directory / "deployment.json")
 
@@ -33,6 +34,9 @@ def restore(session_id):
         row = LocalDeploymentSession.model_validate_json((record_directory(session_id) / "deployment.json").read_text(encoding="utf-8"))
         if row.sessionId != session_id:
             return None
+        from app.services.session_operation_lock import SessionOperationLock
+        if SessionOperationLock(session_id).locked():
+            return row
         if row.status == DeploymentStatus.BUILDING:
             row.status = DeploymentStatus.FAILED
             row.errorMessage = "Construcción interrumpida por un reinicio. Reintente."

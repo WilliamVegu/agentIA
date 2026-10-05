@@ -150,7 +150,8 @@ def build_docker_cmd(
 
     if prepared:
         gradle = tool == 'gradle'
-        command = ("mkdir -p /tmp/gradle-home && cp -R /opt/agentia-cache/. /tmp/gradle-home/ && GRADLE_USER_HOME=/tmp/gradle-home gradle --no-daemon --offline test bootJar" if gradle
+        from app.services.gradle_compatibility import installed_gradle_guard
+        command = ("mkdir -p /tmp/gradle-home && cp -R /opt/agentia-cache/. /tmp/gradle-home/ && export GRADLE_USER_HOME=/tmp/gradle-home && " + installed_gradle_guard() + " && gradle --no-daemon --offline test bootJar" if gradle
                    else "mkdir -p /tmp/m2 && cp -R /opt/agentia-cache/. /tmp/m2/ && mvn -B -o -Dmaven.repo.local=/tmp/m2 verify")
         return ["docker", "run", "--rm", "--pull", "never", "--network", "none", "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix), "-w", workdir, docker_image, "sh", "-c", command]
 
@@ -262,7 +263,13 @@ async def run_docker_sandbox(
         return DockerExecutionResult(exit_code=-1, fallback_used=True, verification_interrupted=True,
                                      fallback_reason='Verificación cancelada antes de crear el contenedor.')
 
-    # 1. Preventive Docker Daemon check
+    if docker_image is None:
+        from app.services.gradle_compatibility import validate_gradle_version
+        try:
+            validate_gradle_version(workspace_path)
+        except ValueError as exc:
+            return DockerExecutionResult(exit_code=1, fallback_used=True, fallback_reason=str(exc), stderr=str(exc))
+    # 1. Preventive Docker Daemon check, after pure configuration validation.
     try:
         from app.services.docker_service import check_docker_daemon
         daemon_available = check_docker_daemon()
@@ -279,11 +286,6 @@ async def run_docker_sandbox(
     image = docker_image or builder_image(workspace_path)
     prepared = docker_image is None
     if prepared:
-        from app.services.gradle_compatibility import validate_gradle_version
-        try:
-            validate_gradle_version(workspace_path)
-        except ValueError as exc:
-            return DockerExecutionResult(exit_code=1, fallback_used=True, fallback_reason=str(exc), stderr=str(exc))
         try:
             image_check = subprocess.run(["docker", "image", "inspect", image], capture_output=True, timeout=5, check=False)
             if image_check.returncode:

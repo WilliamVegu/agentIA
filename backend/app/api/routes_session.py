@@ -56,9 +56,9 @@ class ExecutionModeRequest(BaseModel):
 @router.patch("/{session_id}/execution-mode", response_model=ExecutionModeResponse)
 async def change_execution_mode(session_id: str, payload: ExecutionModeRequest):
     from app.services import docker_service
-    import threading
+    from app.services.session_operation_lock import SessionOperationLock
     with docker_service._operations_lock:
-        lock = docker_service._operation_locks.setdefault(session_id, threading.Lock())
+        lock = docker_service._operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     if not lock.acquire(blocking=False):
         raise HTTPException(409, "Espere a que finalice la operación actual.")
     try:

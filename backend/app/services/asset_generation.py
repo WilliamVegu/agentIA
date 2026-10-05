@@ -1,3 +1,4 @@
+from app.services.session_operation_lock import SessionOperationLock
 """Stage new versioned assets; preserve edits and refuse unowned existing outputs."""
 import hashlib
 import json
@@ -6,15 +7,16 @@ import uuid
 import tempfile
 from pathlib import Path
 
-TEMPLATE_VERSION = 4
+TEMPLATE_VERSION = 5
 STAGING_ROOT = Path(__file__).resolve().parents[3] / '.run' / 'asset-staging'
-EXCLUDED = {'.git', '.agentia-runtime', 'target', 'build', '.gradle', '.m2', 'node_modules', '__pycache__'}
+EXCLUDED = {'.git', '.agentia-runtime', '.operation-locks', 'target', 'build', '.gradle', '.m2', 'node_modules', '__pycache__'}
 OWNED = {
     'Dockerfile', '.dockerignore', 'docker-compose.yml', 'Dockerfile.prepare', 'Dockerfile.runtime',
     'prepare-local.ps1', 'start-local.ps1', 'stop-local.ps1', 'restart-local.ps1', 'cleanup-local.ps1',
     'runtime-common.ps1', '.env.example', 'LOCAL_DEPLOYMENT.md', 'LOCAL_DELIVERY.json',
     'export-offline-kit.ps1', 'import-offline-kit.ps1', 'OFFLINE_KIT.md', 'ASSET_CONFIGURATION.json',
     '.github/workflows/ci-cd.yml', '.gitlab-ci.yml',
+    'local-ci.py', 'prepare-tools.py', 'k8s/app-pvc.yaml', 'k8s/database.yaml', 'k8s/database-service.yaml', 'k8s/database-pvc.yaml',
     'k8s/deployment.yaml', 'k8s/service.yaml', 'k8s/configmap.yaml', 'k8s/ingress.yaml',
 }
 
@@ -42,7 +44,7 @@ def generate_safely(workspace, session_id, writer, **configuration):
     root = Path(workspace).resolve()
     root.mkdir(parents=True, exist_ok=True)
     with docker_service._operations_lock:
-        lock = docker_service._operation_locks.setdefault(session_id, threading.Lock())
+        lock = docker_service._operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     from app.services.local_operations import has_borrowed_lock
     borrowed = has_borrowed_lock(session_id)
     if not borrowed and not lock.acquire(blocking=False):

@@ -48,7 +48,7 @@ def create_project_zip(workspace_path: str) -> bytes:
                     raise ValueError('Snapshot sin verificación aprobada')
                 status['sourceSnapshotId'] = metrics['sourceSnapshotId']
 
-    ignored_dirs = {".git", "target", "build", ".gradle", ".idea", "__pycache__", ".m2", ".agentia-runtime", "node_modules"}
+    ignored_dirs = {".git", "target", "build", ".gradle", ".idea", "__pycache__", ".m2", ".agentia-runtime", ".operation-locks", "node_modules"}
     ignored_files = {".DS_Store", "Thumbs.db", "DELIVERY_STATUS.json", "images.tar"}
 
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:

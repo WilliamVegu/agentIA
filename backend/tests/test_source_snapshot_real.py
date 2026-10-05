@@ -73,6 +73,44 @@ def test_verified_jar_becomes_same_runtime_image_and_sealed_export(monkeypatch):
             jarSha256=expected_jar, actualRuntimeJarSha256=actual_jar, imageId=row.imageId,
             tests=metrics['totalTests'], reports=len(manifest['reports']), sealedExport=True,
             recoveredIdentity=True, localhost=base, packagedWithoutRecompile=True)
+        from app.services.executable_delivery import export_executable
+        package = export_executable(identity)
+        delivered = root / (identity + '-executable')
+        delivered.mkdir()
+        with zipfile.ZipFile(package) as executable:
+            metadata = json.loads(executable.read('EXECUTABLE_PACKAGE.json'))
+            assert metadata['application']['id'] == row.imageId
+            assert metadata['sourceSnapshotId'] == snapshot_id
+            assert not metadata['includesDatabaseData']
+            executable.extractall(delivered)
+        package.unlink()
+        shell = str(Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe')
+        project = metadata['project']
+        def package_action(action, *options):
+            result = subprocess.run([shell, '-NoProfile', '-File', str(delivered / 'executable-local.ps1'),
+                                     '-Action', action, *options], capture_output=True, text=True, timeout=300)
+            (delivered / (action + '.log')).write_text(result.stdout + '\n' + result.stderr, encoding='utf-8')
+            assert result.returncode == 0, result.stdout + result.stderr
+            return result.stdout
+        try:
+            package_action('Start')
+            containers = docker('ps', '-q', '--filter', 'label=com.docker.compose.project=' + project).split()
+            assert len(containers) == 1
+            actual = json.loads(docker('inspect', containers[0]))[0]
+            mapping = actual['NetworkSettings']['Ports']['8080/tcp'][0]
+            assert mapping['HostIp'] == '127.0.0.1' and actual['Image'] == row.imageId
+            delivered_base = 'http://127.0.0.1:' + mapping['HostPort']
+            assert mapping['HostPort'] != str(row.hostPort)
+            assert requests.post(delivered_base + '/api/v1/items', json={'name': 'package'}, timeout=5).status_code == 201
+            package_action('Stop')
+            package_action('Start')
+            assert requests.get(delivered_base + '/api/v1/items', timeout=5).json()[0]['name'] == 'package'
+            assert requests.get(base + '/api/v1/items/1', timeout=5).json()['name'] == 'sealed'
+            report['executablePackage'] = {'result': 'PASS', 'sameImage': True, 'persistence': True,
+                                            'isolatedFromOriginal': True, 'localhost': delivered_base}
+        finally:
+            package_action('Cleanup', '-ConfirmDeleteData')
+            assert not docker('ps', '-a', '-q', '--filter', 'label=com.docker.compose.project=' + project)
     except BaseException as exc:
         report.update(result='FAILED', error=str(exc))
         raise

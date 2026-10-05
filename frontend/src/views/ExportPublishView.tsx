@@ -89,6 +89,12 @@ export const ExportPublishView: React.FC = () => {
         </p>
       </SingleRowCard>
 
+      {activeSession?.executionMode === 'DOCKER' && activeSession.verificationOutcome === 'PASSED' && activeSessionId && (
+        <button type="button" className="px-4 py-2 border rounded-lg text-sm" onClick={() => window.open(exportService.getExecutableZipUrl(activeSessionId), '_blank')}>
+          Descargar imagen ejecutable verificada (requiere despliegue saludable)
+        </button>
+      )}
+
       {/* Non-completed session warning */}
       {activeSession && activeSession.status !== 'COMPLETED' && (
         <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">

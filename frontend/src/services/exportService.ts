@@ -23,6 +23,9 @@ export interface ArtifactItem {
 }
 
 export const exportService = {
+  getExecutableZipUrl(sessionId: string): string {
+    return `/api/v1/sessions/${sessionId}/export-executable`;
+  },
   getDownloadZipUrl(sessionId: string): string {
     return `/api/v1/sessions/${sessionId}/export`;
   },

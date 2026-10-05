@@ -1,6 +1,7 @@
 import apiClient from './apiClient';
 
 export interface ModelSqlGeneratePayload {
+  databaseEngine?: string;
   draft: any;
   apiKey?: string;
   provider?: string;
@@ -8,6 +9,7 @@ export interface ModelSqlGeneratePayload {
 }
 
 export interface ModelSqlRefinePayload {
+  databaseEngine?: string;
   currentResponse: any;
   feedbackPrompt: string;
   targetEntity?: string;

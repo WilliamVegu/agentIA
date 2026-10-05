@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { App } from '../App';
@@ -7,6 +7,11 @@ import { orchestratorService } from '../services/orchestratorService';
 import { llmService } from '../services/llmService';
 import { ALL_TABS } from '../config/workspaceTabs';
 import { useStudio } from '../context/StudioContext';
+import { server, registerLocalAuth, http, HttpResponse, pathEndsWith } from './msw/server';
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 vi.mock('../services/llmService', () => ({
   llmService: {
@@ -88,22 +93,23 @@ describe('App End-to-End Integration & WorkspaceRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    registerLocalAuth();
   });
 
-  it('renders LoginView when user is unauthenticated', () => {
-    localStorage.setItem('agentia_user', 'null');
+  it('renders LoginView when server session is unauthenticated', async () => {
+    server.use(http.get(pathEndsWith('/auth/session'), () => HttpResponse.json({}, { status: 401 })));
 
     render(<App />);
 
-    expect(screen.getByText('Acceso Corporativo')).toBeInTheDocument();
+    expect(await screen.findByText('Acceso al estudio')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ingresar al Studio/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Acceso Rápido de Demostración/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Entrar al MVP/i })).toBeInTheDocument();
   });
 
-  it('logs in and mounts AppLayout with Header, Sidebar, and WorkspaceRouter', async () => {
+  it('restores the server session and mounts AppLayout', async () => {
     render(<App />);
 
-    // Initial state has default demo user, so it renders AppLayout directly
+    // The user comes from /auth/session, never from an implicit localStorage identity.
     await waitFor(() => {
       expect(screen.getByText('TCS Microservice Code Studio')).toBeInTheDocument();
       expect(screen.getByText('Nuevo Microservicio')).toBeInTheDocument();
@@ -197,11 +203,11 @@ describe('App End-to-End Integration & WorkspaceRouter', () => {
       expect(screen.getByText('Rodrigo Mendoza')).toBeInTheDocument();
     });
 
-    const logoutBtn = screen.getByTitle(/Cerrar sesión corporativa/i);
+    const logoutBtn = screen.getByTitle(/^Cerrar sesión$/i);
     fireEvent.click(logoutBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Acceso Corporativo')).toBeInTheDocument();
+      expect(screen.getByText('Acceso al estudio')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('usuario@tcs.com')).toBeInTheDocument();
     });
   });

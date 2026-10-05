@@ -257,6 +257,8 @@ def test_the_environment_pattern_list_was_not_narrowed():
 # T008 — terminal state, and the repair loop is NOT entered
 # ---------------------------------------------------------------------------
 def _sandbox_state(workspace) -> dict:
+    # A graph verification stage receives generated sources, never an empty folder.
+    (workspace / 'pom.xml').write_text('<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>probe</artifactId><version>1</version></project>', encoding='utf-8')
     return {
         "session_id": "t008",
         "execution_mode": "DOCKER",

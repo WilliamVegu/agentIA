@@ -21,6 +21,7 @@ generator's own opinion of itself.
 """
 
 from __future__ import annotations
+from app.services.session_operation_lock import SessionOperationLock
 
 import asyncio
 import concurrent.futures
@@ -77,7 +78,7 @@ def run_workspace_verification(workspace_path, log_callback=None, mode=None):
     from app.services.logged_process import CommandCancelled
     borrowed = local_operations.has_borrowed_lock(ws.name)
     with docker_service._operations_lock:
-        lock = docker_service._operation_locks.setdefault(ws.name, threading.Lock())
+        lock = docker_service._operation_locks.setdefault(ws.name, SessionOperationLock(ws.name))
     if not borrowed and not lock.acquire(blocking=False):
         return WorkspaceVerification(result=DockerExecutionResult(exit_code=1, fallback_used=True,
             fallback_reason='Hay otra operación de esta sesión; espere su resultado antes de verificar.'), platform_test_path=None)

@@ -7,6 +7,7 @@ import uuid
 import pytest
 from scripts.local_microservice_fixture import create_fixture
 from app.services.local_deployment_assets import builder_image
+from app.services.gradle_compatibility import installed_gradle_guard
 
 pytestmark = pytest.mark.skipif(os.environ.get('AGENTIA_RUN_REAL_DOCKER') != '1', reason='Docker real opt-in')
 
@@ -28,8 +29,8 @@ def test_concurrent_private_caches_preserve_prepared_base(tool):
             command = ("mkdir -p /tmp/private-cache && cp -R /opt/agentia-cache/. /tmp/private-cache/ && "
                 f"echo {index} > /tmp/private-cache/own-marker && sleep 2 && "
                 f"test $(cat /tmp/private-cache/own-marker) = {index} && "
-                "test ! -e /opt/agentia-cache/own-marker && find /tmp/private-cache -name '*.jar' | grep -q . && "
-                ("GRADLE_USER_HOME=/tmp/private-cache gradle --offline --no-daemon --version | grep '^Gradle 8.10.2$'" if tool == 'gradle'
+                "test ! -e /opt/agentia-cache/own-marker && find /tmp/private-cache -name '*.jar' | grep -q . && " +
+                ("export GRADLE_USER_HOME=/tmp/private-cache && " + installed_gradle_guard() if tool == 'gradle'
                  else "mvn -version | grep 'Apache Maven 3.9.9'") + " && echo ISOLATED_CACHE_PASS")
             processes.append(subprocess.Popen(['docker', 'run', '--rm', '--pull', 'never', '--network', 'none',
                 '--name', name, '--label', 'io.agentia.cache-probe=' + identity, image_id, 'sh', '-c', command],

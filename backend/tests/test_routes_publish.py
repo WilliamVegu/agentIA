@@ -13,7 +13,10 @@ def mock_export_session():
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
     ws_path.mkdir(parents=True, exist_ok=True)
 
-    (ws_path / "pom.xml").write_text("<project></project>", encoding="utf-8")
+    from scripts.local_microservice_fixture import create_fixture
+    from app.services.verification_policy import workspace_fingerprint
+    import json
+    create_fixture(ws_path, assets=False)
 
     db = SessionLocal()
     try:
@@ -22,8 +25,10 @@ def mock_export_session():
             spec_id="dummy-spec",
             spec_name="order-service",
             status=SessionStatus.COMPLETED,
-            phase=SessionPhase.VERIFIED,
-            repair_attempts=0
+            phase=SessionPhase.TEST_SYNTHESIS,
+            repair_attempts=0,
+            verification_metrics_json=json.dumps({'verificationSkipped': True, 'allPassed': False,
+                'workspaceFingerprint': workspace_fingerprint(ws_path)})
         )
         db.merge(sess)
         db.commit()

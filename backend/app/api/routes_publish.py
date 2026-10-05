@@ -27,6 +27,16 @@ class PublishResponse(BaseModel):
     pullRequestUrl: Optional[str] = None
     branchName: str
 
+
+@router.get('/{session_id}/export-executable')
+def export_session_executable(session_id: str):
+    from app.services.executable_delivery import export_executable
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+    package = export_executable(session_id)
+    return FileResponse(package, media_type='application/zip', filename='verified-local-image.zip',
+                        background=BackgroundTask(package.unlink, missing_ok=True))
+
 @router.get("/{session_id}/export")
 async def export_session_project(session_id: str):
     """Downloads the complete synthesized project as a standalone ZIP archive."""

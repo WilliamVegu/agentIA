@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -11,6 +11,10 @@ import { LifecycleStepper } from '../components/layout/LifecycleStepper';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { sessionService } from '../services/sessionService';
 import { llmService } from '../services/llmService';
+import { server, registerLocalAuth } from './msw/server';
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 vi.mock('../services/llmService', () => ({
   llmService: {
@@ -86,6 +90,7 @@ describe('Layout Components & ErrorBoundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    registerLocalAuth();
   });
 
   it('renders Header with branding, backend health status, and user profile', async () => {

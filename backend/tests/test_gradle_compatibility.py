@@ -39,3 +39,21 @@ def test_sandbox_rejects_incompatible_version_even_with_legacy_fallback(tmp_path
     monkeypatch.setattr('app.sandbox.docker_runner.subprocess.run', lambda *a, **k: pytest.fail('Docker must not be called'))
     result = asyncio.run(run_docker_sandbox(str(tmp_path), mode='DOCKER'))
     assert not result.is_success and result.exit_code == 1 and 'incompatible' in result.fallback_reason
+
+
+@pytest.mark.parametrize('script', ['start-local.ps1', 'prepare-local.ps1'])
+def test_supported_version_reaches_explicit_docker_boundary(tmp_path, script):
+    project(tmp_path, '8.10.2')
+    write_windows_scripts(tmp_path, 'gradle', 'H2')
+    result = powershell(tmp_path, "function global:docker { throw 'DOCKER_BOUNDARY_REACHED' }\n& (Join-Path $PSScriptRoot '" + script + "')")
+    assert result.returncode != 0 and 'DOCKER_BOUNDARY_REACHED' in result.stderr
+    assert 'Gradle incompatible' not in result.stderr
+
+
+@pytest.mark.parametrize('configuration', ['# no distribution',
+    'distributionUrl=https://example/gradle-8.10.2-bin.zip\ndistributionUrl=https://example/gradle-9.0-bin.zip'])
+def test_missing_or_duplicate_distribution_is_not_assumed_compatible(tmp_path, configuration):
+    project(tmp_path, '8.10.2')
+    (tmp_path / 'gradle/wrapper/gradle-wrapper.properties').write_text(configuration)
+    with pytest.raises(ValueError, match='incompatible'):
+        validate_gradle_version(tmp_path)

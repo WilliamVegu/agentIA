@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
+from app.models.devops import DatabaseEngine
 
 try:
     from app.models.requirements import SpecificationDraft
@@ -70,12 +71,14 @@ class SqlSchemaScript(BaseModel):
     dialect: str = Field(default="postgresql_h2")
 
 class ModelSqlGenerationRequest(BaseModel):
+    databaseEngine: DatabaseEngine = DatabaseEngine.POSTGRESQL
     draft: SpecificationDraft = Field(..., description="Active requirements draft or blueprint")
     apiKey: Optional[str] = Field(default=None, description="Ephemeral LLM API Key")
     provider: Optional[str] = Field(default=None, description="Optional LLM provider: 'gemini', 'groq', 'openai', or 'mock'")
     modelName: Optional[str] = Field(default=None, description="Optional custom LLM model name")
 
 class ModelSqlRefinementRequest(BaseModel):
+    databaseEngine: Optional[DatabaseEngine] = None
     currentResponse: "DataModelSynthesisResponse" = Field(..., description="Current synthesis payload")
     feedbackPrompt: str = Field(..., min_length=3, description="Natural language adjustment prompt")
     targetEntity: Optional[str] = Field(default=None, description="Specific target entity or None for global")

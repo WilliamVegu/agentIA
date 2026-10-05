@@ -15,10 +15,10 @@
  *  * a failing backend produces a failure, not a fabricated success -- the class of defect
  *    `docs/frontend_audit.md` recorded four of.
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { http, HttpResponse, server, pathEndsWith, apiPath } from './msw/server';
+import { http, HttpResponse, server, pathEndsWith, apiPath, registerLocalAuth } from './msw/server';
 import { App } from '../App';
 import { sessionService } from '../services/sessionService';
 import { orchestratorService } from '../services/orchestratorService';
@@ -83,6 +83,7 @@ const DEPLOYMENT_RUNNING = {
 };
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+beforeEach(() => registerLocalAuth());
 afterEach(() => {
   server.resetHandlers();
   captured.length = 0;

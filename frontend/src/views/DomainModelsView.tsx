@@ -35,6 +35,7 @@ export const DomainModelsView: React.FC = () => {
   const {
     activeSessionId,
     activeSession,
+    projectOverview,
     currentDraft,
     architectureDesign,
     dataModelDesign,
@@ -146,6 +147,7 @@ export const DomainModelsView: React.FC = () => {
         };
       }
       const res = await modelsService.generate({
+        databaseEngine: projectOverview?.databaseEngine || 'POSTGRESQL',
         draft: draftPayload,
         apiKey,
         provider,
@@ -166,6 +168,7 @@ export const DomainModelsView: React.FC = () => {
     setErrorMsg(null);
     try {
       const res = await modelsService.refine({
+        databaseEngine: projectOverview?.databaseEngine || undefined,
         currentResponse: design,
         feedbackPrompt: refinePrompt.trim(),
         targetEntity: targetEntity === 'Todas las entidades' ? undefined : targetEntity,

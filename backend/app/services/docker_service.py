@@ -1,3 +1,4 @@
+from app.services.session_operation_lock import SessionOperationLock
 import os
 import queue
 import subprocess
@@ -200,9 +201,9 @@ def deploy_local(session_id: str, workspace_dir: str, host_port: Optional[int] =
     if not check_docker_daemon():
         return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.DOCKER_UNAVAILABLE, errorMessage="Docker no disponible. Reintentar o continuar sin Docker.")
     with _operations_lock:
-        lock = _operation_locks.setdefault(session_id, threading.Lock())
+        lock = _operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     if not lock.acquire(blocking=False):
-        return _active_deployments[session_id]
+        return _active_deployments.get(session_id) or get_deployment_status(session_id)
     session = LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.BUILDING, hostPort=host_port, operationId=str(uuid.uuid4()), startedAt=datetime.now(timezone.utc).isoformat())
     from app.services.local_operations import register, phase, finish
     from app.services.logged_process import CommandCancelled
@@ -280,6 +281,14 @@ ENTRYPOINT ["java", "-jar", "/app/application.jar"]
                 with ignore.open('a', encoding='utf-8') as output: output.write('\n!.verified-artifact/\n!.verified-artifact/application.jar\n')
                 (Path(execution_workspace) / 'docker-compose.yml').write_text(yaml.safe_dump(profile, sort_keys=False), encoding='utf-8')
             manifest = yaml.safe_load((Path(execution_workspace) / 'docker-compose.yml').read_text(encoding='utf-8'))
+            # A private Compose override ties the daemon record to this exact operation.
+            overrides = {'services': {name: {'build': {'labels': {'io.agentia.operation': session.operationId}}}
+                for name, config in manifest['services'].items() if config.get('build')}}
+            override_path = Path(execution_workspace) / '.agentia-runtime' / ('build-' + session.operationId + '.yml')
+            override_path.parent.mkdir(parents=True, exist_ok=True)
+            override_path.write_text(yaml.safe_dump(overrides), encoding='utf-8')
+            stack.callback(override_path.unlink, missing_ok=True)
+            prefix += ['-f', str((Path(execution_workspace) / 'docker-compose.yml').resolve()), '-f', str(override_path.resolve())]
             images = {builder_image(workspace_dir), 'agentia-runtime:21-v1'}
             if snapshot_id: images.discard(builder_image(workspace_dir))
             images.update(c['image'] for c in manifest['services'].values() if 'build' not in c)
@@ -297,8 +306,10 @@ ENTRYPOINT ["java", "-jar", "/app/application.jar"]
             _log_message(session_id, '[PHASE] Empaquetado del JAR verificado sin nuevas pruebas' if snapshot_id else '[PHASE] Construcción y pruebas offline')
             phase(session, 'BUILD', cancel_event)
             require_unchanged_sources()
-            run_logged(prefix + ['build', '--pull=false', '--no-cache'],
+            from app.services.buildkit_outcome import run_build
+            run_build(prefix + ['build', '--pull=false', '--no-cache'],
                        lambda line: _log_message(session_id, line, source='build'),
+                       operation_id=session.operationId, runner=run_logged,
                        cwd=execution_workspace, env=environment, timeout=settings.LOCAL_BUILD_TIMEOUT, cancel_event=cancel_event)
             phase(session, 'START', cancel_event)
             require_unchanged_sources()
@@ -394,7 +405,7 @@ def stop_deployment(session_id: str, workspace_dir: str) -> LocalDeploymentSessi
     if execution_mode(session_id).value == 'SOURCE_ONLY':
         return get_deployment_status(session_id)
     with _operations_lock:
-        lock = _operation_locks.setdefault(session_id, threading.Lock())
+        lock = _operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     if not lock.acquire(blocking=False):
         return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.BUILDING, errorMessage='Espere a que termine la construcción antes de detener.')
     from app.services.runtime_log_capture import stop_capture

@@ -33,16 +33,16 @@ describe('LlmContext & SettingsDrawer', () => {
     vi.clearAllMocks();
   });
 
-  it('initializes with mock provider in verified offline state', () => {
+  it('initializes the default provider without claiming verification', () => {
     render(
       <LlmProvider>
         <TestLlmConsumer />
       </LlmProvider>
     );
 
-    expect(screen.getByTestId('provider')).toHaveTextContent('mock');
-    expect(screen.getByTestId('model')).toHaveTextContent('offline-mock');
-    expect(screen.getByTestId('isVerified')).toHaveTextContent('VERIFIED');
+    expect(screen.getByTestId('provider')).toHaveTextContent('deepseek');
+    expect(screen.getByTestId('model')).toHaveTextContent('deepseek-flash');
+    expect(screen.getByTestId('isVerified')).toHaveTextContent('UNVERIFIED');
   });
 
   it('updates provider and resets verification state for external providers', () => {

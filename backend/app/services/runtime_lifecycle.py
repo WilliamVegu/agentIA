@@ -1,3 +1,4 @@
+from app.services.session_operation_lock import SessionOperationLock
 """Operate only on resources whose Compose ownership has been inspected."""
 import json
 import os
@@ -53,7 +54,7 @@ def cleanup_local(session_id, delete_data=False):
     if execution_mode(session_id).value == 'SOURCE_ONLY': return service.get_deployment_status(session_id)
     if not delete_data: raise ValueError('Confirme explícitamente deleteData para borrar datos de esta sesión.')
     with service._operations_lock:
-        lock = service._operation_locks.setdefault(session_id, threading.Lock())
+        lock = service._operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     if not lock.acquire(blocking=False):
         return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.BUILDING, errorMessage='Hay una operación activa; espere antes de limpiar.')
     row = service._active_deployments.get(session_id) or restore(session_id) or LocalDeploymentSession(sessionId=session_id)
@@ -86,7 +87,7 @@ def restart_local(session_id, workspace):
     if execution_mode(session_id).value == 'SOURCE_ONLY': return service.get_deployment_status(session_id)
     if not service.check_docker_daemon(): return service.get_deployment_status(session_id)
     with service._operations_lock:
-        lock = service._operation_locks.setdefault(session_id, threading.Lock())
+        lock = service._operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     if not lock.acquire(blocking=False):
         return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.BUILDING, errorMessage='Espere la operación activa antes de reiniciar.')
     row = service._active_deployments.get(session_id) or restore(session_id) or LocalDeploymentSession(sessionId=session_id)

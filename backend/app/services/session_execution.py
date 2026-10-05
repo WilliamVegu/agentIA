@@ -1,3 +1,4 @@
+from app.services.session_operation_lock import SessionOperationLock
 """Verify existing sources without regenerating them or losing previous failures."""
 import json
 from datetime import datetime, timezone
@@ -14,7 +15,7 @@ def verify_existing_sources(session_id: str):
     from app.services import docker_service
     import threading
     with docker_service._operations_lock:
-        lock = docker_service._operation_locks.setdefault(session_id, threading.Lock())
+        lock = docker_service._operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     if not lock.acquire(blocking=False):
         raise HTTPException(409, "Espere a que finalice la operación actual.")
     try:

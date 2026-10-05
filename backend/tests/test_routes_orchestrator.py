@@ -107,11 +107,19 @@ def test_pipeline_run_and_pause_endpoints(client_with_session):
 
 def test_export_bundle_endpoint(client_with_session):
     client, session_id, ws_path = client_with_session
+    from scripts.local_microservice_fixture import create_fixture
+    create_fixture(ws_path, identity=session_id)
     (ws_path / "spec.md").write_text("# Spec Content", encoding="utf-8")
-    (ws_path / "docker-compose.yml").write_text("version: '3.8'", encoding="utf-8")
+    from app.services.verification_policy import workspace_fingerprint
+    with SessionLocal() as db:
+        row = db.get(GenerationSessionDB, session_id)
+        row.status = SessionStatus.COMPLETED
+        row.verification_metrics_json = json.dumps({'verificationSkipped': True, 'allPassed': False,
+            'workspaceFingerprint': workspace_fingerprint(ws_path)})
+        db.commit()
 
     resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/export-bundle")
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
     assert resp.headers["content-type"] == "application/zip"
     assert len(resp.content) > 0
 

@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parents[3]
 STAGING = ROOT / '.run' / 'verification-snapshots'
-EXCLUDED = {'.git', '.agentia-runtime', 'target', 'build', '.gradle', '.m2', 'node_modules',
+EXCLUDED = {'.git', '.agentia-runtime', '.operation-locks', 'target', 'build', '.gradle', '.m2', 'node_modules',
             '__pycache__', '.venv', '.run', '.idea'}
 
 
