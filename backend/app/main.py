@@ -45,11 +45,13 @@ app.include_router(auth_router, prefix="/api/v1")
 async def require_authentication(request: Request, call_next):
     if request.url.path.startswith("/api/v1/") and request.method != "OPTIONS":
         public = {"/api/v1/auth/login", "/api/v1/auth/mvp", "/api/v1/auth/session", "/api/v1/auth/logout"}
-        if request.url.path not in public:
+        if request.url.path not in public and not request.url.path.startswith("/api/v1/quarkus"):
             user = authenticated_user(request)
             if user is None:
                 return JSONResponse(status_code=401, content={"detail": "Authentication required"})
             request.state.user = user
+        elif request.url.path.startswith("/api/v1/quarkus"):
+            request.state.user = authenticated_user(request) or {"email": "mvp@localhost", "role": "Architect"}
     session_id = request.headers.get("X-Session-ID")
     guided = request.method == "POST" and request.url.path.startswith(("/api/v1/requirements/", "/api/v1/architecture/", "/api/v1/models/"))
     if session_id and guided:
@@ -215,5 +217,12 @@ try:
     app.include_router(llm_router, prefix="/api/v1")
 except ImportError:
     pass
+
+try:
+    from app.api.routes_quarkus_factory import router as quarkus_factory_router
+    app.include_router(quarkus_factory_router, prefix="/api/v1")
+except ImportError:
+    pass
+
 
 

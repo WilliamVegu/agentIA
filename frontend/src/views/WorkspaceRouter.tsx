@@ -1,5 +1,8 @@
 import React from 'react';
+import { useEcosystem } from '../context/EcosystemContext';
 import { useStudio } from '../context/StudioContext';
+import { UnifiedLauncherHeroView } from './launcher/UnifiedLauncherHeroView';
+import { QuarkusFactoryStudioView } from './quarkus/QuarkusFactoryStudioView';
 import { StudioOverviewView } from './StudioOverviewView';
 import { RequirementsView } from './RequirementsView';
 import { ArchitectureView } from './ArchitectureView';
@@ -12,9 +15,20 @@ import { DevOpsDeploymentView } from './DevOpsDeploymentView';
 import { ExportPublishView } from './ExportPublishView';
 
 export const WorkspaceRouter: React.FC = () => {
+  const { activeEcosystem } = useEcosystem();
   const { activeTab } = useStudio();
 
-  // Keyed, not positional: reordering the tab row cannot change which view renders.
+  // 1. Initial Launchpad / Selector Screen
+  if (activeEcosystem === 'launcher') {
+    return <UnifiedLauncherHeroView />;
+  }
+
+  // 2. Quarkus 3.x Factory Studio Flow
+  if (activeEcosystem === 'quarkus') {
+    return <QuarkusFactoryStudioView />;
+  }
+
+  // 3. Spring Boot Microservice Studio Flow
   switch (activeTab) {
     case 'blueprints':
       return <SpecIngestionView />;
