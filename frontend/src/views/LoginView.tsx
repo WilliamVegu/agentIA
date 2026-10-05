@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ShieldCheck, ArrowRight, Lock, Mail, Sparkles, Server, CheckCircle2 } from 'lucide-react';
 import { ShieldCheck, ArrowRight, Lock, Mail, Sparkles, Server, CheckCircle2, Layers, Zap, LayoutGrid } from 'lucide-react';
 import { TcsLogo } from '../components/common/TcsLogo';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ export const LoginView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleMvp = async () => {
   const handleMvp = async (targetEco: 'launcher' | 'spring' | 'quarkus' = 'launcher') => {
     setError(null);
     setIsLoading(true);
@@ -64,23 +66,30 @@ export const LoginView: React.FC = () => {
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
+            Ingeniería de Software Automatizada para Arquitecturas Spring Boot 3 y Java 21
             Ingeniería de Software Automatizada para Spring Boot 3 y Quarkus 3.x en Java 21
           </h1>
 
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+            Plataforma corporativa de Tata Consultancy Services para síntesis rigurosa de código fuente, validación sandbox en contenedores aislados, auditoría SAST continua y despliegue local verificado.
             Plataforma corporativa unificada de Tata Consultancy Services para síntesis rigurosa de código fuente, validación en contenedores aislados, auditoría SAST continua y publicación atómica a Git.
           </p>
 
           <div className="space-y-3 pt-2">
             <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Orquestación de ciclo de vida con LangGraph y auto-reparación en sandbox</span>
               <span><strong>Spring Boot Studio:</strong> Arquitectura hexagonal DDD, ingesta OpenAPI y verificación hermética</span>
             </div>
             <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Quality Gate automatizado con detección de secretos y reporte SAST</span>
               <CheckCircle2 className="w-4 h-4 text-red-400 shrink-0" />
               <span><strong>Fábrica Quarkus 3.x:</strong> Orquestación de 8 agentes autónomos, auto-sanación y compuertas de control humano</span>
             </div>
             <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Manifiestos DevOps listos para producción (Docker, K8s, GitHub CI/CD)</span>
               <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
               <span><strong>DevOps Corporativo:</strong> Manifiestos Docker, K8s, Jenkinsfile y push directo a ramas Git con tokens efímeros</span>
             </div>
@@ -177,6 +186,11 @@ export const LoginView: React.FC = () => {
             </button>
           </form>
 
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+            <button type="button" onClick={handleMvp} disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-60">
+              <Sparkles className="w-4 h-4" />
+              <span>{isLoading ? 'Ingresando…' : 'Entrar al MVP'}</span>
           <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
             <button
               type="button"
@@ -188,6 +202,7 @@ export const LoginView: React.FC = () => {
               <span>{isLoading ? 'Ingresando…' : 'Entrar al MVP · Elegir Ecosistema (Hub)'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+            <p className="text-center text-xs text-slate-500 dark:text-slate-400">Acceso local sin correo ni contraseña.</p>
 
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
