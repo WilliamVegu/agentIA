@@ -100,7 +100,7 @@ def test_cold_build_reads_newly_created_test_reports(session_workspace, monkeypa
     from app.sandbox.docker_runner import DockerExecutionResult, parse_test_counts
     identity, ws = session_workspace
     def execute(path, callback):
-        reports = ws / relative
+        reports = Path(path) / relative
         reports.mkdir(parents=True)
         (reports / 'TEST-results.xml').write_text('<testsuite tests="3" failures="1" errors="0" skipped="0"/>')
         return DockerExecutionResult(exit_code=1, stdout='build completed with test failure')
@@ -203,6 +203,9 @@ def test_explicit_source_delivery_keeps_actual_failures(session_workspace, monke
 def test_generation_graph_finishes_without_docker_for_all_combinations(session_workspace, monkeypatch, build_tool, database):
     from app.orchestrator.graph import generation_graph
     identity, ws = session_workspace
+    # The fixture's Maven POM is not generator output. Start with the same clean
+    # build entry point as the AutoPilot cases below.
+    (ws / 'pom.xml').unlink()
     forbidden = forbid_docker(monkeypatch)
     blueprint = {
         "serviceName": "lab-service", "packageName": "com.example.lab", "basePort": 8080,

@@ -17,10 +17,20 @@ def verification_outcome(session) -> VerificationOutcome:
         return VerificationOutcome.NOT_RUN
     if not metrics:
         return VerificationOutcome.NOT_RUN
+    if metrics.get('verificationOutdated') is True:
+        return VerificationOutcome.OUTDATED
     if metrics.get("workspaceFingerprint") and metrics["workspaceFingerprint"] != workspace_fingerprint(Path(settings.WORKSPACE_DIR) / session.id):
         return VerificationOutcome.OUTDATED
+    if metrics.get('sourceSnapshotId'):
+        try:
+            from app.services.source_snapshot import validate_snapshot
+            validate_snapshot(Path(settings.WORKSPACE_DIR) / session.id, metrics['sourceSnapshotId'], metrics.get('workspaceFingerprint'))
+        except (ValueError, TypeError, OSError):
+            return VerificationOutcome.OUTDATED
     if metrics.get("verificationSkipped"):
         return VerificationOutcome.SKIPPED_BY_CHOICE
+    if metrics.get('verificationInterrupted'):
+        return VerificationOutcome.INTERRUPTED
     if metrics.get("fallback_used"):
         return VerificationOutcome.ENVIRONMENT_UNAVAILABLE
     return VerificationOutcome.PASSED if tests_really_passed(metrics) else VerificationOutcome.FAILED
@@ -37,9 +47,25 @@ def tests_really_passed(metrics) -> bool:
             and passed == total and metrics.get("failedTests", 0) == 0
             and metrics.get("allPassed") is True
             and metrics.get("fallback_used") is False
+            and metrics.get('verificationInterrupted') is not True
+            and metrics.get('verificationOutdated') is not True
         )
     except (ValueError, TypeError):
         return False
+
+
+def fingerprint_input(relative):
+    from app.services.dependency_inputs import is_dependency_input, EXCLUDED
+    path = Path(relative)
+    return (not any(part in EXCLUDED for part in path.parts)
+            and path.name not in {'.DS_Store', 'Thumbs.db'} and not path.name.endswith('.pyc')
+            and (not path.name.startswith('.env') or path.name == '.env.example')
+            and (is_dependency_input(relative) or 'src' in path.parts
+                 or path.name.endswith(('.gradle', '.gradle.kts', '.lockfile')) or path.name in {'pom.xml', 'build.gradle', 'build.gradle.kts',
+                'settings.gradle', 'settings.gradle.kts', 'gradle.properties', 'schema.sql', 'data.sql',
+                'spec.md', 'specification_draft.json', 'user_stories.json', 'architecture.json',
+                'domain_model.json', 'mvnw', 'mvnw.cmd', 'gradlew', 'gradlew.bat',
+                'Dockerfile', 'Dockerfile.prepare', 'Dockerfile.runtime', '.dockerignore', 'docker-compose.yml'}))
 
 
 def workspace_fingerprint(workspace) -> str:
@@ -47,9 +73,7 @@ def workspace_fingerprint(workspace) -> str:
     digest = hashlib.sha256()
     if not root.is_dir():
         return ""
-    files = sorted(p for p in root.rglob("*") if p.is_file()
-                   and not any(part in {".git", "target", "build", ".gradle", "node_modules"} for part in p.relative_to(root).parts)
-                   and ("src" in p.relative_to(root).parts or p.name in {"pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradle.properties", "schema.sql", "data.sql", "spec.md", "specification_draft.json", "user_stories.json", "architecture.json", "domain_model.json", "Dockerfile", "Dockerfile.prepare", "Dockerfile.runtime", ".dockerignore", "docker-compose.yml"}))
+    files = sorted(p for p in root.rglob('*') if p.is_file() and fingerprint_input(p.relative_to(root)))
     for file in files:
         if not file.resolve().is_relative_to(root):
             return ""
@@ -66,6 +90,11 @@ def session_has_current_evidence(session) -> bool:
     try:
         metrics = json.loads(session.verification_metrics_json)
         fingerprint = metrics.get("workspaceFingerprint")
+        if metrics.get('sourceSnapshotId'):
+            from app.services.source_snapshot import validate_snapshot
+            manifest, _ = validate_snapshot(Path(settings.WORKSPACE_DIR) / session.id, metrics['sourceSnapshotId'], fingerprint)
+            if manifest.get('verification') != 'PASSED':
+                return False
         return bool(fingerprint and fingerprint == workspace_fingerprint(Path(settings.WORKSPACE_DIR) / session.id))
     except (ValueError, TypeError, OSError):
         return False

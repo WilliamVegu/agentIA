@@ -35,6 +35,19 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
     verification = run_workspace_verification(workspace_path, log_callback=log_cb, mode=state.get("execution_mode"))
     result = verification.result
     platform_verified = verification.platform_verified
+    snapshot_id = getattr(verification, 'snapshot_id', None)
+    if getattr(verification, 'source_changed', False):
+        counts = parse_test_counts(result.stdout)
+        metrics = VerificationMetrics(totalTests=counts.total if counts else 0,
+            passedTests=counts.passed if counts else 0,
+            failedTests=counts.failures + counts.errors if counts else 0,
+            allPassed=False, fallback_used=False, verificationOutdated=True,
+            verificationOutcome='OUTDATED', workspaceFingerprint=verification.workspace_fingerprint,
+            sourceSnapshotId=snapshot_id)
+        logs.append('[SANDBOX] Fuentes cambiadas durante ejecución; reintente, sin reparación automática.')
+        return {'current_phase': SessionPhase.FAILED.value, 'status': SessionStatus.BLOCKED.value,
+                'build_success': False, 'verification_fallback_used': False,
+                'test_metrics': metrics.model_dump(), 'error': result.stderr, 'logs': logs}
 
     if result.verification_skipped:
         logs.append("[SANDBOX] Pruebas no ejecutadas: modo sin virtualización. Continuando con entrega de fuentes.")
@@ -58,7 +71,8 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
         if result.fallback_reason:
             logs.append(f"[SANDBOX] Reason: {result.fallback_reason}")
         metrics = VerificationMetrics(
-            verificationOutcome="ENVIRONMENT_UNAVAILABLE",
+            verificationOutcome="INTERRUPTED" if result.verification_interrupted else "ENVIRONMENT_UNAVAILABLE",
+            verificationInterrupted=result.verification_interrupted,
             totalTests=0,
             passedTests=0,
             failedTests=0,
@@ -70,7 +84,7 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
         # The reason goes on the `error` key: routes_session reads
         # final_state.get("error") and persists it into the error_message COLUMN.
         # Using the column's name as the state key would discard it silently.
-        reason = result.fallback_reason or "the sandbox could not verify this workspace"
+        reason = (result.stderr if result.verification_interrupted else result.fallback_reason) or "the sandbox could not verify this workspace"
         return {
             "current_phase": SessionPhase.FAILED.value,
             "status": SessionStatus.PAUSED.value,
@@ -109,7 +123,8 @@ def sandbox_node(state: GenerationAgentState) -> Dict[str, Any]:
             failedTests=failed,
             executionDurationMs=result.duration_ms,
             allPassed=all_passed,
-            workspaceFingerprint=workspace_fingerprint(workspace_path),
+            workspaceFingerprint=getattr(verification, 'workspace_fingerprint', None) or workspace_fingerprint(workspace_path),
+            sourceSnapshotId=snapshot_id,
             fallback_used=result.fallback_used,
             fallback_reason=result.fallback_reason,
         )

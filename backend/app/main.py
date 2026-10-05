@@ -29,7 +29,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configure CORS for Streamlit frontend and local clients
+# Configure CORS for the React frontend and local clients.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

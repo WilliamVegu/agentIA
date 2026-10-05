@@ -208,7 +208,7 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
       fireEvent.click(deployBtn);
 
       await waitFor(() => {
-        expect(devopsService.deployLocal).toHaveBeenCalledWith('sess-ops-001', 8080, true);
+        expect(devopsService.deployLocal).toHaveBeenCalledWith('sess-ops-001', undefined, true);
       });
     });
   });

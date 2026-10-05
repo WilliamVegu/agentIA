@@ -24,6 +24,7 @@ from __future__ import annotations
 import queue
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -112,7 +113,7 @@ def clean_deploy_state(monkeypatch, tmp_path, request):
     monkeypatch.setattr(settings, "WORKSPACE_DIR", str(tmp_path))
     monkeypatch.setattr(settings, "DOCKER_ENABLED", True)
     monkeypatch.setattr(execution_policy, "execution_mode", lambda *a, **kw: ExecutionMode.DOCKER)
-    monkeypatch.setattr(ds.threading, "Thread", _InlineThread)
+    monkeypatch.setattr(ds, 'threading', SimpleNamespace(Thread=_InlineThread, Lock=threading.Lock, RLock=threading.RLock))
     monkeypatch.setattr(ds.subprocess, "Popen", lambda *a, **kw: _FakeProcess())
     generate_all_devops_assets(str(tmp_path), SESSION_ID, db_engine='H2')
     state = SimpleNamespace(started=False, port=8080)
@@ -128,9 +129,20 @@ def clean_deploy_state(monkeypatch, tmp_path, request):
             if 'up' in cmd and not code:
                 state.started, state.port = True, int(kwargs['env']['HOST_PORT'])
             return subprocess.CompletedProcess(cmd, code, stdout=stdout, stderr='')
-        if 'down' in cmd: state.started = False
+        if 'down' in cmd or cmd[:2] == ['docker', 'stop']: state.started = False
         return subprocess.CompletedProcess(cmd, 0, stdout='', stderr='')
     monkeypatch.setattr(ds.subprocess, 'run', run)
+    monkeypatch.setattr('app.services.runtime_lifecycle.owned_resources', lambda sid, kind='container':
+        [{'Id': 'owned-container', 'State': {'Running': True}}] if kind == 'container' and state.started else [])
+    # This fixture models command outcomes; real pipe/timeout behavior has separate tests.
+    def logged(command, on_line, **kwargs):
+        result = ds.subprocess.run(command, **kwargs)
+        for line in (result.stdout or '').splitlines(): on_line(line)
+        if result.returncode:
+            raise RuntimeError(f'Docker exit code {result.returncode}: {result.stdout}')
+        return 0
+    monkeypatch.setattr(ds, 'run_logged', logged)
+    monkeypatch.setattr('app.services.runtime_log_capture.ensure_capture', lambda _: None)
     # Daemon unit tests keep the real gate; operation tests simulate its availability.
     if 'daemon' not in request.node.name and 'docker_info' not in request.node.name:
         monkeypatch.setattr(ds, 'check_docker_daemon', lambda: True)
@@ -159,7 +171,7 @@ def test_the_daemon_is_reported_available_when_docker_info_exits_zero(monkeypatc
     monkeypatch.setattr(ds.subprocess, "run", fake_run)
 
     assert ds.check_docker_daemon() is True
-    assert calls["cmd"] == ["docker", "info"]
+    assert calls["cmd"] == ["docker", "info", "--format", "{{.ServerVersion}}"]
     assert calls["kwargs"]["timeout"] == 2.0, "a hung daemon must not hang the request"
 
 
@@ -356,7 +368,7 @@ def test_a_container_that_never_becomes_healthy_is_failed_not_healthy(monkeypatc
     session = ds.deploy_local(SESSION_ID, str(tmp_path))
 
     assert session.status == DeploymentStatus.FAILED
-    assert session.healthStatus is None, "a failed smoke test must not claim a health status"
+    assert session.healthStatus == 'UNKNOWN', "a failed smoke test must not claim confirmed health"
     assert "Smoke test failed" in session.errorMessage
     assert session.errorMessage.endswith("timed out after 20 attempts")
 
@@ -617,14 +629,17 @@ def test_streaming_a_never_seen_session_does_not_raise():
 # ---------------------------------------------------------------------------
 # stop_deployment
 # ---------------------------------------------------------------------------
-def test_stopping_runs_compose_down_and_records_the_stop(monkeypatch, tmp_path):
+def test_stopping_targets_owned_containers_and_records_the_stop(monkeypatch, tmp_path):
     monkeypatch.setattr(ds, "_active_deployments", {
         SESSION_ID: LocalDeploymentSession(sessionId=SESSION_ID, status=DeploymentStatus.HEALTHY)
     })
     seen = {}
+    owned = [{'Id': 'owned-container', 'State': {'Running': True}}]
+    monkeypatch.setattr('app.services.runtime_lifecycle.owned_resources', lambda *_: owned)
 
     def fake_run(cmd, **kwargs):
         seen["cmd"] = cmd
+        owned[0]['State']['Running'] = False
         seen["cwd"] = kwargs.get("cwd")
         return subprocess.CompletedProcess(cmd, 0)
 
@@ -632,8 +647,8 @@ def test_stopping_runs_compose_down_and_records_the_stop(monkeypatch, tmp_path):
 
     session = ds.stop_deployment(SESSION_ID, str(tmp_path))
 
-    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "down"], "stop must preserve volumes"
-    assert seen["cwd"] == str(tmp_path)
+    assert seen["cmd"] == ["docker", "stop", '--time', '10', 'owned-container'], "stop must preserve volumes"
+    assert seen["cwd"] is None, 'Identified containers do not depend on a mutable Compose file'
     assert session.status == DeploymentStatus.STOPPED
     assert any("[STOPPED]" in line for line in ds.get_deployment_logs(SESSION_ID))
 
@@ -648,12 +663,14 @@ def test_stopping_an_unknown_session_still_reports_stopped(monkeypatch, tmp_path
     assert session.sessionId == "qe-never-deployed"
 
 
-def test_a_failed_compose_down_does_not_raise(monkeypatch, tmp_path):
+def test_a_failed_owned_container_stop_does_not_raise(monkeypatch, tmp_path):
     """Return a failed operation with its error; never invent STOPPED after timeout."""
     def explode(cmd, **kwargs):
         raise subprocess.TimeoutExpired(cmd, 15.0)
 
     monkeypatch.setattr(ds.subprocess, "run", explode)
+    monkeypatch.setattr('app.services.runtime_lifecycle.owned_resources', lambda *_:
+                        [{'Id': 'owned-container', 'State': {'Running': True}}])
 
     session = ds.stop_deployment(SESSION_ID, str(tmp_path))
 

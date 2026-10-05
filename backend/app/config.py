@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     
     # Sandbox & Docker Execution
     DOCKER_ENABLED: bool = Field(default=True, description="Administrative permission for Docker; execution still requires the session's explicit DOCKER choice.")
+    LOCAL_BUILD_TIMEOUT: int = Field(default=600, ge=1, le=3600)
+    LOCAL_PREPARE_TIMEOUT: int = Field(default=900, ge=1, le=3600)
+    LOCAL_START_TIMEOUT: int = Field(default=200, ge=1, le=3600)
+    LOCAL_DIAGNOSTIC_CACHE_TIMEOUT: int = Field(default=15, ge=1, le=60)
+    LOCAL_MIN_FREE_BYTES: int = Field(default=512 * 1024 * 1024, ge=0)
+    LOCAL_DEPLOY_WAIT_TIMEOUT: int = Field(default=1400, ge=1, le=10000)
     DOCKER_IMAGE: str = Field(
         default="maven:3.9-eclipse-temurin-21",
         description="Docker base image with pre-cached Maven 3.9 and Java 21 LTS"

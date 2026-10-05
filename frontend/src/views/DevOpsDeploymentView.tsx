@@ -26,6 +26,7 @@ import { useStudio } from '../context/StudioContext';
 import { devopsService, LocalDeploymentSession, SmokeTestResult, DockerCapabilityReport } from '../services/devopsService';
 import { exportService } from '../services/exportService';
 import { sessionService } from '../services/sessionService';
+import { subscribeDeploymentLogs, LogConnection } from '../services/deploymentLogStream';
 
 
 
@@ -55,12 +56,28 @@ export const DevOpsDeploymentView: React.FC = () => {
   const { activeSessionId, activeSession, projectOverview, reloadCurrentOverview, refreshSessions } = useStudio();
 
   const [deployment, setDeployment] = useState<LocalDeploymentSession | null>(null);
+  const currentDeployment = useRef<LocalDeploymentSession | null>(null);
+  currentDeployment.current = deployment;
   const [diagnostics, setDiagnostics] = useState<DockerCapabilityReport | null>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const sessionRef = useRef(activeSessionId);
+  const sessionRevision = useRef(0);
+  if (sessionRef.current !== activeSessionId) sessionRevision.current += 1;
   sessionRef.current = activeSessionId;
+  const runtimeRef = useRef('');
+  const statusVersion = useRef(0);
+  runtimeRef.current = `${activeSessionId}|${deployment?.containerId}|${deployment?.hostPort}`;
+  const requestScope = (checkRuntime = false) => {
+    statusVersion.current += 1;
+    const revision = sessionRevision.current;
+    const runtime = runtimeRef.current;
+    return () => revision === sessionRevision.current && (!checkRuntime || runtime === runtimeRef.current);
+  };
 
   const [hostPort, setHostPort] = useState<number>(8080);
+  const [projectConfiguration, setProjectConfiguration] = useState<{ databaseEngine: string; hostPort: number; buildTool: string; buildDirectory: string } | null>(null);
+  const configurationLoaded = useRef(false);
+  const portEdited = useRef(false);
   const [activeManifestTab, setActiveManifestTab] = useState<'docker' | 'compose' | 'cicd' | 'k8s'>('docker');
   // filename -> content, exactly as the API returns it. Empty until something generates
   // it or the workspace is read, and the tab says so rather than inventing a manifest.
@@ -75,10 +92,14 @@ export const DevOpsDeploymentView: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [deleteDataConfirmed, setDeleteDataConfirmed] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
   const [smokeResult, setSmokeResult] = useState<SmokeTestResult | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [logConnection, setLogConnection] = useState<LogConnection>('connecting');
 
   // Live Playground State: Dynamic CRUD
   const [orders, setOrders] = useState<any[]>([]);
@@ -105,6 +126,7 @@ export const DevOpsDeploymentView: React.FC = () => {
   const [restStatusCode, setRestStatusCode] = useState<number | null>(null);
 
   const fetchStatus = async () => {
+    const isCurrent = requestScope();
     if (!activeSessionId) {
       setDeployment(null);
       setTerminalLogs([]);
@@ -112,40 +134,87 @@ export const DevOpsDeploymentView: React.FC = () => {
     }
     try {
       const s = await devopsService.getDeploymentStatus(activeSessionId);
+      if (!isCurrent()) return;
       if (s) {
         setDeployment(s);
-        if (s.hostPort) setHostPort(s.hostPort);
+        if (s.hostPort && (s.containerId || !configurationLoaded.current) && !portEdited.current) setHostPort(s.hostPort);
       } else {
         setDeployment(null);
       }
-      const logs = await devopsService.getLogs(activeSessionId);
-      if (logs && logs.length > 0) {
-        setTerminalLogs(logs);
-      }
     } catch {
-      setDeployment(null);
+      if (isCurrent()) setDeployment(null);
     }
   };
 
   useEffect(() => {
     let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
     setDeployment(null);
+    setHostPort(8080);
+    setProjectConfiguration(null);
+    configurationLoaded.current = false;
+    portEdited.current = false;
     setTerminalLogs([]);
+    setLogConnection('connecting');
     setSmokeResult(null);
     setFeedback(null);
     setDiagnostics(null);
     setIsDiagnosing(false);
+    setIsGenerating(false);
+    setIsDeploying(false);
+    setIsStopping(false);
+    setIsCancelling(false);
+    setDeleteDataConfirmed(false);
+    setIsTesting(false);
+    setIsRequesting(false);
+    setOrders([]);
+    setFieldValues({});
+    setCrudPath('');
+    setAvailableResources([]);
+    setModelEntities([]);
+    setDevopsFiles({});
+    setK8sManifests({});
+    setRestResponse(null);
+    setRestLatency(null);
+    setRestStatusCode(null);
+    setReqEndpoint('/actuator/health');
+    setReqBody('{}');
     if (!activeSessionId) return;
+    if (typeof devopsService.getConfiguration === 'function') {
+      devopsService.getConfiguration(activeSessionId).then(config => {
+        if (cancelled || !config) return;
+        setProjectConfiguration(config);
+        configurationLoaded.current = true;
+        const running = currentDeployment.current?.containerId && ['RUNNING', 'HEALTHY', 'DEGRADED'].includes(currentDeployment.current.status);
+        if (!portEdited.current && !running) setHostPort(config.hostPort);
+      }).catch(error => {
+        if (!cancelled) setFeedback(error?.response?.data?.detail || 'No se pudo leer la configuración local del proyecto.');
+      });
+    }
     const poll = async () => {
+      const version = statusVersion.current;
       try {
-        const [status, logs] = await Promise.all([devopsService.getDeploymentStatus(activeSessionId), devopsService.getLogs(activeSessionId)]);
-        if (!cancelled) { setDeployment(status); setHostPort(status.hostPort); setTerminalLogs(logs); }
-      } catch { if (!cancelled) setDeployment(null); }
+        const status = await devopsService.getDeploymentStatus(activeSessionId);
+        if (!cancelled && version === statusVersion.current) {
+          setDeployment(status);
+          if ((status.containerId || !configurationLoaded.current) && !portEdited.current) setHostPort(status.hostPort);
+        }
+      } catch { if (!cancelled && version === statusVersion.current) setDeployment(null); }
+      if (!cancelled) pollTimer = setTimeout(poll, 3000);
     };
     poll();
-    const interval = setInterval(poll, 3000);
-    return () => { cancelled = true; clearInterval(interval); };
+    const unsubscribe = subscribeDeploymentLogs(activeSessionId, setTerminalLogs, setLogConnection);
+    return () => { cancelled = true; clearTimeout(pollTimer); unsubscribe(); };
   }, [activeSessionId]);
+
+  useEffect(() => {
+    setOrders([]);
+    setRestResponse(null);
+    setRestLatency(null);
+    setRestStatusCode(null);
+    setSmokeResult(null);
+    setIsRequesting(false);
+  }, [activeSessionId, deployment?.containerId, deployment?.hostPort]);
 
   useEffect(() => {
     // Read whatever is already on disk, so the tab is correct after a reload and not
@@ -238,13 +307,15 @@ export const DevOpsDeploymentView: React.FC = () => {
   }, [activeSessionId]);
 
   const handleGenerateManifests = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || isBusy) return;
+    const isCurrent = requestScope();
     setIsGenerating(true);
     setFeedback(null);
     try {
       // The response was previously discarded -- `await` with no assignment -- which is
       // how the Kubernetes tab ended up rendering samples instead of these files.
-      const bundle = await devopsService.generateManifests(activeSessionId, projectOverview?.databaseEngine, hostPort);
+      const bundle = await devopsService.generateManifests(activeSessionId, projectConfiguration?.databaseEngine, portEdited.current ? hostPort : undefined);
+      if (!isCurrent()) return;
       setK8sManifests(bundle.kubernetesManifests || {});
       setDevopsFiles({
         Dockerfile: bundle.dockerfileContent,
@@ -256,38 +327,48 @@ export const DevOpsDeploymentView: React.FC = () => {
       setFeedback('✅ Manifiestos DevOps (Dockerfile, Compose, CI/CD y Kubernetes) generados exitosamente.');
       await fetchStatus();
     } catch (err: any) {
+      if (!isCurrent()) return;
       setFeedback(err.response?.data?.detail || 'Error al generar manifiestos DevOps.');
     } finally {
-      setIsGenerating(false);
+      if (isCurrent()) setIsGenerating(false);
     }
   };
 
   const handleDeployLocal = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || isBusy || isSourceOnly) return;
+    const isCurrent = requestScope();
     setIsDeploying(true);
     setFeedback(null);
     try {
-      const res = await devopsService.deployLocal(activeSessionId, hostPort, true);
+      const res = await devopsService.deployLocal(activeSessionId, portEdited.current ? hostPort : undefined, true);
+      if (!isCurrent()) return;
+      setSmokeResult(null);
       setDeployment(res);
       setHostPort(res.hostPort);
       setFeedback(res.errorMessage || `Estado del despliegue: ${res.status}. Puerto efectivo: ${res.hostPort}.`);
       await reloadCurrentOverview();
     } catch (err: any) {
-      setFeedback(err.response?.data?.detail || 'Modo degradado: Docker local no disponible. Manifiestos exportables listos.');
+      if (isCurrent()) setFeedback(err.response?.data?.detail || err.message || 'No se pudo confirmar el despliegue. Consulte el estado y reintente.');
     } finally {
-      setIsDeploying(false);
+      if (isCurrent()) setIsDeploying(false);
     }
   };
 
   const handleStopContainers = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || isBusy || !hasRuntime) return;
+    const isCurrent = requestScope();
     setIsStopping(true);
     try {
       const res = await devopsService.stopContainers(activeSessionId);
+      if (!isCurrent()) return;
       setDeployment(res);
+      setSmokeResult(null);
+      setRestResponse(null);
+      setOrders([]);
       setFeedback(res.status === 'STOPPED' ? 'Contenedores detenidos. Datos conservados.' : res.errorMessage || `Estado: ${res.status}`);
       await reloadCurrentOverview();
     } catch (err: any) {
+      if (!isCurrent()) return;
       // Report the real outcome. This used to say "Contenedores detenidos." even
       // when the stop request failed, so the UI claimed a state the host was not in.
       setFeedback(
@@ -295,17 +376,21 @@ export const DevOpsDeploymentView: React.FC = () => {
         `El estado mostrado puede no reflejar el host.`,
       );
     } finally {
-      setIsStopping(false);
+      if (isCurrent()) setIsStopping(false);
     }
   };
 
   const handleSmokeTest = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || isBusy || !hasRuntime) return;
+    const isCurrent = requestScope();
     setIsTesting(true);
     try {
       const res = await devopsService.runSmokeTest(activeSessionId, hostPort);
+      if (!isCurrent()) return;
       setSmokeResult(res);
+      await fetchStatus();
     } catch (err) {
+      if (!isCurrent()) return;
       // SKIPPED, not SUCCESS. This used to fabricate a pass -- status 'SUCCESS',
       // httpStatusCode 200, latencyMs 14, "Endpoint de salud verificado" -- on any
       // failure, so pressing "Ejecutar Smoke Test" reported a healthy service that
@@ -322,9 +407,41 @@ export const DevOpsDeploymentView: React.FC = () => {
           `No se contactó ningún endpoint, así que esto no dice nada sobre el servicio ` +
           `(ni bueno ni malo). Comprueba que el contenedor está desplegado.`,
       });
+      await fetchStatus();
     } finally {
-      setIsTesting(false);
+      if (isCurrent()) setIsTesting(false);
     }
+  };
+
+  const handleLifecycle = async (cleanup: boolean) => {
+    if (!activeSessionId || isSourceOnly || isBusy || (cleanup && !deleteDataConfirmed)) return;
+    const isCurrent = requestScope();
+    setIsDeploying(true);
+    setSmokeResult(null); setRestResponse(null); setOrders([]);
+    try {
+      const result = cleanup ? await devopsService.cleanupLocal(activeSessionId, true) : await devopsService.restartLocal(activeSessionId);
+      if (!isCurrent()) return;
+      setDeployment(result); setHostPort(result.hostPort);
+      setFeedback(result.errorMessage || result.message || `Estado: ${result.status}`);
+      setDeleteDataConfirmed(false);
+      await reloadCurrentOverview();
+    } catch (err: any) {
+      if (isCurrent()) setFeedback(err.response?.data?.detail || err.message || 'Operación no confirmada. Consulte el estado.');
+    } finally { if (isCurrent()) setIsDeploying(false); }
+  };
+
+  const handleCancelOperation = async () => {
+    if (!activeSessionId || isSourceOnly || !deployment?.operationId || deployment.finishedAt || deployment.cancelRequested || isCancelling) return;
+    const isCurrent = requestScope();
+    setIsCancelling(true);
+    try {
+      const result = await devopsService.cancelLocal(activeSessionId, deployment.operationId);
+      if (!isCurrent()) return;
+      setDeployment(result);
+      setFeedback(result.errorMessage || result.message || 'Cancelación solicitada; espere el estado final.');
+    } catch (err: any) {
+      if (isCurrent()) setFeedback(err.response?.data?.detail || err.message || 'Cancelación no confirmada. Consulte el estado.');
+    } finally { if (isCurrent()) setIsCancelling(false); }
   };
 
   // The entity behind the selected resource path. Paths are the pluralised table name
@@ -386,7 +503,8 @@ export const DevOpsDeploymentView: React.FC = () => {
 
   const handleCreateRecordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeSessionId) return;
+    if (!activeSessionId || isBusy || !hasRuntime) return;
+    const isCurrent = requestScope(true);
     if (!crudPath) {
       setFeedback(
         'No se ha detectado ninguna ruta REST en este servicio todavía. ' +
@@ -432,7 +550,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     let actualStatus: string | null = null;
     let createdHttp: number | null = null;
     let failure: string | null = null;
-
+    setIsRequesting(true);
     try {
       // Through the platform, not the browser: a direct cross-origin call is rejected
       // by the generated service (no CORS), and `crudPath` is the path its controllers
@@ -442,6 +560,7 @@ export const DevOpsDeploymentView: React.FC = () => {
         path: crudPath,
         body: payload,
       });
+      if (!isCurrent()) return;
       if (result.error) {
         failure = result.error;
       } else if (result.statusCode && result.statusCode < 300) {
@@ -453,6 +572,7 @@ export const DevOpsDeploymentView: React.FC = () => {
         failure = `HTTP ${result.statusCode}`;
       }
     } catch (err: any) {
+      if (!isCurrent()) return;
       // The platform refuses an undeployed session with a 400 and a reason. Reading only
       // `err.message` reduced that to "Request failed with status code 400" and threw the
       // explanation away -- which is the whole reason the platform now states it.
@@ -460,6 +580,8 @@ export const DevOpsDeploymentView: React.FC = () => {
       failure =
         (typeof detail === 'string' ? detail : detail?.message) ||
         (err instanceof Error ? err.message : String(err));
+    } finally {
+      if (isCurrent()) setIsRequesting(false);
     }
 
     if (failure) {
@@ -490,7 +612,9 @@ export const DevOpsDeploymentView: React.FC = () => {
   };
 
   const handleSendCustomRest = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || isBusy || !hasRuntime) return;
+    const isCurrent = requestScope(true);
+    setIsRequesting(true);
     const t0 = performance.now();
     const cleanEndpoint = reqEndpoint.startsWith('/') ? reqEndpoint : `/${reqEndpoint}`;
 
@@ -509,6 +633,7 @@ export const DevOpsDeploymentView: React.FC = () => {
         path: cleanEndpoint,
         body: parsedBody,
       });
+      if (!isCurrent()) return;
       setRestLatency(result.latencyMs ?? Math.round(performance.now() - t0));
 
       if (result.error) {
@@ -520,7 +645,7 @@ export const DevOpsDeploymentView: React.FC = () => {
             `// ${reqMethod} ${result.url || cleanEndpoint}`,
             `// ${result.error}`,
             '',
-            '// Nada se ejecutó en el contenedor. Esto NO es una respuesta del API.',
+            '// No se recibió una respuesta confirmada; la operación podría haberse ejecutado.',
           ].join('\n'),
         );
         return;
@@ -536,6 +661,7 @@ export const DevOpsDeploymentView: React.FC = () => {
         setRestResponse((prev) => `${prev}\n\n// (respuesta truncada por el proxy)`);
       }
     } catch (err) {
+      if (!isCurrent()) return;
       // A console that invents a response is worse than one that shows nothing: the
       // operator reads `HTTP 200` and a JSON body and concludes the service answered.
       // This block used to fabricate 200/201/204 with canned bodies on ANY failure
@@ -550,42 +676,56 @@ export const DevOpsDeploymentView: React.FC = () => {
           `// ${reqMethod} ${cleanEndpoint}`,
           `// ${err instanceof Error ? err.message : String(err)}`,
           '',
-          '// Nada se ejecutó en el contenedor. Esto NO es una respuesta del API.',
+          '// No se recibió una respuesta confirmada; la operación podría haberse ejecutado.',
           `// Comprueba que el contenedor está en marcha en el puerto ${hostPort}`,
           '// (pestaña DevOps: "Desplegar Localmente") y que la ruta existe.',
         ].join('\n'),
       );
+    } finally {
+      if (isCurrent()) setIsRequesting(false);
     }
   };
 
-  const currentStatus = deployment?.status || 'STOPPED';
+  const currentStatus = deployment?.status || 'IDLE';
   const isRunning = currentStatus === 'RUNNING' || currentStatus === 'HEALTHY';
-  const isDockerUnavailable = currentStatus === 'DOCKER_UNAVAILABLE' || activeSession?.verificationOutcome === 'ENVIRONMENT_UNAVAILABLE';
   const isSourceOnly = activeSession?.executionMode === 'SOURCE_ONLY' || currentStatus === 'SKIPPED_BY_CHOICE';
+  const isDockerUnavailable = !isSourceOnly && (currentStatus === 'DOCKER_UNAVAILABLE' || (!deployment && activeSession?.verificationOutcome === 'ENVIRONMENT_UNAVAILABLE'));
+  const isBusy = !activeSessionId || isGenerating || isDeploying || isStopping || isCancelling || isTesting || isDiagnosing || isRequesting || currentStatus === 'BUILDING' || Boolean(deployment?.operationKind && !deployment.finishedAt);
+  const hasRuntime = !isSourceOnly && (isRunning || currentStatus === 'DEGRADED');
 
   const handleExecutionChoice = async (mode: 'SOURCE_ONLY' | 'DOCKER') => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || isBusy) return;
+    const isCurrent = requestScope();
     setIsTesting(true);
     try {
       await sessionService.changeExecutionMode(activeSessionId, mode);
+      if (!isCurrent()) return;
       const result = await sessionService.verify(activeSessionId);
+      if (!isCurrent()) return;
       setFeedback(result.status === 'COMPLETED' ? (mode === 'SOURCE_ONLY' ? 'Fuentes disponibles; ejecución omitida por elección.' : 'Verificación completada.') : 'Verificación pendiente. Consulte el estado de la sesión.');
       await Promise.all([fetchStatus(), refreshSessions(), reloadCurrentOverview()]);
-    } catch (err: any) { setFeedback(err.response?.data?.detail || err.message); }
-    finally { setIsTesting(false); }
+    } catch (err: any) { if (isCurrent()) setFeedback(err.response?.data?.detail || err.message); }
+    finally { if (isCurrent()) setIsTesting(false); }
   };
 
   return (
     <div className="space-y-6">
+      {!isSourceOnly && deployment?.operationKind && <div role="status" className="p-3 border rounded text-sm">
+        Operación: {deployment.operationKind} · Etapa: {deployment.operationPhase || 'Pendiente'}
+        {deployment.finishedAt ? ' · Finalizada' : ' · En curso'}
+        {!deployment.finishedAt && <button className="ml-3 underline" disabled={isCancelling || deployment.cancelRequested}
+          onClick={handleCancelOperation}>{deployment.cancelRequested ? 'Cancelación solicitada' : 'Cancelar operación local'}</button>}
+        {deployment.cancelRequested && <p>La solicitud no confirma que las tareas de Docker hayan terminado. Consulte el resultado final.</p>}
+      </div>}
       {isDockerUnavailable && <div role="status" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 text-sm">
         Despliegue no ejecutado: Docker no está disponible. Puede generar los manifiestos y continuar con la entrega del código; el servicio y las pruebas de ejecución no se muestran como aprobados.
         <div className="flex gap-3 mt-3">
-          <button disabled={isTesting} onClick={() => handleExecutionChoice('DOCKER')}>Reintentar</button>
-          <button disabled={isTesting} onClick={() => handleExecutionChoice('SOURCE_ONLY')}>Continuar sin Docker</button>
+          <button disabled={isBusy} onClick={() => handleExecutionChoice('DOCKER')}>Reintentar</button>
+          <button disabled={isBusy} onClick={() => handleExecutionChoice('SOURCE_ONLY')}>Continuar sin Docker</button>
         </div>
       </div>}
       {isSourceOnly && <div role="status" className="p-4 border rounded">{activeSession?.verificationOutcome === 'FAILED' ? 'Entrega de fuentes sin nueva ejecución. Las pruebas anteriores fallaron y su resultado se conserva.' : 'Sesión sin Docker: no se solicita ejecución. Puede exportar las fuentes auditadas; consulte el estado de verificación para conocer resultados anteriores.'}
-        <button className="ml-3 underline" disabled={isTesting} onClick={() => handleExecutionChoice('DOCKER')}>Activar Docker y verificar</button>
+        <button className="ml-3 underline" disabled={isBusy} onClick={() => handleExecutionChoice('DOCKER')}>Activar Docker y verificar</button>
       </div>}
       {/* 1. Status Banner & Metrics */}
       <SingleRowCard
@@ -606,41 +746,51 @@ export const DevOpsDeploymentView: React.FC = () => {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <button disabled={isSourceOnly || isDiagnosing || currentStatus === 'BUILDING'} onClick={async () => {
+            <label className="text-xs">Puerto local
+              <input aria-label="Puerto local" type="number" min={1024} max={65535} value={hostPort}
+                disabled={isBusy || hasRuntime} className="ml-2 w-24 rounded border p-1"
+                onChange={event => { portEdited.current = true; setHostPort(Number(event.target.value)); }} />
+            </label>
+            {projectConfiguration && <span className="text-xs text-slate-500">
+              Build: {projectConfiguration.buildTool} · BD configurada: {projectConfiguration.databaseEngine}
+            </span>}
+            <button disabled={isSourceOnly || isBusy} onClick={async () => {
               if (!activeSessionId) return;
               const identity = activeSessionId;
+              const isCurrent = requestScope();
               setIsDiagnosing(true);
               try {
                 const result = await devopsService.getDiagnostics(identity);
-                if (sessionRef.current === identity) setDiagnostics(result);
+                if (isCurrent()) setDiagnostics(result);
               } catch {
-                if (sessionRef.current === identity) setFeedback('No se pudo consultar el diagnóstico Docker. Reintente.');
+                if (isCurrent()) setFeedback('No se pudo consultar el diagnóstico Docker. Reintente.');
               } finally {
-                if (sessionRef.current === identity) setIsDiagnosing(false);
+                if (isCurrent()) setIsDiagnosing(false);
               }
             }} className="py-2 px-3 border rounded text-xs">{isDiagnosing ? 'Consultando entorno...' : 'Diagnosticar Docker'}</button>
             {diagnostics?.sessionId === activeSessionId && <div className="text-xs space-y-2" aria-label="Diagnóstico Docker">
               {diagnostics.checks.map((check, index) => <p key={index}>{check.status === 'AVAILABLE' ? '✓' : '•'} {check.detail}</p>)}
               <p>Este diagnóstico no sustituye la compilación ni las pruebas offline del microservicio.</p>
             </div>}
-            <button disabled={isSourceOnly || isDeploying || currentStatus === 'BUILDING'} onClick={async () => {
+            <button disabled={isSourceOnly || isBusy} onClick={async () => {
               if (!activeSessionId) return;
+              const isCurrent = requestScope();
               setIsDeploying(true);
-              try { const result = await devopsService.prepareLocal(activeSessionId); setDeployment(result); setFeedback(result.errorMessage || result.message || 'Preparación inicial solicitada.'); }
-              catch (err: any) { setFeedback(err.response?.data?.detail || err.message); }
-              finally { setIsDeploying(false); }
+              try { const result = await devopsService.prepareLocal(activeSessionId); if (!isCurrent()) return; setDeployment(result); setFeedback(result.errorMessage || result.message || 'Preparación inicial solicitada.'); }
+              catch (err: any) { if (isCurrent()) setFeedback(err.response?.data?.detail || err.message); }
+              finally { if (isCurrent()) setIsDeploying(false); }
             }} className="py-2 px-3 border rounded text-xs">Preparar Docker con conexión</button>
-            <button disabled={isSourceOnly || isTesting || currentStatus === 'BUILDING'} onClick={() => handleExecutionChoice('DOCKER')} className="py-2 px-3 border rounded text-xs">Verificar fuentes con Docker</button>
+            <button disabled={isSourceOnly || isBusy} onClick={() => handleExecutionChoice('DOCKER')} className="py-2 px-3 border rounded text-xs">Verificar fuentes con Docker</button>
             <button
               onClick={handleGenerateManifests}
-              disabled={isGenerating}
+              disabled={isBusy}
               className="py-2 px-3.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
             >
               ⚙️ Generar Manifiestos DevOps
             </button>
             <button
               onClick={handleDeployLocal}
-              disabled={isDeploying || isSourceOnly || currentStatus === 'BUILDING'}
+              disabled={isBusy || isSourceOnly}
               className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -648,23 +798,27 @@ export const DevOpsDeploymentView: React.FC = () => {
             </button>
             <button
               onClick={handleSmokeTest}
-              disabled={isTesting || !isRunning}
+              disabled={isBusy || !hasRuntime}
               className="py-2 px-3.5 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
             >
               🧪 Ejecutar Smoke Test
             </button>
             <button
               onClick={handleStopContainers}
-              disabled={isStopping || !isRunning}
+              disabled={isBusy || !hasRuntime}
               className="py-2 px-3.5 rounded-lg text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 hover:bg-rose-100 transition-colors"
             >
               🛑 Detener
             </button>
+            <button disabled={isBusy || isSourceOnly || isDockerUnavailable || !deployment?.containerId}
+              onClick={() => handleLifecycle(false)} className="py-2 px-3 border rounded text-xs">Reiniciar conservando datos</button>
           </div>
         }
       >
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
           {deployment?.message && <span>{deployment.message}</span>}
+          {deployment?.errorMessage && <span role="alert">{deployment.errorMessage}</span>}
+          <span>{isSourceOnly ? 'Despliegue omitido por elección.' : currentStatus === 'BUILDING' ? 'Operación en curso; aún no aprobada.' : currentStatus === 'HEALTHY' ? 'Salud del servicio aprobada.' : currentStatus === 'FAILED' ? 'Despliegue fallido.' : currentStatus === 'DEGRADED' ? 'Servicio degradado; consulte salud y logs.' : 'Despliegue pendiente o detenido.'}</span>
           <span>
             Puerto Mapeado: <strong className="text-slate-900 dark:text-white">{deployment ? `${hostPort}:8080` : '—'}</strong>
           </span>
@@ -674,7 +828,7 @@ export const DevOpsDeploymentView: React.FC = () => {
           </span>
           <span>•</span>
           <span>
-            Base de Datos: <strong className="text-slate-900 dark:text-white">{projectOverview?.databaseEngine || '—'}</strong>
+            Base de Datos: <strong className="text-slate-900 dark:text-white">{deployment?.dbEngine || 'No confirmado'}</strong>
           </span>
         </div>
 
@@ -694,6 +848,16 @@ export const DevOpsDeploymentView: React.FC = () => {
             )}
           </div>
         )}
+
+        {!isSourceOnly && activeSessionId && <div className="mt-3 space-y-2 text-xs">
+          <label className="flex gap-2 items-center">
+            <input type="checkbox" checked={deleteDataConfirmed} disabled={isBusy}
+              onChange={event => setDeleteDataConfirmed(event.target.checked)} />
+            Confirmo eliminar los datos y recursos Docker de esta sesión.
+          </label>
+          <button disabled={isBusy || !deleteDataConfirmed || isDockerUnavailable}
+            onClick={() => handleLifecycle(true)} className="py-2 px-3 border rounded text-rose-700">Eliminar datos y recursos de esta sesión</button>
+        </div>}
 
         {smokeResult && (
           // Styled by outcome. This was unconditional emerald with a check, so a FAILURE
@@ -758,7 +922,7 @@ export const DevOpsDeploymentView: React.FC = () => {
               title="Derivado del estado de despliegue, no de una comprobación propia"
             >
               {isRunning
-                ? `PostgreSQL + Spring Boot 3 conectados (${currentStatus})`
+                ? `Aplicación ${currentStatus} · BD ${deployment?.dbEngine || 'no confirmada'}`
                 : `Sin conexión verificada — estado: ${currentStatus}`}
             </span>
           </div>
@@ -768,7 +932,7 @@ export const DevOpsDeploymentView: React.FC = () => {
           {/* Gestor Visual de Órdenes */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              📋 Crear registro{targetEntity ? ` · ${targetEntity.name}` : ''} (CRUD en PostgreSQL)
+              📋 Crear registro{targetEntity ? ` · ${targetEntity.name}` : ''} (CRUD)
             </h4>
 
             {/* The resource is chosen, not assumed: discovery lists what the service
@@ -840,10 +1004,10 @@ export const DevOpsDeploymentView: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={createFields.length === 0}
+                disabled={createFields.length === 0 || isBusy || !hasRuntime}
                 className="w-full py-2 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition-colors"
               >
-                💾 Guardar en PostgreSQL
+                💾 Guardar registro
               </button>
             </form>
 
@@ -899,6 +1063,7 @@ export const DevOpsDeploymentView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSendCustomRest}
+                disabled={isBusy || !hasRuntime}
                 className="px-4 py-1.5 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -939,13 +1104,17 @@ export const DevOpsDeploymentView: React.FC = () => {
       <div className="space-y-2">
         <h3 className="text-base font-semibold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
           <Terminal className="w-4 h-4 text-slate-600" />
-          <span>3. Terminal de Despliegue en Vivo (Docker & Spring Logs)</span>
+          <span>3. Registro de Despliegue</span>
         </h3>
+        <p role="status" className="text-xs text-slate-500">
+          {!activeSessionId ? 'Selecciona una sesión para consultar su registro.' : logConnection === 'connected' ? 'Conectado al registro de despliegue.' :
+            logConnection === 'recovering' ? 'Recuperando conexión e historial…' : 'Conectando al registro…'}
+        </p>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 h-48 overflow-y-auto space-y-1 shadow-inner">
           {terminalLogs.length === 0 ? (
             <div className="text-slate-500 italic py-2">
-              [system] Esperando inicio del contenedor. Presione "🚀 Desplegar Localmente" para compilar la imagen Docker y lanzar los logs del contenedor.
+              No hay mensajes de despliegue registrados para esta sesión.
             </div>
           ) : (
             terminalLogs.map((line, idx) => (
@@ -1029,7 +1198,7 @@ export const DevOpsDeploymentView: React.FC = () => {
         {activeManifestTab === 'compose' && (
           devopsFiles['docker-compose.yml'] ? (
             <CodeViewer code={devopsFiles['docker-compose.yml']} language="yaml"
-                        filename="docker-compose.yml (Spring Boot + PostgreSQL)" maxHeight="max-h-80" />
+                        filename="docker-compose.yml" maxHeight="max-h-80" />
           ) : (
             <MissingArtifact path="docker-compose.yml" />
           )

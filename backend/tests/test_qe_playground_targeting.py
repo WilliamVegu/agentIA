@@ -65,7 +65,11 @@ def test_the_route_reports_a_refusal_as_400_not_500():
 
     from app.main import app
 
-    with patch("app.api.routes_devops.forward", side_effect=playground_proxy.PlaygroundProxyError(
+    # Authenticate the test and resolve its workspace so the refusal handler is reached.
+    # A 401/404 before forwarding would not exercise the intended contract.
+    with patch('app.main.authenticated_user', return_value={'username': 'test'}), \
+         patch('app.api.routes_devops._resolve_session_context', return_value=(None, None)), \
+         patch("app.api.routes_devops.forward", side_effect=playground_proxy.PlaygroundProxyError(
         "this session has no container of its own (state: IDLE)."
     )):
         response = TestClient(app, raise_server_exceptions=False).post(
@@ -73,6 +77,6 @@ def test_the_route_reports_a_refusal_as_400_not_500():
             json={"method": "GET", "path": "/api/v1/things"},
         )
 
-    assert response.status_code in (400, 404), (
+    assert response.status_code == 400, (
         "a refused forward must not surface as a 500"
     )

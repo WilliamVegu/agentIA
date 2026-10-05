@@ -19,30 +19,44 @@ def prepare_local(session_id, workspace, database):
         return docker_service.get_deployment_status(session_id)
     row = LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.BUILDING, operationId=str(uuid.uuid4()), message='Preparación inicial online en curso. No constituye verificación offline.')
     docker_service._active_deployments[session_id] = row
+    from app.services.local_operations import register, phase, finish
+    control = register(row, 'PREPARE')
     try:
+        from app.services.dependency_inputs import dependency_manifest
+        requested_dependencies = dependency_manifest(workspace)
+        requested_builder = builder_image(workspace)
         persist(row)
     except Exception as exc:
         row.status, row.errorMessage = DeploymentStatus.FAILED, str(exc)
+        finish(row)
         lock.release()
         raise
     def worker():
         try:
+            from app.services.gradle_compatibility import validate_gradle_version
+            validate_gradle_version(workspace)
             commands = [
-                ['docker', 'build', '--pull', '-f', 'Dockerfile.prepare', '-t', builder_image(workspace), '.'],
+                ['docker', 'build', '--pull', '-f', 'Dockerfile.prepare', '-t', requested_builder, '.'],
                 ['docker', 'build', '--pull', '-f', 'Dockerfile.runtime', '-t', 'agentia-runtime:21-v1', '.'],
             ]
             if DATABASE_IMAGES[database]: commands.append(['docker', 'pull', DATABASE_IMAGES[database]])
             for command in commands:
+                phase(row, 'PREPARE', control)
+                if dependency_manifest(workspace) != requested_dependencies:
+                    raise RuntimeError('Dependencias cambiadas durante preparación; regenere activos y repita la preparación explícita.')
                 docker_service._log_message(session_id, '[PREPARE] ' + ' '.join(command))
-                result = subprocess.run(command, cwd=workspace, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=900, check=False)
-                for line in (result.stdout + '\n' + result.stderr).splitlines()[-1000:]:
-                    docker_service._log_message(session_id, line)
-                if result.returncode: raise RuntimeError((result.stderr or result.stdout or 'Preparación falló')[-2000:])
+                docker_service.run_logged(command,
+                    lambda line: docker_service._log_message(session_id, line, source='prepare'),
+                    cwd=workspace, timeout=docker_service.settings.LOCAL_PREPARE_TIMEOUT, cancel_event=control)
+            if dependency_manifest(workspace) != requested_dependencies:
+                raise RuntimeError('Dependencias cambiadas durante preparación; no se acredita entorno preparado.')
+            phase(row, 'COMPLETE', control)
             row.status, row.message = DeploymentStatus.IDLE, 'Imágenes y dependencias preparadas. Ejecute Verificar fuentes con Docker para demostrar el resultado offline.'
         except Exception as exc:
             row.status, row.errorMessage = DeploymentStatus.FAILED, str(exc)
             docker_service._log_message(session_id, '[PREPARE FAILED] ' + str(exc))
         finally:
+            finish(row)
             try:
                 persist(row)
             finally:
@@ -51,6 +65,7 @@ def prepare_local(session_id, workspace, database):
         threading.Thread(target=worker, daemon=True).start()
     except Exception as exc:
         row.status, row.errorMessage = DeploymentStatus.FAILED, str(exc)
+        finish(row)
         try:
             persist(row)
         finally:

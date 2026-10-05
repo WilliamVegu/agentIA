@@ -19,6 +19,7 @@ import { useStudio } from '../context/StudioContext';
 import { useSSE, SSELogEvent } from '../hooks/useSSE';
 import { sessionService } from '../services/sessionService';
 import apiClient from '../services/apiClient';
+import { VerificationStatus, verificationMessage } from '../components/common/VerificationStatus';
 
 const LANGGRAPH_STAGES = [
   { key: 'SCAFFOLDING', label: '1. Scaffolding', desc: 'Arquetipo Maven pom.xml y estructura' },
@@ -50,11 +51,16 @@ export const GenerationMonitorView: React.FC = () => {
   const [isTriggering, setIsTriggering] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
   const [livePhase, setLivePhase] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const scope = useRef({ id: activeSessionId, revision: 0 });
+  if (scope.current.id !== activeSessionId) scope.current = { id: activeSessionId, revision: scope.current.revision + 1 };
   const terminalEndRef = useRef<HTMLDivElement | null>(null);
 
   // Instantly reset live phase on session switch
   useEffect(() => {
     setLivePhase(null);
+    setCompletion(null);
+    setIsTriggering(false); setIsCanceling(false); setActionError(null);
   }, [activeSessionId]);
 
   // Instantly refresh sessions & overview upon receiving completion or milestone events
@@ -96,6 +102,7 @@ export const GenerationMonitorView: React.FC = () => {
   }, [logs, autoScroll]);
 
   const handleStartGeneration = async () => {
+    const revision = scope.current.revision;
     setIsTriggering(true);
     try {
       const specToUse = currentSpecId || activeSession?.specId;
@@ -104,28 +111,32 @@ export const GenerationMonitorView: React.FC = () => {
         return;
       }
       const resp = await apiClient.post('/sessions', { specId: specToUse });
+      if (revision !== scope.current.revision) return;
       const sessId = resp.data?.sessionId || resp.data?.session_id;
       await refreshSessions();
+      if (revision !== scope.current.revision) return;
       if (sessId) {
         selectSession(sessId);
       }
     } catch (err: any) {
-      console.error('Error starting generation session:', err);
+      if (revision === scope.current.revision) setActionError('No se pudo confirmar el inicio de generación. Consulte las sesiones antes de reintentar.');
     } finally {
-      setIsTriggering(false);
+      if (revision === scope.current.revision) setIsTriggering(false);
     }
   };
 
   const handleCancelSession = async () => {
     if (!activeSessionId) return;
+    const revision = scope.current.revision;
     setIsCanceling(true);
     try {
       await sessionService.cancelSession(activeSessionId);
+      if (revision !== scope.current.revision) return;
       await refreshSessions();
     } catch {
-      // Fallback
+      if (revision === scope.current.revision) setActionError('Cancelación no confirmada. Consulte el estado antes de reintentar.');
     } finally {
-      setIsCanceling(false);
+      if (revision === scope.current.revision) setIsCanceling(false);
     }
   };
 
@@ -146,11 +157,15 @@ export const GenerationMonitorView: React.FC = () => {
   // The configured cap, shared with the repair history header so the two cannot disagree.
   const repairAttemptsLimit = (lastEvent as { maxIterations?: number } | null)?.maxIterations ?? 5;
   const isCompleted = currentStatus === 'COMPLETED';
+  const isSourceOnly = activeSession?.executionMode === 'SOURCE_ONLY';
+  const verificationPassed = activeSession?.verificationOutcome === 'PASSED';
   const isBlocked = currentStatus === 'BLOCKED';
   const isActiveRunning = currentStatus === 'RUNNING' || currentStatus === 'QUEUED';
 
   return (
     <div className="space-y-6">
+      <VerificationStatus session={activeSession} />
+      {actionError && <p role="alert">{actionError}</p>}
       {/* Top Status Card */}
       <SingleRowCard
         title="Monitor en Vivo: Orquestación LangGraph"
@@ -184,7 +199,7 @@ export const GenerationMonitorView: React.FC = () => {
               {(!activeSessionId || !isActiveRunning || (currentSpecId && activeSession?.specId !== currentSpecId)) && (
                 <button
                   onClick={handleStartGeneration}
-                  disabled={isTriggering || (!currentSpecId && !activeSession?.specId)}
+                  disabled={isTriggering || isCanceling || (!currentSpecId && !activeSession?.specId)}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
@@ -194,7 +209,7 @@ export const GenerationMonitorView: React.FC = () => {
               {activeSessionId && isActiveRunning && (
                 <button
                   onClick={handleCancelSession}
-                  disabled={isCanceling}
+                  disabled={isCanceling || isTriggering}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 hover:bg-rose-100 transition-colors flex items-center gap-1.5"
                 >
                   <Square className="w-3.5 h-3.5 fill-current" />
@@ -244,14 +259,14 @@ export const GenerationMonitorView: React.FC = () => {
           <div className="mt-1">
             <span
               className={`px-2 py-0.5 rounded text-[11px] font-bold font-mono ${
-                isCompleted
+                verificationPassed
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                   : isBlocked
                   ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                   : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
               }`}
             >
-              {currentStatus}
+              {activeSession?.verificationOutcome || (isSourceOnly ? 'SKIPPED_BY_CHOICE' : 'PENDING')}
             </span>
           </div>
         </div>
@@ -290,9 +305,10 @@ export const GenerationMonitorView: React.FC = () => {
           const rawPhase = (livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || '').toUpperCase();
           const currentStageIndex = PHASE_TO_STAGE_INDEX[rawPhase] ?? (isQueued ? -1 : 0);
 
-          const isDone = isCompleted || idx < currentStageIndex;
-          const isActive = !isCompleted && !isBlocked && idx === currentStageIndex;
-          const isFailedStage = isBlocked && idx === currentStageIndex;
+          const isSkipped = isSourceOnly && idx >= 3;
+          const isDone = !isSkipped && (idx >= 3 ? verificationPassed && (idx !== 4 || repairs > 0) : isCompleted || idx < currentStageIndex);
+          const isActive = !isSkipped && !isCompleted && !isBlocked && idx === currentStageIndex;
+          const isFailedStage = !isSkipped && ((isBlocked && idx === currentStageIndex) || (activeSession?.verificationOutcome === 'FAILED' && idx === 3));
 
           return (
             <div
@@ -319,7 +335,7 @@ export const GenerationMonitorView: React.FC = () => {
                   <Clock className="w-4 h-4 text-slate-400" />
                 )}
               </div>
-              <p className="text-[11px] opacity-80 leading-snug">{st.desc}</p>
+              <p className="text-[11px] opacity-80 leading-snug">{isSkipped ? 'Omitida por elección; no acredita ejecución.' : st.desc}</p>
             </div>
           );
         })}
@@ -331,7 +347,7 @@ export const GenerationMonitorView: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             <h4 className="text-base font-bold">
-              🎉 ¡Microservicio Generado y Verificado al 100%!
+              {verificationPassed ? 'Microservicio generado; pruebas de ejecución aprobadas.' : 'Generación completada; consulte el resultado de verificación.'}
             </h4>
           </div>
           {/* Counts come from the session the backend reported, never from literals.
@@ -361,11 +377,7 @@ export const GenerationMonitorView: React.FC = () => {
               <strong className="text-amber-700 dark:text-amber-300">
                 verificación sustituida: el sandbox no emitió un veredicto propio
               </strong>
-            ) : completion ? (
-              'Sandbox verificado sin errores.'
-            ) : (
-              'Estado de verificación no disponible.'
-            )}
+            ) : verificationMessage(activeSession)}
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <button

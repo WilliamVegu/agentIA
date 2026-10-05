@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from app.models.devops import DatabaseEngine, DevOpsManifestBundle
 
 
-def generate_dockerfile(service_name: str = "microservice", build_tool: str = "maven", prepared_image: str = "agentia-builder:prepare-first") -> str:
+def generate_dockerfile(service_name: str = "microservice", build_tool: str = "maven", prepared_image: str = "agentia-builder:prepare-first", build_directory: str = '.') -> str:
     from app.services.local_deployment_assets import dockerfile
-    return dockerfile(build_tool, prepared_image)
+    return dockerfile(build_tool, prepared_image, build_directory)
 
 
 
@@ -303,7 +303,21 @@ def generate_all_devops_assets(
     session_id: str,
     service_name: str = "microservice",
     db_engine: Optional[str] = None,
-    host_port: int = 8080
+    host_port: Optional[int] = None
+) -> DevOpsManifestBundle:
+    from app.services.asset_generation import generate_safely
+    from app.services.local_configuration import resolve_configuration
+    config = resolve_configuration(workspace_dir, session_id, db_engine, host_port)
+    return generate_safely(workspace_dir, session_id, _write_devops_assets,
+                           service_name=service_name, db_engine=config['databaseEngine'], host_port=config['hostPort'])
+
+
+def _write_devops_assets(
+    workspace_dir: str,
+    session_id: str,
+    service_name: str = "microservice",
+    db_engine: Optional[str] = None,
+    host_port: int = 8080,
 ) -> DevOpsManifestBundle:
     """Generates and writes all Docker, Compose, CI/CD, and Kubernetes assets to the session workspace."""
     ws = Path(workspace_dir)
@@ -322,7 +336,8 @@ def generate_all_devops_assets(
         service_name = "service-" + (service_name or "app")
 
     # 1. Dockerfile & .dockerignore
-    build_tool = "gradle" if (ws / "build.gradle").exists() or (ws / "build.gradle.kts").exists() else "maven"
+    from app.services.build_layout import build_layout
+    build_tool, build_directory, build_manifest = build_layout(ws)
     dockerfile = generate_dockerfile(service_name, build_tool)
     dockerignore = generate_dockerignore()
     (ws / "Dockerfile").write_text(dockerfile, encoding="utf-8")
@@ -355,14 +370,19 @@ def generate_all_devops_assets(
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>""")
+        elif db_engine.upper() == "H2" and "com.h2database" not in pom_text:
+            deps_to_add.append('''        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>''')
         if deps_to_add and "</dependencies>" in pom_text:
             injection = "\n" + "\n".join(deps_to_add) + "\n    </dependencies>"
             pom_text = pom_text.replace("</dependencies>", injection, 1)
             pom_path.write_text(pom_text, encoding="utf-8")
 
     if build_tool == "gradle":
-        gradle_root = ws / "bootstrap" if (ws / "bootstrap/build.gradle").exists() else ws
-        gradle_file = gradle_root / ("build.gradle.kts" if (gradle_root / "build.gradle.kts").exists() else "build.gradle")
+        gradle_file = build_manifest
         text = gradle_file.read_text(encoding="utf-8")
         dependencies = []
         kotlin = gradle_file.suffix == ".kts"
@@ -376,15 +396,17 @@ def generate_all_devops_assets(
             dependencies.append(dependency("runtimeOnly", "org.postgresql:postgresql"))
         if db_engine.upper() == "MYSQL" and "com.mysql" not in text:
             dependencies.append(dependency("runtimeOnly", "com.mysql:mysql-connector-j"))
+        if db_engine.upper() == "H2" and "com.h2database:h2" not in text:
+            dependencies.append(dependency("runtimeOnly", "com.h2database:h2"))
         if dependencies:
             gradle_file.write_text(text + "\ndependencies {\n" + "\n".join(dependencies) + "\n}\n", encoding="utf-8")
 
     from app.services.local_database_migrations import write_migrations
     write_migrations(ws, db_engine)
     from app.services.local_deployment_assets import builder_image, write_windows_scripts
-    dockerfile = generate_dockerfile(service_name, build_tool, builder_image(ws))
+    dockerfile = generate_dockerfile(service_name, build_tool, builder_image(ws), build_directory)
     (ws / "Dockerfile").write_text(dockerfile, encoding="utf-8")
-    write_windows_scripts(ws, build_tool, db_engine)
+    write_windows_scripts(ws, build_tool, db_engine, host_port)
     from app.services.offline_kit_assets import write_kit_scripts
     write_kit_scripts(ws, db_engine)
 

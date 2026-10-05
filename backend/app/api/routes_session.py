@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from app.config import settings
-from app.models.execution import ExecutionMode
+from app.models.execution import ExecutionMode, ExecutionModeResponse, SessionVerificationResponse
 from app.services.execution_policy import execution_mode
 from app.services.verification_policy import verification_outcome
 from app.models.session import (
@@ -53,7 +53,7 @@ class ExecutionModeRequest(BaseModel):
     executionMode: ExecutionMode
 
 
-@router.patch("/{session_id}/execution-mode")
+@router.patch("/{session_id}/execution-mode", response_model=ExecutionModeResponse)
 async def change_execution_mode(session_id: str, payload: ExecutionModeRequest):
     from app.services import docker_service
     import threading
@@ -84,7 +84,7 @@ def _change_execution_mode(session_id: str, payload: ExecutionModeRequest):
     return {"sessionId": session_id, "executionMode": payload.executionMode.value}
 
 
-@router.post("/{session_id}/verify")
+@router.post("/{session_id}/verify", response_model=SessionVerificationResponse)
 async def retry_session_verification(session_id: str):
     from app.services.session_execution import verify_existing_sources
     return await asyncio.to_thread(verify_existing_sources, session_id)

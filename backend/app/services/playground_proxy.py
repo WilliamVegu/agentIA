@@ -69,7 +69,7 @@ class PlaygroundProxyError(ValueError):
     """The request was refused before it was forwarded."""
 
 
-def _resolve_port(session_id: str) -> int:
+def _resolve_deployment(session_id: str):
     """The port THIS session's deployment published. Never from the caller.
 
     Refuses when the session has no container of its own. It used to fall back to the
@@ -98,7 +98,13 @@ def _resolve_port(session_id: str) -> int:
         raise PlaygroundProxyError(
             f"the deployment for this session does not publish a port (state: {state})."
         )
-    return int(port)
+    if not 1024 <= int(port) <= 65535:
+        raise PlaygroundProxyError('El puerto publicado está fuera del rango local admitido.')
+    return deployment
+
+
+def _resolve_port(session_id: str) -> int:
+    return int(_resolve_deployment(session_id).hostPort)
 
 
 def normalise_path(path: str) -> str:
@@ -163,7 +169,10 @@ def forward(
             f"method '{verb}' is not allowed; permitted: {', '.join(sorted(ALLOWED_METHODS))}"
         )
 
-    url = build_target_url(session_id, path)
+    safe_path = normalise_path(path)
+    deployment = _resolve_deployment(session_id)
+    identity = (deployment.containerId, deployment.hostPort, deployment.databaseContainerId)
+    url = f'http://127.0.0.1:{deployment.hostPort}{safe_path}'
     started = time.perf_counter()
 
     try:
@@ -191,6 +200,14 @@ def forward(
         }
 
     latency_ms = int((time.perf_counter() - started) * 1000)
+    try:
+        current = _resolve_deployment(session_id)
+        unchanged = (current.containerId, current.hostPort, current.databaseContainerId) == identity
+    except (PlaygroundProxyError, OSError, RuntimeError, ValueError):
+        unchanged = False
+    if not unchanged:
+        return {'statusCode': None, 'url': url, 'latencyMs': latency_ms, 'body': None,
+                'error': 'La identidad cambió durante la petición; respuesta descartada. La petición pudo ejecutarse antes del cambio.'}
     raw = response.content or b""
     truncated = len(raw) > MAX_RESPONSE_BYTES
     text = raw[:MAX_RESPONSE_BYTES].decode("utf-8", errors="replace")

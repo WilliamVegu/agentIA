@@ -33,6 +33,7 @@ def test_build_docker_cmd_structure():
     assert "docker" == cmd[0]
     assert "run" == cmd[1]
     assert "--rm" in cmd
+    assert cmd[cmd.index("--pull") + 1] == "never"
     assert "--network" in cmd
     assert "none" in cmd[cmd.index("--network") + 1]
     assert "mvn" in cmd
@@ -48,6 +49,15 @@ def test_docker_execution_result_model():
     )
     assert result.is_success is True
     assert result.exit_code == 0
+
+
+@pytest.mark.parametrize('prepared', [False, True])
+@pytest.mark.parametrize('tool', ['maven', 'gradle'])
+def test_every_offline_sandbox_path_forbids_implicit_image_pull(tmp_path, prepared, tool):
+    (tmp_path / ('pom.xml' if tool == 'maven' else 'build.gradle')).write_text('')
+    cmd = build_docker_cmd(str(tmp_path), str(tmp_path / 'cache'), prepared=prepared)
+    assert cmd[cmd.index('--pull') + 1] == 'never'
+    assert cmd[cmd.index('--network') + 1] == 'none'
 
 @pytest.mark.anyio
 async def test_run_docker_sandbox_daemon_offline_fallback(monkeypatch, tmp_path, permissive_sandbox):

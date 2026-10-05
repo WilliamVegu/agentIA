@@ -12,8 +12,7 @@ import time
 import uuid
 from pathlib import Path
 import requests
-from app.orchestrator.stages.deterministic import scaffolder, domain, service, controller, test_synthesis
-from app.services.devops_service import generate_all_devops_assets
+from scripts.local_microservice_fixture import create_fixture
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--build', choices=['maven', 'gradle'], default='maven')
@@ -28,26 +27,9 @@ ws = root / identity
 ws.mkdir()
 report = {'project': identity, 'workspace': str(ws), 'build': options.build, 'database': options.database, 'steps': [], 'offlineGlobalVerified': False}
 (root / 'latest.json').write_text(json.dumps(report), encoding='utf-8')
-blueprint = {'serviceName': 'probe-service', 'packageName': 'com.example.probe', 'basePort': 8080,
-             'databaseMode': options.database, 'inputInterface': {'buildToolPreference': options.build},
-             'entities': [{'name': 'Item', 'tableName': 'items', 'attributes': [
-                 {'name': 'id', 'type': 'Long', 'isPrimaryKey': True, 'nullable': False},
-                 {'name': 'name', 'type': 'String', 'nullable': False}]}], 'userStories': []}
-state = {'blueprint': blueprint, 'workspace_path': str(ws), 'generated_files': {}, 'logs': []}
-if options.seed:
-    blueprint['entities'][0]['tableName'] = 'inventory_records'
-    blueprint['entities'][0]['attributes'].extend([
-        {'name': 'amount', 'type': 'BigDecimal', 'nullable': False},
-        {'name': 'requestedAt', 'type': 'LocalDateTime', 'nullable': False}])
-for stage in (scaffolder, domain, service, controller, test_synthesis):
-    state.update(stage.emit(state))
-if options.seed:
-    from types import SimpleNamespace
-    from app.services.lifecycle_artifacts import _entities_from_blueprint
-    from app.services.model_sql_service import schema_sql_from_draft
-    (ws / 'schema.sql').write_text(schema_sql_from_draft(SimpleNamespace(entities=_entities_from_blueprint(blueprint)), options.database), encoding='utf-8')
-    (ws / 'data.sql').write_text("INSERT INTO inventory_records(name,amount,requested_at) VALUES ('Semilla',7.50,'2026-10-04 10:00:00');\n", encoding='utf-8')
-generate_all_devops_assets(str(ws), identity, 'probe-service', db_engine=options.database, host_port=19080)
+fixture = create_fixture(ws, options.build, options.database, seed=options.seed, identity=identity, host_port=19080)
+report['fixtureCatalogVersion'] = fixture['catalogVersion']
+report['sourceHashes'] = fixture['files']
 # Ephemeral test credentials, never saved to the source tree/report or printed.
 os.environ['DB_PASSWORD'] = uuid.uuid4().hex
 os.environ['DB_ROOT_PASSWORD'] = uuid.uuid4().hex
@@ -92,12 +74,16 @@ try:
         assert item['amount'] == 12.34 and item['requestedAt'] == payload['requestedAt'], item
     read = requests.get(base + '/api/v1/items/' + str(item['id']), timeout=5)
     assert read.status_code == 200 and read.json()['name'] == 'Docker real'
+    updated_payload = {**payload, 'name': 'Updated fixture'}
+    updated = requests.put(base + '/api/v1/items/' + str(item['id']), json=updated_payload, timeout=5)
+    assert updated.status_code == 200 and updated.json()['name'] == 'Updated fixture', updated.text
+    payload['name'] = 'Updated fixture'
     invalid = requests.post(base + '/api/v1/items', json={'name': ''}, timeout=5)
     assert invalid.status_code == 400, invalid.text
     run('stop-preserve', [shell, '-NoProfile', '-NonInteractive', '-File', str(ws / 'stop-local.ps1')])
     run('restart-preserve', ['docker', 'compose', '-p', identity, 'up', '-d', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '180'])
     read = requests.get(base + '/api/v1/items/' + str(item['id']), timeout=5)
-    assert read.status_code == 200 and read.json()['name'] == 'Docker real', read.text
+    assert read.status_code == 200 and read.json()['name'] == 'Updated fixture', read.text
     if options.seed:
         rows = requests.get(base + '/api/v1/items', timeout=5).json()
         assert len(rows) == 2 and sum(row['name'] == 'Semilla' for row in rows) == 1, rows
@@ -106,7 +92,7 @@ try:
     deleted = requests.delete(base + '/api/v1/items/' + str(item['id']), timeout=5)
     assert deleted.status_code == 204, deleted.text
     assert requests.get(base + '/api/v1/items/' + str(item['id']), timeout=5).status_code == 404
-    report.update(result='PASS', localhost=base, crud=True, validation=True, persistence=True)
+    report.update(result='PASS', localhost=base, crud=True, update=True, validation=True, persistence=True)
 except Exception as exc:
     report.update(result='FAILED', error=str(exc))
     print(str(exc), flush=True)
@@ -123,3 +109,6 @@ finally:
     if options.report:
         options.report.parent.mkdir(parents=True, exist_ok=True)
         options.report.write_text(json.dumps(report, indent=2), encoding='utf-8')
+
+if report.get('result') != 'PASS':
+    raise SystemExit(1)

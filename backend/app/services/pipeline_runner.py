@@ -196,6 +196,16 @@ def cancel_pipeline(session_id: str) -> bool:
         _stop_events[session_id].set()
     if session_id in _pause_events:
         _pause_events[session_id].set()
+    # Signal only the exact active local deployment of this session. The pipeline
+    # cancellation does not certify that a task inside the daemon has stopped.
+    from app.services import docker_service as local_docker
+    active_deployment = local_docker._active_deployments.get(session_id)
+    if active_deployment and active_deployment.operationKind in ('DEPLOY', 'VERIFY') and not active_deployment.finishedAt:
+        from app.services.local_operations import request_cancel
+        try:
+            request_cancel(session_id, active_deployment.operationId)
+        except (ValueError, OSError):
+            pass  # A completed/replaced operation must not be cancelled by an old request.
     _pipeline_statuses[session_id] = PipelineRunStatus.CANCELLED
 
     db = SessionLocal()
@@ -694,12 +704,15 @@ def _execute_pipeline_steps(
                 "failedTests": ((counts.failures + counts.errors) if counts else 0),
                 # Fail closed: a build that reports success without printing a test
                 # summary has not demonstrated that any test ran.
-                "allPassed": bool(counts and counts.all_passed and counts.total > 0),
+                "allPassed": bool(verification.result.is_success and counts and counts.all_passed and counts.total > 0),
                 "fallback_used": bool(verification.result.fallback_used),
                 "verificationSkipped": bool(verification.result.verification_skipped),
+                "verificationInterrupted": bool(verification.result.verification_interrupted),
                 "fallback_reason": verification.result.fallback_reason,
                 "platformContractTestInjected": verification.platform_verified,
-                "workspaceFingerprint": workspace_fingerprint(ws_path),
+                "workspaceFingerprint": getattr(verification, 'workspace_fingerprint', None) or workspace_fingerprint(ws_path),
+                "verificationOutdated": getattr(verification, 'source_changed', False),
+                "sourceSnapshotId": getattr(verification, 'snapshot_id', None),
             }
 
         build_success = build_success and tests_really_passed(test_metrics)
@@ -817,14 +830,20 @@ def _execute_pipeline_steps(
             _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "Despliegue Local", 98.0, "Orquestando contenedores en Docker local...", PhaseStatus.IN_PROGRESS)
             from app.services.docker_service import wait_for_deployment
             deployment = deploy_local(session_id, str(ws_path))
-            deployment = wait_for_deployment(session_id) if deployment.status.value == "BUILDING" else deployment
+            deployment = wait_for_deployment(session_id, stop_event=stop_event) if deployment.status.value in ("BUILDING", "RUNNING") else deployment
+            if stop_event.is_set() or pause_event.is_set():
+                return
             if deployment.status.value != "HEALTHY":
+                reason = deployment.errorMessage or "El despliegue no alcanzó estado saludable."
+                _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, 'Despliegue pendiente de decisión', 98.0,
+                    reason + (' Reintentar o continuar sin Docker.' if deployment.status.value == 'DOCKER_UNAVAILABLE' else ''),
+                    PhaseStatus.BLOCKED, error=reason)
                 _pipeline_statuses[session_id] = PipelineRunStatus.AWAITING_INTERVENTION
                 with SessionLocal() as deploy_db:
                     row = deploy_db.get(GenerationSessionDB, session_id)
                     if row:
                         row.status = SessionStatus.PAUSED
-                        row.error_message = deployment.errorMessage or "El despliegue no alcanzó estado saludable."
+                        row.error_message = reason
                         deploy_db.commit()
                 return
         elif execution_mode(session_id) == ExecutionMode.SOURCE_ONLY:

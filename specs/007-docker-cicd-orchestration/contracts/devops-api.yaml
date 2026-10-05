@@ -1,8 +1,72 @@
 openapi: 3.1.0
 info:
-  title: AgentIA local deployment API
-  version: '2026-10-04'
+  title: AgentIA - Contratos de despliegue local
+  version: 2026.10.05
+  description: Generado desde FastAPI. SOURCE_ONLY por defecto. HTTP 200 no acredita
+    pruebas ni readiness. Consulte contracts/README.md.
+servers:
+- url: http://localhost:8000
 paths:
+  /api/v1/auth/mvp:
+    post:
+      tags:
+      - Authentication
+      summary: Enter Mvp
+      operationId: enter_mvp_api_v1_auth_mvp_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Login
+      operationId: login_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/session:
+    get:
+      tags:
+      - Authentication
+      summary: Session
+      operationId: session_api_v1_auth_session_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Authentication
+      summary: Logout
+      operationId: logout_api_v1_auth_logout_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /api/v1/sessions/{session_id}/execution-mode:
     patch:
       tags:
@@ -27,13 +91,20 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/ExecutionModeResponse'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '409':
+          description: Conflicto de operación/configuración; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/sessions/{session_id}/verify:
     post:
       tags:
@@ -52,13 +123,110 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/SessionVerificationResponse'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '409':
+          description: Conflicto de operación/configuración; consulte detail.
+      security:
+      - StudioSession: []
+  /api/v1/sessions:
+    get:
+      tags:
+      - Sessions
+      summary: List Sessions
+      description: Lists recent generation sessions ordered by creation date descending.
+      operationId: list_sessions_api_v1_sessions_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GenerationSessionListItem'
+                title: Response List Sessions Api V1 Sessions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
+    post:
+      tags:
+      - Sessions
+      summary: Create Generation Session
+      description: 'Triggers an autonomous generation session for an ingested specification.
+
+
+        Reads the caller''s LLM credentials from the same headers every other route
+
+        uses. Without them this route silently selected DETERMINISTIC mode and emitted
+
+        offline templates while `/quick-start` emitted model output (feature 011
+
+        follow-up), so a client could not tell which product it had received.'
+      operationId: create_generation_session_api_v1_sessions_post
+      parameters:
+      - name: X-LLM-API-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Llm-Api-Key
+      - name: X-LLM-Provider
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Llm-Provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationSessionSummary'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
   /api/v1/sessions/quick-start:
     post:
       tags:
@@ -86,6 +254,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
   /api/v1/sessions/{session_id}:
     get:
       tags:
@@ -113,6 +285,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
     delete:
       tags:
       - Sessions
@@ -135,6 +311,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/diagnostics:
     get:
       tags:
@@ -161,6 +341,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
+  /api/v1/devops/{session_id}/configuration:
+    get:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Project Configuration
+      operationId: project_configuration_api_v1_devops__session_id__configuration_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalProjectConfiguration'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '409':
+          description: Conflicto de operación/configuración; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/generate:
     post:
       tags:
@@ -188,10 +404,11 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          maximum: 65535
-          minimum: 1024
-          default: 8080
+          anyOf:
+          - type: integer
+            maximum: 65535
+            minimum: 1024
+          - type: 'null'
           title: Host Port
       responses:
         '200':
@@ -206,6 +423,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '409':
+          description: Conflicto de operación/configuración; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/deploy:
     post:
       tags:
@@ -241,6 +464,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '409':
+          description: Conflicto de operación/configuración; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/prepare:
     post:
       tags:
@@ -267,6 +496,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '409':
+          description: Conflicto de operación/configuración; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/status:
     get:
       tags:
@@ -294,6 +529,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/logs/stream:
     get:
       tags:
@@ -330,6 +569,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '400':
+          description: Cursor inválido o acción rechazada; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/logs:
     get:
       tags:
@@ -349,19 +594,24 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/DeploymentLogSnapshot'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/stop:
     post:
       tags:
       - DevOps, Containerization & Deployment
       summary: Stop Containers
-      description: Stops and cleans up active local containers for the session.
+      description: Stops owned containers for the session, retaining data and resources.
       operationId: stop_containers_api_v1_devops__session_id__stop_post
       parameters:
       - name: session_id
@@ -383,6 +633,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/smoke-test:
     post:
       tags:
@@ -419,6 +673,116 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
+  /api/v1/devops/{session_id}/restart:
+    post:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Restart Containers
+      operationId: restart_containers_api_v1_devops__session_id__restart_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
+  /api/v1/devops/{session_id}/cancel:
+    post:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Cancel Local Operation
+      operationId: cancel_local_operation_api_v1_devops__session_id__cancel_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocalCancelRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '409':
+          description: Conflicto de operación/configuración; consulte detail.
+      security:
+      - StudioSession: []
+  /api/v1/devops/{session_id}/cleanup:
+    post:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Cleanup Containers
+      operationId: cleanup_containers_api_v1_devops__session_id__cleanup_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocalCleanupRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDeploymentSession'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '400':
+          description: Cursor inválido o acción rechazada; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/playground:
     post:
       tags:
@@ -462,6 +826,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+        '400':
+          description: Cursor inválido o acción rechazada; consulte detail.
+      security:
+      - StudioSession: []
   /api/v1/devops/{session_id}/playground/resources:
     get:
       tags:
@@ -494,8 +864,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
 components:
+  securitySchemes:
+    StudioSession:
+      type: apiKey
+      in: cookie
+      name: agentia_session
   schemas:
+    CreateSessionRequest:
+      properties:
+        specId:
+          type: string
+          title: Specid
+          description: UUID of ingested specification
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+          default: SOURCE_ONLY
+        modelName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Modelname
+      type: object
+      required:
+      - specId
+      title: CreateSessionRequest
     DatabaseEngine:
       type: string
       enum:
@@ -503,6 +900,29 @@ components:
       - MYSQL
       - H2
       title: DatabaseEngine
+    DeploymentLogSnapshot:
+      properties:
+        logs:
+          items:
+            type: string
+          type: array
+          title: Logs
+        events:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Events
+        lastEventId:
+          type: integer
+          minimum: 0.0
+          title: Lasteventid
+      type: object
+      required:
+      - logs
+      - events
+      - lastEventId
+      title: DeploymentLogSnapshot
     DeploymentStatus:
       type: string
       enum:
@@ -519,11 +939,12 @@ components:
     DevOpsDeployRequest:
       properties:
         hostPort:
-          type: integer
-          maximum: 65535.0
-          minimum: 1024.0
+          anyOf:
+          - type: integer
+            maximum: 65535.0
+            minimum: 1024.0
+          - type: 'null'
           title: Hostport
-          default: 8080
         rebuild:
           anyOf:
           - type: boolean
@@ -662,6 +1083,18 @@ components:
       required:
       - executionMode
       title: ExecutionModeRequest
+    ExecutionModeResponse:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+      type: object
+      required:
+      - sessionId
+      - executionMode
+      title: ExecutionModeResponse
     GenerationSessionDetail:
       properties:
         id:
@@ -732,6 +1165,88 @@ components:
       - phase
       - createdAt
       title: GenerationSessionDetail
+    GenerationSessionListItem:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        specId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Specid
+        specName:
+          type: string
+          title: Specname
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+          default: SOURCE_ONLY
+        verificationOutcome:
+          $ref: '#/components/schemas/VerificationOutcome'
+          default: NOT_RUN
+        errorMessage:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Errormessage
+        phase:
+          anyOf:
+          - $ref: '#/components/schemas/SessionPhase'
+          - type: 'null'
+        currentLifecyclePhase:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currentlifecyclephase
+          default: INITIAL
+        lifecycleMode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lifecyclemode
+          default: GUIDED_STEP
+        completionPercentage:
+          type: number
+          title: Completionpercentage
+          default: 0.0
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - sessionId
+      - specName
+      - status
+      - createdAt
+      title: GenerationSessionListItem
+    GenerationSessionSummary:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        executionMode:
+          $ref: '#/components/schemas/ExecutionMode'
+          default: SOURCE_ONLY
+        queuePosition:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Queueposition
+          default: 0
+        streamUrl:
+          type: string
+          title: Streamurl
+      type: object
+      required:
+      - sessionId
+      - status
+      - streamUrl
+      title: GenerationSessionSummary
     HTTPValidationError:
       properties:
         detail:
@@ -741,11 +1256,34 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    LocalCancelRequest:
+      properties:
+        operationId:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Operationid
+      type: object
+      required:
+      - operationId
+      title: LocalCancelRequest
+    LocalCleanupRequest:
+      properties:
+        deleteData:
+          type: boolean
+          title: Deletedata
+          default: false
+      type: object
+      title: LocalCleanupRequest
     LocalDeploymentSession:
       properties:
         sessionId:
           type: string
           title: Sessionid
+        dbEngine:
+          anyOf:
+          - $ref: '#/components/schemas/DatabaseEngine'
+          - type: 'null'
         containerId:
           anyOf:
           - type: string
@@ -756,6 +1294,26 @@ components:
           - type: string
           - type: 'null'
           title: Databasecontainerid
+        sourceSnapshotId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sourcesnapshotid
+        workspaceFingerprint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspacefingerprint
+        imageId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Imageid
+        executableJarSha256:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executablejarsha256
         status:
           $ref: '#/components/schemas/DeploymentStatus'
           default: IDLE
@@ -792,6 +1350,25 @@ components:
           - type: string
           - type: 'null'
           title: Operationid
+        operationKind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operationkind
+        operationPhase:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operationphase
+        finishedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Finishedat
+        cancelRequested:
+          type: boolean
+          title: Cancelrequested
+          default: false
         message:
           anyOf:
           - type: string
@@ -801,6 +1378,47 @@ components:
       required:
       - sessionId
       title: LocalDeploymentSession
+    LocalProjectConfiguration:
+      properties:
+        databaseEngine:
+          $ref: '#/components/schemas/DatabaseEngine'
+        hostPort:
+          type: integer
+          maximum: 65535.0
+          minimum: 1024.0
+          title: Hostport
+        buildTool:
+          type: string
+          enum:
+          - maven
+          - gradle
+          title: Buildtool
+        buildDirectory:
+          type: string
+          enum:
+          - .
+          - bootstrap
+          title: Builddirectory
+      type: object
+      required:
+      - databaseEngine
+      - hostPort
+      - buildTool
+      - buildDirectory
+      title: LocalProjectConfiguration
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          title: Email
+        password:
+          type: string
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
     PlaygroundProxyRequest:
       properties:
         method:
@@ -1021,6 +1639,28 @@ components:
       - BLOCKED
       - CANCELLED
       title: SessionStatus
+    SessionVerificationResponse:
+      properties:
+        sessionId:
+          type: string
+          title: Sessionid
+        metrics:
+          additionalProperties: true
+          type: object
+          title: Metrics
+        status:
+          type: string
+          enum:
+          - COMPLETED
+          - PAUSED
+          - BLOCKED
+          title: Status
+      type: object
+      required:
+      - sessionId
+      - metrics
+      - status
+      title: SessionVerificationResponse
     SmokeTestResult:
       properties:
         passed:
@@ -1085,6 +1725,7 @@ components:
       - NOT_RUN
       - SKIPPED_BY_CHOICE
       - ENVIRONMENT_UNAVAILABLE
+      - INTERRUPTED
       - PASSED
       - FAILED
       - OUTDATED

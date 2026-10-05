@@ -1,19 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Download, GitBranch, GitPullRequest, CheckCircle2, AlertCircle, Share2, Send } from 'lucide-react';
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { useStudio } from '../context/StudioContext';
 import { exportService, PublishResult } from '../services/exportService';
+import { VerificationStatus } from '../components/common/VerificationStatus';
 
 export const ExportPublishView: React.FC = () => {
   const { activeSessionId, activeSession } = useStudio();
+  const scope = useRef({ id: activeSessionId, revision: 0 });
+  if (scope.current.id !== activeSessionId) scope.current = { id: activeSessionId, revision: scope.current.revision + 1 };
 
   const [repoUrl, setRepoUrl] = useState('');
   const [branchName, setBranchName] = useState('');
   const [gitToken, setGitToken] = useState('');
-  const [commitMsg, setCommitMsg] = useState('feat: initial autonomous generation and verified test suite');
+  const [commitMsg, setCommitMsg] = useState('feat: generated microservice source');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<PublishResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  useEffect(() => {
+    setPublishResult(null); setErrorMsg(null); setIsPublishing(false); setGitToken('');
+    setBranchName(activeSession?.specName ? `feature/001-${activeSession.specName.toLowerCase().replace(/[^a-z0-9-]/g, '-')}` : '');
+  }, [activeSessionId]);
 
   useEffect(() => {
     if (activeSession?.specName && !branchName) {
@@ -31,6 +38,7 @@ export const ExportPublishView: React.FC = () => {
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSessionId) return;
+    const revision = scope.current.revision;
     setIsPublishing(true);
     setErrorMsg(null);
     try {
@@ -40,26 +48,29 @@ export const ExportPublishView: React.FC = () => {
         gitToken: gitToken || undefined,
         commitMessage: commitMsg,
       });
+      if (revision !== scope.current.revision) return;
       setPublishResult(res);
     } catch (err: any) {
+      if (revision !== scope.current.revision) return;
       setErrorMsg(
         err.response?.data?.detail ||
           'Error durante la publicación atómica a Git. Verifique la URL y el token efímero.'
       );
     } finally {
-      setIsPublishing(false);
+      if (revision === scope.current.revision) setIsPublishing(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      <VerificationStatus session={activeSession} />
       {/* Top Banner */}
       <SingleRowCard
         title="Fase 7: Entrega Integral, Empaquetado ZIP y Publicación Git"
-        subtitle="Exportación atómica del código verificado a repositorios corporativos"
+        subtitle="Entrega de fuentes sujeta a las validaciones de exportación del backend"
         badge={
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
-            Release Ready
+            {activeSession?.verificationOutcome === 'PASSED' ? 'Pruebas aprobadas' : 'Entrega de fuentes'}
           </span>
         }
         actions={
@@ -74,7 +85,7 @@ export const ExportPublishView: React.FC = () => {
         }
       >
         <p className="text-xs text-slate-600 dark:text-slate-400">
-          El paquete comprimido incluye la estructura completa del proyecto Maven, dependencias declaradas en pom.xml, código fuente Java 21, suites de pruebas unitarias, esquema relacional DDL/DML, y manifiestos de despliegue Docker y Kubernetes.
+          El ZIP incluye los archivos disponibles del microservicio: código Java, configuración Maven o Gradle, pruebas generadas, migraciones y manifiestos cuando existan. El backend valida la entrega; generar pruebas o exportar fuentes no acredita su ejecución.
         </p>
       </SingleRowCard>
 

@@ -1,6 +1,7 @@
 """Bounded, atomic deployment history with durable SSE sequence numbers."""
 import json
 import re
+from datetime import datetime, timezone
 from app.services.local_runtime import record_directory
 
 MAX_ENTRIES = 1000
@@ -35,25 +36,47 @@ def load(session_id):
         if (not isinstance(entry, dict) or type(entry.get('id')) is not int
                 or entry['id'] < 1 or entry['id'] >= next_id
                 or not isinstance(entry.get('message'), str)
+                or ('source' in entry and (not isinstance(entry['source'], str) or len(entry['source']) > 32))
+                or ('timestamp' in entry and (not isinstance(entry['timestamp'], str) or len(entry['timestamp']) > 40))
                 or (previous is not None and entry['id'] != previous + 1)):
             raise ValueError('Historial de logs inválido; no se reiniciarán sus IDs.')
         previous = entry['id']
     if (entries and entries[-1]['id'] != next_id - 1) or (not entries and next_id != 1):
         raise ValueError('Historial de logs inválido; no se reiniciarán sus IDs.')
-    return {'version': 1, 'nextId': next_id,
-            'entries': [{'id': e['id'], 'message': redact(e['message'])} for e in entries[-MAX_ENTRIES:]]}
+    collectors = raw.get('collectors', {})
+    if not isinstance(collectors, dict) or len(collectors) > 8:
+        raise ValueError('Cursores de captura inválidos; no se reiniciará el historial.')
+    for identity, checkpoint in collectors.items():
+        if (not isinstance(identity, str) or not isinstance(checkpoint, dict)
+                or not isinstance(checkpoint.get('timestamp'), str)
+                or not isinstance(checkpoint.get('counts'), dict)
+                or any(not isinstance(key, str) or type(count) is not int or count < 1
+                       for key, count in checkpoint['counts'].items())):
+            raise ValueError('Cursores de captura inválidos; no se reiniciará el historial.')
+    return {**raw, 'entries': [{**e, 'message': redact(e['message'])} for e in entries[-MAX_ENTRIES:]]}
 
 
-def append(session_id, history, message):
+def append(session_id, history, message, source='system', timestamp=None):
     """Caller holds the shared lock; publish memory only after atomic disk commit."""
-    updated = {'version': 1, 'nextId': history['nextId'] + 1,
-               'entries': (history['entries'] + [{'id': history['nextId'], 'message': redact(message)}])[-MAX_ENTRIES:]}
+    updated = {**history, 'nextId': history['nextId'] + 1,
+               'entries': (history['entries'] + [{'id': history['nextId'], 'message': redact(message),
+                   'source': source, 'timestamp': timestamp or datetime.now(timezone.utc).isoformat()}])[-MAX_ENTRIES:]}
+    save(session_id, updated)
+    return updated
+
+
+def save(session_id, updated):
     directory = record_directory(session_id)
     directory.mkdir(parents=True, exist_ok=True)
     temporary = directory / 'logs.tmp'
     temporary.write_text(json.dumps(updated, ensure_ascii=False), encoding='utf-8')
     temporary.replace(directory / 'logs.json')
-    return updated
+
+
+def display(entry):
+    if entry.get('source', 'system') == 'system':
+        return entry['message']
+    return f"[{entry.get('timestamp', '')}] [{entry['source']}] {entry['message']}"
 
 
 def frames(history, cursor):
@@ -67,4 +90,4 @@ def frames(history, cursor):
     for entry in history['entries']:
         if entry['id'] > cursor:
             cursor = entry['id']
-            yield cursor, f'id: {cursor}\ndata: {json.dumps(entry["message"], ensure_ascii=False)}\n\n'
+            yield cursor, f'id: {cursor}\ndata: {json.dumps(display(entry), ensure_ascii=False)}\n\n'

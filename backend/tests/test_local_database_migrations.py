@@ -93,3 +93,54 @@ def test_conflicting_properties_do_not_copy_partial_migrations(tmp_path):
         write_migrations(tmp_path, 'H2')
     assert not (resources / 'db/changelog/001-schema.sql').exists()
     assert props.read_text() == 'spring.application.name=authored\n'
+    assert not (tmp_path / 'schema.sql').exists()
+
+
+@pytest.mark.parametrize('change', ['delete', 'empty'])
+def test_published_seed_cannot_disappear_silently(tmp_path, change):
+    (tmp_path / 'data.sql').write_text('INSERT INTO items(name) VALUES (\'seed\');')
+    write_migrations(tmp_path, 'H2')
+    if change == 'delete':
+        (tmp_path / 'data.sql').unlink()
+    else:
+        (tmp_path / 'data.sql').write_text('')
+    with pytest.raises(ValueError, match='retirada'):
+        write_migrations(tmp_path, 'H2')
+    assert (tmp_path / 'src/main/resources/db/changelog/002-seed.sql').read_text() == "INSERT INTO items(name) VALUES ('seed');"
+
+
+def test_migration_seal_rejects_database_change(tmp_path):
+    import json
+    write_migrations(tmp_path, 'H2')
+    seal = tmp_path / 'src/main/resources/db/changelog/LOCAL_MIGRATIONS.json'
+    before = seal.read_bytes()
+    assert json.loads(before)['seedPolicy'] == 'ONCE_PER_DATABASE'
+    with pytest.raises(ValueError, match='Motor o contenido'):
+        write_migrations(tmp_path, 'MYSQL')
+    assert seal.read_bytes() == before
+
+
+@pytest.mark.parametrize('override', ['spring.sql.init.mode=always', 'spring.jpa.hibernate.ddl-auto=create-drop',
+                                     'spring.liquibase.change-log=classpath:other.xml'])
+def test_conflicting_effective_property_is_rejected(tmp_path, override):
+    write_migrations(tmp_path, 'H2')
+    props = tmp_path / 'src/main/resources/application.properties'
+    props.write_text(props.read_text() + override + '\n')
+    with pytest.raises(ValueError, match='configure explícitamente'):
+        write_migrations(tmp_path, 'H2')
+
+
+@pytest.mark.parametrize('database', ['H2', 'POSTGRESQL', 'MYSQL'])
+def test_uuid_primary_key_keeps_dialect_and_seed_type(database):
+    from app.models.domain_model import DomainEntityDefinition, EntityAttributeDefinition
+    from app.services.model_sql_service import generate_seed_data_sql
+    draft = SimpleNamespace(entities=[SimpleNamespace(name='Record', tableName='records', attributes=[
+        SimpleNamespace(name='id', type='UUID', isPrimaryKey=True)])])
+    sql = schema_sql_from_draft(draft, database)
+    expected = 'BINARY(16)' if database == 'MYSQL' else 'UUID'
+    assert f'id {expected} PRIMARY KEY' in sql and 'IDENTITY' not in sql and 'AUTO_INCREMENT' not in sql
+    entity = DomainEntityDefinition(name='Record', tableName='records', packageName='com.example',
+        attributes=[EntityAttributeDefinition(name='id', columnName='id', javaType='UUID', sqlType='UUID', isPrimaryKey=True)])
+    seed = generate_seed_data_sql([entity], db_engine=database)
+    assert ('UNHEX(' in seed) == (database == 'MYSQL')
+    assert 'a0000000' in seed and 'VALUES (1)' not in seed

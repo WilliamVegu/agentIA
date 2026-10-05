@@ -5,7 +5,7 @@
 **Referencia obligatoria:** [diagnóstico y decisiones](C:/Users/willi/Downloads/agentIA/docs/ESTADO_DESPLIEGUE_LOCAL_DOCKER.md).  
 **Prioridad principal:** completar el flujo en un laboratorio sin virtualización cuando el usuario elige no usar Docker.
 
-**Última revisión:** 04/10/2026. La elección por sesión, el flujo de fuentes, reintentos, diagnóstico y operaciones/scripts Docker están implementados parcialmente. El motor funciona y la matriz básica de seis combinaciones pasó; se comprobaron aislamiento entre sesiones y migraciones/semillas en despliegues reales. Las tareas abiertas pueden tener avances parciales. La evidencia actual y los límites están en las secciones 17–18 del documento de estado; la aceptación integral sigue pendiente.
+**Última revisión:** 05/10/2026. **31/54 tareas marcadas; 23 sin marcar**, varias parciales. T11/T54 implementadas y aceptadas en el entorno Windows nativo existente: instalación offline previa, backend/frontend con PATH vacío y flujo API de fuentes con Docker prohibido por instrumentación, exportación y recuperación. Evidencia/límites actuales en sección 41 del estado; catálogo y migraciones en 40/39. Aceptación en equipo limpio, navegador y políticas reales adicionales sigue en T50/T51; aceptación integral pendiente.
 
 ## 1. Resultado que debe alcanzarse
 
@@ -50,7 +50,7 @@ Persistir conceptos independientes, con nombres finales definidos en los contrat
 
 - **Elección por sesión:** `SOURCE_ONLY` o `DOCKER`; valor seguro por defecto `SOURCE_ONLY` cuando no se suministra una elección.
 - **Capacidad del entorno:** CLI, daemon, Compose, imágenes, dependencias y herramientas de validación disponibles, con causas específicas de indisponibilidad.
-- **Resultado de verificación:** `NOT_RUN`, `SKIPPED_BY_CHOICE`, `ENVIRONMENT_UNAVAILABLE`, `PASSED`, `FAILED` u `OUTDATED`.
+- **Resultado de verificación:** `NOT_RUN`, `SKIPPED_BY_CHOICE`, `ENVIRONMENT_UNAVAILABLE`, `INTERRUPTED`, `PASSED`, `FAILED` u `OUTDATED`.
 - **Resultado de despliegue:** no solicitado, omitido por elección, esperando decisión, preparando/construyendo/iniciando, saludable, degradado/fallido o detenido.
 
 `COMPLETED` significará que finalizó el alcance elegido, no que todo fue verificado. `VERIFIED` requerirá evidencia real y vigente; `HEALTHY` requerirá identidad del contenedor y salud actual.
@@ -87,10 +87,10 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 
 **Dependencias:** ninguna. **Salida:** decisiones y semántica consistentes antes de cambiar ejecución.
 
-- [ ] T01. Actualizar especificación, contrato DevOps y quickstart vigentes para React, Docker opcional por sesión, alcance offline y GitLab aplazado. Retirar las contradicciones documentales sobre Streamlit, montajes SQL antiguos y fallback sintético.
-- [ ] T02. Definir contratos de elección/capacidad/verificación/despliegue, errores y acciones Reintentar/Continuar; separar finalización, verificación y despliegue.
+- [x] T01. Actualizar especificación, contrato DevOps y quickstart vigentes para React, Docker opcional por sesión, alcance offline y GitLab aplazado. Retirar las contradicciones documentales sobre Streamlit, montajes SQL antiguos y fallback sintético.
+- [x] T02. Definir contratos de elección/capacidad/verificación/despliegue, errores y acciones Reintentar/Continuar; separar finalización, verificación y despliegue.
 - [x] T03. Alinear la documentación constitucional con la elección explícita de entrega sin Docker y soporte Gradle solicitado, manteniendo la verificación real offline cuando se ejecuta. La instrucción del usuario es la autoridad para esta excepción; no bloquear el trabajo solicitando nuevamente la misma autorización.
-- [ ] T04. Preparar fixtures nuevos pequeños y reproducibles para las seis combinaciones de herramienta y BD, con una entidad persistente, validación de entrada y CRUD observable. La IA no será necesaria para pruebas de infraestructura.
+- [x] T04. Preparar fixtures nuevos pequeños y reproducibles para las seis combinaciones de herramienta y BD, con una entidad persistente, validación de entrada y CRUD observable. La IA no será necesaria para pruebas de infraestructura.
 
 **Archivos principales:** `specs/007-docker-cicd-orchestration/{spec.md,plan.md,quickstart.md,contracts/devops-api.yaml}`, `.specify/memory/constitution.md`, modelos de sesión/orquestador/DevOps y documentación de este plan.
 
@@ -104,7 +104,7 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 - [ ] T08. Aplicar la política a grafo, sandbox, pipeline, flujo guiado y reparación. Omitir solo las operaciones de ejecución que corresponden al modo elegido; mantener generación de pruebas y controles estáticos.
 - [ ] T09. Aplicar la misma política a overview, listado, estado de tests, ZIP/bundle y generación de manifiestos. Completar fuentes sin afirmar VERIFIED ni pruebas aprobadas.
 - [x] T10. Implementar cambio explícito a fuentes, reintento y activación posterior de Docker. Invalidar evidencia al cambiar fuentes o configuración relevante; conservar fallos reales anteriores.
-- [ ] T11. Probar arranque de AgentIA y flujo completo sin Docker instalado, sin permisos de daemon y con Docker global habilitado pero sesión en fuentes. Comprobar ausencia de llamadas a Docker y ausencia de instalación de herramientas sustitutas.
+- [x] T11. Probar arranque de AgentIA y flujo completo sin Docker instalado, sin permisos de daemon y con Docker global habilitado pero sesión en fuentes. Comprobar ausencia de llamadas a Docker y ausencia de instalación de herramientas sustitutas. Sección 41: PATH vacío y acceso CLI/SDK prohibido por guard confirmado, generación determinista/API real, tests generados/ejecución omitida, auditoría/exportación y recuperación. Ambas políticas globales pasan; no se desinstaló Docker ni modificaron ACL del equipo. Navegador y laboratorio físico adicional quedan en T50/T51.
 
 **Archivos principales:** `backend/app/models/{session.py,orchestrator.py,devops.py}`, `backend/app/api/{routes_session.py,routes_orchestrator.py,routes_tests.py,routes_devops.py,routes_publish.py}`, `services/{pipeline_runner.py,verification_policy.py,workspace_verification.py}`, `orchestrator/{graph.py,state.py,nodes/sandbox_node.py}`, modelos/servicios/estado del frontend, `StudioOverviewView.tsx`, `SpecIngestionView.tsx`, `ExportPublishView.tsx`.
 
@@ -112,13 +112,13 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 
 **Dependencias:** P0–P1. **Salida:** entorno preparado explícitamente y problemas de infraestructura identificables.
 
-- [ ] T12. Implementar diagnóstico bajo demanda: CLI, daemon/contexto Linux, Compose/BuildKit, imágenes, cachés, permisos de paths y espacio. La mera lectura de una sesión sin Docker no debe activar estas operaciones.
+- [x] T12. Implementar diagnóstico bajo demanda: CLI, daemon/contexto Linux, Compose/BuildKit, imágenes, cachés, permisos de paths y espacio. La mera lectura de una sesión sin Docker no debe activar estas operaciones.
 - [ ] T13. Añadir preparación online explícita de versiones fijadas: builder Maven/Gradle, runtime Java, BD, herramientas/scanners y, para validación Kubernetes, imagen de nodo y herramientas locales. Verificar integridad y registrar versiones/digests sin secretos.
-- [ ] T14. Preparar dependencias y plugins con los proyectos/contratos realmente utilizados. Incluir Actuator, drivers, tests inyectados y dependencias de empaquetado, no solo el POM inicial. Congelar un catálogo soportado y detectar dependencias nuevas propuestas por IA antes de una ejecución offline.
+- [ ] T14. Preparar dependencias y plugins con los proyectos/contratos realmente utilizados. Incluir Actuator, drivers, tests inyectados y dependencias de empaquetado, no solo el POM inicial. Congelar un catálogo soportado y detectar dependencias nuevas propuestas por IA antes de una ejecución offline. Avance sección 40: catálogo común incluye .mvn, catálogos/wrappers Gradle, lockfiles, scripts e inputs buildSrc; cambios invalidan identidad y se rechazan antes de arranque/importación. Preparación comprueba cambios entre comandos. Falta catálogo completo de paquetes/versiones soportados y aceptación integral.
 - [ ] T15. Distribuir una base de dependencias preparada e inmutable; dar a cada build un área temporal de escritura para metadatos/locks. Comprobar compatibilidad de versiones Gradle y no compartir directorios modificables entre builds concurrentes.
 - [ ] T16. Crear manifiesto de preparación por versión/conjunto de dependencias, verificación de integridad e importación/exportación de kit offline. Incluir imágenes, herramientas y bases locales de scanners cuando correspondan. No afirmar disponibilidad basándose solo en que una carpeta existe.
 - [ ] T17. Bloquear descargas implícitas en ejecución offline. Reportar dependencia/imagen faltante con acción útil; no habilitar red automáticamente. Para scanners, indicar fecha de la base preparada y distinguir análisis estático local de vulnerabilidades obtenidas por herramientas externas.
-- [ ] T54. Cubrir también dependencias locales de AgentIA en la preparación inicial: instalación reproducible de Python/Node y paquetes sin permisos de administrador cuando el entorno lo permita, frontend con assets locales y telemetría no bloqueante. Sustituir las fuentes Google Fonts remotas de `frontend/index.html` por archivos locales o fuentes de sistema. No contenerizar la plataforma ni hacer de Docker un requisito de esta preparación.
+- [x] T54. Cubrir también dependencias locales de AgentIA en la preparación inicial: instalación reproducible de Python/Node y paquetes sin permisos de administrador cuando el entorno lo permita, frontend con assets locales y telemetría no bloqueante. Sustituir las fuentes Google Fonts remotas de `frontend/index.html` por archivos locales o fuentes de sistema. No contenerizar la plataforma ni hacer de Docker un requisito de esta preparación. Kit nativo con integridad/locks e instalación local demostrada en sección 19; runtime/flujo aceptados en sección 41. No garantiza ejecutar binarios bloqueados por políticas administrativas ni offline global/equipo limpio (T51).
 
 **Archivos principales:** `config.py`, `docker_runner.py`, `workspace_verification.py`, `backend/scripts/warm_maven_cache.py`; módulos propuestos de capacidades y preparación; scripts PowerShell bajo `scripts/` y documentación de preparación.
 
@@ -128,13 +128,13 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 
 **Dependencias:** P0 y contratos de P2. **Salida:** activos nuevos consistentes con la sesión y aptos para ejecución offline.
 
-- [ ] T18. Resolver herramienta de build, motor de BD y puerto desde datos persistidos. Eliminar literales PostgreSQL del frontend y defaults que contradicen al proyecto.
-- [ ] T19. Generar Dockerfiles que utilicen builders preparados y comandos offline. Garantizar JAR ejecutable único, capas compatibles con la versión Spring Boot fijada, usuario sin privilegios y healthcheck con herramientas realmente presentes.
-- [ ] T20. Verificar y empaquetar el mismo snapshot de fuentes; asociar fingerprint, informes y JAR/imagen. Preparar todas las dependencias antes de verificar. No añadir drivers/Actuator después de un PASS sin invalidarlo.
-- [ ] T21. Generar Compose con identidad por sesión, puertos de aplicación limitados a `127.0.0.1`, BD no publicada por defecto, volúmenes por sesión y salud/credenciales coherentes. H2 no tendrá contenedor de BD.
-- [ ] T22. Unificar inicialización SQL por motor: dialecto correcto, DDL presente en classpath, alineación con entidades y control de datos semilla repetidos. Preservar datos al reconstruir y no usar borrado automático para resolver errores de esquema.
-- [ ] T23. Generar manifiestos desde una configuración versionada nueva; actualizar con seguridad los artefactos de proyectos nuevos al cambiar configuración, sin sobrescribir modificaciones del usuario de forma silenciosa. No intervenir los 116 proyectos históricos inventariados.
-- [ ] T24. Separar construcción offline de arranque: construir explícitamente, luego iniciar sin build ni pull implícitos. En la ejecución local permitir red entre aplicación/BD sin depender de internet.
+- [x] T18. Resolver herramienta de build, motor de BD y puerto desde datos persistidos. Eliminar literales PostgreSQL del frontend y defaults que contradicen al proyecto.
+- [x] T19. Generar Dockerfiles que utilicen builders preparados y comandos offline. Garantizar JAR ejecutable único, capas compatibles con la versión Spring Boot fijada, usuario sin privilegios y healthcheck con herramientas realmente presentes.
+- [x] T20. Verificar y empaquetar el mismo snapshot de fuentes; asociar fingerprint, informes y JAR/imagen. Preparar todas las dependencias antes de verificar. No añadir drivers/Actuator después de un PASS sin invalidarlo. Implementado para verificaciones nuevas: copia aislada, archivo sellado, informes/JAR con SHA256 y empaquetado del JAR aprobado sin recompilar; preparación de imágenes sigue explícita. Límites y aceptación restante en sección 38 del estado.
+- [x] T21. Generar Compose con identidad por sesión, puertos de aplicación limitados a `127.0.0.1`, BD no publicada por defecto, volúmenes por sesión y salud/credenciales coherentes. H2 no tendrá contenedor de BD.
+- [ ] T22. Unificar inicialización SQL por motor: dialecto correcto, DDL presente en classpath, alineación con entidades y control de datos semilla repetidos. Preservar datos al reconstruir y no usar borrado automático para resolver errores de esquema. Avance sección 39: registro de motor/hashes, rechazo de semillas retiradas y propiedades contradictorias, PK UUID corregida y persistencia/semilla única tras rebuild Maven/H2 real. Falta diseño Models & SQL completo por motor y aceptación ampliada de tipos/relaciones/Gradle/BD externas.
+- [x] T23. Generar manifiestos desde una configuración versionada nueva; actualizar con seguridad los artefactos de proyectos nuevos al cambiar configuración, sin sobrescribir modificaciones del usuario de forma silenciosa. No intervenir los 116 proyectos históricos inventariados.
+- [x] T24. Separar construcción offline de arranque: construir explícitamente, luego iniciar sin build ni pull implícitos. En la ejecución local permitir red entre aplicación/BD sin depender de internet.
 
 **Archivos principales:** `devops_service.py`, `lifecycle_artifacts.py`, generadores de scaffolding/configuración/tests y `model_sql_service.py`; `.dockerignore` y artefactos de cada proyecto nuevo.
 
@@ -143,13 +143,13 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 **Dependencias:** P1–P3. **Salida:** servicio desplegado corresponde a la sesión y las operaciones terminan de manera comprobable.
 
 - [ ] T25. Introducir gestor de operaciones por sesión con exclusión/idempotencia, identificadores, timestamps, cancelación y límites configurables. Evitar dos builds/deploys simultáneos del mismo proyecto y carreras al pulsar Reintentar.
-- [ ] T26. Aplicar puertos solicitados mediante configuración/override real antes de Compose. Elegir otro si está ocupado; manejar carreras entre selección y bind con reintentos acotados, sin interrumpir otros servicios.
+- [x] T26. Aplicar puertos solicitados mediante configuración/override real antes de Compose. Elegir otro si está ocupado; manejar carreras entre selección y bind con reintentos acotados, sin interrumpir otros servicios.
 - [ ] T27. Separar prepare/build/start/readiness; acotar procesos y comprobar códigos de salida. Terminar procesos y contenedores temporales propios ante timeout/cancelación sin tocar recursos ajenos.
-- [ ] T28. Obtener identidad por etiquetas de proyecto y servicio, no por heurísticas de nombres. Inspeccionar ejecución, exit code, health, puertos efectivos, BD e imagen del snapshot.
-- [ ] T29. Vincular smoke test y playground a esa identidad y puerto. Revalidarlos antes de usar la URL; evitar que un servicio ajeno en 8080 certifique la sesión.
-- [ ] T30. Persistir estado operativo y reconciliarlo con Docker tras reiniciar backend; recuperar también contenedores detenidos/fallidos. Degradar HEALTHY cuando cambie la realidad y distinguir inaccesibilidad del daemon de parada comprobada.
-- [ ] T31. Detener comprobando retorno y ausencia efectiva de contenedores activos propios. Conservar volúmenes; implementar reinicio y limpieza explícita separada con identificación estricta de los recursos afectados.
-- [ ] T32. Auto-Pilot con despliegue solicitado esperará el resultado final, no solo el lanzamiento del hilo. En fuentes omitirá el despliegue; en infraestructura ausente esperará la decisión acordada.
+- [x] T28. Obtener identidad por etiquetas de proyecto y servicio, no por heurísticas de nombres. Inspeccionar ejecución, exit code, health, puertos efectivos, BD e imagen del snapshot. La imagen inspeccionada y el contenedor deben coincidir con snapshot/fingerprint/JAR; recuperación rechaza identidad distinta y roles ambiguos.
+- [x] T29. Vincular smoke test y playground a esa identidad y puerto. Revalidarlos antes de usar la URL; evitar que un servicio ajeno en 8080 certifique la sesión.
+- [x] T30. Persistir estado operativo y reconciliarlo con Docker tras reiniciar backend; recuperar también contenedores detenidos/fallidos. Degradar HEALTHY cuando cambie la realidad y distinguir inaccesibilidad del daemon de parada comprobada.
+- [x] T31. Detener comprobando retorno y ausencia efectiva de contenedores activos propios. Conservar volúmenes; implementar reinicio y limpieza explícita separada con identificación estricta de los recursos afectados.
+- [x] T32. Auto-Pilot con despliegue solicitado esperará el resultado final, no solo el lanzamiento del hilo. En fuentes omitirá el despliegue; en infraestructura ausente esperará la decisión acordada.
 
 **Archivos principales:** `docker_service.py`, `routes_devops.py`, `pipeline_runner.py`, contratos/almacenamiento de operaciones; módulo propuesto de gestión de procesos.
 
@@ -158,10 +158,10 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 **Dependencias:** contratos P1 y eventos P4. **Salida:** UI representa el estado actual y permite resolver incidencias.
 
 - [x] T33. Alinear tipos frontend/backend para estado, errores y smoke test; suprimir mensajes de éxito al recibir BUILDING o infraestructura no disponible.
-- [ ] T34. Suscribir la vista a eventos/logs, con reconexión, último identificador y consulta de estado como recuperación. Cancelar suscripciones y limpiar datos al cambiar sesión.
-- [ ] T35. Recoger logs de build y de aplicación/BD, con origen, timestamp e ID. Evitar duplicados y colas que reparten eventos entre consumidores; permitir varios suscriptores. Guardar historial con límite y redactar secretos.
-- [ ] T36. Mostrar etapas omitidas, fallidas, pendientes y aprobadas con sus causas. Ofrecer Reintentar/Continuar sin Docker cuando corresponda y deshabilitar acciones incompatibles mientras haya operación activa.
-- [ ] T37. Mostrar puerto efectivo, URL y motor real. Renovar estado después de smoke test/parada/reinicio y mantener el playground consistente con la sesión.
+- [x] T34. Suscribir la vista a eventos/logs, con reconexión, último identificador y consulta de estado como recuperación. Cancelar suscripciones y limpiar datos al cambiar sesión.
+- [x] T35. Recoger logs de build y de aplicación/BD, con origen, timestamp e ID. Evitar duplicados y colas que reparten eventos entre consumidores; permitir varios suscriptores. Guardar historial con límite y redactar secretos.
+- [x] T36. Mostrar etapas omitidas, fallidas, pendientes y aprobadas con sus causas. Ofrecer Reintentar/Continuar sin Docker cuando corresponda y deshabilitar acciones incompatibles mientras haya operación activa.
+- [x] T37. Mostrar puerto efectivo, URL y motor real. Renovar estado después de smoke test/parada/reinicio y mantener el playground consistente con la sesión.
 
 **Archivos principales:** `DevOpsDeploymentView.tsx`, `StudioOverviewView.tsx`, vistas de monitor/tests/exportación, `devopsService.ts`, `sessionService.ts`, contexto Studio y servicios de eventos backend.
 
@@ -170,9 +170,9 @@ Las tareas se completarán por dependencia. Los nombres de módulos nuevos son p
 **Dependencias:** P2–P5. **Salida:** proyecto exportado puede ejecutarse sin Java/Maven/Gradle instalados en Windows.
 
 - [x] T38. Incluir script PowerShell de preparación y script de arranque de microservicio; ofrecer wrapper `.cmd` si hace falta para políticas de PowerShell. No cambiar automáticamente políticas de ejecución ni habilitar virtualización/WSL.
-- [ ] T39. El script de arranque validará kit/configuración, resolverá puerto y ejecutará build/verificación/despliegue según el alcance elegido; esperará readiness e imprimirá URL o diagnóstico. No requiere que AgentIA esté abierta ni invoca IA.
+- [x] T39. El script de arranque validará kit/configuración, resolverá puerto y ejecutará build/verificación/despliegue según el alcance elegido; esperará readiness e imprimirá URL o diagnóstico. No requiere que AgentIA esté abierta ni invoca IA.
 - [ ] T40. Ofrecer paquete de fuentes siempre que la política lo permita y paquete ejecutable offline cuando exista imagen/evidencia real. Separar el kit pesado compartido de cada ZIP y documentar cómo importarlo.
-- [ ] T41. Mantener parada sin borrado, reconstrucción y limpieza explícita en scripts y UI; el paquete indicará estado de verificación, versiones y recursos persistentes.
+- [x] T41. Mantener parada sin borrado, reconstrucción y limpieza explícita en scripts y UI; el paquete indicará estado de verificación, versiones y recursos persistentes.
 
 **Límite:** el modo Docker necesita Docker instalado y virtualización utilizable. En el laboratorio se completa el flujo de fuentes sin ese requisito. Los scripts no intentarán sortear restricciones administrativas.
 
@@ -354,3 +354,143 @@ Suite general definitiva: **1.015 PASS, 149 FAIL históricos, 10 SKIP; 0 fallos 
 Matriz SQL cerrada para los casos tipados probados: **6/6 combinaciones PASS** (Maven/Gradle × H2/PostgreSQL/MySQL), con seed única y datos persistentes. La ejecución fue recuperada tras una interrupción; MySQL retomado dio **2 PASS** y aislamiento actual **1 PASS**. Evidencias individuales y consolidado `.run/sql-real-matrix-final.json` se detallan en la sección 18 del documento de estado. Los intentos incompletos se conservan y no se cuentan como PASS.
 
 La comprobación final no encontró contenedores activos. Se conservaron volúmenes y evidencia; rama `no-docker` / `863553a` sin cambios. Próximo bloque: kit offline integral y entorno limpio; luego observabilidad/cancelación y CI/CD/Kubernetes. No se marca aceptación integral ni se exige Docker al laboratorio.
+
+### Continuación: preparación nativa offline de AgentIA (T54)
+
+Se implementó un kit Windows independiente de Docker con Python/Node incluidos, lock de versiones Python, wheels y caché npm ligados a los manifiestos del proyecto. Verifica plataforma, catálogo, bytes/SHA256 antes de instalar; exige carpeta nueva y usa temporales/configuraciones/cache privados. Instala Python con `--no-index`, npm con `--offline` y compila el frontend sin instalar herramientas globales. La preparación inicial puede usar internet; reutilizar descargas exige hashes y locks coincidentes.
+
+Aceptación en carpeta nueva: **PASS**, 79 wheels/302 paquetes npm y build TypeScript/Vite. Backend/frontend/proxy con PATH vacío: **PASS**, procesos propios detenidos. Desde el Python instalado: **33 PASS** para flujo de fuentes e integridad; regresión relacionada **42 PASS**. UI con Node del kit: **12 PASS/2 FAIL históricos**, no se anuncia verde. Evidencia completa, fallos iniciales y límites en la sección 19 del documento de estado; guía `GUIA_KIT_NATIVO_OFFLINE_WINDOWS.md`.
+
+T54/T16/T11/T49/T51 continúan parciales: no se acredita Windows limpio distinto, firewall externo bloqueado, navegador completo ni scanners. El kit nativo complementa el de imágenes y conserva la prioridad del laboratorio; Docker nunca es requisito de este instalador. Próximos pendientes: kit integral de imágenes/herramientas y aceptación offline aislada, observabilidad/cancelación y CI/CD/Kubernetes. No se cierran tareas sin esas evidencias.
+
+### Continuación: suscripción frontend a logs (T34)
+
+T34 implementada: la vista usa SSE con credenciales de sesión y `Last-Event-ID`, elimina duplicados, procesa `log-reset`, recupera un snapshot REST atómico con IDs cuando hay error y reintenta con espera progresiva hasta 15 segundos. Al terminar normalmente un stream, reconecta desde el cursor recibido. Cada suscripción tiene historial/cursor propios y límite de 1.000 mensajes; al cambiar sesión o desmontar aborta peticiones, cancela esperas y limpia datos. Las consultas periódicas de estado son secuenciales y descartan respuestas de sesiones anteriores. REST conserva `logs: string[]` para clientes existentes y agrega `events`/`lastEventId`.
+
+Validación: **17 PASS frontend**, **43 PASS backend** (logs, modo laboratorio e integridad del kit nativo), TypeScript y build Vite PASS. Evidencia `.run/sse-frontend-final.txt`, `.run/sse-backend-focused.txt`. El primer test nuevo usó un selector de input inexistente; se corrigió para verificar el puerto visible y pasó. Estas pruebas usan streams controlados en frontend y rutas FastAPI/persistencia reales en backend; no acreditan un recorrido completo en navegador ni captura continua del contenedor. La suite global histórica no se repitió ni se declara verde.
+
+Siguiente bloque de observabilidad: T35 sigue abierto para captura continua de aplicación/BD, origen y timestamp; la cancelación de operaciones de construcción también permanece pendiente. Kit integral/aceptación offline y CI/CD/Kubernetes siguen abiertos. Este avance no exige Docker al modo SOURCE_ONLY ni modifica permisos o virtualización.
+
+### Continuación: captura de logs de build/aplicación/BD (T35)
+
+T35 implementada. Build y preparación publican stdout/stderr mientras ejecutan el comando, con lectura acotada, timeout y redacción. Un recolector por sesión consulta logs de contenedores propios cada dos segundos, valida etiquetas de proyecto/rol, distingue aplicación/BD y conserva timestamps Docker. Cursor por contenedor y conteos de mensajes con el mismo timestamp se escriben atómicamente con el historial; reload/reconexión no repiten eventos y múltiples consumidores SSE reciben copias independientes. SOURCE_ONLY no consulta Docker ni inicia recolectores. El recolector termina ante parada/cambio de modo/error; la consulta de estado vuelve a activarlo cuando corresponde.
+
+El historial retiene 1.000 eventos; checkpoints limitados a ocho contenedores. Cada consulta Docker lee como máximo las últimas 1.000 líneas por stream; si alcanza ese umbral agrega aviso explícito de posible pérdida previa. No se garantiza captura sin pérdidas con ráfagas superiores a ese límite ni si Docker ya rotó/eliminó el log. La cancelación del build en el daemon sigue siendo un pendiente separado.
+
+Validación final: **102 PASS backend**, **18 PASS frontend**, TypeScript y build Vite PASS; **1 PASS Docker real** con dos contenedores propios sin red/descargas, ambos retirados. La prueba real valida transporte Docker de ambos roles mediante procesos shell; no es un nuevo E2E completo de Spring/PostgreSQL/MySQL. Evidencias `.run/runtime-logs-backend-final.txt`, `.run/runtime-logs-frontend.txt`, `.run/runtime-logs-real-final.txt` y `.run/real-runtime-logs/agentia-log-probe-21956438af/result.json`. Detalle/límites en sección 21 del estado. Suite global histórica no repetida.
+
+Próximo bloque: T36/T37, estados/acciones y coherencia del playground con sesión; después cancelación operativa, kit integral/aceptación offline y CI/CD/Kubernetes según las dependencias del plan. No se altera virtualización, firewall ni permisos del laboratorio.
+
+### Continuación: estados, acciones y playground (T36/T37, avance)
+
+La vista DevOps bloquea acciones incompatibles durante operaciones/peticiones, permite parar/probar servicios DEGRADED y muestra causas de error/estados pendientes, omitidos y aprobados. Reintentar/Continuar sin Docker siguen disponibles cuando el estado actual indica indisponibilidad; un resultado histórico no contradice una operación actual. Las respuestas de manifiestos/despliegue/preparación/diagnóstico/verificación/smoke/playground se descartan al cambiar sesión, incluso al volver a la misma ID. El polling previo a una acción no sustituye su resultado.
+
+Se limpian consola, registros, formularios, recursos, artefactos y smoke al cambiar sesión; cambios de identidad/puerto de runtime también invalidan respuestas del playground. Smoke consulta estado después del resultado y de errores; parada elimina resultados/URLs de runtime anterior. El backend agrega `dbEngine` desde el driver de la configuración inspeccionada del contenedor, sin devolver variables/secretos; frontend indica desconocido si no puede confirmarlo y elimina etiquetas PostgreSQL fijas del playground.
+
+Validación: **23 PASS frontend**, **99 PASS backend**, TypeScript/build Vite PASS. Evidencias `.run/actions-ui-final.txt`, `.run/actions-backend-final.txt`, `.run/actions-build.txt`. T36/T37 permanecen parciales: falta coherencia de etapas/causas en monitor/tests/exportación y validación de reinicio operativo con navegador/backend real. No se certifica nueva matriz Docker/SQL ni suite global histórica. Siguiente bloque: completar esas vistas/contratos y luego reinicio/cancelación según las dependencias; kit integral/offline y CI/CD/Kubernetes siguen pendientes.
+
+### Continuación: verificación coherente en monitor/tests/exportación (T36)
+
+T36 implementada: componente compartido muestra PASSED/FAILED/SKIPPED_BY_CHOICE/ENVIRONMENT_UNAVAILABLE o ausencia de evidencia sin confundirlos con COMPLETED. Fuente con fallo anterior conserva FAILED; fuente con PASSED anterior declara que no hubo nueva ejecución. Monitor no declara «verificado al 100%» por completar generación ni aprueba sandbox/auto-reparación por avance de fase; etapas de ejecución en SOURCE_ONLY se muestran omitidas. Exportación elimina Release Ready y el commit por defecto que afirmaba pruebas verificadas; ZIP permanece disponible sujeto al gate backend. Pruebas generadas se presentan como artefactos.
+
+SSE de generación limpia historial/evento/conexión al cambiar URL y rechaza callbacks del stream anterior. Monitor, explorador/reparación y publicación limpian sus datos y descartan resultados tardíos de otra sesión; botones de inicio/cancelación y reparación no se solapan con operaciones incompatibles. No se ejecutó publicación Git real.
+
+**31 PASS frontend**, TypeScript y build Vite PASS; `.run/verification-views-final.txt`, `.run/verification-views-build.txt`. Pruebas con componentes/hooks y servicios simulados; no acreditan recorrido completo en navegador/backend real ni suite global verde. T37 sigue parcial por reinicio operativo; siguiente bloque T31/T37 (reinicio con datos conservados), antes de cancelación/kit integral/offline y CI/CD/Kubernetes. Detalle en sección 23 del estado.
+
+### Continuación conjunta: recuperación, reinicio y limpieza (T30/T31/T37)
+
+T30/T31/T37 implementadas. Reconciliación distingue parada, caída/error/OOM, BD huérfana/ausente/unhealthy e inaccesibilidad del daemon. Parada detiene IDs de todos los contenedores propios inspeccionados y confirma ausencia de activos, conservando datos. Reinicio no construye ni descarga, valida aislamiento/localhost, elige e informa otro puerto cuando está ocupado y exige smoke antes de HEALTHY. Limpieza separada exige confirmación explícita y valida todos los recursos antes de mutar; solo elimina los de la sesión. SOURCE_ONLY retorna antes de cualquier llamada Docker.
+
+UI incorpora reinicio/limpieza confirmada, bloqueo de operaciones y renovación/limpieza del playground. Scripts Windows nuevos realizan parada/reinicio/readiness/limpieza sin AgentIA, con identificación estricta. T41 permanece parcial: falta resumen completo de verificación/versiones/recursos persistentes del paquete.
+
+Validación: **129 PASS backend**, **39 PASS frontend**, TypeScript/Vite PASS; **1 PASS real Spring/H2**, con registro persistente después de reinicio API y PowerShell, puerto alternativo anunciado, misma imagen sin build/pull y limpieza propia confirmada. Evidencias `.run/lifecycle-backend-final.txt`, `.run/lifecycle-frontend-final.txt`, `.run/lifecycle-build.txt`, `.run/lifecycle-real-scripts-final.txt` y `.run/real-lifecycle/fdc2e820-bf08-4a5c-8d92-c2a43aed9943/result.json`. Los intentos iniciales fallidos/correcciones y límites se conservan en sección 24 del estado.
+
+La recuperación real recargó registro persistido; falta aceptación del reinicio completo del proceso backend y recorrido integral en navegador. No se repitió suite global histórica ni matriz SQL completa. **13/54 tareas marcadas, 41 sin marcar** (varias parciales). Continúan cancelación, snapshot inmutable, kit integral/offline, CI/CD/Kubernetes y aceptación general. Sin commits/publicación ni cambios de virtualización/permisos/firewall.
+
+### Continuación conjunta: puertos, identidad HTTP y Auto-Pilot (T26/T29/T32)
+
+T26/T29/T32 implementadas. Se verificaron el override HOST_PORT antes del arranque, elección de alternativo y hasta tres intentos ante carreras de bind, sin detener otros servicios. Smoke y salud reconcilian identidad de aplicación/BD y puerto después de la respuesta, además de antes; HTTP de salud usa IPv4 127.0.0.1 sin redirecciones, conservando URL localhost para el usuario. Playground obtiene el destino de la sesión y descarta cuerpo/estado si cambia su identidad durante la petición, indicando que una escritura pudo ejecutarse antes del cambio.
+
+Auto-Pilot espera liberación del bloqueo de operación y resultado final, incluyendo smoke y persistencia; RUNNING intermedio no completa ni pausa el pipeline. Error/infraestructura ausente conserva causa y emite evento de intervención; DOCKER_UNAVAILABLE ofrece Reintentar/Continuar sin Docker. SOURCE_ONLY omite despliegue y espera. Cancelación interrumpe la espera y conserva CANCELLED; pausa durante espera impide completar el pipeline. Timeout no afirma haber detenido Docker ni sobrescribe su operación todavía activa. Cancelación completa de Docker/BuildKit sigue pendiente en T25/T27.
+
+Validación: **171 PASS backend** en once archivos, `.run/completion-backend-final.txt`; después **17 PASS** del archivo de identidad/puertos con un caso adicional SOURCE_ONLY sin Docker/HTTP (16 repetidos y 1 nuevo), `.run/completion-source-final.txt`. **39 PASS frontend** en seis archivos, `.run/completion-ui-final.txt`. **1 PASS Docker real** final con Spring/H2, puerto ocupado, espera de readiness, smoke ignorando puerto antiguo del caller y playground leyendo registro persistente por puerto efectivo; scripts y limpieza propia también aprobados. `.run/completion-real-final.txt`, `.run/real-lifecycle/76a875ca-7a28-41e2-870a-03b21aec784f/result.json`. Sin build/pull en esta prueba.
+
+Estado/intententos fallidos/límites detallados en sección 25 del documento de estado. **16/54 tareas marcadas; 38 sin marcar**, varias parciales. No se repitió suite global histórica ni matriz SQL completa; pendiente navegador conectado/backend completo, cancelación operativa, snapshot inmutable, kit integral/offline y CI/CD/Kubernetes. Sin cambios de permisos/virtualización/firewall, commits o publicación.
+
+### Continuación conjunta: controles y cancelación local (T25/T27, avance)
+
+Gestor común de controles para prepare/deploy/restart con ID exacto, fases, inicio/fin y cancelRequested persistidos. API de cancelación valida sesión y operación (409 para ID antiguo), es idempotente y SOURCE_ONLY no invoca Docker. Build/preparación permiten interrumpir/recolectar CLI propio; cada fase bloquea pasos posteriores tras cancelar o cambiar a fuentes. Readiness admite cancelación entre intentos. Ante timeout/cancelación después de intentar START se comprueban/detienen solo contenedores de esa sesión, conservando datos. Auto-Pilot propaga cancelación a su despliegue activo; UI muestra fase/fin, ofrece cancelación y no afirma que BuildKit haya terminado.
+
+Límites configurables: LOCAL_BUILD_TIMEOUT=600, LOCAL_PREPARE_TIMEOUT=900, LOCAL_START_TIMEOUT=200 y LOCAL_DEPLOY_WAIT_TIMEOUT=1400 segundos. Recuperar un worker perdido marca operación local interrumpida y evita UI bloqueada; Docker se reconcilia por separado. Inspección/config/up se acotan y comprueban cancelación antes/después, sin garantizar interrupción inmediata de un up ya iniciado.
+
+Evidencia: **155 PASS backend** (`.run/operations-backend-final-v2.txt`), **2 PASS** de cancelación Auto-Pilot anterior (`.run/operations-autopilot-cancel.txt`), **40 PASS frontend**, TypeScript/Vite PASS. **2 PASS Docker real** (`.run/operations-real.txt`): interrupción CLI sin asumir parada del daemon, posterior parada propia conservando volumen y otro proyecto intacto; reinicio Spring/H2 con controles/persistencia/puerto/playground/scripts aprobados. Recursos de los tres UUID de prueba retirados y ausencia confirmada; fuentes/imágenes conservadas.
+
+**T25/T27 siguen sin marcar**: falta cancelación BuildKit real y limpieza de builds temporales, integración completa con verificación/sandbox y aceptación de concurrencia/recuperación. Los tests reales no construyen ni descargan; uno usa docker wait, no demuestra cancelación del build en el daemon. Fallos/esperas del harness y corrección de fixtures que sustituían hilos globalmente constan en sección 26 del estado. **16/54 tareas marcadas, 38 sin marcar**, varias con avances sustanciales. Pendientes siguientes: gestión completa de builds y snapshot inmutable, kit integral/offline, CI/CD/Kubernetes y aceptación final. Sin commits/publicación ni cambios de permisos, virtualización, firewall o políticas.
+
+### Continuación conjunta: verificación y cancelación del sandbox (T25/T27)
+
+La verificación DOCKER de sesiones gestionadas comparte exclusión e identidad de operación con prepare/deploy/restart. Verificación manual conserva su bloqueo exterior; Auto-Pilot propaga cancelación a VERIFY. Sandbox identifica su contenedor temporal con nombre aleatorio y etiquetas de sesión/rol/operación; ante timeout/cancelación recolecta el CLI y retira solo el contenedor inspeccionado, comprobando su ausencia. No toca volúmenes, cachés, imágenes ni otros servicios. Limpieza no comprobable conserva causa y no se declara confirmada. SOURCE_ONLY no consulta Docker. INTERRUPTED es un resultado explícito que no acredita pruebas y no provoca reparación automática; lo muestran monitor/tests/exportación.
+
+**164 PASS backend/1 SKIP**, `.run/sandbox-controls-backend-final.txt`; confirmación final **11 PASS** (diez controles repetidos y una prueba Docker real), `.run/sandbox-controls-confirmation.txt`; **30 PASS frontend**, TypeScript/Vite PASS. La prueba real comprueba cancelación y timeout, identidad distinta por intento, retirada del sandbox, fuentes/imagen conservadas y otro proyecto intacto; limpieza final propia confirmada. Usa shell en imagen local sin build/pull ni red: no demuestra cancelación BuildKit ni una nueva matriz Spring/SQL. Incidencias previas y límites quedan en sección 27 del estado.
+
+**16/54 marcadas; 38 sin marcar. T25/T27 siguen parciales.** La integración con verificación/sandbox ya no es un pendiente de implementación en los flujos descritos; quedan BuildKit, snapshot inmutable T20 y aceptación de recuperación/concurrencia entre procesos y navegador. Después siguen kit integral/offline, entrega, CI/CD/Kubernetes y aceptación global. No se amplía la obligación Docker en laboratorio ni se modifican permisos/virtualización/firewall. Sin commits o publicación.
+
+### Continuación conjunta: arranque independiente y paquete informado (T39/T41)
+
+T39/T41 implementadas. start-local valida hashes del conjunto de manifiestos de build, motor Linux/arquitectura, imágenes preparadas y configuración aislada por proyecto antes del build. Construye sin pull/caché de capas, con RUN offline, y utiliza el ciclo de reinicio inspeccionado para puerto alternativo/readiness/URL. SourcesOnly retorna antes de Docker; ReuseImage omite build y declara que no ejecutó nuevas pruebas. No llama a AgentIA/IA ni requiere Java/Maven/Gradle en Windows. Stop/restart/cleanup conservan sus contratos y confirmación explícita del borrado.
+
+LOCAL_DELIVERY.json declara versiones previstas, imágenes requeridas y volúmenes persistentes; no inventa evidencia de ejecución. El ZIP incorpora DELIVERY_STATUS.json con resultado actual de la sesión, omisión/interrupción/obsolescencia y fingerprint. Excluye imágenes pesadas images.tar y credenciales .env; el kit sigue separado. Rechaza cambios de fuentes observados durante empaquetado, sin declarar cerrado el snapshot inmutable T20. T40 continúa parcial: no se entrega aún un paquete ejecutable con imagen de aplicación.
+
+**82 PASS backend**, siete archivos, .run/delivery-scripts-backend-final.txt; **1 PASS Docker real**, .run/delivery-scripts-real.txt. PowerShell real ejecutó build Spring/H2 con builder local preparado, ocho pruebas Maven aprobadas según el log, readiness, puerto ocupado resuelto, parada/reutilización sin nuevo build, registro H2 conservado y cleanup propio confirmado. No prueba caché del daemon completamente fría, Windows limpio ni internet externo bloqueado. No hay cambios frontend; no se repite su build ni suite global. Detalles/incidencias en sección 28 del estado.
+
+**18/54 tareas marcadas; 36 sin marcar**, varias parciales. Siguen BuildKit, snapshot/identidad de imagen, kit integral/paquete ejecutable/aceptación offline, CI/CD/Kubernetes y aceptación final. Sin commits/publicación ni cambios de virtualización, permisos, firewall o políticas.
+
+### Continuación conjunta: transferencia real e integridad del kit (T16/T17)
+
+Export/import comprueban el catálogo TAR clásico/OCI sin extracción ni Python, validando tags, hashes de configs/índices y vínculo entre imagen/config antes de load. Rechazan tags adicionales/duplicados, índices falsificados, identidad incompatible y formato no comprobable; conservan la comprobación de tags instalados y IDs después de importar. El manifiesto declara engine/capacidades incluidas y mantiene offlineVerified=false. Todos los caminos sandbox usan pull never/network none; imagen faltante propone preparación/importación explícita o SourcesOnly sin descargar automáticamente.
+
+**83 PASS backend**, seis archivos, .run/kit-transfer-backend-final-v2.txt; **1 PASS Docker real**, .run/kit-transfer-real-final.txt. Se exportó/importó kit de 418.344.448 bytes (~399 MiB), se conservaron IDs de builder/runtime y se rechazó SHA256 incorrecto. Kit válido retenido en .run/real-kit-transfer/13019ff3-c4d7-47bc-a087-ea984e52ff69/kit. Incidencias/correcciones y límites quedan en sección 29 del estado. No se repite suite global ni frontend sin cambios.
+
+T16/T17 continúan parciales: misma máquina/motor con imágenes presentes, sin aceptación de motor limpio, caché fría o internet externo bloqueado; faltan scanners/catálogos/herramientas Kubernetes y kit integral. Este kit no incluye imagen de aplicación (T40 pendiente). **18/54 marcadas, 36 sin marcar**. Siguen BuildKit, snapshot y aceptación final. Sin cambios de permisos/virtualización/firewall/políticas, commits o publicación.
+
+### Continuación conjunta: manifiestos versionados y build separado (T23/T24)
+
+T23 implementada para proyectos nuevos: ASSET_CONFIGURATION.json declara versión de plantilla/configuración y .agentia-runtime/generated-assets.json registra identidad y hashes de activos propios. Regenerar permite actualizar archivos intactos, pero rechaza archivos editados, eliminados, ajenos o registro inválido/futuro; la API devuelve 409 con causa. No adopta ni modifica proyectos históricos. Prepara los cambios en staging corto del repositorio, verifica que las fuentes no cambiaron y revierte archivos ante errores de publicación. Comparte el bloqueo de operaciones por sesión, sin consultar Docker. SQL/migraciones conservan las restricciones anteriores; cambiar configuración no convierte SQL publicado ni elimina datos.
+
+T24 implementada: backend y scripts construyen explícitamente offline antes de up --no-build --pull never; un fallo de build impide up. Se reforzaron las pruebas de orden y ausencia de arranque ante fallo. Red local Compose permite comunicación app/BD y los puertos publicados permanecen en localhost. No acredita ausencia de internet en todo el equipo; aceptación offline integral sigue abierta.
+
+**103 PASS backend**, siete archivos, .run/assets-version-backend-final.txt; **1 PASS Docker real**, .run/assets-version-real.txt. El proyecto nuevo UUID 2777cbf7-7c08-4a27-9995-4bfb1b796487 se generó mediante la función pública versionada: build Maven/H2 sin red, ocho tests aprobados, readiness, puerto ocupado resuelto, reutilización sin nuevas pruebas y datos H2 conservados. Cleanup propio confirmado y builder compartido intacto. Detalles, intentos fallidos y límites en sección 30 del estado. Sin cambios frontend ni repetición de suite global histórica.
+
+**20/54 marcadas; 34 sin marcar**, varias parciales. Continúan snapshot/identidad de imagen, BuildKit, kit integral/offline, paquete ejecutable T40, CI/CD/Kubernetes y aceptación completa. Instancia manual conservada; backend sin reload aún usa código anterior a este bloque y no se reinició ante 13 sesiones registradas RUNNING/QUEUED. Sin commits/publicación ni cambios de permisos, virtualización, firewall o políticas.
+
+### Continuación conjunta: build, JAR ejecutable y Compose (T18/T19/T21)
+
+T19 implementada: selector de JAR comprueba ZIP íntegro, BOOT-INF y Main-Class de Spring Boot; exige exactamente uno y soporta espacios en rutas. No elige arbitrariamente el primero. Dockerfile utiliza builder preparado, comandos offline y RUN sin red para build/selección; conserva JAR completo y ejecuta java -jar, sin extracción de capas dependiente de una CLI Spring Boot concreta. Usuario final 10001:10001; preparación del runtime exige wget y grep para su healthcheck.
+
+T18 avanza: resolver común para Maven/Gradle/Groovy/Kotlin en raíz o bootstrap, respetando reactor Gradle con settings en raíz. Configuración versión 3 registra buildDirectory; Dockerfile, preparación y declaración de herramienta acuerdan la entrada. Rechaza entradas ambiguas sin publicar activos ni borrar archivos. Sigue abierta la unificación completa de configuración persistida y defaults de todas las rutas/sandbox.
+
+T21 implementada: estructura y configuración Compose efectiva comprobadas en Maven/Gradle × PostgreSQL/MySQL/H2: imagen/volúmenes por proyecto, localhost, BD sin publicar, credenciales por entorno, dependencias saludables y H2 sin BD externa. Se reutiliza la evidencia de matriz real y aislamiento previa; este bloque no vuelve a ejecutar CRUD para las seis combinaciones.
+
+**112 PASS backend, 10 SKIP** de escenarios reales opt-in, .run/build-layout-backend-final-v2.txt. **22 PASS** en .run/build-layout-real.txt: 11 casos locales, 10 selectores ejecutados en contenedores reales sin red/pull y un E2E Spring/H2. Ese E2E tiene ocho tests Maven aprobados, usuario sin privilegios, localhost, puerto alternativo, reutilización/datos conservados y cleanup propio. **6 PASS Compose real**, .run/build-layout-compose-real.txt, sin desplegar nuevos servicios. No se suman repeticiones como escenarios distintos. Fallos de fixture y límites en sección 31 del estado.
+
+**22/54 marcadas; 32 sin marcar**, varias parciales. Continúan T18, snapshot/identidad de imagen, BuildKit, kit integral/offline, entrega ejecutable, CI/CD/Kubernetes y aceptación completa. El usuario autorizó no mantener AgentIA activo; instancia native de prueba detenida tras verificar identidad de sus procesos, registro en .run/local-app-processes.json. Sin commits/publicación ni cambios de permisos, virtualización, firewall o políticas.
+
+### Continuación conjunta: configuración guardada y sandbox modular (T18/T08/T09)
+
+Resolver local_configuration sin consultas Docker: petición explícita prevalece; si omite motor/puerto, conserva ASSET_CONFIGURATION.json; solo un proyecto sin configuración utiliza datos de sesión y defaults iniciales. Configuración corrupta, ajena, motor inválido o puerto inválido no se sustituyen silenciosamente. Generación, preparación y despliegue adoptan esta resolución; hostPort del request de deploy y host_port de generación son opcionales. Conflictos de configuración se responden con HTTP 409. SOURCE_ONLY sale antes de resolver/configurar despliegue Docker.
+
+Sandbox preparado y caminos de caché host usan build_layout, incluyendo bootstrap Maven/Gradle/Groovy/Kotlin y reactor con settings raíz. Mantienen pull never/network none y el working directory correcto. Verify existing sources acepta la entrada modular para completar entrega sin Docker, conservando estado no verificado y política de fuentes. Generación agrega también driver H2 faltante a Maven/Gradle; manifiesto/fingerprint/caché reflejan las dependencias añadidas.
+
+Regresión/evidencia final en sección 32 del estado y .run/config-flow-backend-final.txt. Docker real: .run/config-flow-real.txt, **1 PASS**, ocho tests Maven aprobados en bootstrap usando el builder existente, sin red/pull, sin preparar online ni modificar imágenes. No acredita nueva compilación Gradle, perfil SQL completo o entorno limpio. Instancia AgentIA continúa detenida.
+
+**T18/T08/T09 permanecen parciales; 22/54 marcadas y 32 sin marcar**. Falta unificación/aceptación completa en UI y arranque standalone de los defaults persistidos, y el cierre integral de reparación, vistas/contratos y entrega según esas tareas. Continúan snapshot/imagen, BuildKit, kit integral/offline, paquete ejecutable, CI/CD/Kubernetes y aceptación general. Sin commits/publicación ni cambios de permisos/virtualización/firewall/políticas.
+
+### Continuación conjunta: configuración en UI y arranque independiente (T18/T39)
+
+T18 implementada: GET configuration sin llamadas Docker devuelve motor/puerto/herramienta/directorio resueltos y conserva autenticación. React lee configuración por sesión, muestra herramienta/BD y permite editar puerto cuando no hay runtime activo. Generación/despliegue omiten valores no elegidos explícitamente, de modo que el backend conserva el proyecto. Respuestas tardías no sustituyen puerto editado, sesión diferente o puerto efectivo de un contenedor en ejecución; polling IDLE/SOURCE_ONLY no pisa la configuración guardada con 8080.
+
+Refinamiento de T39: LOCAL_DELIVERY.json incorpora hostPort, templateVersion pasa a 4 y start-local.ps1 sin -Port usa ese valor. Parámetro explícito prevalece; puerto guardado inválido exige regenerar. SourcesOnly sigue retornando antes de leer metadata/runtime/Docker. Restart conserva resolución anterior por contenedor/Compose; start le pasa el puerto ya resuelto.
+
+**104 PASS backend/17 SKIP**, .run/config-ui-backend-final-v2.txt; **24 PASS frontend**, .run/config-ui-frontend-final.txt; TypeScript y build Vite PASS. **1 PASS Docker real**, .run/config-ui-real.txt: proyecto nuevo 6ca36bed-2685-4fcf-9b31-828484fbdc44, start sin -Port tomó puerto guardado ocupado y eligió localhost:49896, ocho tests Maven offline, readiness/CRUD, imagen reutilizada y datos conservados; cleanup propio confirmado, builder compartido inalterado. Incidencias y límites en sección 33 del estado. Instancia AgentIA detenida, sin recorrido integral de navegador ni suite global repetida.
+
+**23/54 marcadas; 31 sin marcar**, varias parciales. T08/T09 mantienen pendientes de cierre integral; siguen snapshot/imagen, cancelación BuildKit, kit integral/offline, paquete ejecutable, CI/CD/Kubernetes y aceptación completa. Sin commits/publicación ni cambios de permisos/virtualización/firewall/políticas.

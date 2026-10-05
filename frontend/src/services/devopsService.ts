@@ -6,11 +6,18 @@ export interface LocalDeploymentSession {
   status: 'NOT_DEPLOYED' | 'STARTING' | 'BUILDING' | 'RUNNING' | 'HEALTHY' | 'STOPPED' | 'ERROR' | 'FAILED' | 'IDLE' | 'DOCKER_UNAVAILABLE' | 'SKIPPED_BY_CHOICE' | 'DEGRADED';
   hostPort: number;
   containerId?: string;
+  containerPort?: number;
+  testUrl?: string | null;
   dbEngine?: string;
   healthStatus?: 'UP' | 'DOWN' | 'UNKNOWN' | null;
   errorMessage?: string | null;
   message?: string;
   startedAt?: string;
+  operationId?: string;
+  operationKind?: string;
+  operationPhase?: string;
+  finishedAt?: string | null;
+  cancelRequested?: boolean;
 }
 
 export interface PlaygroundProxyResult {
@@ -73,20 +80,23 @@ export interface DockerCapabilityReport {
 }
 
 export const devopsService = {
+  async getConfiguration(sessionId: string): Promise<{ databaseEngine: string; hostPort: number; buildTool: string; buildDirectory: string }> {
+    return (await apiClient.get(`/devops/${sessionId}/configuration`)).data;
+  },
   async getDiagnostics(sessionId: string): Promise<DockerCapabilityReport> {
     return (await apiClient.get<DockerCapabilityReport>(`/devops/${sessionId}/diagnostics`)).data;
   },
   async prepareLocal(sessionId: string): Promise<LocalDeploymentSession> {
     return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/prepare`)).data;
   },
-  async generateManifests(sessionId: string, dbEngine = 'POSTGRESQL', hostPort = 8080): Promise<ManifestBundle> {
+  async generateManifests(sessionId: string, dbEngine?: string, hostPort?: number): Promise<ManifestBundle> {
     const response = await apiClient.post<ManifestBundle>(`/devops/${sessionId}/generate`, null, {
       params: { db_engine: dbEngine, host_port: hostPort },
     });
     return response.data;
   },
 
-  async deployLocal(sessionId: string, hostPort = 8080, rebuild = false): Promise<LocalDeploymentSession> {
+  async deployLocal(sessionId: string, hostPort?: number, rebuild = false): Promise<LocalDeploymentSession> {
     const response = await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/deploy`, {
       hostPort,
       rebuild,
@@ -109,6 +119,18 @@ export const devopsService = {
   async stopContainers(sessionId: string): Promise<LocalDeploymentSession> {
     const response = await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/stop`);
     return response.data;
+  },
+
+  async restartLocal(sessionId: string): Promise<LocalDeploymentSession> {
+    return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/restart`)).data;
+  },
+
+  async cancelLocal(sessionId: string, operationId: string): Promise<LocalDeploymentSession> {
+    return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/cancel`, { operationId })).data;
+  },
+
+  async cleanupLocal(sessionId: string, deleteData: boolean): Promise<LocalDeploymentSession> {
+    return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/cleanup`, { deleteData })).data;
   },
 
   /**

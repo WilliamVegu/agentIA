@@ -3,6 +3,8 @@ import re
 import time
 import asyncio
 import subprocess
+import uuid
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Callable, List
@@ -18,9 +20,9 @@ class DockerExecutionResult(BaseModel):
     * **verified and failed**  -- ``exit_code != 0``, ``fallback_used is False``
     * **could not verify**     -- ``exit_code != 0``, ``fallback_used is True``
 
-    ``exit_code == 0`` with ``fallback_used is True`` is legal **only** when
-    ``ALLOW_HERMETIC_FALLBACK`` is enabled; it means "reported as passing without
-    verification". Every consumer that computes a figure MUST exclude it.
+    Unavailable execution never fabricates passing output or tests. Consumers
+    require a nonempty suite, no fallback and current source evidence. Source-only
+    execution is explicitly skipped; it is never a successful verification.
     """
 
     exit_code: int
@@ -35,6 +37,8 @@ class DockerExecutionResult(BaseModel):
     fallback_reason: Optional[str] = None
     matched_pattern: Optional[str] = None
     attribution_ambiguous: bool = False
+    verification_interrupted: bool = False
+    cleanup_confirmed: Optional[bool] = None
 
     @property
     def is_success(self) -> bool:
@@ -140,28 +144,31 @@ def build_docker_cmd(
     # a real build failure at the report level. Empty by default so behaviour is
     # unchanged on hosts that do not need it.
     mount_suffix = getattr(settings, "DOCKER_MOUNT_SUFFIX", "") or ""
+    from app.services.build_layout import build_layout
+    tool, directory, _ = build_layout(workspace_host_path)
+    workdir = '/workspace' + ('/bootstrap' if directory == 'bootstrap' else '')
 
     if prepared:
-        gradle = any((Path(workspace_host_path) / name).exists() for name in ("build.gradle", "build.gradle.kts"))
+        gradle = tool == 'gradle'
         command = ("mkdir -p /tmp/gradle-home && cp -R /opt/agentia-cache/. /tmp/gradle-home/ && GRADLE_USER_HOME=/tmp/gradle-home gradle --no-daemon --offline test bootJar" if gradle
                    else "mkdir -p /tmp/m2 && cp -R /opt/agentia-cache/. /tmp/m2/ && mvn -B -o -Dmaven.repo.local=/tmp/m2 verify")
-        return ["docker", "run", "--rm", "--pull", "never", "--network", "none", "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix), "-w", "/workspace", docker_image, "sh", "-c", command]
+        return ["docker", "run", "--rm", "--pull", "never", "--network", "none", "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix), "-w", workdir, docker_image, "sh", "-c", command]
 
-    if (Path(workspace_host_path) / "build.gradle").exists() or (Path(workspace_host_path) / "build.gradle.kts").exists():
+    if tool == 'gradle':
         cache = os.environ.get("GRADLE_CACHE_DIR", str(Path.home() / ".gradle"))
-        return ["docker", "run", "--rm", "--network", "none",
+        return ["docker", "run", "--rm", "--pull", "never", "--network", "none",
                 "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix),
                 "-v", mount_spec(cache, "/opt/gradle-cache", read_only=True, suffix=mount_suffix),
-                "-e", "GRADLE_USER_HOME=/tmp/gradle-home", "-w", "/workspace",
+                "-e", "GRADLE_USER_HOME=/tmp/gradle-home", "-w", workdir,
                 os.environ.get("GRADLE_DOCKER_IMAGE", "gradle:8-jdk21"), "sh", "-c",
                 "mkdir -p /tmp/gradle-home && cp -R /opt/gradle-cache/. /tmp/gradle-home/ && gradle --no-daemon --offline test"]
 
     return [
-        "docker", "run", "--rm",
+        "docker", "run", "--rm", "--pull", "never",
         "--network", "none",
         "-v", mount_spec(ws_path, "/workspace", suffix=mount_suffix),
         "-v", mount_spec(m2_path, "/root/.m2/repository", read_only=True, suffix=mount_suffix),
-        "-w", "/workspace",
+        "-w", workdir,
         docker_image,
         "mvn", "test", "-o"
     ]
@@ -228,18 +235,32 @@ async def run_docker_sandbox(
     maven_cache_path: Optional[str] = None,
     docker_image: Optional[str] = None,
     timeout_seconds: int = 300,
-    log_callback: Optional[Callable[[str], None]] = None
+    log_callback: Optional[Callable[[str], None]] = None,
+    cancel_event=None,
+    operation_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    mode=None,
 ) -> DockerExecutionResult:
     """
     Executes Maven test within an isolated, offline Docker sandbox container.
     Streams output line by line to log_callback if provided.
 
-    When a build cannot actually run, the outcome depends on
-    ``ALLOW_HERMETIC_FALLBACK`` (see ``_build_hermetic_fallback_result``): the
-    default reports a marked non-success, and permissive mode restores the legacy
-    synthetic success for local development.
+    Unavailable or interrupted execution always reports a non-success. Cancellation
+    checks and removes only this operation's inspected temporary container.
     """
     start_time = time.time()
+    from app.models.execution import ExecutionMode
+    from app.models.session import SessionLocal, GenerationSessionDB
+    identity = session_id or Path(workspace_path).name
+    with SessionLocal() as db:
+        row = db.get(GenerationSessionDB, identity)
+        selected_mode = ExecutionMode(mode) if mode is not None else (ExecutionMode(row.execution_mode) if row else None)
+    if selected_mode == ExecutionMode.SOURCE_ONLY:
+        return DockerExecutionResult(exit_code=1, fallback_used=True, verification_skipped=True,
+                                     fallback_reason='No ejecutadas por elección: sesión sin Docker.')
+    if cancel_event is not None and cancel_event.is_set():
+        return DockerExecutionResult(exit_code=-1, fallback_used=True, verification_interrupted=True,
+                                     fallback_reason='Verificación cancelada antes de crear el contenedor.')
 
     # 1. Preventive Docker Daemon check
     try:
@@ -258,6 +279,11 @@ async def run_docker_sandbox(
     image = docker_image or builder_image(workspace_path)
     prepared = docker_image is None
     if prepared:
+        from app.services.gradle_compatibility import validate_gradle_version
+        try:
+            validate_gradle_version(workspace_path)
+        except ValueError as exc:
+            return DockerExecutionResult(exit_code=1, fallback_used=True, fallback_reason=str(exc), stderr=str(exc))
         try:
             image_check = subprocess.run(["docker", "image", "inspect", image], capture_output=True, timeout=5, check=False)
             if image_check.returncode:
@@ -265,9 +291,21 @@ async def run_docker_sandbox(
         except (OSError, subprocess.SubprocessError):
             return _build_hermetic_fallback_result(start_time, log_callback, reason=REASON_RUNTIME_COMMUNICATION)
     cmd = build_docker_cmd(workspace_path, m2_cache, image, prepared=prepared)
+    operation_id = operation_id or str(uuid.uuid4())
+    # The container name is independent of user input and never reused by another attempt.
+    container_name = 'agentia-verify-' + uuid.uuid4().hex
+    cmd[2:2] = ['--name', container_name, '--label', f'com.docker.compose.project={identity}',
+                '--label', 'io.agentia.role=verification', '--label', f'io.agentia.operation={operation_id}']
 
-    stdout_chunks: List[str] = []
-    stderr_chunks: List[str] = []
+    stdout_chunks = deque(maxlen=1000)
+    stderr_chunks = deque(maxlen=1000)
+    process = None
+    interrupted = None
+    needs_cleanup = False
+    completion = None
+
+    class Interrupted(RuntimeError):
+        pass
 
     try:
         process = await asyncio.create_subprocess_exec(
@@ -281,19 +319,26 @@ async def run_docker_sandbox(
                 line = await stream.readline()
                 if not line:
                     break
-                decoded = line.decode("utf-8", errors="replace")
+                from app.services.deployment_logs import redact
+                decoded = redact(line.decode("utf-8", errors="replace")[:8192])
                 chunks.append(decoded)
                 if log_callback:
                     log_callback(decoded)
 
-        await asyncio.wait_for(
-            asyncio.gather(
+        completion = asyncio.gather(
                 stream_output(process.stdout, stdout_chunks),
                 stream_output(process.stderr, stderr_chunks),
                 process.wait()
-            ),
-            timeout=timeout_seconds
-        )
+            )
+        async def wait_completion():
+            while not completion.done():
+                if cancel_event is not None and cancel_event.is_set():
+                    raise Interrupted('Verificación cancelada por solicitud del usuario.')
+                await asyncio.wait([completion], timeout=0.2)
+            if cancel_event is not None and cancel_event.is_set():
+                raise Interrupted('Verificación interrumpida; el resultado no se confirma.')
+            await completion
+        await asyncio.wait_for(wait_completion(), timeout=timeout_seconds)
 
         exit_code = process.returncode if process.returncode is not None else -1
 
@@ -302,18 +347,21 @@ async def run_docker_sandbox(
         return _build_hermetic_fallback_result(
             start_time, log_callback, reason=REASON_RUNTIME_MISSING
         )
-    except asyncio.TimeoutError:
-        try:
-            process.kill()
-        except Exception:
-            pass
-        return DockerExecutionResult(
+    except (asyncio.TimeoutError, Interrupted) as exc:
+        needs_cleanup = True
+        reason = f'Verificación interrumpida por timeout de {timeout_seconds} segundos.' if isinstance(exc, asyncio.TimeoutError) else str(exc)
+        interrupted = DockerExecutionResult(
             exit_code=-1,
             stdout="".join(stdout_chunks),
-            stderr=f"Execution timed out after {timeout_seconds} seconds.",
+            stderr=reason, fallback_used=True, verification_interrupted=True, fallback_reason=reason,
             duration_ms=int((time.time() - start_time) * 1000)
         )
+        return interrupted
+    except asyncio.CancelledError:
+        needs_cleanup = True
+        raise
     except Exception as e:
+        needs_cleanup = process is not None
         err_msg = str(e).lower()
         if any(pat in err_msg for pat in ["docker", "daemon", "pipe", "connect", "not found"]):
             return _build_hermetic_fallback_result(
@@ -325,6 +373,30 @@ async def run_docker_sandbox(
             stderr=f"Failed to execute Docker container: {str(e)}",
             duration_ms=int((time.time() - start_time) * 1000)
         )
+    finally:
+        if needs_cleanup:
+            if process is not None and process.returncode is None:
+                try:
+                    process.kill()
+                    await asyncio.wait_for(process.wait(), timeout=5)
+                except Exception:
+                    pass  # Container cleanup is independently inspected below.
+            if completion is not None:
+                if not completion.done():
+                    completion.cancel()
+                await asyncio.gather(completion, return_exceptions=True)
+            from app.services.sandbox_resources import cleanup_sandbox
+            try:
+                confirmed = await asyncio.to_thread(cleanup_sandbox, container_name, identity, operation_id)
+                if interrupted is not None:
+                    interrupted.cleanup_confirmed = confirmed
+                    interrupted.stderr += ' Contenedor temporal retirado; fuentes y cachés conservadas.'
+            except Exception as cleanup_error:
+                if interrupted is not None:
+                    interrupted.cleanup_confirmed = False
+                    interrupted.stderr += ' Limpieza no confirmada: ' + str(cleanup_error)
+                if log_callback:
+                    log_callback('[SANDBOX] Limpieza no confirmada: ' + str(cleanup_error))
 
     stdout_text = "".join(stdout_chunks)
     stderr_text = "".join(stderr_chunks)

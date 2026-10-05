@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Code,
   FileCode,
@@ -21,9 +21,12 @@ import { CodeViewer } from '../components/common/CodeViewer';
 import { useStudio } from '../context/StudioContext';
 import { testsService, RepairIterationRecord, RepairHistoryResponse } from '../services/testsService';
 import { exportService, ArtifactItem } from '../services/exportService';
+import { VerificationStatus } from '../components/common/VerificationStatus';
 
 export const CodeExplorerView: React.FC = () => {
   const { activeSessionId, activeSession, reloadCurrentOverview, setActiveTab } = useStudio();
+  const scope = useRef({ id: activeSessionId, revision: 0 });
+  if (scope.current.id !== activeSessionId) scope.current = { id: activeSessionId, revision: scope.current.revision + 1 };
 
   // Subtabs: 0: Artifacts, 1: Tests, 2: Self-Repair, 3: Manual, 4: Security
   const [activeSubtab, setActiveSubtab] = useState<number>(0);
@@ -48,6 +51,18 @@ export const CodeExplorerView: React.FC = () => {
 
   // Load artifacts and repairs for session
   useEffect(() => {
+    let cancelled = false;
+    setRepairData(null);
+    setRepairs([]);
+    setMetricsData({ passedTests: 0, totalTests: 0 });
+    setArtifacts([]);
+    setSelectedFile('');
+    setFileContent('');
+    setManualFile('');
+    setManualCode('');
+    setManualHint('');
+    setRepairFeedback(null);
+    setIsSubmittingRepair(false);
     if (!activeSessionId) {
       setArtifacts([]);
       setSelectedFile('');
@@ -63,6 +78,7 @@ export const CodeExplorerView: React.FC = () => {
     exportService
       .listArtifacts(activeSessionId)
       .then((items: ArtifactItem[]) => {
+        if (cancelled) return;
         if (Array.isArray(items) && items.length > 0) {
           setArtifacts(items);
           const firstPath = items[0]?.relativePath || '';
@@ -72,6 +88,7 @@ export const CodeExplorerView: React.FC = () => {
             exportService
               .getArtifactContent(activeSessionId, firstPath)
               .then((c) => {
+                if (cancelled) return;
                 const safeC = typeof c === 'string' ? c : (c ? JSON.stringify(c, null, 2) : '');
                 setFileContent(safeC);
                 setManualCode(safeC);
@@ -87,6 +104,7 @@ export const CodeExplorerView: React.FC = () => {
         }
       })
       .catch(() => {
+        if (cancelled) return;
         setArtifacts([]);
         setSelectedFile('');
         setFileContent('');
@@ -97,6 +115,7 @@ export const CodeExplorerView: React.FC = () => {
     testsService
       .getRepairHistory(activeSessionId)
       .then((data: RepairHistoryResponse) => {
+        if (cancelled) return;
         if (data) {
           setRepairData(data);
           if (Array.isArray(data.iterations)) {
@@ -105,14 +124,17 @@ export const CodeExplorerView: React.FC = () => {
         }
       })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [activeSessionId]);
 
   const handleSelectArtifact = async (path: string) => {
     if (!path) return;
     setSelectedFile(path);
     if (!activeSessionId) return;
+    const revision = scope.current.revision;
     try {
       const content = await exportService.getArtifactContent(activeSessionId, path);
+      if (revision !== scope.current.revision) return;
       const safeContent = typeof content === 'string' ? content : (content ? JSON.stringify(content, null, 2) : '');
       setFileContent(safeContent);
     } catch {
@@ -124,8 +146,10 @@ export const CodeExplorerView: React.FC = () => {
     if (!path) return;
     setManualFile(path);
     if (!activeSessionId) return;
+    const revision = scope.current.revision;
     try {
       const content = await exportService.getArtifactContent(activeSessionId, path);
+      if (revision !== scope.current.revision) return;
       const safeContent = typeof content === 'string' ? content : (content ? JSON.stringify(content, null, 2) : '');
       setManualCode(safeContent);
     } catch {
@@ -134,7 +158,8 @@ export const CodeExplorerView: React.FC = () => {
   };
 
   const handleSubmitManualRepair = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || isSubmittingRepair || activeSession?.status === 'RUNNING' || activeSession?.status === 'QUEUED') return;
+    const revision = scope.current.revision;
     setIsSubmittingRepair(true);
     setRepairFeedback(null);
     try {
@@ -144,13 +169,15 @@ export const CodeExplorerView: React.FC = () => {
         manualCode,
         manualHint
       );
-      setRepairFeedback(res.message || 'Corrección manual aplicada con éxito. Sesión desbloqueada.');
+      if (revision !== scope.current.revision) return;
+      setRepairFeedback(res.message || 'Solicitud de corrección recibida. Consulte el resultado de verificación de la sesión.');
       setFileContent(manualCode);
       await reloadCurrentOverview();
     } catch (err: any) {
+      if (revision !== scope.current.revision) return;
       setRepairFeedback(err.response?.data?.detail || 'Error al aplicar corrección manual');
     } finally {
-      setIsSubmittingRepair(false);
+      if (revision === scope.current.revision) setIsSubmittingRepair(false);
     }
   };
 
@@ -204,6 +231,7 @@ export const CodeExplorerView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <VerificationStatus session={activeSession} />
       {/* 1. Header Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
@@ -220,10 +248,10 @@ export const CodeExplorerView: React.FC = () => {
               className={`px-2 py-0.5 rounded text-xs font-bold font-mono ${
                 isBlocked
                   ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                  : activeSession?.verificationOutcome === 'PASSED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
               }`}
             >
-              {finalState}
+              {activeSession?.verificationOutcome || (activeSession?.executionMode === 'SOURCE_ONLY' ? 'SKIPPED_BY_CHOICE' : 'PENDING')}
             </span>
           </div>
         </div>
@@ -576,7 +604,7 @@ export const CodeExplorerView: React.FC = () => {
             <div className="flex justify-end pt-1">
               <button
                 onClick={handleSubmitManualRepair}
-                disabled={isSubmittingRepair}
+                disabled={!activeSessionId || isSubmittingRepair || activeSession?.status === 'RUNNING' || activeSession?.status === 'QUEUED'}
                 className="flex items-center gap-2 py-2.5 px-6 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm"
               >
                 <Send className="w-3.5 h-3.5" />

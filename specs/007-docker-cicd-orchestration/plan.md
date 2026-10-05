@@ -1,6 +1,6 @@
 # Plan técnico vigente: despliegue local opcional
 
-**Actualizado:** 04/10/2026. **Estado:** implementación iniciada, aceptación integral pendiente.
+**Actualizado:** 05/10/2026. **Estado:** implementación iniciada, aceptación integral pendiente.
 
 El plan detallado y su seguimiento están en `docs/PLAN_IMPLEMENTACION_DESPLIEGUE_LOCAL.md`; el diagnóstico y las evidencias, en `docs/ESTADO_DESPLIEGUE_LOCAL_DOCKER.md`. Este documento sustituye el plan de septiembre basado en Streamlit, montajes SQL y fallback implícito.
 
@@ -36,3 +36,7 @@ La generación de archivos y pruebas con dependencias simuladas no acreditan un 
 No migrar ni borrar proyectos históricos. Preservar datos al detener/reconstruir; borrado solo explícito. Sin Docker, herramientas externas ausentes se reportan como no ejecutadas y no bloquean la entrega por ausencia de infraestructura. El inicio no cambia permisos, políticas de Windows ni virtualización.
 
 Las 54 tareas conservan sus identificadores en el plan detallado. Las tareas parciales permanecen abiertas y toda evidencia debe indicar si se obtuvo leyendo código, ejecutando generación, simulando dependencias o usando contenedores reales.
+
+## Referencias actuales
+
+Especificación, quickstart y contratos se alinearon con las rutas reales el 5 de octubre. La API se exporta con backend/scripts/export_devops_contract.py y se comprueba con --check. El plan detallado conserva tareas parciales abiertas; este contrato no acredita snapshot, cancelación BuildKit, CI/CD/Kubernetes ni aceptación offline integral.

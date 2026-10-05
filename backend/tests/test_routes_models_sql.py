@@ -5,7 +5,17 @@ from app.main import app
 from app.models.requirements import SpecificationDraft
 from app.models.blueprint import DomainEntity, EntityAttribute, UserStoryRecord, AcceptanceScenarioRecord
 
-client = TestClient(app)
+@pytest.fixture(autouse=True)
+def authenticated_local_client(monkeypatch, tmp_path):
+    global client
+    monkeypatch.setenv('STUDIO_AUTO_LOGIN', 'true')
+    from app.config import settings
+    monkeypatch.setattr(settings, 'SPECIFICATION_DIR', str(tmp_path / 'specifications'))
+    with TestClient(app, base_url='http://localhost', client=('127.0.0.1', 50000)) as authenticated:
+        client = authenticated
+        assert client.post('/api/v1/auth/mvp').status_code == 200
+        yield
+        client.post('/api/v1/auth/logout')
 
 @pytest.fixture
 def sample_specification_draft() -> SpecificationDraft:
@@ -67,7 +77,8 @@ def test_generate_models_missing_api_key_401(sample_specification_draft: Specifi
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     payload = {
         "draft": sample_specification_draft.model_dump(),
-        "apiKey": None
+        "apiKey": None,
+        "provider": "openai"
     }
     resp = client.post("/api/v1/models/generate", json=payload)
     assert resp.status_code == 401
@@ -78,7 +89,8 @@ def test_generate_models_missing_api_key_401(sample_specification_draft: Specifi
 def test_generate_models_endpoint_success(sample_specification_draft: SpecificationDraft):
     payload = {
         "draft": sample_specification_draft.model_dump(),
-        "apiKey": "mock-test-key"
+        "apiKey": "mock-test-key",
+        "provider": "mock"
     }
     resp = client.post("/api/v1/models/generate", json=payload)
     assert resp.status_code == 200
@@ -100,7 +112,8 @@ def test_refine_models_endpoint_success(sample_specification_draft: Specificatio
     # First generate initial design
     init_payload = {
         "draft": sample_specification_draft.model_dump(),
-        "apiKey": "mock-test-key"
+        "apiKey": "mock-test-key",
+        "provider": "mock"
     }
     init_resp = client.post("/api/v1/models/generate", json=init_payload)
     assert init_resp.status_code == 200
@@ -111,7 +124,8 @@ def test_refine_models_endpoint_success(sample_specification_draft: Specificatio
         "currentResponse": init_data,
         "feedbackPrompt": "Añade un campo trackingNumber de tipo String en Order",
         "targetEntity": "Order",
-        "apiKey": "mock-test-key"
+        "apiKey": "mock-test-key",
+        "provider": "mock"
     }
     refine_resp = client.post("/api/v1/models/refine", json=refine_payload)
     assert refine_resp.status_code == 200
@@ -126,7 +140,8 @@ def test_refine_models_endpoint_success(sample_specification_draft: Specificatio
 def test_handoff_to_specifications_store(sample_specification_draft: SpecificationDraft):
     payload = {
         "draft": sample_specification_draft.model_dump(),
-        "apiKey": "mock-test-key"
+        "apiKey": "mock-test-key",
+        "provider": "mock"
     }
     resp = client.post("/api/v1/models/generate", json=payload)
     assert resp.status_code == 200

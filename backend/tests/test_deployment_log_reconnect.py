@@ -83,7 +83,9 @@ def test_failed_atomic_commit_does_not_replace_durable_history_or_advance_id(his
     assert Path.replace is original
     assert (history / 'logs.json').read_bytes() == saved
     service._log_message('session', 'retry')
-    assert service._deployment_log_snapshot('session')['entries'][-1] == {'id': 2, 'message': 'retry'}
+    entry = service._deployment_log_snapshot('session')['entries'][-1]
+    assert entry['id'] == 2 and entry['message'] == 'retry'
+    assert entry['source'] == 'system' and entry['timestamp']
 
 
 def test_legacy_history_redacts_before_replay_and_converts_on_append(history):
@@ -127,6 +129,10 @@ def test_routes_validate_session_and_last_event_id_before_streaming(history, mon
     app = FastAPI()
     app.include_router(routes.router)
     with TestClient(app) as client:
+        snapshot = client.get('/devops/session/logs').json()
+        assert snapshot['logs'] == ['first', 'second'] and snapshot['lastEventId'] == 2
+        assert [e['id'] for e in snapshot['events']] == [1, 2]
+        assert all(e['source'] == 'system' and e['timestamp'] for e in snapshot['events'])
         response = client.get('/devops/session/logs/stream', headers={'Last-Event-ID': '1'})
         assert response.status_code == 200
         assert 'id: 1\n' not in response.text and 'id: 2\ndata: "second"' in response.text

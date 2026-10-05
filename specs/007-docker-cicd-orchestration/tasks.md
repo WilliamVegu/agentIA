@@ -1,3 +1,5 @@
+> Documento histórico de septiembre, conservado para trazabilidad. Sus estados Completed/checkboxes no describen la implementación vigente. Para decisiones actuales use spec.md, contracts/README.md, contracts/devops-api.yaml y docs/PLAN_IMPLEMENTACION_DESPLIEGUE_LOCAL.md (54 tareas). Sus referencias a Streamlit, montajes SQL y requisitos Docker obligatorios quedan sustituidas por la especificación vigente.
+
 # Tasks: Docker Containerization, CI/CD Pipelines & Deployment Orchestration
 
 **Branch**: `007-docker-cicd-orchestration` | **Date**: 2026-09-13 | **Spec**: [specs/007-docker-cicd-orchestration/spec.md](file:///c:/Users/willi/Downloads/agentIA/specs/007-docker-cicd-orchestration/spec.md) | **Plan**: [specs/007-docker-cicd-orchestration/plan.md](file:///c:/Users/willi/Downloads/agentIA/specs/007-docker-cicd-orchestration/plan.md)

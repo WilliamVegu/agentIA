@@ -13,6 +13,7 @@ export function useSSE(streamUrl: string | null) {
   const [logs, setLogs] = useState<SSELogEvent[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [lastEvent, setLastEvent] = useState<any>(null);
+  const [eventUrl, setEventUrl] = useState(streamUrl);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const clearLogs = useCallback(() => {
@@ -24,6 +25,11 @@ export function useSSE(streamUrl: string | null) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    setEventUrl(streamUrl);
+    setLogs([]);
+    setLastEvent(null);
+    setIsConnected(false);
     if (!streamUrl) {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -37,6 +43,7 @@ export function useSSE(streamUrl: string | null) {
     eventSourceRef.current = es;
 
     es.onopen = () => {
+      if (!active) return;
       setIsConnected(true);
       addLog({
         id: Date.now(),
@@ -47,6 +54,7 @@ export function useSSE(streamUrl: string | null) {
     };
 
     const handleEvent = (event: MessageEvent) => {
+      if (!active) return;
       try {
         const parsed = typeof event.data === 'string' && event.data.startsWith('{')
           ? JSON.parse(event.data)
@@ -91,10 +99,12 @@ export function useSSE(streamUrl: string | null) {
     });
 
     es.onerror = () => {
+      if (!active) return;
       setIsConnected(false);
     };
 
     return () => {
+      active = false;
       customEvents.forEach((evtName) => {
         es.removeEventListener(evtName, handleEvent as EventListener);
       });
@@ -104,5 +114,6 @@ export function useSSE(streamUrl: string | null) {
     };
   }, [streamUrl, addLog]);
 
-  return { logs, isConnected, lastEvent, clearLogs, addLog };
+  return { logs: eventUrl === streamUrl ? logs : [], isConnected: eventUrl === streamUrl && isConnected,
+    lastEvent: eventUrl === streamUrl ? lastEvent : null, clearLogs, addLog };
 }

@@ -259,6 +259,7 @@ def test_the_environment_pattern_list_was_not_narrowed():
 def _sandbox_state(workspace) -> dict:
     return {
         "session_id": "t008",
+        "execution_mode": "DOCKER",
         "workspace_path": str(workspace),
         "generated_files": {},
         "logs": [],
@@ -275,7 +276,7 @@ def test_sandbox_node_blocks_instead_of_verifying(monkeypatch, tmp_path):
 
     out = sandbox_node(_sandbox_state(tmp_path))
 
-    assert out["status"] == SessionStatus.BLOCKED.value
+    assert out["status"] == SessionStatus.PAUSED.value
     assert out["current_phase"] == SessionPhase.FAILED.value
     assert out["build_success"] is False
     assert out["test_metrics"]["fallback_used"] is True
@@ -380,7 +381,7 @@ def test_permissive_session_reaches_verified_while_marked(monkeypatch, tmp_path)
 
     out = sandbox_node(_sandbox_state(tmp_path))
 
-    assert out["status"] == SessionStatus.BLOCKED.value
+    assert out["status"] == SessionStatus.PAUSED.value
     assert out["build_success"] is False
     assert out["test_metrics"]["fallback_used"] is True, "a synthetic pass was not marked"
     assert out["verification_fallback_used"] is True
@@ -397,8 +398,8 @@ def test_default_and_permissive_disagree_only_about_permission(monkeypatch, tmp_
     monkeypatch.setattr(_settings, "ALLOW_HERMETIC_FALLBACK", True)
     permissive = sandbox_node(_sandbox_state(tmp_path))
 
-    assert honest["status"] == SessionStatus.BLOCKED.value
-    assert permissive["status"] == SessionStatus.BLOCKED.value
+    assert honest["status"] == SessionStatus.PAUSED.value
+    assert permissive["status"] == SessionStatus.PAUSED.value
     # Both mark it; neither hides it.
     assert honest["test_metrics"]["fallback_used"] is True
     assert permissive["test_metrics"]["fallback_used"] is True

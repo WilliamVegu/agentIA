@@ -16,12 +16,16 @@ from app.models.devops import (
     PlaygroundResources,
     SmokeTestResult,
     DockerCapabilityReport,
+    LocalCleanupRequest,
+    LocalCancelRequest,
+    LocalProjectConfiguration,
+    DeploymentLogSnapshot,
 )
 from app.models.session import GenerationSessionDB, SessionLocal
 from app.services.devops_service import generate_all_devops_assets
 from app.services.docker_service import (
     deploy_local,
-    get_deployment_logs,
+    get_deployment_log_snapshot,
     get_deployment_status,
     run_smoke_test,
     stop_deployment,
@@ -63,11 +67,22 @@ async def docker_diagnostics(session_id: str):
     return await asyncio.to_thread(diagnose, session_id, workspace)
 
 
+@router.get("/{session_id}/configuration", response_model=LocalProjectConfiguration)
+async def project_configuration(session_id: str):
+    from app.services.local_configuration import resolve_configuration
+    workspace, _ = _resolve_session_context(session_id)
+    try:
+        config = resolve_configuration(workspace, session_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {key: config[key] for key in ('databaseEngine', 'hostPort', 'buildTool', 'buildDirectory')}
+
+
 @router.post("/{session_id}/generate", response_model=DevOpsManifestBundle)
 async def generate_manifests(
     session_id: str,
     db_engine: Optional[DatabaseEngine] = None,
-    host_port: int = Query(8080, ge=1024, le=65535)
+    host_port: Optional[int] = Query(None, ge=1024, le=65535)
 ):
     """Generates all Docker, Compose, CI/CD, and Kubernetes assets for the workspace session."""
     ws_path, service_name = _resolve_session_context(session_id)
@@ -80,13 +95,16 @@ async def generate_manifests(
             detail=f"Cannot generate DevOps manifests: Quality Gate is BLOCKED. {audit.qualityGate.summaryMessage}",
         )
 
-    bundle = generate_all_devops_assets(
-        workspace_dir=str(ws_path),
-        session_id=session_id,
-        service_name=service_name,
-        db_engine=db_engine,
-        host_port=host_port or 8080,
-    )
+    try:
+        bundle = generate_all_devops_assets(
+            workspace_dir=str(ws_path),
+            session_id=session_id,
+            service_name=service_name,
+            db_engine=db_engine,
+            host_port=host_port,
+        )
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return bundle
 
 
@@ -112,16 +130,29 @@ async def deploy_container(session_id: str, payload: Optional[DevOpsDeployReques
     # Ensure manifests exist; if not, generate first
     if not (ws_path / "docker-compose.yml").exists():
         generate_all_devops_assets(str(ws_path), session_id, service_name)
+    # Generation may add drivers/Actuator/manifests: old evidence cannot authorize
+    # building those changed inputs, even if the first gate passed.
+    with SessionLocal() as db:
+        require_verified_session(db.get(GenerationSessionDB, session_id))
 
-    host_port = payload.hostPort if payload and payload.hostPort else 8080
+    with SessionLocal() as db:
+        import json
+        metrics = json.loads(db.get(GenerationSessionDB, session_id).verification_metrics_json or '{}')
+        if not metrics.get('sourceSnapshotId'):
+            raise HTTPException(403, 'Verifique de nuevo para crear un snapshot de fuentes antes de desplegar.')
+
+    host_port = payload.hostPort if payload else None
     rebuild = payload.rebuild if payload and payload.rebuild else False
 
-    session_status = deploy_local(
-        session_id=session_id,
-        workspace_dir=str(ws_path),
-        host_port=host_port,
-        rebuild=rebuild,
-    )
+    try:
+        session_status = deploy_local(
+            session_id=session_id,
+            workspace_dir=str(ws_path),
+            host_port=host_port,
+            rebuild=rebuild,
+        )
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return session_status
 
 
@@ -143,7 +174,12 @@ async def prepare_environment(session_id: str):
     current = get_deployment_status(session_id)
     if current.status.value in ("BUILDING", "RUNNING", "HEALTHY", "DEGRADED"):
         raise HTTPException(409, "Termine o detenga la operación actual antes de preparar.")
-    generate_all_devops_assets(str(workspace), session_id, name, db_engine=database)
+    from app.services.local_configuration import resolve_configuration
+    try:
+        database = resolve_configuration(workspace, session_id)['databaseEngine']
+        generate_all_devops_assets(str(workspace), session_id, name, db_engine=database)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return prepare_local(session_id, str(workspace), database)
 
 
@@ -175,16 +211,16 @@ async def stream_container_logs(session_id: str, last_event_id: Optional[str] = 
     )
 
 
-@router.get("/{session_id}/logs")
+@router.get("/{session_id}/logs", response_model=DeploymentLogSnapshot)
 async def get_container_logs(session_id: str):
     """Retrieves all historical container execution logs without streaming."""
     _resolve_session_context(session_id)
-    return {"logs": get_deployment_logs(session_id)}
+    return get_deployment_log_snapshot(session_id)
 
 
 @router.post("/{session_id}/stop", response_model=LocalDeploymentSession)
 async def stop_containers(session_id: str):
-    """Stops and cleans up active local containers for the session."""
+    """Stops owned containers for the session, retaining data and resources."""
     ws_path, _ = _resolve_session_context(session_id)
     return stop_deployment(session_id, str(ws_path))
 
@@ -194,6 +230,33 @@ async def execute_smoke_test(session_id: str, host_port: Optional[int] = 8080):
     """Executes automated post-deployment health validation against /actuator/health."""
     result = run_smoke_test(session_id, host_port=host_port or 8080)
     return result
+
+
+@router.post('/{session_id}/restart', response_model=LocalDeploymentSession)
+async def restart_containers(session_id: str):
+    from app.services.runtime_lifecycle import restart_local
+    workspace, _ = _resolve_session_context(session_id)
+    return restart_local(session_id, str(workspace))
+
+
+@router.post('/{session_id}/cancel', response_model=LocalDeploymentSession)
+async def cancel_local_operation(session_id: str, payload: LocalCancelRequest):
+    from app.services.local_operations import request_cancel
+    _resolve_session_context(session_id)
+    try:
+        return request_cancel(session_id, payload.operationId)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@router.post('/{session_id}/cleanup', response_model=LocalDeploymentSession)
+async def cleanup_containers(session_id: str, payload: LocalCleanupRequest):
+    from app.services.runtime_lifecycle import cleanup_local
+    _resolve_session_context(session_id)
+    try:
+        return cleanup_local(session_id, payload.deleteData)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
 
 

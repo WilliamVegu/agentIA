@@ -13,10 +13,10 @@ DATABASE_IMAGES = {"POSTGRESQL": "postgres:16.4-alpine", "MYSQL": "mysql:8.0.40"
 def project_identity(ws):
     root = Path(ws)
     digest = hashlib.sha256()
-    for file in sorted(root.rglob("*")):
-        if file.is_file() and file.name in {"pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradle.properties"} and not any(p in {"target", "build", ".gradle", ".agentia-runtime"} for p in file.relative_to(root).parts):
-            digest.update(file.relative_to(root).as_posix().encode())
-            digest.update(file.read_bytes())
+    from app.services.dependency_inputs import dependency_contents
+    for relative, content in dependency_contents(root).items():
+        digest.update(relative.encode())
+        digest.update(content)
     digest.update((MAVEN_IMAGE + GRADLE_IMAGE + RUNTIME_IMAGE).encode())
     return digest.hexdigest()[:24]
 
@@ -25,21 +25,36 @@ def builder_image(ws):
     return "agentia-builder:" + project_identity(ws)
 
 
-def dockerfile(build_tool, prepared_image="agentia-builder:prepare-first"):
+def executable_jar_selection(build_tool):
+    pattern = '*/build/libs/*.jar' if build_tool == 'gradle' else '*/target/*.jar'
+    return f'''find . -type f -path '{pattern}' ! -name '*-plain.jar' ! -name 'original-*' ! -name '*sources.jar' ! -name '*javadoc.jar' | while IFS= read -r jar; do
+  if unzip -tqq "$jar" >/dev/null 2>&1 && unzip -l "$jar" | grep -q 'BOOT-INF/' && unzip -p "$jar" META-INF/MANIFEST.MF | tr -d '\\r' | grep -Eq '^Main-Class: org\\.springframework\\.boot\\.loader\\.(launch\\.)?(JarLauncher|PropertiesLauncher)$'; then
+    printf '%s\\n' "$jar";
+  fi;
+done > /tmp/agentia-executable-jars;
+count=$(wc -l < /tmp/agentia-executable-jars);
+if [ "$count" -ne 1 ]; then echo "Expected exactly one executable Spring Boot JAR; found $count" >&2; exit 1; fi;
+IFS= read -r jar < /tmp/agentia-executable-jars;
+cp "$jar" /application.jar'''
+
+
+def dockerfile(build_tool, prepared_image="agentia-builder:prepare-first", build_directory='.'):
+    if build_directory not in {'.', 'bootstrap'}:
+        raise ValueError('Directorio de build no admitido')
     if build_tool == "gradle":
         build = "cp -R /opt/agentia-cache/. /tmp/gradle-home/ && GRADLE_USER_HOME=/tmp/gradle-home gradle --no-daemon --offline test bootJar"
-        jars = "find . -path '*/build/libs/*.jar' ! -name '*-plain.jar'"
         mkdir = "mkdir -p /tmp/gradle-home"
     else:
         build = "cp -R /opt/agentia-cache/. /tmp/m2/ && mvn -B -o -Dmaven.repo.local=/tmp/m2 verify"
-        jars = "find . -path '*/target/*.jar' ! -name 'original-*' ! -name '*sources.jar' ! -name '*javadoc.jar'"
         mkdir = "mkdir -p /tmp/m2"
-    # Choose the executable jar by inspecting its contents, also supporting reactors.
+    selection = executable_jar_selection(build_tool).replace('\n', ' \\\n    ')
+    working = '/workspace' + ('/bootstrap' if build_directory == 'bootstrap' else '')
     return f'''FROM {prepared_image} AS build
 WORKDIR /workspace
 COPY . .
+WORKDIR {working}
 RUN --network=none {mkdir} && {build}
-RUN for jar in $({jars}); do if unzip -l "$jar" | grep -q 'BOOT-INF/'; then cp "$jar" /application.jar; break; fi; done && test -f /application.jar
+RUN --network=none {selection}
 
 FROM agentia-runtime:21-v1
 WORKDIR /app
@@ -92,11 +107,14 @@ def compose(service_name, db_engine, host_port=8080):
     return yaml.safe_dump(result, sort_keys=False)
 
 
-def write_windows_scripts(ws, build_tool, db_engine):
+def write_windows_scripts(ws, build_tool, db_engine, host_port=8080):
     ws = Path(ws)
     image = builder_image(ws)
     base = GRADLE_IMAGE if build_tool == "gradle" else MAVEN_IMAGE
     warm = "gradle --no-daemon test bootJar" if build_tool == "gradle" else "mvn -B test package"
+    from app.services.build_layout import build_layout
+    _, directory, _ = build_layout(ws)
+    if directory == 'bootstrap': warm = 'cd bootstrap && ' + warm
     cache = "/home/gradle/.gradle" if build_tool == "gradle" else "/root/.m2/repository"
     prep = f'''FROM {base}
 USER root
@@ -107,7 +125,7 @@ WORKDIR /workspace
 '''
     (ws / "Dockerfile.prepare").write_text(prep, encoding="utf-8")
     (ws / "Dockerfile.runtime").write_text(f'''FROM {RUNTIME_IMAGE}
-RUN command -v wget && addgroup -g 10001 -S appgroup && adduser -u 10001 -S appuser -G appgroup && mkdir -p /app/data && chown -R 10001:10001 /app
+RUN command -v wget && command -v grep && addgroup -g 10001 -S appgroup && adduser -u 10001 -S appuser -G appgroup && mkdir -p /app/data && chown -R 10001:10001 /app
 WORKDIR /app
 USER 10001:10001
 ''', encoding="utf-8")
@@ -142,7 +160,7 @@ Write-Host "Servicio listo en http://localhost:$Port"
     guide_path = ws / 'LOCAL_DEPLOYMENT.md'
     guide_path.write_text(guide_path.read_text(encoding='utf-8').replace('El esquema runtime se mantiene mediante Hibernate `update`; la validación de los scripts SQL y semillas sigue siendo independiente.', 'Liquibase aplica el SQL y las semillas versionados; Hibernate valida el esquema sin modificarlo.'), encoding='utf-8')
     with guide_path.open('a', encoding='utf-8') as guide:
-        guide.write('\nEl esquema y las semillas se aplican mediante Liquibase dentro del JAR, una sola vez por base de datos. Hibernate valida el esquema. Las migraciones publicadas no se editan: los cambios posteriores requieren una nueva versión. `schema.sql` y `data.sql` existentes se conservan; la configuración del datasource no se reemplaza.\n')
+        guide.write('\nEl esquema y las semillas se aplican mediante Liquibase dentro del JAR, una sola vez por base de datos. Hibernate valida el esquema. Las migraciones publicadas no se editan: los cambios posteriores requieren una nueva versión. `schema.sql` y `data.sql` existentes se conservan; la configuración del datasource no se reemplaza. `db/changelog/LOCAL_MIGRATIONS.json` registra motor y hashes del SQL normalizado. Retirar semillas o cambiar el motor después de publicar se rechaza: conserve el historial y use una migración adicional o un proyecto/base nuevos.\n')
         guide.write('\nLa imagen de aplicación, los contenedores y los volúmenes pertenecen al proyecto Compose de esta carpeta. Dos sesiones con el mismo nombre de servicio usan imágenes distintas. Los scripts fijan el proyecto con `-p`; al usar Compose manualmente conserve ese nombre para operar sobre los mismos datos. Copias con el mismo nombre de carpeta no se consideran automáticamente proyectos distintos.\n')
     project = re.sub(r'[^a-z0-9_-]', '-', ws.name.lower()).strip('-_') or 'agentia-local'
     for name in ('prepare-local.ps1', 'start-local.ps1', 'stop-local.ps1', 'cleanup-local.ps1'):
@@ -162,3 +180,7 @@ if (-not $foundPort) { throw 'No hay un puerto localhost disponible en el rango 
 if ($Port -ne $requestedPort) { Write-Host "Puerto $requestedPort ocupado; se usará $Port" }
 $env:HOST_PORT = "$Port"''')
         script.write_text(content, encoding='utf-8')
+    from app.services.lifecycle_scripts import write_lifecycle_scripts
+    write_lifecycle_scripts(ws, project)
+    from app.services.standalone_delivery import write_standalone_delivery
+    write_standalone_delivery(ws, project, build_tool, db_engine, host_port)

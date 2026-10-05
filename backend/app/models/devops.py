@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field
 
 
@@ -47,8 +47,13 @@ class SmokeTestResult(BaseModel):
 
 class LocalDeploymentSession(BaseModel):
     sessionId: str
+    dbEngine: Optional[DatabaseEngine] = None
     containerId: Optional[str] = None
     databaseContainerId: Optional[str] = None
+    sourceSnapshotId: Optional[str] = None
+    workspaceFingerprint: Optional[str] = None
+    imageId: Optional[str] = None
+    executableJarSha256: Optional[str] = None
     status: DeploymentStatus = DeploymentStatus.IDLE
     hostPort: int = 8080
     containerPort: int = 8080
@@ -57,12 +62,37 @@ class LocalDeploymentSession(BaseModel):
     errorMessage: Optional[str] = None
     startedAt: Optional[str] = None
     operationId: Optional[str] = None
+    operationKind: Optional[str] = None
+    operationPhase: Optional[str] = None
+    finishedAt: Optional[str] = None
+    cancelRequested: bool = False
     message: Optional[str] = None
 
 
 class DevOpsDeployRequest(BaseModel):
-    hostPort: int = Field(8080, ge=1024, le=65535)
+    hostPort: Optional[int] = Field(None, ge=1024, le=65535)
     rebuild: Optional[bool] = False
+
+
+class LocalProjectConfiguration(BaseModel):
+    databaseEngine: DatabaseEngine
+    hostPort: int = Field(ge=1024, le=65535)
+    buildTool: Literal['maven', 'gradle']
+    buildDirectory: Literal['.', 'bootstrap']
+
+
+class DeploymentLogSnapshot(BaseModel):
+    logs: List[str]
+    events: List[Dict[str, Any]]
+    lastEventId: int = Field(ge=0)
+
+
+class LocalCleanupRequest(BaseModel):
+    deleteData: bool = False
+
+
+class LocalCancelRequest(BaseModel):
+    operationId: str = Field(min_length=1, max_length=100)
 
 
 class DockerDiagnosticCheck(BaseModel):

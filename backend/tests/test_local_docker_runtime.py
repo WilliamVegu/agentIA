@@ -2,6 +2,7 @@
 import json
 import socket
 import uuid
+import threading
 from types import SimpleNamespace
 from unittest.mock import Mock
 import pytest
@@ -33,7 +34,13 @@ def runtime(tmp_path, monkeypatch):
     class DeferredThread:
         def __init__(self, target, **kwargs): data.workers.append(target)
         def start(self): pass
-    monkeypatch.setattr(service.threading, 'Thread', DeferredThread)
+    # Mock only our worker factories. Replacing threading.Thread globally can
+    # prevent AnyIO's TestClient portal from starting, depending on import order.
+    worker_threads = SimpleNamespace(Thread=DeferredThread, Lock=threading.Lock, RLock=threading.RLock)
+    monkeypatch.setattr(service, 'threading', worker_threads)
+    from app.services import runtime_lifecycle, local_preparation
+    monkeypatch.setattr(runtime_lifecycle, 'threading', worker_threads)
+    monkeypatch.setattr(local_preparation, 'threading', worker_threads)
     def execute(cmd, **kwargs):
         data.commands.append(cmd)
         rc, output, error = 0, '', ''
@@ -46,11 +53,20 @@ def runtime(tmp_path, monkeypatch):
         elif 'up' in cmd:
             data.started = True
             data.port = int(kwargs['env']['HOST_PORT'])
-        elif 'down' in cmd:
+        elif 'down' in cmd or cmd[:2] == ['docker', 'stop']:
             if data.stop_failure: rc, error = 1, 'daemon disconnected'
             else: data.started = False
+        elif cmd[:2] == ['docker', 'rm']:
+            data.started = False
         return SimpleNamespace(returncode=rc, stdout=output, stderr=error)
     monkeypatch.setattr(service.subprocess, 'run', execute)
+    def logged(command, on_line, **kwargs):
+        result = execute(command, **kwargs)
+        if result.returncode:
+            raise RuntimeError(result.stderr)
+        return 0
+    monkeypatch.setattr(service, 'run_logged', logged)
+    monkeypatch.setattr('app.services.runtime_log_capture.ensure_capture', lambda _: None)
     monkeypatch.setattr(service.requests, 'get', lambda *a, **kw: SimpleNamespace(status_code=200, json=lambda: {'status': 'UP' if data.healthy else 'DOWN'}))
     yield data
     with SessionLocal() as db:
@@ -68,6 +84,7 @@ def test_duplicate_deploy_is_one_operation_and_only_healthy_after_identity(runti
     assert service.get_deployment_status(runtime.id).status == DeploymentStatus.HEALTHY
     assert any('build' in command and '--pull=false' in command for command in runtime.commands)
     assert any('up' in command and '--no-build' in command and 'never' in command for command in runtime.commands)
+    assert next(i for i, cmd in enumerate(runtime.commands) if 'build' in cmd) < next(i for i, cmd in enumerate(runtime.commands) if 'up' in cmd)
 
 
 def test_build_failure_is_not_healthy(runtime):
@@ -78,6 +95,7 @@ def test_build_failure_is_not_healthy(runtime):
     assert row.status == DeploymentStatus.FAILED
     assert 'BUILD FAILURE' in row.errorMessage
     assert not runtime.started
+    assert not any('up' in command for command in runtime.commands)
 
 
 def test_foreign_container_never_satisfies_smoke_test(runtime, monkeypatch):
@@ -116,6 +134,22 @@ def test_port_conflict_selects_another_localhost_port():
         port = occupied.getsockname()[1]
         if port == 65535: pytest.skip('No alternate port at end of range')
         assert available_port(port) > port
+
+
+@pytest.mark.parametrize('driver,engine', [('org.h2.Driver', 'H2'), ('org.postgresql.Driver', 'POSTGRESQL'),
+    ('com.mysql.cj.jdbc.Driver', 'MYSQL'), ('unknown.Driver', None)])
+def test_database_engine_is_inspected_not_inferred_from_project(runtime, monkeypatch, driver, engine):
+    def run(command, **kwargs):
+        if command[1] == 'ps': return SimpleNamespace(returncode=0, stdout='container-id')
+        return SimpleNamespace(returncode=0, stdout=json.dumps([{'Id': 'container-id',
+            'Config': {'Labels': {'com.docker.compose.project': runtime.id, 'io.agentia.role': 'application'},
+                       'Env': [f'SPRING_DATASOURCE_DRIVER_CLASS_NAME={driver}', 'DB_PASSWORD=not-for-response']},
+            'HostConfig': {'PortBindings': {'8080/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '19001'}]}},
+            'State': {'Running': True}}]))
+    monkeypatch.setattr(service.subprocess, 'run', run)
+    result = inspect_session(runtime.id)
+    assert result.dbEngine == engine and result.hostPort == 19001
+    assert 'not-for-response' not in result.model_dump_json()
 
 
 def test_prepared_sandbox_never_pulls_and_uses_private_writable_cache(runtime):
