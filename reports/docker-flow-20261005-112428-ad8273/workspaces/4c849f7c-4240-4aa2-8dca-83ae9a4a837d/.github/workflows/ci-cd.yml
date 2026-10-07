@@ -1,0 +1,22 @@
+name: "Local verification - flow-inventory-service"
+on:
+  workflow_dispatch:
+    inputs:
+      docker:
+        type: boolean
+        default: false
+        description: Execute prepared offline Docker tests
+permissions:
+  contents: read
+jobs:
+  local-verification:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static source audit
+        run: python local-ci.py
+      - name: Prepared offline build and real JUnit reports
+        if: inputs.docker
+        run: python local-ci.py --docker
+# Runner provisioning and checkout need initial connectivity. No hosted runner,
+# registry publishing, scanner downloads or remote execution are certified here.

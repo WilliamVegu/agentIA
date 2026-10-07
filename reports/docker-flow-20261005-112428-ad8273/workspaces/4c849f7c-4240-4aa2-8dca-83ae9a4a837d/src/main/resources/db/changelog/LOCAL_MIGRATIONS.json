@@ -1,0 +1,9 @@
+{
+  "formatVersion": 1,
+  "database": "POSTGRESQL",
+  "files": {
+    "001-schema.sql": "de2a281d0e37303db0c1e7eada096f0a6104694f8bfaab1ea543ce60a9c43e60",
+    "002-seed.sql": "948d741c5f54a421ea4b2621870d11ee28b6a1b29d95d4c80c779cda4e3d4620"
+  },
+  "seedPolicy": "ONCE_PER_DATABASE"
+}

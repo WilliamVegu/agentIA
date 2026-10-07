@@ -1,0 +1,6 @@
+FROM maven:3.9.9-eclipse-temurin-21-alpine
+USER root
+WORKDIR /warmup
+COPY . .
+RUN mvn -B test package && mkdir -p /opt/agentia-cache && cp -R /root/.m2/repository/. /opt/agentia-cache/ && rm -rf /warmup
+WORKDIR /workspace

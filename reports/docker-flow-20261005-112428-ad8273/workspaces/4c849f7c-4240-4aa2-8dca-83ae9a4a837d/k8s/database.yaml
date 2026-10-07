@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: flow-inventory-service-db
+  labels:
+    app.kubernetes.io/part-of: flow-inventory-service
+spec:
+  serviceName: flow-inventory-service-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flow-inventory-service-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: flow-inventory-service
+        app: flow-inventory-service-db
+    spec:
+      containers:
+      - name: db
+        image: postgres:16.4-alpine
+        imagePullPolicy: Never
+        env:
+        - name: POSTGRES_DB
+          value: flow_inventory_service_db
+        - name: POSTGRES_USER
+          value: app
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: flow-inventory-service-credentials
+              key: DB_PASSWORD
+        ports:
+        - containerPort: 5432
+          name: db
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        startupProbe:
+          exec:
+            command: &id001
+            - pg_isready
+            - -U
+            - app
+            - -d
+            - flow_inventory_service_db
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        readinessProbe:
+          exec:
+            command: *id001
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 6
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: flow-inventory-service-dbdata

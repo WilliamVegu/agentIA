@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flow-inventory-service
+  labels:
+    app.kubernetes.io/part-of: flow-inventory-service
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: flow-inventory-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: flow-inventory-service
+        app: flow-inventory-service
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+      - name: flow-inventory-service
+        image: 4c849f7c-4240-4aa2-8dca-83ae9a4a837d-flow-inventory-service:local
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: http
+        envFrom:
+        - configMapRef:
+            name: flow-inventory-service-config
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 6
+        env:
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: flow-inventory-service-credentials
+              key: DB_PASSWORD
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: flow-inventory-service-appdata

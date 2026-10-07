@@ -1,0 +1,4 @@
+interface:
+  display_name: "OBS Screen Recorder"
+  short_description: "Controla grabaciones, escenas y capturas de OBS"
+  default_prompt: "Usa $obs-screen-recorder para consultar OBS y realizar la operación de grabación que solicite."

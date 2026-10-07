@@ -1,0 +1,338 @@
+{
+  "result": "FAILED",
+  "flowCount": 1,
+  "provider": "deepseek",
+  "database": "POSTGRESQL",
+  "startedAt": "2026-10-05 11:25:25",
+  "steps": [
+    {
+      "name": "Autenticación local real",
+      "seconds": 0.03,
+      "data": null
+    },
+    {
+      "name": "Única sesión creada; Auto-Pilot iniciado",
+      "seconds": 3.75,
+      "data": {
+        "executionMode": "DOCKER",
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "QUEUED",
+        "currentLifecyclePhase": "REQUIREMENTS",
+        "lifecycleMode": "AUTO_PILOT",
+        "pipelineStarted": true,
+        "message": "Sesión creada e inicializada correctamente."
+      }
+    },
+    {
+      "name": "Generación ('RUNNING', 'INITIALIZATION', 'RUNNING', 'REQUIREMENTS')",
+      "seconds": 4.81,
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "RUNNING",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "NOT_RUN",
+        "availableActions": [],
+        "phase": "INITIALIZATION",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": null,
+        "errorMessage": null,
+        "verificationFallbackUsed": false
+      }
+    },
+    {
+      "name": "Generación ('RUNNING', 'INITIALIZATION', 'RUNNING', 'STORIES')",
+      "seconds": 32.97,
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "RUNNING",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "NOT_RUN",
+        "availableActions": [],
+        "phase": "INITIALIZATION",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": null,
+        "errorMessage": null,
+        "verificationFallbackUsed": false
+      }
+    },
+    {
+      "name": "Generación ('RUNNING', 'INITIALIZATION', 'RUNNING', 'ARCHITECTURE')",
+      "seconds": 44.16,
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "RUNNING",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "NOT_RUN",
+        "availableActions": [],
+        "phase": "INITIALIZATION",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": null,
+        "errorMessage": null,
+        "verificationFallbackUsed": false
+      }
+    },
+    {
+      "name": "Generación ('RUNNING', 'INITIALIZATION', 'RUNNING', 'DATA_MODEL')",
+      "seconds": 49.75,
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "RUNNING",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "NOT_RUN",
+        "availableActions": [],
+        "phase": "INITIALIZATION",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": null,
+        "errorMessage": null,
+        "verificationFallbackUsed": false
+      }
+    },
+    {
+      "name": "Generación ('RUNNING', 'INITIALIZATION', 'RUNNING', 'CODE_TESTS')",
+      "seconds": 154.12,
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "RUNNING",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "NOT_RUN",
+        "availableActions": [],
+        "phase": "INITIALIZATION",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": null,
+        "errorMessage": null,
+        "verificationFallbackUsed": false
+      }
+    },
+    {
+      "name": "Generación ('RUNNING', 'INITIALIZATION', 'AWAITING_INTERVENTION', 'CODE_TESTS')",
+      "seconds": 200.5,
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "RUNNING",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "ENVIRONMENT_UNAVAILABLE",
+        "availableActions": [
+          "RETRY",
+          "CONTINUE_WITHOUT_DOCKER"
+        ],
+        "phase": "INITIALIZATION",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": null,
+        "errorMessage": null,
+        "verificationFallbackUsed": true
+      }
+    },
+    {
+      "name": "Generación ('PAUSED', 'FAILED', 'AWAITING_INTERVENTION', 'CODE_TESTS')",
+      "seconds": 206.62,
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "PAUSED",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "ENVIRONMENT_UNAVAILABLE",
+        "availableActions": [
+          "RETRY",
+          "CONTINUE_WITHOUT_DOCKER"
+        ],
+        "phase": "FAILED",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": null,
+        "errorMessage": "the verifier raised: FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\willi\\\\Downloads\\\\agentIA\\\\reports\\\\docker-flow-20261005-112428-ad8273\\\\workspaces\\\\4c849f7c-4240-4aa2-8dca-83ae9a4a837d\\\\.agentia-runtime\\\\snapshots\\\\f31877b670eb4304adcfa28b8eb54429\\\\reports\\\\target\\\\surefire-reports\\\\TEST-com.example.flowinventory.controller.ItemControllerTest.xml'",
+        "verificationFallbackUsed": true
+      }
+    },
+    {
+      "name": "Preparación explícita de dependencias para la misma sesión",
+      "seconds": 208.02,
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": null,
+        "containerId": null,
+        "databaseContainerId": null,
+        "sourceSnapshotId": null,
+        "workspaceFingerprint": null,
+        "imageId": null,
+        "executableJarSha256": null,
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": null,
+        "errorMessage": null,
+        "startedAt": "2026-10-05T16:28:53.807507+00:00",
+        "operationId": "b4483a4b-0fc8-481d-8056-7da5abf909aa",
+        "operationKind": "PREPARE",
+        "operationPhase": "QUEUED",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": "Preparación inicial online en curso. No constituye verificación offline."
+      }
+    },
+    {
+      "name": "Runtime ('BUILDING', 'PREPARE')",
+      "seconds": 208.03,
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": null,
+        "containerId": null,
+        "databaseContainerId": null,
+        "sourceSnapshotId": null,
+        "workspaceFingerprint": null,
+        "imageId": null,
+        "executableJarSha256": null,
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": null,
+        "errorMessage": null,
+        "startedAt": "2026-10-05T16:28:53.807507+00:00",
+        "operationId": "b4483a4b-0fc8-481d-8056-7da5abf909aa",
+        "operationKind": "PREPARE",
+        "operationPhase": "PREPARE",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": "Preparación inicial online en curso. No constituye verificación offline."
+      }
+    },
+    {
+      "name": "Runtime ('FAILED', 'PREPARE')",
+      "seconds": 293.61,
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": null,
+        "containerId": null,
+        "databaseContainerId": null,
+        "sourceSnapshotId": null,
+        "workspaceFingerprint": null,
+        "imageId": null,
+        "executableJarSha256": null,
+        "status": "FAILED",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": null,
+        "errorMessage": "Docker exit code 1: 79.69 [ERROR] /warmup/src/test/java/com/example/flowinventory/controller/ItemControllerTest.java:[45,6] cannot find symbol\n79.69 [ERROR]   symbol:   class MockitoBean\n79.69 [ERROR]   location: class com.example.flowinventory.controller.ItemControllerTest\n79.69 [ERROR] -> [Help 1]\n79.69 [ERROR] \n79.69 [ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.\n79.69 [ERROR] Re-run Maven using the -X switch to enable full debug logging.\n79.69 [ERROR] \n79.69 [ERROR] For more information about the errors and possible solutions, please read the following articles:\n79.69 [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException\n------\nDockerfile.prepare:5\n--------------------\n   3 |     WORKDIR /warmup\n   4 |     COPY . .\n   5 | >>> RUN mvn -B test package && mkdir -p /opt/agentia-cache && cp -R /root/.m2/repository/. /opt/agentia-cache/ && rm -rf /warmup\n   6 |     WORKDIR /workspace\n   7 |     \n--------------------\nERROR: failed to build: failed to solve: process \"/bin/sh -c mvn -B test package && mkdir -p /opt/agentia-cache && cp -R /root/.m2/repository/. /opt/agentia-cache/ && rm -rf /warmup\" did not complete successfully: exit code: 1",
+        "startedAt": "2026-10-05T16:28:53.807507+00:00",
+        "operationId": "b4483a4b-0fc8-481d-8056-7da5abf909aa",
+        "operationKind": "PREPARE",
+        "operationPhase": "PREPARE",
+        "finishedAt": "2026-10-05T16:30:15.665099+00:00",
+        "cancelRequested": false,
+        "message": "Preparación inicial online en curso. No constituye verificación offline."
+      }
+    },
+    {
+      "name": "Flujo finalizado con fallo",
+      "seconds": 293.61,
+      "data": {
+        "type": "RuntimeError",
+        "error": "Runtime operation failed: {\"sessionId\": \"4c849f7c-4240-4aa2-8dca-83ae9a4a837d\", \"dbEngine\": null, \"containerId\": null, \"databaseContainerId\": null, \"sourceSnapshotId\": null, \"workspaceFingerprint\": null, \"imageId\": null, \"executableJarSha256\": null, \"status\": \"FAILED\", \"hostPort\": 8080, \"containerPort\": 8080, \"testUrl\": null, \"healthStatus\": null, \"errorMessage\": \"Docker exit code 1: 79.69 [ERROR] /warmup/src/test/java/com/example/flowinventory/controller/ItemControllerTest.java:[45,6] cannot find symbol\\n79.69 [ERROR]   symbol:   class MockitoBean\\n79.69 [ERROR]   location: class com.example.flowinventory.controller.ItemControllerTest\\n79.69 [ERROR] -> [Help 1]\\n79.69 [ERROR] \\n79.69 [ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.\\n79.69 [ERROR] Re-run Maven using the -X switch to enable full debug logging.\\n79.69 [ERROR] \\n79.69 [ERROR] For more information about the errors and possible solutions, please read the following articles:\\n79.69 [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException\\n------\\nDockerfile.prepare:5\\n--------------------\\n   3 |     WORKDIR /warmup\\n   4 |     COPY . .\\n   5 | >>> RUN mvn -B test package && mkdir -p /opt/agentia-cache && cp -R /root/.m2/repository/. /opt/agentia-cache/ && rm -rf /warmup\\n   6 |     WORKDIR /workspace\\n   7 |     \\n--------------------\\nERROR: failed to build: failed to solve: process \\\"/bin/sh -c mvn -B test package && mkdir -p /opt/agentia-cache && cp -R /root/.m2/repository/. /opt/agentia-cache/ && rm -rf /warmup\\\" did not complete successfully: exit code: 1\", \"startedAt\": \"2026-10-05T16:28:53.807507+00:00\", \"operationId\": \"b4483a4b-0fc8-481d-8056-7da5abf909aa\", \"operationKind\": \"PREPARE\", \"operationPhase\": \"PREPARE\", \"finishedAt\": \"2026-10-05T16:30:15.665099+00:00\", \"cancelRequested\": false, \"message\": \"Preparaci\\u00f3n inicial online en curso. No constituye verificaci\\u00f3n offline.\"}"
+      }
+    }
+  ],
+  "output": "C:\\Users\\willi\\Downloads\\agentIA\\reports\\docker-flow-20261005-112428-ad8273",
+  "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+  "generationTerminal": {
+    "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+    "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+    "specName": "flow-inventory-service",
+    "status": "PAUSED",
+    "executionMode": "DOCKER",
+    "verificationOutcome": "ENVIRONMENT_UNAVAILABLE",
+    "availableActions": [
+      "RETRY",
+      "CONTINUE_WITHOUT_DOCKER"
+    ],
+    "phase": "FAILED",
+    "queuePosition": 0,
+    "repairAttempts": 0,
+    "createdAt": "2026-10-05T16:25:29.537542",
+    "startedAt": "2026-10-05T16:25:29.546688",
+    "completedAt": null,
+    "errorMessage": "the verifier raised: FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\willi\\\\Downloads\\\\agentIA\\\\reports\\\\docker-flow-20261005-112428-ad8273\\\\workspaces\\\\4c849f7c-4240-4aa2-8dca-83ae9a4a837d\\\\.agentia-runtime\\\\snapshots\\\\f31877b670eb4304adcfa28b8eb54429\\\\reports\\\\target\\\\surefire-reports\\\\TEST-com.example.flowinventory.controller.ItemControllerTest.xml'",
+    "verificationFallbackUsed": true
+  },
+  "error": "Runtime operation failed: {\"sessionId\": \"4c849f7c-4240-4aa2-8dca-83ae9a4a837d\", \"dbEngine\": null, \"containerId\": null, \"databaseContainerId\": null, \"sourceSnapshotId\": null, \"workspaceFingerprint\": null, \"imageId\": null, \"executableJarSha256\": null, \"status\": \"FAILED\", \"hostPort\": 8080, \"containerPort\": 8080, \"testUrl\": null, \"healthStatus\": null, \"errorMessage\": \"Docker exit code 1: 79.69 [ERROR] /warmup/src/test/java/com/example/flowinventory/controller/ItemControllerTest.java:[45,6] cannot find symbol\\n79.69 [ERROR]   symbol:   class MockitoBean\\n79.69 [ERROR]   location: class com.example.flowinventory.controller.ItemControllerTest\\n79.69 [ERROR] -> [Help 1]\\n79.69 [ERROR] \\n79.69 [ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.\\n79.69 [ERROR] Re-run Maven using the -X switch to enable full debug logging.\\n79.69 [ERROR] \\n79.69 [ERROR] For more information about the errors and possible solutions, please read the following articles:\\n79.69 [ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException\\n------\\nDockerfile.prepare:5\\n--------------------\\n   3 |     WORKDIR /warmup\\n   4 |     COPY . .\\n   5 | >>> RUN mvn -B test package && mkdir -p /opt/agentia-cache && cp -R /root/.m2/repository/. /opt/agentia-cache/ && rm -rf /warmup\\n   6 |     WORKDIR /workspace\\n   7 |     \\n--------------------\\nERROR: failed to build: failed to solve: process \\\"/bin/sh -c mvn -B test package && mkdir -p /opt/agentia-cache && cp -R /root/.m2/repository/. /opt/agentia-cache/ && rm -rf /warmup\\\" did not complete successfully: exit code: 1\", \"startedAt\": \"2026-10-05T16:28:53.807507+00:00\", \"operationId\": \"b4483a4b-0fc8-481d-8056-7da5abf909aa\", \"operationKind\": \"PREPARE\", \"operationPhase\": \"PREPARE\", \"finishedAt\": \"2026-10-05T16:30:15.665099+00:00\", \"cancelRequested\": false, \"message\": \"Preparaci\\u00f3n inicial online en curso. No constituye verificaci\\u00f3n offline.\"}",
+  "finalSession": {
+    "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+    "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+    "specName": "flow-inventory-service",
+    "status": "PAUSED",
+    "executionMode": "DOCKER",
+    "verificationOutcome": "ENVIRONMENT_UNAVAILABLE",
+    "availableActions": [
+      "RETRY",
+      "CONTINUE_WITHOUT_DOCKER"
+    ],
+    "phase": "FAILED",
+    "queuePosition": 0,
+    "repairAttempts": 0,
+    "createdAt": "2026-10-05T16:25:29.537542",
+    "startedAt": "2026-10-05T16:25:29.546688",
+    "completedAt": null,
+    "errorMessage": "the verifier raised: FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\willi\\\\Downloads\\\\agentIA\\\\reports\\\\docker-flow-20261005-112428-ad8273\\\\workspaces\\\\4c849f7c-4240-4aa2-8dca-83ae9a4a837d\\\\.agentia-runtime\\\\snapshots\\\\f31877b670eb4304adcfa28b8eb54429\\\\reports\\\\target\\\\surefire-reports\\\\TEST-com.example.flowinventory.controller.ItemControllerTest.xml'",
+    "verificationFallbackUsed": true
+  },
+  "stop": {
+    "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+    "dbEngine": null,
+    "containerId": null,
+    "databaseContainerId": null,
+    "sourceSnapshotId": null,
+    "workspaceFingerprint": null,
+    "imageId": null,
+    "executableJarSha256": null,
+    "status": "STOPPED",
+    "hostPort": 8080,
+    "containerPort": 8080,
+    "testUrl": null,
+    "healthStatus": "DOWN",
+    "errorMessage": null,
+    "startedAt": "2026-10-05T16:28:53.807507+00:00",
+    "operationId": "b4483a4b-0fc8-481d-8056-7da5abf909aa",
+    "operationKind": "PREPARE",
+    "operationPhase": "PREPARE",
+    "finishedAt": "2026-10-05T16:30:15.665099+00:00",
+    "cancelRequested": false,
+    "message": "Preparación inicial online en curso. No constituye verificación offline."
+  },
+  "elapsedSeconds": 294.42
+}

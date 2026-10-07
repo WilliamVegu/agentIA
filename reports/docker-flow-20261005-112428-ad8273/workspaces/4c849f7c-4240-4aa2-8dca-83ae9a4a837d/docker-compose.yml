@@ -1,0 +1,65 @@
+services:
+  flow-inventory-service:
+    image: ${COMPOSE_PROJECT_NAME}-flow-inventory-service:local
+    pull_policy: never
+    build:
+      context: .
+      network: none
+    ports:
+    - 127.0.0.1:${HOST_PORT:-8080}:8080
+    environment:
+      SERVER_PORT: '8080'
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: 'true'
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_LIQUIBASE_ENABLED: 'true'
+      SPRING_SQL_INIT_MODE: never
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env local}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/flow_inventory_service_db
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+    labels:
+      io.agentia.role: application
+    restart: unless-stopped
+    volumes:
+    - appdata:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+      data-init:
+        condition: service_completed_successfully
+  db:
+    image: postgres:16.4-alpine
+    pull_policy: never
+    volumes:
+    - dbdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    labels:
+      io.agentia.role: database
+    environment:
+      POSTGRES_DB: flow_inventory_service_db
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD}
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U app -d flow_inventory_service_db
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  data-init:
+    image: agentia-runtime:21-v1
+    pull_policy: never
+    user: 0:0
+    entrypoint:
+    - sh
+    - -c
+    - chown 10001:10001 /app/data
+    volumes:
+    - appdata:/app/data
+    network_mode: none
+    restart: 'no'
+volumes:
+  appdata: {}
+  dbdata: {}

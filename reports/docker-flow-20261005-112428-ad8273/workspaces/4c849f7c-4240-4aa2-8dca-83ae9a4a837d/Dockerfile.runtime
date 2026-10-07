@@ -1,0 +1,4 @@
+FROM eclipse-temurin:21.0.5_11-jre-alpine
+RUN command -v wget && command -v grep && addgroup -g 10001 -S appgroup && adduser -u 10001 -S appuser -G appgroup && mkdir -p /app/data && chown -R 10001:10001 /app
+WORKDIR /app
+USER 10001:10001

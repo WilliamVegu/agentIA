@@ -1,0 +1,52 @@
+{
+  "initial": {
+    "current_scene": "Escena",
+    "scenes": [
+      "Escena 2",
+      "Escena"
+    ],
+    "is_recording": false,
+    "is_paused": false,
+    "timecode": "00:00:00.000",
+    "duration_ms": 0,
+    "record_directory": "C:\\Users\\willi\\Videos"
+  },
+  "before": {
+    "status": "screenshot_saved",
+    "source": "Escena",
+    "output_path": "C:\\Users\\willi\\Downloads\\agentIA\\reports\\skill-adaptation\\obs-visible-before.png",
+    "size_bytes": 92926
+  },
+  "start": {
+    "status": "recording_started",
+    "is_recording": true,
+    "is_paused": false,
+    "timecode": "00:00:00.000",
+    "duration_ms": 0,
+    "record_directory": "C:\\Users\\willi\\Videos"
+  },
+  "change": {
+    "status": "scene_changed",
+    "current_scene": "Escena 2"
+  },
+  "changed": {
+    "status": "screenshot_saved",
+    "source": "Escena 2",
+    "output_path": "C:\\Users\\willi\\Downloads\\agentIA\\reports\\skill-adaptation\\obs-visible-changed.png",
+    "size_bytes": 8151
+  },
+  "restore": {
+    "status": "scene_changed",
+    "current_scene": "Escena"
+  },
+  "stop": {
+    "status": "recording_stopped",
+    "is_recording": false,
+    "is_paused": false,
+    "timecode": "00:00:00.000",
+    "duration_ms": 0,
+    "last_timecode": "00:00:10.366",
+    "output_path": "C:\\Users\\willi\\Videos\\2026-10-05 12-20-33.mp4",
+    "size_bytes": 728192
+  }
+}

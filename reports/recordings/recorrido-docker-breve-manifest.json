@@ -1,0 +1,47 @@
+{
+  "path": "C:\\Users\\willi\\Downloads\\agentIA\\reports\\recordings\\recorrido-docker-breve-nuevo.mp4",
+  "bytes": 4171382,
+  "expectedDurationSeconds": 134.70000000000002,
+  "cuts": [
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-22-18.mp4",
+      "start": 0,
+      "end": 40
+    },
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-51-59.mp4",
+      "start": 38,
+      "end": 46
+    },
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-54-40.mp4",
+      "start": 0,
+      "end": 18.5
+    },
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-51-59.mp4",
+      "start": 17.75,
+      "end": 31.35
+    },
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-22-18.mp4",
+      "start": 139.5,
+      "end": 151.4
+    },
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-22-18.mp4",
+      "start": 171.5,
+      "end": 191.5
+    },
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-22-18.mp4",
+      "start": 210,
+      "end": 215
+    },
+    {
+      "source": "C:\\Users\\willi\\Videos\\2026-10-05 15-51-59.mp4",
+      "start": 0,
+      "end": 17.7
+    }
+  ]
+}

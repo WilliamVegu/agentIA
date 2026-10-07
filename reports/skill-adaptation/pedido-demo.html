@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es"><meta charset="utf-8"><title>Demostración de pedido</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#101827;color:#172338;font:24px 'Segoe UI',sans-serif;display:grid;place-items:center;width:1920px;height:1080px}
+.shell{width:1450px;height:850px;border-radius:28px;background:#f4f7fb;overflow:hidden;box-shadow:0 30px 100px #0008}
+header{height:100px;background:white;padding:30px 48px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #dce3eb}.brand{font-size:32px;font-weight:800}.tag{font-size:18px;color:#51707c;background:#eaf4f6;padding:10px 18px;border-radius:40px}
+main{padding:42px 48px;display:grid;grid-template-columns:1.1fr 1fr;gap:44px}h1{font-size:42px;margin:0 0 8px}p{color:#66778b;margin:0 0 25px}label{display:block;font-size:20px;font-weight:600;margin:22px 0 9px}
+input{font:25px 'Segoe UI';width:100%;padding:16px 20px;border:2px solid #d3dce8;border-radius:12px;outline:0;background:white;transition:.2s}input:focus{border-color:#2769ec;box-shadow:0 0 0 5px #2769ec20}
+button{font:700 23px 'Segoe UI';background:#2769ec;border:0;color:white;border-radius:12px;padding:19px 25px;margin-top:28px;cursor:pointer;transition:.15s}button.pressed{transform:scale(.94);background:#154bb8}
+.cart{background:white;border:1px solid #dce3eb;border-radius:18px;padding:30px;margin-top:7px;height:500px}.cart h2{margin:0 0 25px}.empty{color:#91a0b2;text-align:center;padding:70px 0}.row{display:flex;justify-content:space-between;padding:22px 0;border-bottom:1px solid #e2e8f0}.price{font-weight:700}.total{font-size:29px;margin-top:22px;display:flex;justify-content:space-between}#confirm{width:100%;background:#0e9c72}#confirm:disabled{background:#c1cbd8;cursor:default}
+#status{background:#e6eefb;padding:17px 22px;border-radius:12px;color:#345785;font-size:21px;margin-top:25px}.success{display:none;grid-column:1 / -1;text-align:center;padding:90px 120px}.check{width:110px;height:110px;border-radius:50%;background:#dcf6eb;color:#079469;display:grid;place-items:center;font-size:65px;margin:0 auto 25px}.success h1{font-size:49px}.success .ticket{background:white;border:1px solid #dce3eb;border-radius:16px;padding:28px;max-width:650px;margin:35px auto;font-size:25px}footer{padding:0 48px;color:#78899c;font-size:18px}
+</style>
+<div class="shell"><header><div class="brand">☕ Café Central</div><div class="tag">DEMOSTRACIÓN · PEDIDO SIMULADO</div></header>
+<main id="main"><section id="form"><h1>Haz tu pedido</h1><p>Completa los datos y confirma tu selección.</p>
+<label for="customer">Tu nombre</label><input id="customer" placeholder="Escribe tu nombre">
+<label for="product">¿Qué quieres pedir?</label><input id="product" placeholder="Producto y cantidad">
+<label for="address">Dirección de entrega</label><input id="address" placeholder="Escribe la dirección">
+<button id="add">Añadir al pedido</button><div id="status">Esperando los datos del pedido…</div></section>
+<aside id="cart" class="cart"><h2>Tu pedido</h2><div id="items" class="empty">Todavía no has añadido productos.</div><button id="confirm" disabled>Confirmar pedido</button></aside>
+<section id="success" class="success"><div class="check">✓</div><h1>¡Pedido confirmado!</h1><p>Así se ve la confirmación en esta demostración.</p><div class="ticket"><strong>Pedido DEMO-001</strong><br><br>Camila Torres<br>2 cafés latte + 1 croissant<br><br>Total: <strong>S/ 32.00</strong></div></section></main>
+<footer>No se realiza ninguna compra ni se envía información a una tienda.</footer></div>
+<script>
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+async function type(id,text){const el=document.getElementById(id);el.focus();for(const c of text){el.value+=c;el.dispatchEvent(new Event('input',{bubbles:true}));await delay(85)}await delay(450)}
+document.getElementById('add').onclick=()=>{document.getElementById('items').className='';document.getElementById('items').innerHTML='<div class="row"><span>2 × Café latte</span><span class="price">S/ 24.00</span></div><div class="row"><span>1 × Croissant</span><span class="price">S/ 8.00</span></div><div class="total"><span>Total</span><strong>S/ 32.00</strong></div>';document.getElementById('confirm').disabled=false;document.getElementById('status').textContent='Productos añadidos. Listo para confirmar.'};
+document.getElementById('confirm').onclick=()=>{document.getElementById('form').style.display='none';document.getElementById('cart').style.display='none';document.getElementById('success').style.display='block'};
+async function click(id){const el=document.getElementById(id);el.classList.add('pressed');await delay(220);el.click();el.classList.remove('pressed')}
+(async()=>{await delay(3000);document.getElementById('status').textContent='Escribiendo los datos…';await type('customer','Camila Torres');await type('product','2 cafés latte + 1 croissant');await type('address','Av. Principal 123, Lima');await delay(600);await click('add');await delay(1800);await click('confirm')})();
+</script></html>

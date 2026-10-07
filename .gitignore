@@ -106,3 +106,17 @@ docs/fig/*-1.png
 
 # Browser verification reports and run artifacts
 reports/verification-real-browser*/
+
+# Media & recordings
+*.mp4
+*.webm
+*.mov
+*.avi
+
+# Large binary report archives (>100MB)
+reports/**/recovered-executable.zip
+
+# Codex / AI tool attachments
+.codex-remote-attachments/
+
+

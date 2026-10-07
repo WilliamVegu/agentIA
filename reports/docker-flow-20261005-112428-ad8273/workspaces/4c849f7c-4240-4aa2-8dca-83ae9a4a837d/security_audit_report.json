@@ -1,0 +1,27 @@
+{
+  "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+  "serviceName": "flow-inventory-service",
+  "qualityGate": {
+    "status": "PASS",
+    "score": 100,
+    "criticalCount": 0,
+    "highCount": 0,
+    "mediumCount": 0,
+    "lowCount": 0,
+    "canExport": true,
+    "summaryMessage": "Quality Gate PASSED: Zero security flaws or constitutional violations. Clean code standards met."
+  },
+  "metrics": {
+    "averageCyclomaticComplexity": 1.08,
+    "maxCyclomaticComplexity": 2,
+    "totalMethodsAudited": 73,
+    "methodsExceedingThreshold": 0,
+    "totalLinesOfCode": 715,
+    "duplicationPercentage": 4.9,
+    "testAssertionDensity": 1.55,
+    "totalCodeSmells": 0
+  },
+  "vulnerabilities": [],
+  "violations": [],
+  "auditedAt": "2026-10-05T17:06:00.612453+00:00"
+}

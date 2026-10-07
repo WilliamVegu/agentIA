@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flow-inventory-service-config
+  labels:
+    app.kubernetes.io/part-of: flow-inventory-service
+data:
+  SERVER_PORT: '8080'
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: 'true'
+  SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+  SPRING_LIQUIBASE_ENABLED: 'true'
+  SPRING_SQL_INIT_MODE: never
+  SPRING_DATASOURCE_USERNAME: app
+  SPRING_DATASOURCE_URL: jdbc:postgresql://flow-inventory-service-db:5432/flow_inventory_service_db
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+  SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect

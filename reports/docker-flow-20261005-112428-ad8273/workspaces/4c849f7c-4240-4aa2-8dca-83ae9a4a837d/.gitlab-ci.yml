@@ -1,0 +1,16 @@
+# Optional local Windows shell runner; GitLab.com execution is deferred.
+stages: [verify]
+local-verification:
+  stage: verify
+  tags: [windows, agentia-local]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+    - when: never
+  script:
+    - python local-ci.py
+  artifacts:
+    when: always
+    paths: [.agentia-runtime/local-ci-result.json]
+# To run Docker explicitly on a prepared runner: python local-ci.py --docker
+# flow-inventory-service: source checks do not assert executed tests or CVE approval.

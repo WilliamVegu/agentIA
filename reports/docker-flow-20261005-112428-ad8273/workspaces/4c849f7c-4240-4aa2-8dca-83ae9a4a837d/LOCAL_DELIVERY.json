@@ -1,0 +1,38 @@
+{
+  "formatVersion": 1,
+  "packageKind": "SOURCES",
+  "composeProject": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+  "buildTool": "maven",
+  "databaseEngine": "POSTGRESQL",
+  "javaVersion": 21,
+  "hostPort": 8080,
+  "baseImages": {
+    "builder": "maven:3.9.9-eclipse-temurin-21-alpine",
+    "runtime": "eclipse-temurin:21.0.5_11-jre-alpine"
+  },
+  "requiredImages": [
+    "agentia-builder:d88bfa15cfd91d25b40dd518",
+    "agentia-runtime:21-v1",
+    "postgres:16.4-alpine"
+  ],
+  "buildManifests": {
+    "pom.xml": "b21c41feb91b235804489a779c73f8feda991942a4772aab6453edef5521493f"
+  },
+  "verification": {
+    "outcome": "NOT_EXECUTED",
+    "note": "Generating scripts is not execution evidence."
+  },
+  "persistentResources": {
+    "volumes": [
+      "appdata",
+      "dbdata"
+    ],
+    "stopPreservesData": true,
+    "cleanupRequiresDeleteData": true
+  },
+  "offlineKit": {
+    "separateFromSourceZip": true,
+    "importCommand": "./import-offline-kit.ps1 -Path <kit>",
+    "includesApplicationImage": false
+  }
+}

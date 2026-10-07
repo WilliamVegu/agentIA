@@ -79,7 +79,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
             </label>
             <div className="relative">
               <input
-                type={showKey ? 'text' : 'password'}
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                name="agentia-ephemeral-api-key"
+                aria-label="Clave de API efímera"
+                style={showKey ? undefined : { WebkitTextSecurity: 'disc' } as React.CSSProperties}
                 value={localKey}
                 onChange={(e) => setLocalKey(e.target.value)}
                 placeholder={provider === 'gemini' ? 'AQ... o AIzaSy...' : provider === 'groq' ? 'gsk_...' : 'sk-...'}

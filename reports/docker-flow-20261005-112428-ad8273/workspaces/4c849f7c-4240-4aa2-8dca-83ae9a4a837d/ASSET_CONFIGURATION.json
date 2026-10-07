@@ -1,0 +1,10 @@
+{
+  "formatVersion": 1,
+  "templateVersion": 5,
+  "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+  "serviceName": "flow-inventory-service",
+  "databaseEngine": "POSTGRESQL",
+  "hostPort": 8080,
+  "buildTool": "maven",
+  "buildDirectory": "."
+}

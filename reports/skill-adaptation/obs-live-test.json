@@ -1,0 +1,81 @@
+{
+  "doctor": {
+    "windows": true,
+    "obs_exe_exists": true,
+    "obs_running": true,
+    "dependency_available": true,
+    "websocket_config_exists": true,
+    "websocket_enabled": true,
+    "websocket_port": 4455,
+    "authentication_required": true
+  },
+  "initial_status": {
+    "current_scene": "Escena",
+    "scenes": [
+      "Escena 2",
+      "Escena"
+    ],
+    "is_recording": false,
+    "is_paused": false,
+    "timecode": "00:00:00.000",
+    "duration_ms": 0,
+    "record_directory": "C:\\Users\\willi\\Videos"
+  },
+  "scenes": {
+    "current_scene": "Escena",
+    "scenes": [
+      "Escena 2",
+      "Escena"
+    ]
+  },
+  "screenshot": {
+    "status": "screenshot_saved",
+    "source": "Escena",
+    "output_path": "C:\\Users\\willi\\Downloads\\agentIA\\reports\\skill-adaptation\\obs-live-test.png",
+    "size_bytes": 92926
+  },
+  "start": {
+    "status": "recording_started",
+    "is_recording": true,
+    "is_paused": false,
+    "timecode": "00:00:00.000",
+    "duration_ms": 0,
+    "record_directory": "C:\\Users\\willi\\Videos"
+  },
+  "pause": {
+    "status": "recording_paused",
+    "is_recording": true,
+    "is_paused": true,
+    "timecode": "00:00:02.216",
+    "duration_ms": 2216
+  },
+  "resume": {
+    "status": "recording_resumed",
+    "is_recording": true,
+    "is_paused": false,
+    "timecode": "00:00:02.266",
+    "duration_ms": 2266
+  },
+  "stop": {
+    "status": "recording_stopped",
+    "is_recording": false,
+    "is_paused": false,
+    "timecode": "00:00:00.000",
+    "duration_ms": 0,
+    "last_timecode": "00:00:04.583",
+    "output_path": "C:\\Users\\willi\\Videos\\2026-10-05 12-13-29.mp4",
+    "size_bytes": 219089
+  },
+  "final_status": {
+    "current_scene": "Escena",
+    "scenes": [
+      "Escena 2",
+      "Escena"
+    ],
+    "is_recording": false,
+    "is_paused": false,
+    "timecode": "00:00:00.000",
+    "duration_ms": 0,
+    "record_directory": "C:\\Users\\willi\\Videos"
+  }
+}

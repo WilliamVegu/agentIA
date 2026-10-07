@@ -1,0 +1,435 @@
+{
+  "serviceName": "flow-inventory-service",
+  "packageName": "com.example.flowinventory",
+  "basePort": 8080,
+  "components": [
+    {
+      "name": "Item",
+      "layer": "model",
+      "stereotype": "@Entity",
+      "packageName": "com.example.flowinventory.model",
+      "responsibilities": [
+        "Map the items table to the domain aggregate root Item",
+        "Hold id (Long, PK, unique, generated), name (String, @NotBlank), quantity (Integer, @NotNull, @Min(0))",
+        "Enforce bean validation constraints at the persistence boundary"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ]
+    },
+    {
+      "name": "CreateItemRequest",
+      "layer": "model",
+      "stereotype": "record",
+      "packageName": "com.example.flowinventory.model.dto",
+      "responsibilities": [
+        "Immutable request payload for creating an Item",
+        "Carry name with @NotBlank and quantity with @NotNull @Min(0)"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1"
+      ]
+    },
+    {
+      "name": "UpdateItemRequest",
+      "layer": "model",
+      "stereotype": "record",
+      "packageName": "com.example.flowinventory.model.dto",
+      "responsibilities": [
+        "Immutable request payload for updating an existing Item",
+        "Carry name with @NotBlank and quantity with @NotNull @Min(0)"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-2"
+      ]
+    },
+    {
+      "name": "ItemResponse",
+      "layer": "model",
+      "stereotype": "record",
+      "packageName": "com.example.flowinventory.model.dto",
+      "responsibilities": [
+        "Immutable response payload representing a persisted Item",
+        "Expose id, name and quantity to API clients"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ]
+    },
+    {
+      "name": "ItemNotFoundException",
+      "layer": "domain",
+      "stereotype": "@ResponseStatus(RuntimeException)",
+      "packageName": "com.example.flowinventory.domain.exception",
+      "responsibilities": [
+        "Signal that no Item exists for a supplied identifier",
+        "Carry the missing id for diagnostic logging"
+      ],
+      "dependencies": [],
+      "mappedStories": [
+        "US-2",
+        "US-3"
+      ]
+    },
+    {
+      "name": "ItemRepository",
+      "layer": "repository",
+      "stereotype": "@Repository",
+      "packageName": "com.example.flowinventory.repository",
+      "responsibilities": [
+        "Provide CRUD persistence operations for the Item aggregate",
+        "Extend JpaRepository<Item, Long> for save, findById, findAll and deleteById",
+        "Isolate all JPA/Spring Data access from the service layer"
+      ],
+      "dependencies": [
+        "Item"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ]
+    },
+    {
+      "name": "ItemService",
+      "layer": "service",
+      "stereotype": "@Service",
+      "packageName": "com.example.flowinventory.service",
+      "responsibilities": [
+        "Create an Item from CreateItemRequest and return the persisted ItemResponse (US-1)",
+        "Update an Item by id from UpdateItemRequest, throwing ItemNotFoundException when absent (US-2)",
+        "Delete an Item by id, throwing ItemNotFoundException when absent (US-2)",
+        "Retrieve one Item by id or all Items, throwing ItemNotFoundException when absent (US-3)",
+        "Translate between entity and record DTOs and remain @Transactional"
+      ],
+      "dependencies": [
+        "ItemRepository",
+        "ItemNotFoundException",
+        "Item",
+        "CreateItemRequest",
+        "UpdateItemRequest",
+        "ItemResponse"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ]
+    },
+    {
+      "name": "ItemController",
+      "layer": "controller",
+      "stereotype": "@RestController",
+      "packageName": "com.example.flowinventory.controller",
+      "responsibilities": [
+        "Expose POST /api/v1/items, PUT /api/v1/items/{id}, DELETE /api/v1/items/{id}, GET /api/v1/items/{id} and GET /api/v1/items",
+        "Validate request bodies with @Valid and map results to ItemResponse",
+        "Apply @Validated id path variables and return correct HTTP status codes (201, 200, 204)",
+        "Depend only on ItemService; contain no business logic"
+      ],
+      "dependencies": [
+        "ItemService",
+        "CreateItemRequest",
+        "UpdateItemRequest",
+        "ItemResponse"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ]
+    },
+    {
+      "name": "GlobalExceptionHandler",
+      "layer": "infrastructure",
+      "stereotype": "@RestControllerAdvice",
+      "packageName": "com.example.flowinventory.infrastructure",
+      "responsibilities": [
+        "Translate ItemNotFoundException into HTTP 404 with an RFC 7807 style error body",
+        "Translate MethodArgumentNotValidException into HTTP 400 listing field violations",
+        "Translate ConstraintViolationException and HttpMessageNotReadableException into HTTP 400",
+        "Provide a fallback handler returning HTTP 500 without leaking internals"
+      ],
+      "dependencies": [
+        "ItemNotFoundException"
+      ],
+      "mappedStories": [
+        "US-1",
+        "US-2",
+        "US-3"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/api/v1/items",
+      "summary": "Create a new inventory item with a validated name and non-negative quantity; returns the persisted item with generated id",
+      "requestDto": "CreateItemRequest",
+      "responseDto": "ItemResponse",
+      "successStatus": 201,
+      "errorStatuses": [
+        400
+      ],
+      "mappedScenarioId": "AC-1.1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/items/{id}",
+      "summary": "Retrieve a single inventory item by its identifier; 404 when the item does not exist",
+      "requestDto": null,
+      "responseDto": "ItemResponse",
+      "successStatus": 200,
+      "errorStatuses": [
+        404
+      ],
+      "mappedScenarioId": "AC-3.1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/items",
+      "summary": "List every inventory item currently tracked by the service",
+      "requestDto": null,
+      "responseDto": "ItemResponse",
+      "successStatus": 200,
+      "errorStatuses": [],
+      "mappedScenarioId": "AC-3.2"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/items/{id}",
+      "summary": "Update the name and quantity of an existing inventory item; 404 when the id is unknown and 400 on validation failure without mutating state",
+      "requestDto": "UpdateItemRequest",
+      "responseDto": "ItemResponse",
+      "successStatus": 200,
+      "errorStatuses": [
+        400,
+        404
+      ],
+      "mappedScenarioId": "AC-2.1"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/items/{id}",
+      "summary": "Delete an existing inventory item by id; returns 204 on success and 404 when the id is unknown",
+      "requestDto": null,
+      "responseDto": null,
+      "successStatus": 204,
+      "errorStatuses": [
+        404
+      ],
+      "mappedScenarioId": "AC-2.2"
+    }
+  ],
+  "interactions": [
+    {
+      "sourceComponent": "ItemRepository",
+      "targetComponent": "Item",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "ItemService",
+      "targetComponent": "ItemRepository",
+      "interactionType": "calls"
+    },
+    {
+      "sourceComponent": "ItemService",
+      "targetComponent": "ItemNotFoundException",
+      "interactionType": "calls"
+    },
+    {
+      "sourceComponent": "ItemService",
+      "targetComponent": "Item",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "ItemService",
+      "targetComponent": "CreateItemRequest",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "ItemService",
+      "targetComponent": "UpdateItemRequest",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "ItemService",
+      "targetComponent": "ItemResponse",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "ItemController",
+      "targetComponent": "ItemService",
+      "interactionType": "calls"
+    },
+    {
+      "sourceComponent": "ItemController",
+      "targetComponent": "CreateItemRequest",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "ItemController",
+      "targetComponent": "UpdateItemRequest",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "ItemController",
+      "targetComponent": "ItemResponse",
+      "interactionType": "persists"
+    },
+    {
+      "sourceComponent": "GlobalExceptionHandler",
+      "targetComponent": "ItemNotFoundException",
+      "interactionType": "calls"
+    }
+  ],
+  "mermaidDiagram": "flowchart TD\n    subgraph Presentation[\"Capa Controlador (REST / HTTP)\"]\n        ItemController[\"ItemController<br/><i>@RestController</i>\"]\n    end\n    subgraph Business[\"Capa Servicio (L\u00f3gica de Negocio)\"]\n        ItemService[\"ItemService<br/><i>@Service</i>\"]\n    end\n    subgraph Persistence[\"Capa Repositorio (Spring Data JPA)\"]\n        ItemRepository[\"ItemRepository<br/><i>@Repository</i>\"]\n    end\n    subgraph Domain[\"Capa Dominio & Modelos\"]\n        Item[\"Item<br/><i>@Entity</i>\"]\n        CreateItemRequest[\"CreateItemRequest<br/><i>record</i>\"]\n        UpdateItemRequest[\"UpdateItemRequest<br/><i>record</i>\"]\n        ItemResponse[\"ItemResponse<br/><i>record</i>\"]\n    end\n    subgraph Infrastructure[\"Componentes Transversales & Soporte\"]\n        GlobalExceptionHandler[\"GlobalExceptionHandler<br/><i>@RestControllerAdvice</i>\"]\n    end\n    subgraph HexDomain[\"Dominio y puertos\"]\n        ItemNotFoundException[\"ItemNotFoundException<br/><i>@ResponseStatus(RuntimeException)</i>\"]\n    end\n    ItemRepository -->|persists| Item\n    ItemService --> ItemRepository\n    ItemService --> ItemNotFoundException\n    ItemService -->|persists| Item\n    ItemService -->|persists| CreateItemRequest\n    ItemService -->|persists| UpdateItemRequest\n    ItemService -->|persists| ItemResponse\n    ItemController --> ItemService\n    ItemController -->|persists| CreateItemRequest\n    ItemController -->|persists| UpdateItemRequest\n    ItemController -->|persists| ItemResponse\n    GlobalExceptionHandler --> ItemNotFoundException",
+  "architectureMarkdown": "# Architectural Blueprint: Flow Inventory Service\n\n**Package**: `com.example.flowinventory` | **Port**: `8080`\n**Generated**: 2026-10-05 16:26:06 UTC\n\n## 1. Topolog\u00eda Arquitect\u00f3nica en Capas\n\n```mermaid\nflowchart TD\n    subgraph Presentation[\"Capa Controlador (REST / HTTP)\"]\n        ItemController[\"ItemController<br/><i>@RestController</i>\"]\n    end\n    subgraph Business[\"Capa Servicio (L\u00f3gica de Negocio)\"]\n        ItemService[\"ItemService<br/><i>@Service</i>\"]\n    end\n    subgraph Persistence[\"Capa Repositorio (Spring Data JPA)\"]\n        ItemRepository[\"ItemRepository<br/><i>@Repository</i>\"]\n    end\n    subgraph Domain[\"Capa Dominio & Modelos\"]\n        Item[\"Item<br/><i>@Entity</i>\"]\n        CreateItemRequest[\"CreateItemRequest<br/><i>record</i>\"]\n        UpdateItemRequest[\"UpdateItemRequest<br/><i>record</i>\"]\n        ItemResponse[\"ItemResponse<br/><i>record</i>\"]\n    end\n    subgraph Infrastructure[\"Componentes Transversales & Soporte\"]\n        GlobalExceptionHandler[\"GlobalExceptionHandler<br/><i>@RestControllerAdvice</i>\"]\n    end\n    subgraph HexDomain[\"Dominio y puertos\"]\n        ItemNotFoundException[\"ItemNotFoundException<br/><i>@ResponseStatus(RuntimeException)</i>\"]\n    end\n    ItemRepository -->|persists| Item\n    ItemService --> ItemRepository\n    ItemService --> ItemNotFoundException\n    ItemService -->|persists| Item\n    ItemService -->|persists| CreateItemRequest\n    ItemService -->|persists| UpdateItemRequest\n    ItemService -->|persists| ItemResponse\n    ItemController --> ItemService\n    ItemController -->|persists| CreateItemRequest\n    ItemController -->|persists| UpdateItemRequest\n    ItemController -->|persists| ItemResponse\n    GlobalExceptionHandler --> ItemNotFoundException\n```\n\n---\n\n## 2. Cat\u00e1logo de Componentes\n\n| Componente | Capa | Estereotipo | Paquete | Responsabilidades | Dependencias |\n|:---|:---|:---|:---|:---|:---|\n| **Item** | `model` | `@Entity` | `com.example.flowinventory.model` | \u2022 Map the items table to the domain aggregate root Item<br/>\u2022 Hold id (Long, PK, unique, generated), name (String, @NotBlank), quantity (Integer, @NotNull, @Min(0))<br/>\u2022 Enforce bean validation constraints at the persistence boundary | \u2014 |\n| **CreateItemRequest** | `model` | `record` | `com.example.flowinventory.model.dto` | \u2022 Immutable request payload for creating an Item<br/>\u2022 Carry name with @NotBlank and quantity with @NotNull @Min(0) | \u2014 |\n| **UpdateItemRequest** | `model` | `record` | `com.example.flowinventory.model.dto` | \u2022 Immutable request payload for updating an existing Item<br/>\u2022 Carry name with @NotBlank and quantity with @NotNull @Min(0) | \u2014 |\n| **ItemResponse** | `model` | `record` | `com.example.flowinventory.model.dto` | \u2022 Immutable response payload representing a persisted Item<br/>\u2022 Expose id, name and quantity to API clients | \u2014 |\n| **ItemNotFoundException** | `domain` | `@ResponseStatus(RuntimeException)` | `com.example.flowinventory.domain.exception` | \u2022 Signal that no Item exists for a supplied identifier<br/>\u2022 Carry the missing id for diagnostic logging | \u2014 |\n| **ItemRepository** | `repository` | `@Repository` | `com.example.flowinventory.repository` | \u2022 Provide CRUD persistence operations for the Item aggregate<br/>\u2022 Extend JpaRepository<Item, Long> for save, findById, findAll and deleteById<br/>\u2022 Isolate all JPA/Spring Data access from the service layer | Item |\n| **ItemService** | `service` | `@Service` | `com.example.flowinventory.service` | \u2022 Create an Item from CreateItemRequest and return the persisted ItemResponse (US-1)<br/>\u2022 Update an Item by id from UpdateItemRequest, throwing ItemNotFoundException when absent (US-2)<br/>\u2022 Delete an Item by id, throwing ItemNotFoundException when absent (US-2)<br/>\u2022 Retrieve one Item by id or all Items, throwing ItemNotFoundException when absent (US-3)<br/>\u2022 Translate between entity and record DTOs and remain @Transactional | ItemRepository, ItemNotFoundException, Item, CreateItemRequest, UpdateItemRequest, ItemResponse |\n| **ItemController** | `controller` | `@RestController` | `com.example.flowinventory.controller` | \u2022 Expose POST /api/v1/items, PUT /api/v1/items/{id}, DELETE /api/v1/items/{id}, GET /api/v1/items/{id} and GET /api/v1/items<br/>\u2022 Validate request bodies with @Valid and map results to ItemResponse<br/>\u2022 Apply @Validated id path variables and return correct HTTP status codes (201, 200, 204)<br/>\u2022 Depend only on ItemService; contain no business logic | ItemService, CreateItemRequest, UpdateItemRequest, ItemResponse |\n| **GlobalExceptionHandler** | `infrastructure` | `@RestControllerAdvice` | `com.example.flowinventory.infrastructure` | \u2022 Translate ItemNotFoundException into HTTP 404 with an RFC 7807 style error body<br/>\u2022 Translate MethodArgumentNotValidException into HTTP 400 listing field violations<br/>\u2022 Translate ConstraintViolationException and HttpMessageNotReadableException into HTTP 400<br/>\u2022 Provide a fallback handler returning HTTP 500 without leaking internals | ItemNotFoundException |\n\n---\n\n## 3. Cat\u00e1logo de Endpoints REST Derivados\n\n| M\u00e9todo | Ruta | Resumen | Request DTO | Response DTO | \u00c9xito | Errores | Criterio BDD |\n|:---|:---|:---|:---|:---|:---:|:---:|:---:|\n| `POST` | `/api/v1/items` | Create a new inventory item with a validated name and non-negative quantity; returns the persisted item with generated id | `CreateItemRequest` | `ItemResponse` | `201` | `400` | `AC-1.1` |\n| `GET` | `/api/v1/items/{id}` | Retrieve a single inventory item by its identifier; 404 when the item does not exist | \u2014 | `ItemResponse` | `200` | `404` | `AC-3.1` |\n| `GET` | `/api/v1/items` | List every inventory item currently tracked by the service | \u2014 | `ItemResponse` | `200` | `` | `AC-3.2` |\n| `PUT` | `/api/v1/items/{id}` | Update the name and quantity of an existing inventory item; 404 when the id is unknown and 400 on validation failure without mutating state | `UpdateItemRequest` | `ItemResponse` | `200` | `400, 404` | `AC-2.1` |\n| `DELETE` | `/api/v1/items/{id}` | Delete an existing inventory item by id; returns 204 on success and 404 when the id is unknown | \u2014 | \u2014 | `204` | `404` | `AC-2.2` |\n\n---\n\n## 4. Gobernanza y Cumplimiento Constitucional\n\n- **Principio I (Capas Estrictas)**: Dependencias unidireccionales Controller \u2794 Service \u2794 Repository \u2794 Model.\n- **Principio II (Records DTOs)**: DTOs inmutables desacoplados de la persistencia con validaci\u00f3n Jakarta.\n- **Principio III (Excepciones Centralizadas)**: Manejador `@RestControllerAdvice` uniforme.\n",
+  "openapiYaml": "openapi: 3.0.3\ninfo:\n  title: Flow Inventory Service API\n  description: Auto-generated API contracts for flow-inventory-service conforming\n    to Spring Boot 3 / Java 21 Records.\n  version: 1.0.0\nservers:\n- url: http://localhost:8080\n  description: Local server\npaths:\n  /api/v1/items:\n    post:\n      summary: Create a new inventory item with a validated name and non-negative\n        quantity; returns the persisted item with generated id\n      operationId: post_api_v1_items\n      responses:\n        '201':\n          description: Successful operation\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/ItemResponse'\n        '400':\n          description: Error response 400\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: '#/components/schemas/CreateItemRequest'\n    get:\n      summary: List every inventory item currently tracked by the service\n      operationId: get_api_v1_items\n      responses:\n        '200':\n          description: Successful operation\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/ItemResponse'\n  /api/v1/items/{id}:\n    get:\n      summary: Retrieve a single inventory item by its identifier; 404 when the item\n        does not exist\n      operationId: get_api_v1_items__id\n      responses:\n        '200':\n          description: Successful operation\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/ItemResponse'\n        '404':\n          description: Error response 404\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n    put:\n      summary: Update the name and quantity of an existing inventory item; 404 when\n        the id is unknown and 400 on validation failure without mutating state\n      operationId: put_api_v1_items__id\n      responses:\n        '200':\n          description: Successful operation\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/ItemResponse'\n        '400':\n          description: Error response 400\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n        '404':\n          description: Error response 404\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              $ref: '#/components/schemas/UpdateItemRequest'\n    delete:\n      summary: Delete an existing inventory item by id; returns 204 on success and\n        404 when the id is unknown\n      operationId: delete_api_v1_items__id\n      responses:\n        '204':\n          description: Successful operation\n        '404':\n          description: Error response 404\n          content:\n            application/problem+json:\n              schema:\n                $ref: '#/components/schemas/ProblemDetails'\ncomponents:\n  schemas:\n    ProblemDetails:\n      type: object\n      required:\n      - timestamp\n      - status\n      - message\n      properties:\n        timestamp:\n          type: string\n          format: date-time\n        status:\n          type: integer\n        message:\n          type: string\n        details:\n          type: array\n          items:\n            type: string\n    ItemResponse:\n      type: object\n      description: Immutable Java Record response for Item\n      properties:\n        id:\n          type: integer\n        name: &id001\n          type: string\n        quantity: &id002\n          type: integer\n    CreateItemRequest:\n      type: object\n      description: Immutable Java Record request with Jakarta validation for Item\n      required:\n      - name\n      - quantity\n      properties:\n        name: *id001\n        quantity: *id002\n",
+  "entities": [
+    {
+      "name": "Item",
+      "tableName": "items",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Long",
+          "nullable": false,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "validationRules": []
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "nullable": false,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "validationRules": [
+            "@NotBlank"
+          ]
+        },
+        {
+          "name": "quantity",
+          "type": "Integer",
+          "nullable": false,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "validationRules": [
+            "@NotNull",
+            "@Min(0)"
+          ]
+        }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "Inventory Operator",
+      "intent": "create a new inventory item with a name and quantity",
+      "benefit": "new stock can be tracked from the moment it is registered",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "no item exists with name \"Widget\" and the request body contains a nonblank name \"Widget\" and quantity 10",
+          "when": "the client sends POST /api/v1/items with the request body",
+          "then": "the service returns HTTP 201 and the persisted item with a generated id, name \"Widget\", and quantity 10"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "the request body contains a blank name and quantity 10",
+          "when": "the client sends POST /api/v1/items",
+          "then": "the service returns HTTP 400 and no item is persisted"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "the request body contains name \"Widget\" and quantity -1",
+          "when": "the client sends POST /api/v1/items",
+          "then": "the service returns HTTP 400 and no item is persisted"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "Inventory Operator",
+      "intent": "update or delete an existing inventory item",
+      "benefit": "inventory records stay accurate and obsolete items can be removed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an item with id 42 exists with name \"Widget\" and quantity 5",
+          "when": "the client sends PUT /api/v1/items/42 with name \"Gadget\" and quantity 20",
+          "then": "the service returns HTTP 200 with the updated item containing id 42, name \"Gadget\", and quantity 20"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "an item with id 42 exists",
+          "when": "the client sends DELETE /api/v1/items/42",
+          "then": "the service returns HTTP 204 and the item is no longer retrievable by id"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "no item with id 999 exists",
+          "when": "the client sends PUT /api/v1/items/999 with a valid name and quantity",
+          "then": "the service returns HTTP 404"
+        },
+        {
+          "scenarioId": "AC-2.4",
+          "given": "no item with id 999 exists",
+          "when": "the client sends DELETE /api/v1/items/999",
+          "then": "the service returns HTTP 404"
+        },
+        {
+          "scenarioId": "AC-2.5",
+          "given": "an item with id 42 exists",
+          "when": "the client sends PUT /api/v1/items/42 with a blank name",
+          "then": "the service returns HTTP 400 and the item remains unchanged"
+        },
+        {
+          "scenarioId": "AC-2.6",
+          "given": "an item with id 42 exists",
+          "when": "the client sends PUT /api/v1/items/42 with quantity -5",
+          "then": "the service returns HTTP 400 and the item remains unchanged"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P3",
+      "role": "Inventory Auditor",
+      "intent": "retrieve an item by id or list all items",
+      "benefit": "stock records can be inspected and verified",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an item with id 42 exists with name \"Widget\" and quantity 10",
+          "when": "the client sends GET /api/v1/items/42",
+          "then": "the service returns HTTP 200 with the item containing id 42, name \"Widget\", and quantity 10"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "multiple items exist in the inventory",
+          "when": "the client sends GET /api/v1/items",
+          "then": "the service returns HTTP 200 with a list containing all inventory items"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "no item with id 999 exists",
+          "when": "the client sends GET /api/v1/items/999",
+          "then": "the service returns HTTP 404"
+        }
+      ]
+    }
+  ]
+}

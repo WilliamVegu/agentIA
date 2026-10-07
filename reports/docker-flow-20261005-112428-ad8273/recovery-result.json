@@ -1,0 +1,446 @@
+{
+  "result": "PASS",
+  "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+  "newGenerations": 0,
+  "steps": [
+    {
+      "name": "Reutilizaci\u00f3n de verificaci\u00f3n vigente; sin repetir tests",
+      "data": {
+        "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+        "specName": "flow-inventory-service",
+        "status": "COMPLETED",
+        "executionMode": "DOCKER",
+        "verificationOutcome": "PASSED",
+        "availableActions": [],
+        "phase": "VERIFIED",
+        "queuePosition": 0,
+        "repairAttempts": 0,
+        "createdAt": "2026-10-05T16:25:29.537542",
+        "startedAt": "2026-10-05T16:25:29.546688",
+        "completedAt": "2026-10-05T17:03:12.267942",
+        "errorMessage": null,
+        "verificationFallbackUsed": false
+      },
+      "seconds": 0.19
+    },
+    {
+      "name": "Credencial aleatoria de BD de prueba, fuera del snapshot",
+      "data": {
+        "temporary": true
+      },
+      "seconds": 0.19
+    },
+    {
+      "name": "Despliegue del mismo snapshot",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": null,
+        "containerId": null,
+        "databaseContainerId": null,
+        "sourceSnapshotId": null,
+        "workspaceFingerprint": null,
+        "imageId": null,
+        "executableJarSha256": null,
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": null,
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:04:49.751286+00:00",
+        "operationId": "98f854f9-d3f1-426f-9675-4485b214cbe3",
+        "operationKind": "DEPLOY",
+        "operationPhase": "QUEUED",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": null
+      },
+      "seconds": 0.84
+    },
+    {
+      "name": "('BUILDING', 'PREFLIGHT')",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": null,
+        "containerId": null,
+        "databaseContainerId": null,
+        "sourceSnapshotId": null,
+        "workspaceFingerprint": null,
+        "imageId": null,
+        "executableJarSha256": null,
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": null,
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:04:49.751286+00:00",
+        "operationId": "98f854f9-d3f1-426f-9675-4485b214cbe3",
+        "operationKind": "DEPLOY",
+        "operationPhase": "PREFLIGHT",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": null
+      },
+      "seconds": 0.84
+    },
+    {
+      "name": "('BUILDING', 'BUILD')",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": null,
+        "containerId": null,
+        "databaseContainerId": null,
+        "sourceSnapshotId": "f272eaaabf1249709a975d09ef51654e",
+        "workspaceFingerprint": "df227db28acbbd48518c4da4332a7623e84445469d527aaeda1404498d72bc4c",
+        "imageId": null,
+        "executableJarSha256": "fe4386125389a87b4712267b87bfcbe8b58862ef57919dc4701aa41ff481c6c6",
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": null,
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:04:49.751286+00:00",
+        "operationId": "98f854f9-d3f1-426f-9675-4485b214cbe3",
+        "operationKind": "DEPLOY",
+        "operationPhase": "BUILD",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": null
+      },
+      "seconds": 5.86
+    },
+    {
+      "name": "('BUILDING', 'START')",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": null,
+        "containerId": null,
+        "databaseContainerId": null,
+        "sourceSnapshotId": "f272eaaabf1249709a975d09ef51654e",
+        "workspaceFingerprint": "df227db28acbbd48518c4da4332a7623e84445469d527aaeda1404498d72bc4c",
+        "imageId": "sha256:7b74fe8ead76f51d67f900f37ea169916720fbf93d2c2c31bcd1f51e54d7dfc9",
+        "executableJarSha256": "fe4386125389a87b4712267b87bfcbe8b58862ef57919dc4701aa41ff481c6c6",
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": null,
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:04:49.751286+00:00",
+        "operationId": "98f854f9-d3f1-426f-9675-4485b214cbe3",
+        "operationKind": "DEPLOY",
+        "operationPhase": "START",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": null
+      },
+      "seconds": 10.86
+    },
+    {
+      "name": "('HEALTHY', 'COMPLETE')",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": "POSTGRESQL",
+        "containerId": "a775b2e7ab34b69612a519afa7d6882264502420ba2157a167f821a6a0df9159",
+        "databaseContainerId": "63b943d8343b3c3ea4fac55a62dd788660895215aefb6e295281bf84f4b919f2",
+        "sourceSnapshotId": "f272eaaabf1249709a975d09ef51654e",
+        "workspaceFingerprint": "df227db28acbbd48518c4da4332a7623e84445469d527aaeda1404498d72bc4c",
+        "imageId": "sha256:7b74fe8ead76f51d67f900f37ea169916720fbf93d2c2c31bcd1f51e54d7dfc9",
+        "executableJarSha256": "fe4386125389a87b4712267b87bfcbe8b58862ef57919dc4701aa41ff481c6c6",
+        "status": "HEALTHY",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": "http://localhost:8080/actuator/health",
+        "healthStatus": "UP",
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:04:49.751286+00:00",
+        "operationId": "98f854f9-d3f1-426f-9675-4485b214cbe3",
+        "operationKind": "DEPLOY",
+        "operationPhase": "COMPLETE",
+        "finishedAt": "2026-10-05T17:05:18.104559+00:00",
+        "cancelRequested": false,
+        "message": null
+      },
+      "seconds": 31.83
+    },
+    {
+      "name": "Salud confirmada",
+      "data": {
+        "passed": true,
+        "statusCode": 200,
+        "statusPayload": {
+          "status": "UP",
+          "groups": [
+            "liveness",
+            "readiness"
+          ]
+        },
+        "latencyMs": 6.45,
+        "testUrl": "http://localhost:8080/actuator/health",
+        "checkedAt": "2026-10-05T17:05:22.340969+00:00",
+        "details": "Actuator reports application status is UP."
+      },
+      "seconds": 33.42
+    },
+    {
+      "name": "CRUD y validaci\u00f3n",
+      "data": {
+        "create": {
+          "statusCode": 201,
+          "url": "http://127.0.0.1:8080/api/v1/items",
+          "latencyMs": 218,
+          "contentType": "application/json",
+          "truncated": false,
+          "body": {
+            "id": 2,
+            "name": "Recovery item",
+            "quantity": 7
+          },
+          "bodyText": "{\"id\":2,\"name\":\"Recovery item\",\"quantity\":7}",
+          "error": null
+        },
+        "read": {
+          "statusCode": 200,
+          "url": "http://127.0.0.1:8080/api/v1/items/2",
+          "latencyMs": 36,
+          "contentType": "application/json",
+          "truncated": false,
+          "body": {
+            "id": 2,
+            "name": "Recovery item",
+            "quantity": 7
+          },
+          "bodyText": "{\"id\":2,\"name\":\"Recovery item\",\"quantity\":7}",
+          "error": null
+        },
+        "update": {
+          "statusCode": 200,
+          "url": "http://127.0.0.1:8080/api/v1/items/2",
+          "latencyMs": 17,
+          "contentType": "application/json",
+          "truncated": false,
+          "body": {
+            "id": 2,
+            "name": "Recovery item updated",
+            "quantity": 12
+          },
+          "bodyText": "{\"id\":2,\"name\":\"Recovery item updated\",\"quantity\":12}",
+          "error": null
+        },
+        "invalid": {
+          "statusCode": 400,
+          "url": "http://127.0.0.1:8080/api/v1/items",
+          "latencyMs": 27,
+          "contentType": "application/json",
+          "truncated": false,
+          "body": {
+            "timestamp": "2026-10-05T17:05:29.441206714Z",
+            "status": 400,
+            "message": "Request payload validation failed",
+            "details": [
+              {
+                "field": "quantity",
+                "message": "must be greater than or equal to 0"
+              },
+              {
+                "field": "name",
+                "message": "must not be blank"
+              }
+            ]
+          },
+          "bodyText": "{\"timestamp\":\"2026-10-05T17:05:29.441206714Z\",\"status\":400,\"message\":\"Request payload validation failed\",\"details\":[{\"field\":\"quantity\",\"message\":\"must be greater than or equal to 0\"},{\"field\":\"name\",\"message\":\"must not be blank\"}]}",
+          "error": null
+        }
+      },
+      "seconds": 41.53
+    },
+    {
+      "name": "('BUILDING', 'PREFLIGHT')",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": "POSTGRESQL",
+        "containerId": "a775b2e7ab34b69612a519afa7d6882264502420ba2157a167f821a6a0df9159",
+        "databaseContainerId": "63b943d8343b3c3ea4fac55a62dd788660895215aefb6e295281bf84f4b919f2",
+        "sourceSnapshotId": "f272eaaabf1249709a975d09ef51654e",
+        "workspaceFingerprint": "df227db28acbbd48518c4da4332a7623e84445469d527aaeda1404498d72bc4c",
+        "imageId": "sha256:7b74fe8ead76f51d67f900f37ea169916720fbf93d2c2c31bcd1f51e54d7dfc9",
+        "executableJarSha256": "fe4386125389a87b4712267b87bfcbe8b58862ef57919dc4701aa41ff481c6c6",
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": "UNKNOWN",
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:05:31.988730+00:00",
+        "operationId": "492498fe-28bc-4133-84b2-6185942ab9dd",
+        "operationKind": "RESTART",
+        "operationPhase": "PREFLIGHT",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": "Reinicio sin reconstrucci\u00f3n; datos conservados."
+      },
+      "seconds": 43.08
+    },
+    {
+      "name": "('BUILDING', 'START')",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": "POSTGRESQL",
+        "containerId": "a775b2e7ab34b69612a519afa7d6882264502420ba2157a167f821a6a0df9159",
+        "databaseContainerId": "63b943d8343b3c3ea4fac55a62dd788660895215aefb6e295281bf84f4b919f2",
+        "sourceSnapshotId": "f272eaaabf1249709a975d09ef51654e",
+        "workspaceFingerprint": "df227db28acbbd48518c4da4332a7623e84445469d527aaeda1404498d72bc4c",
+        "imageId": "sha256:7b74fe8ead76f51d67f900f37ea169916720fbf93d2c2c31bcd1f51e54d7dfc9",
+        "executableJarSha256": "fe4386125389a87b4712267b87bfcbe8b58862ef57919dc4701aa41ff481c6c6",
+        "status": "BUILDING",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": null,
+        "healthStatus": "UNKNOWN",
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:05:31.988730+00:00",
+        "operationId": "492498fe-28bc-4133-84b2-6185942ab9dd",
+        "operationKind": "RESTART",
+        "operationPhase": "START",
+        "finishedAt": null,
+        "cancelRequested": false,
+        "message": "Reinicio sin reconstrucci\u00f3n; datos conservados."
+      },
+      "seconds": 48.09
+    },
+    {
+      "name": "('HEALTHY', 'COMPLETE')",
+      "data": {
+        "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+        "dbEngine": "POSTGRESQL",
+        "containerId": "d9b0681c8ab2151a10c02ecad936a165c9a190817cb8cfcbdb382da02bfae784",
+        "databaseContainerId": "500e8c1fddb077aec0c88663dbcb91e98276c762b542ab3d9944d7d9eaa08c14",
+        "sourceSnapshotId": "f272eaaabf1249709a975d09ef51654e",
+        "workspaceFingerprint": "df227db28acbbd48518c4da4332a7623e84445469d527aaeda1404498d72bc4c",
+        "imageId": "sha256:7b74fe8ead76f51d67f900f37ea169916720fbf93d2c2c31bcd1f51e54d7dfc9",
+        "executableJarSha256": "fe4386125389a87b4712267b87bfcbe8b58862ef57919dc4701aa41ff481c6c6",
+        "status": "HEALTHY",
+        "hostPort": 8080,
+        "containerPort": 8080,
+        "testUrl": "http://localhost:8080/actuator/health",
+        "healthStatus": "UP",
+        "errorMessage": null,
+        "startedAt": "2026-10-05T17:05:31.988730+00:00",
+        "operationId": "492498fe-28bc-4133-84b2-6185942ab9dd",
+        "operationKind": "RESTART",
+        "operationPhase": "COMPLETE",
+        "finishedAt": "2026-10-05T17:05:51.822521+00:00",
+        "cancelRequested": false,
+        "message": "Reinicio sin reconstrucci\u00f3n; datos conservados."
+      },
+      "seconds": 64.12
+    },
+    {
+      "name": "Persistencia tras parada y reinicio",
+      "data": {
+        "statusCode": 200,
+        "url": "http://127.0.0.1:8080/api/v1/items/2",
+        "latencyMs": 103,
+        "contentType": "application/json",
+        "truncated": false,
+        "body": {
+          "id": 2,
+          "name": "Recovery item updated",
+          "quantity": 12
+        },
+        "bodyText": "{\"id\":2,\"name\":\"Recovery item updated\",\"quantity\":12}",
+        "error": null
+      },
+      "seconds": 66.59
+    },
+    {
+      "name": "Eliminaci\u00f3n y 404",
+      "data": {
+        "delete": {
+          "statusCode": 204,
+          "url": "http://127.0.0.1:8080/api/v1/items/2",
+          "latencyMs": 346,
+          "contentType": "",
+          "truncated": false,
+          "body": "",
+          "bodyText": "",
+          "error": null
+        },
+        "absent": {
+          "statusCode": 404,
+          "url": "http://127.0.0.1:8080/api/v1/items/2",
+          "latencyMs": 42,
+          "contentType": "application/json",
+          "truncated": false,
+          "body": {
+            "timestamp": "2026-10-05T17:05:58.946565030Z",
+            "status": 404,
+            "message": "Item not found with id: 2",
+            "details": []
+          },
+          "bodyText": "{\"timestamp\":\"2026-10-05T17:05:58.946565030Z\",\"status\":404,\"message\":\"Item not found with id: 2\",\"details\":[]}",
+          "error": null
+        }
+      },
+      "seconds": 71.12
+    },
+    {
+      "name": "Exportaci\u00f3n recovered-sources.zip",
+      "data": {
+        "bytes": 60559
+      },
+      "seconds": 71.52
+    },
+    {
+      "name": "Exportaci\u00f3n recovered-executable.zip",
+      "data": {
+        "bytes": 124001758
+      },
+      "seconds": 78.19
+    }
+  ],
+  "session": {
+    "id": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+    "specId": "a62f6f3f-0341-4617-8a34-4568ef2f55d4",
+    "specName": "flow-inventory-service",
+    "status": "COMPLETED",
+    "executionMode": "DOCKER",
+    "verificationOutcome": "PASSED",
+    "availableActions": [],
+    "phase": "VERIFIED",
+    "queuePosition": 0,
+    "repairAttempts": 0,
+    "createdAt": "2026-10-05T16:25:29.537542",
+    "startedAt": "2026-10-05T16:25:29.546688",
+    "completedAt": "2026-10-05T17:03:12.267942",
+    "errorMessage": null,
+    "verificationFallbackUsed": false
+  },
+  "stop": {
+    "sessionId": "4c849f7c-4240-4aa2-8dca-83ae9a4a837d",
+    "dbEngine": "POSTGRESQL",
+    "containerId": "d9b0681c8ab2151a10c02ecad936a165c9a190817cb8cfcbdb382da02bfae784",
+    "databaseContainerId": "500e8c1fddb077aec0c88663dbcb91e98276c762b542ab3d9944d7d9eaa08c14",
+    "sourceSnapshotId": "f272eaaabf1249709a975d09ef51654e",
+    "workspaceFingerprint": "df227db28acbbd48518c4da4332a7623e84445469d527aaeda1404498d72bc4c",
+    "imageId": "sha256:7b74fe8ead76f51d67f900f37ea169916720fbf93d2c2c31bcd1f51e54d7dfc9",
+    "executableJarSha256": "fe4386125389a87b4712267b87bfcbe8b58862ef57919dc4701aa41ff481c6c6",
+    "status": "STOPPED",
+    "hostPort": 8080,
+    "containerPort": 8080,
+    "testUrl": null,
+    "healthStatus": "DOWN",
+    "errorMessage": null,
+    "startedAt": "2026-10-05T17:05:31.988730+00:00",
+    "operationId": "492498fe-28bc-4133-84b2-6185942ab9dd",
+    "operationKind": "RESTART",
+    "operationPhase": "COMPLETE",
+    "finishedAt": "2026-10-05T17:05:51.822521+00:00",
+    "cancelRequested": false,
+    "message": "Reinicio sin reconstrucci\u00f3n; datos conservados."
+  },
+  "elapsedSeconds": 79.47
+}
