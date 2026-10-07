@@ -1,39 +1,41 @@
-Microservice Code StudioEnterprise Architecture
+Microservice Code Studio
+ENTERPRISE ARCHITECTURE
 + Nuevo Pedido Quarkus
-Fábrica Quarkus (5)
-audit-inventory-maven
-Aprobado·6,000 tok
-audit-inventory-maven
-En revisión·33,250 tok
-audit-inventory-gradle
-En revisión·33,250 tok
-audit-no-auth
-Aprobado·6,000 tok
-microservice
-Contrato en revisión·10,800 tok
-Sprint 1 · v1.0.0TCS Global
-TCS Microservice Code Studio/LangGraph Enterprise Orchestrator
+FÁBRICA QUARKUS (0)
+No hay pedidos activos. Pulsa el botón superior para ingresar uno.
+Sprint 1 · v1.0.0
+TCS Global
+TCS MICROSERVICE CODE STUDIO
+/
+LangGraph Enterprise Orchestrator
 FastAPI
-mock(offline-mock)
-Rodrigo MendozaArchitect · @tcs.com
+MOCK
+(offline-mock)
+Rodrigo Mendoza
+Architect · @tcs.com
 Q
 Fábrica Quarkus · Nuevo Pedido
 
 Contract-First · Java 21 · SQLite/SQL Server
 
 Pedido
-ContratoControl Humano
+Contrato
+CONTROL HUMANO
 Arquitectura
 Construcción
 Docs
-Control 2Control Humano
+Control 2
+CONTROL HUMANO
 DevOps
-Paso 1: Entrada del Pedido de MicroservicioGeneración 100% Dinámica por IA
+Paso 1: Entrada del Pedido de Microservicio
+Generación 100% Dinámica por IA
 
 Ingresa los datos y requerimientos de tu microservicio desde cero. La IA analizará la información para interrogarte en el Paso 2 a través de las 12 dimensiones de negocio y generar el contrato OpenAPI, historias de usuario BDD y el modelo relacional de base de datos.
 
 Limpiar Formulario
-Motor LLM: mockoffline-mock
+Motor LLM:
+MOCK
+offline-mock
 
 Modo offline (Mock Engine) activo. Generación sintética local sin consumo de red.
 
@@ -41,7 +43,8 @@ Configurar mi API Key
 1
 Bloque 1: Datos Básicos del Microservicio
 Identificación técnica Java Quarkus
-Nombre del Microservicio *kebab-case
+Nombre del Microservicio *
+kebab-case
 Equipo / Área Propietaria *
 GroupId Maven / Gradle *
 Versión de Java
@@ -49,14 +52,18 @@ Java 21 LTS (Recomendado - Records, Virtual Threads, Pattern Matching)
 Java 17 LTS
 Java 11
 Herramienta de Construcción (Build Tool)
-Maven (pom.xml)Gradle (build.gradle)
+Maven (pom.xml)
+Gradle (build.gradle)
 2
 Bloque 2: Qué debe hacer (Lógica y Reglas de Negocio) *
 0 / 30 caracteres mín.
 
 Describe con tus propias palabras qué problema resuelve el servicio, qué entidades maneja, sus operaciones principales y reglas de negocio.
 
-Ideas para incluir:+ Detalle / Items+ Ciclo de Estados+ Validaciones de Negocio
+Ideas para incluir:
++ Detalle / Items
++ Ciclo de Estados
++ Validaciones de Negocio
 3
 Bloque 3: Requisitos Técnicos, Base de Datos & Seguridad
 Pila tecnológica del contenedor
@@ -76,7 +83,7 @@ Habilitar Mensajería asíncrona con Apache Kafka (SmallRye Reactive Messaging)
 Bloque 4: Adjuntos Opcionales (OpenAPI Preexistente)
 Opcional
 Ya dispongo de un contrato OpenAPI 3.1 previo (adoptar directamente para revisión en el Paso 2)
-Validador de Criterios del Pedido para la IA
+VALIDADOR DE CRITERIOS DEL PEDIDO PARA LA IA
 Faltan criterios obligatorios
 Nombre técnico kebab-case
 Equipo propietario
