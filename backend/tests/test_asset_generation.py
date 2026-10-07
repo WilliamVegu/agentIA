@@ -2,6 +2,25 @@ import json
 import threading
 from pathlib import Path
 import pytest
+
+
+def test_atomic_asset_publish_supports_windows_long_temporary_paths(tmp_path):
+    from app.services.source_snapshot import _io_path
+    from app.services import asset_generation
+    from app.services.devops_service import generate_all_devops_assets
+    relative = 'src/main/resources/db/changelog/db.changelog-master.xml'
+    padding = max(1, 245 - len(str(tmp_path)) - len(relative) - 2)
+    ws = tmp_path / ('x' * padding)
+    _io_path(ws).mkdir(parents=True)
+    _io_path(ws / 'pom.xml').write_text('<project/>', encoding='utf-8')
+    xml = ws / relative
+    assert len(str(xml) + '.agentia-' + '0' * 32 + '.tmp') > 260
+    generate_all_devops_assets(str(ws), 'long-path-assets', db_engine='H2')
+    assert _io_path(xml).is_file()
+    before = asset_generation.inventory(ws)
+    generate_all_devops_assets(str(ws), 'long-path-assets', db_engine='H2')
+    assert asset_generation.inventory(ws) == before
+    assert not list(ws.rglob('*.tmp'))
 from app.services import asset_generation, docker_service
 from app.services.devops_service import generate_all_devops_assets, _write_devops_assets
 from test_local_docker_runtime import runtime

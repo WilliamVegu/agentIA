@@ -130,7 +130,7 @@ public class OrderServiceImpl {
     assert "import java.math.BigDecimal;" in updated_files["src/main/java/com/corp/order/service/OrderServiceImpl.java"]
     assert "+import java.math.BigDecimal;" in diff
 
-def test_execute_repair_iteration_and_cap_at_5():
+def test_execute_repair_iteration_and_cap_at_3():
     source_files = {
         "src/main/java/com/corp/order/service/OrderServiceImpl.java": "public class OrderServiceImpl { public String val() { return \"90.00\"; } }"
     }
@@ -146,11 +146,11 @@ def test_execute_repair_iteration_and_cap_at_5():
         source_files=source_files
     )
     assert iter1.iterationNumber == 1
-    assert iter1.outcome == RepairOutcome.SUCCESS
+    assert iter1.outcome == RepairOutcome.FAILED_CONTINUE  # a patch plan is not an executed test
     assert len(iter1.patchesApplied) >= 1
     assert "80.00" in iter1.diffSummary
 
-    # Iteration 3 (Permitted and succeeds)
+    # The third plan exhausts the budget; it does not assert verification success.
     iter3 = test_analysis_service.execute_repair_iteration(
         session_id="session-1",
         iteration_number=3,
@@ -158,26 +158,16 @@ def test_execute_repair_iteration_and_cap_at_5():
         source_files=source_files
     )
     assert iter3.iterationNumber == 3
-    assert iter3.outcome == RepairOutcome.SUCCESS
+    assert iter3.outcome == RepairOutcome.FAILED_BLOCKED
 
-    # Iteration 5 (Exhaustion cap)
-    iter5 = test_analysis_service.execute_repair_iteration(
-        session_id="session-1",
-        iteration_number=5,
-        diagnostics=analysis.diagnostics,
-        source_files=source_files
-    )
-    assert iter5.iterationNumber == 5
-    assert iter5.outcome == RepairOutcome.FAILED_BLOCKED
-
-    # Iteration 6 (Must raise ValueError / Constitution Principle V Violation)
+    # A fourth plan exceeds the three-attempt constitutional limit.
     with pytest.raises(ValueError) as exc:
         test_analysis_service.execute_repair_iteration(
             session_id="session-1",
-            iteration_number=6,
+            iteration_number=4,
             diagnostics=analysis.diagnostics,
             source_files=source_files
         )
-    assert "hard-capped at 5 iterations" in str(exc.value)
+    assert "hard-capped at 3 iterations" in str(exc.value)
 
 

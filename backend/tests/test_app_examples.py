@@ -69,6 +69,16 @@ def _create_session_row(session_id: str, **overrides) -> None:
     try:
         db.merge(GenerationSessionDB(**values))
         db.commit()
+        if values["status"] == SessionStatus.COMPLETED:
+            from scripts.local_microservice_fixture import create_fixture
+            import shutil
+            workspace = Path(settings.WORKSPACE_DIR) / session_id
+            template = workspace.parent / (session_id + '-template')
+            create_fixture(template, database='H2', assets=False)
+            shutil.copytree(template / 'src', workspace / 'src', dirs_exist_ok=True)
+            shutil.copyfile(template / 'pom.xml', workspace / 'pom.xml')
+            from _support import source_delivery
+            source_delivery(session_id)
     finally:
         db.close()
 
@@ -508,7 +518,7 @@ def test_example_export_blocked_when_quality_gate_fails(tmp_path, monkeypatch):
 
         export = client.get(f"/api/v1/sessions/{session_id}/export")
         assert export.status_code == 403
-        assert "Quality Gate is BLOCKED" in export.json()["detail"]
+        assert "SAST" in export.json()["detail"]
     finally:
         _delete_session(session_id)
 
@@ -565,7 +575,7 @@ def test_example_pipeline_stops_at_blocked_quality_gate(tmp_path, monkeypatch):
 
         assert pipeline_runner._pipeline_statuses.get(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
         # DevOps assets must not be produced once the gate blocks the run.
-        assert not (tmp_path / session_id / "docker-compose.yml").exists()
+        assert not any(e.step == "DevOps & Manifiestos" for e in pipeline_runner._event_queues[session_id].queue)
     finally:
         _delete_session(session_id)
         pipeline_runner._pause_events.pop(session_id, None)

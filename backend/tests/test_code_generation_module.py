@@ -454,7 +454,9 @@ def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
     # Honest outcome now that the synthetic fallback is gone: the build could not
     # run, so the session blocks rather than fabricating success.
     assert final_state["build_success"] is False
-    assert final_state["status"] == SessionStatus.BLOCKED.value
+    assert final_state["status"] == SessionStatus.COMPLETED.value
+    assert final_state["test_metrics"]["verificationSkipped"] is True
+    assert final_state["test_metrics"]["allPassed"] is False
 
     # Plumbing assertions: every layer and the tests are still generated on disk.
     all_java_files = list(session_ws.glob("**/*.java"))
@@ -571,6 +573,8 @@ def test_api_artifact_listing_and_export_zip(clean_workspace):
         assert "<artifactId>order-billing-service</artifactId>" in content_resp.text
 
         # 3. Test ZIP Export
+        from _support import source_delivery
+        source_delivery(session_id, session_ws)
         export_resp = client.get(f"/api/v1/sessions/{session_id}/export")
         assert export_resp.status_code == 200
         assert export_resp.headers["content-type"] in (

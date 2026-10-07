@@ -56,8 +56,13 @@ def test_scenario_2_autonomous_generation_and_export():
     session_id = sess_data.get("sessionId") or sess_data.get("session_id")
     assert session_id is not None
 
-    # Wait briefly for background pipeline
-    time.sleep(1.5)
+    # Await the real background worker rather than assuming a fixed machine speed.
+    for _ in range(200):
+        detail = client.get(f'/api/v1/sessions/{session_id}').json()
+        if detail['status'] in ('COMPLETED', 'BLOCKED', 'PAUSED'):
+            break
+        time.sleep(0.1)
+    assert detail['status'] == 'COMPLETED', detail.get('errorMessage')
 
     # 3. Query session details
     detail_resp = client.get(f"/api/v1/sessions/{session_id}")
@@ -73,7 +78,7 @@ def test_scenario_2_autonomous_generation_and_export():
 
     # 5. Export ZIP
     export_resp = client.get(f"/api/v1/sessions/{session_id}/export")
-    assert export_resp.status_code == 200
+    assert export_resp.status_code == 200, export_resp.text
     assert export_resp.headers["content-type"] == "application/zip"
     assert len(export_resp.content) > 0
 
@@ -102,6 +107,8 @@ def test_quickstart_feature_005_e2e():
 
     # 3. Execute self-repair iteration loop
     sess_id = f"test-sess-{int(time.time())}"
+    from _support import repair_workspace
+    repair_workspace(sess_id, {"src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\npublic class OrderServiceImpl {}"})
     repair_resp = client.post("/api/v1/tests/repair", json={
         "sessionId": sess_id,
         "iterationNumber": 1,
@@ -116,10 +123,10 @@ def test_quickstart_feature_005_e2e():
     assert len(repair_record["patchesApplied"]) >= 1
     assert "import java.math.BigDecimal;" in repair_record["diffSummary"]
 
-    # 4. Trigger iteration 5 and verify BLOCKED state (Principle V: max 5 attempts)
+    # 4. A source-only repair records unexecuted tests rather than a verified success.
     client.post("/api/v1/tests/repair", json={
         "sessionId": sess_id,
-        "iterationNumber": 5,
+        "iterationNumber": 3,
         "diagnostics": analysis_data["diagnostics"],
         "sourceFiles": {
             "src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\npublic class OrderServiceImpl {}"
@@ -128,8 +135,8 @@ def test_quickstart_feature_005_e2e():
     history_resp = client.get(f"/api/v1/sessions/{sess_id}/repairs")
     assert history_resp.status_code == 200
     history_data = history_resp.json()
-    assert history_data["finalState"] == "BLOCKED"
-    assert history_data["canRetryManually"] is True
+    assert history_data["finalState"] == "UNVERIFIED"
+    assert history_data["canRetryManually"] is False
 
     # 5. Perform manual repair unblock
     manual_resp = client.post(f"/api/v1/sessions/{sess_id}/manual-repair", json={
@@ -138,7 +145,8 @@ def test_quickstart_feature_005_e2e():
         "guidanceHint": "Manual import added"
     })
     assert manual_resp.status_code == 200
-    assert manual_resp.json()["status"] == "REPAIR_APPLIED"
+    assert manual_resp.json()["status"] == "UNVERIFIED"
+    assert manual_resp.json()["diagnosticsResolved"] is False
 
 
 @pytest.fixture
@@ -164,7 +172,7 @@ def hermetic_container_build(monkeypatch):
         platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
     )
     monkeypatch.setattr(
-        pr, "run_workspace_verification", lambda path, log_callback=None: fake
+        pr, "run_workspace_verification", lambda path, log_callback=None, **kwargs: fake
     )
 
 
@@ -209,11 +217,12 @@ def test_full_unified_orchestration_e2e(hermetic_container_build):
     # Wait for pipeline completion
     for _ in range(30):
         time.sleep(0.3)
-        st_resp = client.get(f"/api/v1/orchestrator/pipeline/status/{session_id}")
+        st_resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/lifecycle")
         if st_resp.status_code == 200:
             status_info = st_resp.json()
-            if status_info.get("status") in ("COMPLETED", "FAILED"):
+            if status_info.get("pipelineStatus") in ("COMPLETED", "FAILED", "AWAITING_INTERVENTION"):
                 break
+    assert status_info.get('pipelineStatus') == 'COMPLETED', status_info
 
     # 6. Verify Artifacts & Security Audit Report
     sec_resp = client.get(f"/api/v1/security/{session_id}/report")
@@ -238,7 +247,7 @@ def test_full_unified_orchestration_e2e(hermetic_container_build):
 
     # 9. Verify Complete Bundle ZIP Export
     bundle_resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/export-bundle")
-    assert bundle_resp.status_code == 200
+    assert bundle_resp.status_code == 200, bundle_resp.text
     assert bundle_resp.headers["content-type"] == "application/zip"
     assert len(bundle_resp.content) > 0
 

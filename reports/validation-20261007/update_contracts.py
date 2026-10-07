@@ -1,0 +1,28 @@
+from pathlib import Path
+BASE=Path('backend/tests')
+def edit(name,old,new):
+    p=BASE/name
+    s=p.read_text(encoding='utf-8')
+    assert old in s,(name,old[:70])
+    p.write_text(s.replace(old,new),encoding='utf-8')
+
+edit('test_qe_publish_git.py','        self._fail = fail','        self._fail = fail\n        self.environments = []')
+edit('test_qe_publish_git.py','    kwargs = dict(\n        workspace_path=', '    def push(command, name, refspec):\n        remote.environments.append(dict(command._environment))\n        return remote.push(refspec=refspec)\n    monkeypatch.setattr(git_service.git.Git, "push", push, raising=False)\n\n    kwargs = dict(\n        workspace_path=')
+edit('test_qe_publish_git.py','    assert AUTH_URL in remote.urls, "the authenticated URL never reached the remote"','    import base64\n    assert remote.environments[0]["GIT_CONFIG_VALUE_0"] == "Authorization: Basic " + base64.b64encode(f"x-access-token:{TOKEN}".encode()).decode()\n    assert all(TOKEN not in url for url in remote.urls)')
+edit('test_qe_publish_git.py','    assert remote.urls[0] == AUTH_URL, "the authenticated URL was never set in the first place"','    assert remote.urls[0] == CLEAN_URL  # credentials are passed only in the subprocess environment')
+edit('test_qe_publish_git.py','    result = publish_to_git(\n        workspace_path=', '    monkeypatch.setattr(git_service.git.Git, "push", lambda self, name, refspec: remote.push(refspec=refspec), raising=False)\n    result = publish_to_git(\n        workspace_path=')
+edit('test_qe_publish_git.py','    assert created["url"] == AUTH_URL, "a new remote was created without the token"','    assert created["url"] == CLEAN_URL, "credentials must never enter the repository configuration"')
+edit('test_qe_pipeline_autopilot.py','    assert not (ws / next_artifact).exists(), (','    assert (not (ws / next_artifact).exists() if pause_after != LifecyclePhase.SECURITY_AUDIT else not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue)), (')
+edit('test_qe_pipeline_autopilot.py','    assert pr.pause_pipeline(session_id) is True','    from types import SimpleNamespace\n    pr._active_threads[session_id] = SimpleNamespace(is_alive=lambda: True)\n    assert pr.pause_pipeline(session_id) is True')
+edit('test_qe_pipeline_autopilot.py','    assert pr.pause_pipeline("qe-orphan") is True','    assert pr.pause_pipeline("qe-orphan") is False  # no active worker to pause')
+edit('test_qe_pipeline_autopilot.py','    try:\n        assert pr.resume_pipeline(session_id) is True','    unwinding.set()\n    try:\n        assert pr.resume_pipeline(session_id) is True')
+edit('test_qe_pipeline_autopilot.py','    assert pr.run_pipeline(session_id, force=True) is True','    assert pr.run_pipeline(session_id, force=True) is False  # force cannot interleave writers')
+edit('test_qe_pipeline_autopilot.py','    assert not (ws / "docker-compose.yml").exists()','    assert not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue)')
+edit('test_qe_pipeline_autopilot.py','    monkeypatch.setattr(pr, "deploy_local",\n                        lambda sid, path, **kw: deployed.append((sid, path)))','    from app.models.devops import LocalDeploymentSession, DeploymentStatus\n    from app.models.execution import ExecutionMode\n    with SessionLocal() as db:\n        db.get(GenerationSessionDB, session_id).execution_mode = "DOCKER"\n        db.commit()\n    monkeypatch.setattr(pr, "deploy_local", lambda sid, path, **kw: (deployed.append((sid, path)) or LocalDeploymentSession(sessionId=sid, status=DeploymentStatus.HEALTHY)))\n    from app.sandbox.docker_runner import DockerExecutionResult\n    from app.services.workspace_verification import WorkspaceVerification\n    monkeypatch.setattr(pr, "run_workspace_verification", lambda *a, **kw: WorkspaceVerification(result=DockerExecutionResult(exit_code=0, stdout="Tests run: 1, Failures: 0, Errors: 0, Skipped: 0")))')
+edit('test_code_generation_module.py','    assert final_state["status"] == SessionStatus.BLOCKED.value','    assert final_state["status"] == SessionStatus.COMPLETED.value\n    assert final_state["test_metrics"]["verificationSkipped"] is True\n    assert final_state["test_metrics"]["allPassed"] is False')
+edit('test_code_generation_module.py','        export_resp = client.get(', '        from _support import source_delivery\n        source_delivery(session_id, session_ws)\n        export_resp = client.get(')
+edit('test_e2e_flow.py','    repair_resp = client.post("/api/v1/tests/repair", json={','    from _support import repair_workspace\n    repair_workspace(sess_id, {"src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\\npublic class OrderServiceImpl {}"})\n    repair_resp = client.post("/api/v1/tests/repair", json={')
+edit('test_e2e_flow.py','        "iterationNumber": 5,','        "iterationNumber": 3,')
+edit('test_e2e_flow.py','    assert history_data["finalState"] == "BLOCKED"\n    assert history_data["canRetryManually"] is True','    assert history_data["finalState"] == "UNVERIFIED"\n    assert history_data["canRetryManually"] is False')
+edit('test_e2e_flow.py','    assert manual_resp.json()["status"] == "REPAIR_APPLIED"','    assert manual_resp.json()["status"] == "UNVERIFIED"\n    assert manual_resp.json()["diagnosticsResolved"] is False')
+edit('test_e2e_flow.py','pr, "run_workspace_verification", lambda path, log_callback=None: fake','pr, "run_workspace_verification", lambda path, log_callback=None, **kwargs: fake')

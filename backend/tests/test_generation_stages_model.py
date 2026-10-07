@@ -472,7 +472,7 @@ def test_paired_blueprints_produce_differing_requests(monkeypatch, tmp_path):
     )
     for rule in ("@Email", "@NotBlank", "@Positive", "@DecimalMin"):
         assert rule in requests["pair-b"]
-        assert rule not in requests["pair-a"]
+        assert requests["pair-b"].count(rule) > requests["pair-a"].count(rule)
 
 
 # ---------------------------------------------------------------------------

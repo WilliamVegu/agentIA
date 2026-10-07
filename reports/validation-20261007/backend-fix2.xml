@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="32" failures="5" skipped="0" tests="47" time="51.442" timestamp="2026-10-07T10:57:47.158376-05:00" hostname="45HW011620"><testcase classname="backend.tests.test_app_examples" name="test_example_publish_to_git_with_mocked_boundary" time="0.526"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_app_examples.py:425: in test_example_publish_to_git_with_mocked_boundary
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_app_examples" name="test_example_export_blocked_when_quality_gate_fails" time="0.161" /><testcase classname="backend.tests.test_app_examples" name="test_example_export_returns_a_zip_when_gate_passes" time="0.143"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_app_examples.py:530: in test_example_export_returns_a_zip_when_gate_passes
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_app_examples" name="test_example_pipeline_stops_at_blocked_quality_gate" time="5.134" /><testcase classname="backend.tests.test_artifact_retrieval" name="test_architecture_design_save_and_retrieve" time="0.052" /><testcase classname="backend.tests.test_artifact_retrieval" name="test_models_design_save_and_retrieve" time="0.070" /><testcase classname="backend.tests.test_code_generation_module" name="test_complete_langgraph_generation_graph" time="4.768" /><testcase classname="backend.tests.test_code_generation_module" name="test_api_artifact_listing_and_export_zip" time="5.773" /><testcase classname="backend.tests.test_devops_contract" name="test_published_contract_matches_actual_routes_and_models" time="0.006"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_diagnostic_record" name="test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_e2e_flow" name="test_scenario_2_autonomous_generation_and_export" time="1.694"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_e2e_flow.py:76: in test_scenario_2_autonomous_generation_and_export
+    assert export_resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_e2e_flow" name="test_quickstart_feature_005_e2e" time="2.832" /><testcase classname="backend.tests.test_e2e_flow" name="test_full_unified_orchestration_e2e" time="9.716"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_e2e_flow.py:244: in test_full_unified_orchestration_e2e
+    assert bundle_resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_generation_stages_model" name="test_paired_blueprints_produce_differing_requests" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_deploy_docker" name="test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up" time="0.007"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_a_session_with_no_container_is_not_reported_healthy" time="0.004"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_an_existing_record_is_probed_on_its_own_port" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_state_is_recovered_from_the_compose_project_label" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_the_database_container_is_never_mistaken_for_the_service" time="0.004"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_two_failed_repairs_do_not_block_phase_five" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_a_blocked_quality_gate_blocks_phase_six_and_reports_why" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_the_quality_gate_verdict_and_finding_count_reach_the_summary" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_a_compose_file_completes_phase_seven_and_surfaces_the_deploy_status" time="0.004"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_a_fully_complete_session_reports_completion" time="0.006"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_pausing_after_a_step_stops_before_the_next_one[SECURITY_AUDIT]" time="0.006"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_pause_switches_the_session_to_guided_step" time="0.007"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_pausing_a_session_that_was_never_started_reports_whether_it_is_paused" time="0.010"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_resume_replays_the_session_credentials_and_waits_for_the_old_thread" time="0.007"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_force_starts_a_run_even_while_another_is_alive" time="0.015"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_a_failed_schema_synthesis_falls_back_to_this_blueprints_own_ddl" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_auto_deploy_asks_for_the_local_deployment" time="0.015"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_an_entity_without_a_primary_key_gets_one" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_a_successful_publish_returns_the_branch_urls_and_a_commit" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_the_token_reaches_the_remote_during_the_push" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_the_token_is_scrubbed_from_the_remote_after_a_successful_publish" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_a_new_remote_is_created_with_the_authenticated_url" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_the_committer_identity_is_recorded" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_publishing_to_an_existing_repository_does_not_reinitialize" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_completed_session_is_listed_at_one_hundred_percent" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed" time="0.006"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_without_a_name_uses_a_stable_default" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot" time="0.005"><error message="failed on setup with &quot;ValueError: legacy_endpoint_authentication did not yield a value&quot;">..\..\AppData\Roaming\Python\Python312\site-packages\pytest_asyncio\plugin.py:924: in pytest_fixture_setup
+    return (yield)
+            ^^^^^
+E   ValueError: legacy_endpoint_authentication did not yield a value</error></testcase><testcase classname="backend.tests.test_routes_devops" name="test_generate_devops_manifests_success" time="2.815"><failure message="assert 'postgres:16-alpine' in &quot;services:\n  order-service:\n    image: ${COMPOSE_PROJECT_NAME}-order-service:local\n    pull_policy: never\n    buil... volumes:\n    - appdata:/app/data\n    network_mode: none\n    restart: 'no'\nvolumes:\n  appdata: {}\n  dbdata: {}\n&quot;">backend\tests\test_routes_devops.py:77: in test_generate_devops_manifests_success
+    assert "postgres:16-alpine" in data["dockerComposeContent"]
+E   assert 'postgres:16-alpine' in "services:\n  order-service:\n    image: ${COMPOSE_PROJECT_NAME}-order-service:local\n    pull_policy: never\n    buil... volumes:\n    - appdata:/app/data\n    network_mode: none\n    restart: 'no'\nvolumes:\n  appdata: {}\n  dbdata: {}\n"</failure></testcase><testcase classname="backend.tests.test_routes_security" name="test_session_audit_and_export_blocking" time="0.108" /><testcase classname="backend.tests.test_routes_tests" name="test_repair_endpoint_success_and_boundary" time="1.024" /><testcase classname="backend.tests.test_routes_tests" name="test_get_repairs_and_manual_override" time="0.113" /></testsuite></testsuites>

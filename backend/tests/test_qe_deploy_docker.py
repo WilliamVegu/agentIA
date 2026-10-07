@@ -266,7 +266,10 @@ def test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up(monke
 
     session = ds.deploy_local(SESSION_ID, str(tmp_path), host_port=18080)
 
-    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180"]
+    command = seen['cmd']
+    assert command[:4] == ['docker', 'compose', '-p', SESSION_ID]
+    assert Path(command[command.index('-f') + 1]) == tmp_path / 'docker-compose.yml'
+    assert command[-8:] == ['up', '-d', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '180']
     assert seen["cwd"] == str(tmp_path), "compose must run inside the session workspace"
     assert session.status == DeploymentStatus.HEALTHY
     assert session.healthStatus == "UP"

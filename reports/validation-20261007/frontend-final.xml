@@ -1,0 +1,1137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="105" failures="0" errors="0" time="34.9329891">
+    <testsuite name="src/test/app_integration.test.tsx" timestamp="2026-10-07T16:12:27.700Z" hostname="45HW011620" tests="5" failures="0" errors="0" skipped="0" time="5.7435157">
+        <testcase classname="src/test/app_integration.test.tsx" name="App End-to-End Integration &amp; WorkspaceRouter &gt; renders LoginView when server session is unauthenticated" time="0.702062">
+        </testcase>
+        <testcase classname="src/test/app_integration.test.tsx" name="App End-to-End Integration &amp; WorkspaceRouter &gt; restores the server session and mounts AppLayout" time="0.2027679">
+        </testcase>
+        <testcase classname="src/test/app_integration.test.tsx" name="App End-to-End Integration &amp; WorkspaceRouter &gt; navigates seamlessly across every Workspace tab" time="3.0689413">
+            <system-err>
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/requirements/sessions/sess-int-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=architecture.json
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=domain_model.json
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Could not load session requirements: AxiosError: Request failed with status code 401
+    at settle (file:///C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/node_modules/axios/lib/core/settle.js:19:12)
+    at XMLHttpRequest.onloadend (file:///C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/node_modules/axios/lib/adapters/xhr.js:109:9)
+    at XMLHttpRequest.invokeTheCallbackFunction (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\generated\idl\EventHandlerNonNull.js:14:28)
+    at XMLHttpRequest.&lt;anonymous&gt; (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\helpers\create-event-accessor.js:57:32)
+    at innerInvokeEventListeners (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:378:16)
+    at invokeEventListeners (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:320:3)
+    at XMLHttpRequestImpl._dispatch (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:269:9)
+    at fireAnEvent (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\helpers\events.js:18:36)
+    at C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\xhr\XMLHttpRequest-impl.js:860:11
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Axios.request (file:///C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/node_modules/axios/lib/core/Axios.js:48:43)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Object.getSessionRequirements (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/services/requirementsService.ts:45:22) {
+  isAxiosError: true,
+  code: &apos;ERR_BAD_REQUEST&apos;,
+  config: [Object: null prototype] {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false,
+      legacyInterceptorReqResOrdering: true,
+      advertiseZstdAcceptEncoding: false,
+      validateStatusUndefinedResolves: true
+    },
+    adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ],
+    transformRequest: [ [Function: transformRequest] ],
+    transformResponse: [ [Function: transformResponse] ],
+    timeout: 300000,
+    xsrfCookieName: &apos;XSRF-TOKEN&apos;,
+    xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;,
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: &apos;application/json, text/plain, */*&apos;,
+      &apos;Content-Type&apos;: &apos;application/json&apos;,
+      &apos;X-LLM-Provider&apos;: &apos;deepseek&apos;,
+      &apos;X-Session-ID&apos;: &apos;sess-int-1&apos;
+    },
+    baseURL: &apos;/api/v1&apos;,
+    withCredentials: true,
+    method: &apos;get&apos;,
+    url: &apos;/requirements/sessions/sess-int-1&apos;,
+    allowAbsoluteUrls: true,
+    data: undefined
+  },
+  request: XMLHttpRequest {
+    open: [Function: open],
+    setRequestHeader: [Function: setRequestHeader],
+    send: [Function: send],
+    abort: [Function: abort],
+    getResponseHeader: [Function: getResponseHeader],
+    getAllResponseHeaders: [Function: getAllResponseHeaders],
+    overrideMimeType: [Function: overrideMimeType],
+    onreadystatechange: [Getter/Setter],
+    readyState: [Getter],
+    timeout: [Getter/Setter],
+    withCredentials: [Getter/Setter],
+    upload: XMLHttpRequestUpload {},
+    responseURL: [Getter],
+    status: [Getter],
+    statusText: [Getter],
+    responseType: [Getter/Setter],
+    response: [Getter],
+    responseText: [Getter],
+    responseXML: [Getter],
+    UNSENT: 0,
+    OPENED: 1,
+    HEADERS_RECEIVED: 2,
+    LOADING: 3,
+    DONE: 4,
+    [Symbol(SameObject caches)]: [Object: null prototype] { upload: XMLHttpRequestUpload {} }
+  },
+  response: {
+    data: { detail: &apos;Authentication required&apos; },
+    status: 401,
+    statusText: &apos;Unauthorized&apos;,
+    headers: Object [AxiosHeaders] {
+      vary: &apos;Origin&apos;,
+      date: &apos;Wed, 07 Oct 2026 16:08:48 GMT&apos;,
+      server: &apos;uvicorn&apos;,
+      &apos;content-length&apos;: &apos;36&apos;,
+      &apos;content-type&apos;: &apos;application/json&apos;,
+      connection: &apos;close&apos;
+    },
+    config: [Object: null prototype] {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 300000,
+      xsrfCookieName: &apos;XSRF-TOKEN&apos;,
+      xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;,
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      baseURL: &apos;/api/v1&apos;,
+      withCredentials: true,
+      method: &apos;get&apos;,
+      url: &apos;/requirements/sessions/sess-int-1&apos;,
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: XMLHttpRequest {
+      open: [Function: open],
+      setRequestHeader: [Function: setRequestHeader],
+      send: [Function: send],
+      abort: [Function: abort],
+      getResponseHeader: [Function: getResponseHeader],
+      getAllResponseHeaders: [Function: getAllResponseHeaders],
+      overrideMimeType: [Function: overrideMimeType],
+      onreadystatechange: [Getter/Setter],
+      readyState: [Getter],
+      timeout: [Getter/Setter],
+      withCredentials: [Getter/Setter],
+      upload: XMLHttpRequestUpload {},
+      responseURL: [Getter],
+      status: [Getter],
+      statusText: [Getter],
+      responseType: [Getter/Setter],
+      response: [Getter],
+      responseText: [Getter],
+      responseXML: [Getter],
+      UNSENT: 0,
+      OPENED: 1,
+      HEADERS_RECEIVED: 2,
+      LOADING: 3,
+      DONE: 4,
+      [Symbol(SameObject caches)]: [Object: null prototype]
+    }
+  },
+  status: 401
+}
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/metrics
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/repairs
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/security/sess-int-1/report
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/devops/sess-int-1/logs
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/devops/sess-int-1/configuration
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/devops/sess-int-1/status
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=k8s%2Fdeployment.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=k8s%2Fservice.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=k8s%2Fconfigmap.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=k8s%2Fingress.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=Dockerfile
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=.dockerignore
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=docker-compose.yml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=.github%2Fworkflows%2Fci-cd.yml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=.gitlab-ci.yml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-int-1/artifacts/content?path=domain_model.json
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/devops/sess-int-1/playground/resources
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/test/app_integration.test.tsx" name="App End-to-End Integration &amp; WorkspaceRouter &gt; toggles theme between light and dark from Header button" time="0.6573554">
+        </testcase>
+        <testcase classname="src/test/app_integration.test.tsx" name="App End-to-End Integration &amp; WorkspaceRouter &gt; logs out and returns to LoginView" time="1.0886137">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/auth.test.tsx" timestamp="2026-10-07T16:12:27.753Z" hostname="45HW011620" tests="1" failures="0" errors="0" skipped="0" time="0.3978567">
+        <testcase classname="src/test/auth.test.tsx" name="Server authentication &gt; does not grant access from a fabricated localStorage user" time="0.3781173">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/deployment_log_stream.test.ts" timestamp="2026-10-07T16:12:27.755Z" hostname="45HW011620" tests="6" failures="0" errors="0" skipped="0" time="0.1613072">
+        <testcase classname="src/test/deployment_log_stream.test.ts" name="recupera snapshot y eventos fragmentados sin duplicar IDs; reconecta desde el último" time="0.0502258">
+        </testcase>
+        <testcase classname="src/test/deployment_log_stream.test.ts" name="un reset elimina historia de otro cursor y acepta los IDs recuperados" time="0.0049446">
+        </testcase>
+        <testcase classname="src/test/deployment_log_stream.test.ts" name="muestra origen y timestamp del snapshot igual que el stream posterior" time="0.0041674">
+        </testcase>
+        <testcase classname="src/test/deployment_log_stream.test.ts" name="recupera historial por REST cuando falla SSE y vuelve a intentarlo" time="0.0059044">
+        </testcase>
+        <testcase classname="src/test/deployment_log_stream.test.ts" name="aborta una petición pendiente y no publica ni reconecta después de cancelar" time="0.0044457">
+        </testcase>
+        <testcase classname="src/test/deployment_log_stream.test.ts" name="limita el historial a mil mensajes y cancela la espera de reconexión" time="0.0845242">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/layout.test.tsx" timestamp="2026-10-07T16:12:27.764Z" hostname="45HW011620" tests="5" failures="0" errors="0" skipped="0" time="2.9320092">
+        <testcase classname="src/test/layout.test.tsx" name="Layout Components &amp; ErrorBoundary &gt; renders Header with branding, backend health status, and user profile" time="0.8883622">
+        </testcase>
+        <testcase classname="src/test/layout.test.tsx" name="Layout Components &amp; ErrorBoundary &gt; renders Sidebar with logo, New Microservice button, and session list item" time="0.2693774">
+        </testcase>
+        <testcase classname="src/test/layout.test.tsx" name="Layout Components &amp; ErrorBoundary &gt; renders LifecycleStepper for the active session with phases" time="0.3043315">
+        </testcase>
+        <testcase classname="src/test/layout.test.tsx" name="Layout Components &amp; ErrorBoundary &gt; ErrorBoundary renders children when there is no error" time="0.036052">
+        </testcase>
+        <testcase classname="src/test/layout.test.tsx" name="Layout Components &amp; ErrorBoundary &gt; ErrorBoundary catches rendering errors and displays fallback UI with retry button" time="1.3975843">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/llm.test.tsx" timestamp="2026-10-07T16:12:27.771Z" hostname="45HW011620" tests="4" failures="0" errors="0" skipped="0" time="0.8295094">
+        <testcase classname="src/test/llm.test.tsx" name="LlmContext &amp; SettingsDrawer &gt; initializes the default provider without claiming verification" time="0.0903987">
+        </testcase>
+        <testcase classname="src/test/llm.test.tsx" name="LlmContext &amp; SettingsDrawer &gt; updates provider and resets verification state for external providers" time="0.058768">
+        </testcase>
+        <testcase classname="src/test/llm.test.tsx" name="LlmContext &amp; SettingsDrawer &gt; updates apiKey and model properly" time="0.0166226">
+        </testcase>
+        <testcase classname="src/test/llm.test.tsx" name="LlmContext &amp; SettingsDrawer &gt; renders SettingsDrawer and executes verify connection flow" time="0.6532117">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/local_execution_mode.test.tsx" timestamp="2026-10-07T16:12:27.776Z" hostname="45HW011620" tests="18" failures="0" errors="0" skipped="0" time="7.5008068">
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; conserva la configuración guardada pese a un estado inicial con defaults" time="1.2438842">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; una configuración tardía no pisa un puerto editado" time="0.2860267">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; descarta la configuración tardía de otra sesión" time="0.2882329">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; mantiene el puerto efectivo del contenedor ante configuración tardía" time="0.361025">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; solicita cancelar la operación exacta sin afirmar que BuildKit terminó" time="1.183181">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; reinicia sin reconstruir y bloquea otras acciones durante BUILDING" time="1.1233541">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; limpieza necesita confirmación por sesión y la borra al cambiarla" time="0.3956465">
+            <system-err>
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; bloquea acciones incompatibles durante BUILDING y conserva su causa" time="0.3676637">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; permite detener/probar un servicio degradado y muestra la BD inspeccionada" time="0.3081055">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; descarta respuestas REST tardías al cambiar sesión y limpia su consola" time="0.5668118">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; no verifica la sesión anterior si cambia durante la elección de modo" time="0.2156431">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; renueva estado después del smoke test y deja detener sin resultado antiguo" time="0.4778848">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; cancela logs al cambiar sesión e impide que un estado anterior la reemplace" time="0.0843282">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; consulta diagnóstico solo por petición explícita y no lo confunde con verificación" time="0.1370516">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; crea fuentes sin Docker por defecto y conserva la elección por sesión" time="0.0812274">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; permite elegir Docker y despliegue automático explícitamente" time="0.0800523">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; ofrece reintentar y continuar sin Docker cuando la infraestructura falta" time="0.1766292">
+        </testcase>
+        <testcase classname="src/test/local_execution_mode.test.tsx" name="Elección de ejecución local &gt; una sesión sin Docker puede generar manifiestos y no despliega contenedores" time="0.1040348">
+            <system-err>
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+Warning: An update to DevOpsDeploymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at DevOpsDeploymentView (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/views/DevOpsDeploymentView.tsx:61:73)
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/services.test.ts" timestamp="2026-10-07T16:12:27.799Z" hostname="45HW011620" tests="17" failures="0" errors="0" skipped="0" time="0.0548313">
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; apiClient &amp; Ephemeral Credentials (Principio VI) &gt; sets and retrieves ephemeral in-memory credentials without touching disk" time="0.0081116">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; apiClient &amp; Ephemeral Credentials (Principio VI) &gt; injects X-LLM-API-Key and X-LLM-Provider into outgoing request headers" time="0.001436">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; sessionService &gt; listSessions calls GET /sessions with limit parameter" time="0.0076051">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; sessionService &gt; quickStart calls POST /sessions/quick-start with payload" time="0.0024508">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; sessionService &gt; cancelSession calls DELETE /sessions/:id" time="0.0017441">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; requirementsService &gt; transform posts naturalLanguageText to /requirements/transform" time="0.0018155">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; requirementsService &gt; getSessionRequirements calls GET /requirements/sessions/:id" time="0.00145">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; architectureService &amp; modelsService &gt; architectureService.design calls POST /architecture/design" time="0.0014122">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; architectureService &amp; modelsService &gt; modelsService.generate calls POST /models/generate" time="0.0047576">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; orchestratorService &gt; getOverview calls GET /orchestrator/sessions/:id/overview" time="0.0023718">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; orchestratorService &gt; runPipeline posts payload to /orchestrator/pipeline/run" time="0.0041055">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; orchestratorService &gt; pause, resume, and cancel pipeline endpoints" time="0.0029994">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; exportService &amp; securityService &gt; exportService produces correct zip export url" time="0.0009101">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; exportService &amp; securityService &gt; listArtifacts calls GET /sessions/:id/artifacts" time="0.0014266">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; exportService &amp; securityService &gt; securityService.getAuditReport calls GET /security/:id/report" time="0.0008432">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; devopsService &amp; llmService &gt; deployLocal calls POST /devops/:id/deploy" time="0.0010616">
+        </testcase>
+        <testcase classname="src/test/services.test.ts" name="Frontend API Services &amp; Client Interceptors &gt; devopsService &amp; llmService &gt; llmService.checkHealth calls GET /healthz" time="0.0007503">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/session_sse_isolation.test.tsx" timestamp="2026-10-07T16:12:27.817Z" hostname="45HW011620" tests="1" failures="0" errors="0" skipped="0" time="0.1402995">
+        <testcase classname="src/test/session_sse_isolation.test.tsx" name="limpia eventos/logs y descarta callbacks de conexiones anteriores" time="0.1271836">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/theme.test.tsx" timestamp="2026-10-07T16:12:27.820Z" hostname="45HW011620" tests="4" failures="0" errors="0" skipped="0" time="0.2164403">
+        <testcase classname="src/test/theme.test.tsx" name="ThemeContext &gt; initializes with light theme by default when no matchMedia dark preference" time="0.1048723">
+        </testcase>
+        <testcase classname="src/test/theme.test.tsx" name="ThemeContext &gt; restores saved theme from localStorage" time="0.0240269">
+        </testcase>
+        <testcase classname="src/test/theme.test.tsx" name="ThemeContext &gt; toggles theme between light and dark" time="0.0474735">
+        </testcase>
+        <testcase classname="src/test/theme.test.tsx" name="ThemeContext &gt; allows explicit theme setting via setTheme" time="0.0263127">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/verification_views.test.tsx" timestamp="2026-10-07T16:12:27.825Z" hostname="45HW011620" tests="11" failures="0" errors="0" skipped="0" time="1.858998">
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;DOCKER&apos;, …(1) }" time="0.2363456">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;DOCKER&apos;, …(1) }" time="0.0255863">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;SOURCE_ONLY&apos;, …(1) }" time="0.0214039">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;SOURCE_ONLY&apos;, …(1) }" time="0.0149432">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;SOURCE_ONLY&apos;, …(1) }" time="0.0239087">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;DOCKER&apos;, …(1) }" time="0.0129454">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;SOURCE_ONLY&apos;, …(1) }" time="0.0136305">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;DOCKER&apos;, …(1) }" time="0.0104092">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="comunica el resultado explícito sin confundir omisión/aprobación: { executionMode: &apos;DOCKER&apos; }" time="0.0211992">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="COMPLETED en fuentes no declara sandbox ni ejecución aprobados en monitor" time="0.2403169">
+        </testcase>
+        <testcase classname="src/test/verification_views.test.tsx" name="exportación en fuentes conserva acceso al ZIP sin prometer release verificado" time="1.2144863">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/views_design_models.test.tsx" timestamp="2026-10-07T16:12:27.837Z" hostname="45HW011620" tests="5" failures="0" errors="0" skipped="0" time="2.192479">
+        <testcase classname="src/test/views_design_models.test.tsx" name="Views: ArchitectureView &amp; DomainModelsView &gt; ArchitectureView &gt; renders empty state when architecture has not been synthesized" time="0.3650248">
+        </testcase>
+        <testcase classname="src/test/views_design_models.test.tsx" name="Views: ArchitectureView &amp; DomainModelsView &gt; ArchitectureView &gt; synthesizes 4-layer architecture with IA button click" time="0.8514384">
+        </testcase>
+        <testcase classname="src/test/views_design_models.test.tsx" name="Views: ArchitectureView &amp; DomainModelsView &gt; ArchitectureView &gt; opens refine drawer when Refinar con IA is clicked on active design" time="0.5767341">
+        </testcase>
+        <testcase classname="src/test/views_design_models.test.tsx" name="Views: ArchitectureView &amp; DomainModelsView &gt; DomainModelsView &gt; renders empty state when models have not been synthesized" time="0.0875629">
+        </testcase>
+        <testcase classname="src/test/views_design_models.test.tsx" name="Views: ArchitectureView &amp; DomainModelsView &gt; DomainModelsView &gt; synthesizes models and SQL with IA and displays ERD, JPA entities, and DDL" time="0.2978614">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/views_devops_security_export.test.tsx" timestamp="2026-10-07T16:12:27.844Z" hostname="45HW011620" tests="6" failures="0" errors="0" skipped="0" time="2.8825578">
+        <testcase classname="src/test/views_devops_security_export.test.tsx" name="Views: SecurityQuality, DevOpsDeployment, ExportPublish &gt; SecurityQualityView &gt; renders empty state when audit report is not yet loaded" time="0.2044782">
+        </testcase>
+        <testcase classname="src/test/views_devops_security_export.test.tsx" name="Views: SecurityQuality, DevOpsDeployment, ExportPublish &gt; SecurityQualityView &gt; loads and displays audit report metrics and quality gate verdict" time="0.131252">
+        </testcase>
+        <testcase classname="src/test/views_devops_security_export.test.tsx" name="Views: SecurityQuality, DevOpsDeployment, ExportPublish &gt; DevOpsDeploymentView &gt; renders deployment dashboard with port configuration and Stopped status" time="0.6434055">
+        </testcase>
+        <testcase classname="src/test/views_devops_security_export.test.tsx" name="Views: SecurityQuality, DevOpsDeployment, ExportPublish &gt; DevOpsDeploymentView &gt; triggers deployLocal and updates deployment status" time="1.4340588">
+        </testcase>
+        <testcase classname="src/test/views_devops_security_export.test.tsx" name="Views: SecurityQuality, DevOpsDeployment, ExportPublish &gt; ExportPublishView &gt; calls window.open with the zip download URL when download button is clicked" time="0.2440511">
+        </testcase>
+        <testcase classname="src/test/views_devops_security_export.test.tsx" name="Views: SecurityQuality, DevOpsDeployment, ExportPublish &gt; ExportPublishView &gt; submits git form and triggers publishToGit" time="0.2139007">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/views_generation_explorer.test.tsx" timestamp="2026-10-07T16:12:27.851Z" hostname="45HW011620" tests="6" failures="0" errors="0" skipped="0" time="2.5388075">
+        <testcase classname="src/test/views_generation_explorer.test.tsx" name="Views: GenerationMonitorView &amp; CodeExplorerView &gt; GenerationMonitorView &gt; renders the 6 LangGraph stages with their descriptions" time="0.9388413">
+        </testcase>
+        <testcase classname="src/test/views_generation_explorer.test.tsx" name="Views: GenerationMonitorView &amp; CodeExplorerView &gt; GenerationMonitorView &gt; renders terminal controls (Auto-Scroll, Limpiar Terminal)" time="0.2146015">
+        </testcase>
+        <testcase classname="src/test/views_generation_explorer.test.tsx" name="Views: GenerationMonitorView &amp; CodeExplorerView &gt; CodeExplorerView &gt; shows persisted verification results when reopening the code explorer" time="0.3964193">
+        </testcase>
+        <testcase classname="src/test/views_generation_explorer.test.tsx" name="Views: GenerationMonitorView &amp; CodeExplorerView &gt; CodeExplorerView &gt; renders empty state when there are no generated artifacts" time="0.2442891">
+        </testcase>
+        <testcase classname="src/test/views_generation_explorer.test.tsx" name="Views: GenerationMonitorView &amp; CodeExplorerView &gt; CodeExplorerView &gt; renders file tree and displays code content when an artifact is selected" time="0.3928309">
+        </testcase>
+        <testcase classname="src/test/views_generation_explorer.test.tsx" name="Views: GenerationMonitorView &amp; CodeExplorerView &gt; CodeExplorerView &gt; allows toggling between exploration subtabs (Artifacts, Tests, Self-Repair, Manual)" time="0.3054369">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/views_overview_reqs.test.tsx" timestamp="2026-10-07T16:12:27.858Z" hostname="45HW011620" tests="7" failures="0" errors="0" skipped="0" time="2.4635858">
+        <testcase classname="src/test/views_overview_reqs.test.tsx" name="Views: StudioOverview, SpecIngestion, Requirements &gt; StudioOverviewView &gt; disables Autonomous Generation button when service name and prompt are empty" time="0.897798">
+            <system-err>
+Warning: An update to StudioProvider inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at StudioProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/StudioContext.tsx:9:27)
+    at LlmProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/LlmContext.tsx:48:24)
+    at AuthProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/AuthContext.tsx:7:25)
+    at ThemeProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/ThemeContext.tsx:6:26)
+Warning: An update to StudioProvider inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at StudioProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/StudioContext.tsx:9:27)
+    at LlmProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/LlmContext.tsx:48:24)
+    at AuthProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/AuthContext.tsx:7:25)
+    at ThemeProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/ThemeContext.tsx:6:26)
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/test/views_overview_reqs.test.tsx" name="Views: StudioOverview, SpecIngestion, Requirements &gt; StudioOverviewView &gt; enables generation button when inputs are provided and triggers quickStart" time="0.2995036">
+        </testcase>
+        <testcase classname="src/test/views_overview_reqs.test.tsx" name="Views: StudioOverview, SpecIngestion, Requirements &gt; SpecIngestionView &gt; allows toggling between File Upload and JSON Editor tabs" time="0.1619883">
+            <system-err>
+Warning: An update to StudioProvider inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at StudioProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/StudioContext.tsx:9:27)
+    at LlmProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/LlmContext.tsx:48:24)
+    at AuthProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/AuthContext.tsx:7:25)
+    at ThemeProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/ThemeContext.tsx:6:26)
+Warning: An update to StudioProvider inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at StudioProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/StudioContext.tsx:9:27)
+    at LlmProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/LlmContext.tsx:48:24)
+    at AuthProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/AuthContext.tsx:7:25)
+    at ThemeProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/ThemeContext.tsx:6:26)
+
+Warning: An update to StudioProvider inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at StudioProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/StudioContext.tsx:9:27)
+    at LlmProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/LlmContext.tsx:48:24)
+    at AuthProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/AuthContext.tsx:7:25)
+    at ThemeProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/ThemeContext.tsx:6:26)
+Warning: An update to StudioProvider inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at StudioProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/StudioContext.tsx:9:27)
+    at LlmProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/LlmContext.tsx:48:24)
+    at AuthProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/AuthContext.tsx:7:25)
+    at ThemeProvider (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/context/ThemeContext.tsx:6:26)
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/test/views_overview_reqs.test.tsx" name="Views: StudioOverview, SpecIngestion, Requirements &gt; SpecIngestionView &gt; submits valid JSON blueprint and shows success feedback" time="0.2365566">
+        </testcase>
+        <testcase classname="src/test/views_overview_reqs.test.tsx" name="Views: StudioOverview, SpecIngestion, Requirements &gt; RequirementsView &gt; shows empty state card when there are no user stories in the session" time="0.0945385">
+        </testcase>
+        <testcase classname="src/test/views_overview_reqs.test.tsx" name="Views: StudioOverview, SpecIngestion, Requirements &gt; RequirementsView &gt; allows manually adding a user story using Crear Manualmente button" time="0.3888164">
+        </testcase>
+        <testcase classname="src/test/views_overview_reqs.test.tsx" name="Views: StudioOverview, SpecIngestion, Requirements &gt; RequirementsView &gt; transforms prompt with AI to generate a minimum of 3 user stories" time="0.3713643">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/workflow_journeys.test.tsx" timestamp="2026-10-07T16:12:27.869Z" hostname="45HW011620" tests="9" failures="0" errors="0" skipped="0" time="5.0199849">
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo: contratos de petición y respuesta &gt; crea una sesión por inicio rápido y la lee de vuelta" time="0.6815688">
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo: contratos de petición y respuesta &gt; recorre el ciclo de control del Auto-Pilot: ejecutar, pausar, reanudar y cancelar" time="0.1864975">
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo: contratos de petición y respuesta &gt; lee el resumen y el ciclo de vida de la sesión activa" time="0.0890926">
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo: contratos de petición y respuesta &gt; lista los artefactos y compone la URL de descarga del paquete" time="0.0455811">
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo: garantías del producto &gt; transporta la credencial en una cabecera y no la persiste en ningún almacenamiento" time="0.0336158">
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo: garantías del producto &gt; propaga el fallo del backend en lugar de inventar una respuesta" time="0.0358453">
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo: garantías del producto &gt; propaga el fallo de la comprobación de salud en lugar de informar un contenedor sano" time="0.0615405">
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo en la interfaz &gt; crea un microservicio desde el formulario y envía el asunto al backend" time="1.7660818">
+            <system-err>
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /healthz
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/requirements/sessions/sess-journey-1
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/test/workflow_journeys.test.tsx" name="Flujo de trabajo en la interfaz &gt; informa que el smoke test NO se ejecutó cuando el backend falla" time="2.0625607">
+            <system-err>
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /healthz
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/devops/sess-journey-1/configuration
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=k8s%2Fdeployment.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=k8s%2Fservice.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=k8s%2Fconfigmap.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=k8s%2Fingress.yaml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=Dockerfile
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=.dockerignore
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=docker-compose.yml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=.github%2Fworkflows%2Fci-cd.yml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=.gitlab-ci.yml
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/sessions/sess-journey-1/artifacts/content?path=domain_model.json
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+[MSW] Warning: intercepted a request without a matching request handler:
+
+  • GET /api/v1/devops/sess-journey-1/playground/resources
+
+If you still wish to intercept this unhandled request, please create a request handler for it.
+Read more: https://mswjs.io/docs/http/intercepting-requests
+
+Could not load session requirements: AxiosError: Request failed with status code 401
+    at settle (file:///C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/node_modules/axios/lib/core/settle.js:19:12)
+    at XMLHttpRequest.onloadend (file:///C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/node_modules/axios/lib/adapters/xhr.js:109:9)
+    at XMLHttpRequest.invokeTheCallbackFunction (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\generated\idl\EventHandlerNonNull.js:14:28)
+    at XMLHttpRequest.&lt;anonymous&gt; (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\helpers\create-event-accessor.js:57:32)
+    at innerInvokeEventListeners (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:378:16)
+    at invokeEventListeners (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:320:3)
+    at XMLHttpRequestImpl._dispatch (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:269:9)
+    at fireAnEvent (C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\helpers\events.js:18:36)
+    at C:\Users\GenAIAUGPERUSR2\Documents\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\xhr\XMLHttpRequest-impl.js:860:11
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Axios.request (file:///C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/node_modules/axios/lib/core/Axios.js:48:43)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at Object.getSessionRequirements (C:/Users/GenAIAUGPERUSR2/Documents/agentIA/frontend/src/services/requirementsService.ts:45:22) {
+  isAxiosError: true,
+  code: &apos;ERR_BAD_REQUEST&apos;,
+  config: [Object: null prototype] {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false,
+      legacyInterceptorReqResOrdering: true,
+      advertiseZstdAcceptEncoding: false,
+      validateStatusUndefinedResolves: true
+    },
+    adapter: [ &apos;xhr&apos;, &apos;http&apos;, &apos;fetch&apos; ],
+    transformRequest: [ [Function: transformRequest] ],
+    transformResponse: [ [Function: transformResponse] ],
+    timeout: 300000,
+    xsrfCookieName: &apos;XSRF-TOKEN&apos;,
+    xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;,
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: &apos;application/json, text/plain, */*&apos;,
+      &apos;Content-Type&apos;: &apos;application/json&apos;,
+      &apos;X-LLM-Provider&apos;: &apos;deepseek&apos;,
+      &apos;X-Session-ID&apos;: &apos;sess-journey-1&apos;
+    },
+    baseURL: &apos;/api/v1&apos;,
+    withCredentials: true,
+    method: &apos;get&apos;,
+    url: &apos;/requirements/sessions/sess-journey-1&apos;,
+    allowAbsoluteUrls: true,
+    data: undefined
+  },
+  request: XMLHttpRequest {
+    open: [Function: open],
+    setRequestHeader: [Function: setRequestHeader],
+    send: [Function: send],
+    abort: [Function: abort],
+    getResponseHeader: [Function: getResponseHeader],
+    getAllResponseHeaders: [Function: getAllResponseHeaders],
+    overrideMimeType: [Function: overrideMimeType],
+    onreadystatechange: [Getter/Setter],
+    readyState: [Getter],
+    timeout: [Getter/Setter],
+    withCredentials: [Getter/Setter],
+    upload: XMLHttpRequestUpload {},
+    responseURL: [Getter],
+    status: [Getter],
+    statusText: [Getter],
+    responseType: [Getter/Setter],
+    response: [Getter],
+    responseText: [Getter],
+    responseXML: [Getter],
+    UNSENT: 0,
+    OPENED: 1,
+    HEADERS_RECEIVED: 2,
+    LOADING: 3,
+    DONE: 4,
+    [Symbol(SameObject caches)]: [Object: null prototype] { upload: XMLHttpRequestUpload {} }
+  },
+  response: {
+    data: { detail: &apos;Authentication required&apos; },
+    status: 401,
+    statusText: &apos;Unauthorized&apos;,
+    headers: Object [AxiosHeaders] {
+      vary: &apos;Origin&apos;,
+      date: &apos;Wed, 07 Oct 2026 16:09:22 GMT&apos;,
+      server: &apos;uvicorn&apos;,
+      &apos;content-length&apos;: &apos;36&apos;,
+      &apos;content-type&apos;: &apos;application/json&apos;,
+      connection: &apos;close&apos;
+    },
+    config: [Object: null prototype] {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 300000,
+      xsrfCookieName: &apos;XSRF-TOKEN&apos;,
+      xsrfHeaderName: &apos;X-XSRF-TOKEN&apos;,
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      baseURL: &apos;/api/v1&apos;,
+      withCredentials: true,
+      method: &apos;get&apos;,
+      url: &apos;/requirements/sessions/sess-journey-1&apos;,
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: XMLHttpRequest {
+      open: [Function: open],
+      setRequestHeader: [Function: setRequestHeader],
+      send: [Function: send],
+      abort: [Function: abort],
+      getResponseHeader: [Function: getResponseHeader],
+      getAllResponseHeaders: [Function: getAllResponseHeaders],
+      overrideMimeType: [Function: overrideMimeType],
+      onreadystatechange: [Getter/Setter],
+      readyState: [Getter],
+      timeout: [Getter/Setter],
+      withCredentials: [Getter/Setter],
+      upload: XMLHttpRequestUpload {},
+      responseURL: [Getter],
+      status: [Getter],
+      statusText: [Getter],
+      responseType: [Getter/Setter],
+      response: [Getter],
+      responseText: [Getter],
+      responseXML: [Getter],
+      UNSENT: 0,
+      OPENED: 1,
+      HEADERS_RECEIVED: 2,
+      LOADING: 3,
+      DONE: 4,
+      [Symbol(SameObject caches)]: [Object: null prototype]
+    }
+  },
+  status: 401
+}
+
+            </system-err>
+        </testcase>
+    </testsuite>
+</testsuites>

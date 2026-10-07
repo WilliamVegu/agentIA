@@ -1,0 +1,20 @@
+{
+  "backend": {
+    "passed": 1396,
+    "failure": 67,
+    "skipped": 42
+  },
+  "frontend": {
+    "passed": 105
+  },
+  "smoke": {
+    "development": {
+      "passed": 34,
+      "failed": 0
+    },
+    "production": {
+      "passed": 34,
+      "failed": 0
+    }
+  }
+}

@@ -117,6 +117,9 @@ def test_session_audit_and_export_blocking():
     finally:
         db.close()
 
+    from _support import source_delivery
+    source_delivery(session_id)
+
     # Verify session audit endpoint
     audit_res = client.get(f"/api/v1/sessions/{session_id}/audit")
     assert audit_res.status_code == 200
@@ -127,7 +130,7 @@ def test_session_audit_and_export_blocking():
     # Verify export is blocked with HTTP 403
     export_res = client.get(f"/api/v1/sessions/{session_id}/export")
     assert export_res.status_code == 403
-    assert "Quality Gate is BLOCKED" in export_res.json()["detail"]
+    assert "SAST" in export_res.json()["detail"]
 
     # Verify git publish is also blocked with HTTP 403
     publish_res = client.post(
@@ -135,5 +138,5 @@ def test_session_audit_and_export_blocking():
         json={"repositoryUrl": "https://github.com/corp/repo.git", "branchName": "feature/test"},
     )
     assert publish_res.status_code == 403
-    assert "Quality Gate is BLOCKED" in publish_res.json()["detail"]
+    assert "SAST" in publish_res.json()["detail"]
 

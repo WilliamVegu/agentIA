@@ -20,9 +20,15 @@ from app.services import docker_service
 
 
 @pytest.fixture(autouse=True)
-def clean_registry():
+def clean_registry(monkeypatch, tmp_path):
     """The registry is module-global; each test starts from empty."""
     saved = dict(docker_service._active_deployments)
+    from app.config import settings
+    from app.models.execution import ExecutionMode
+    monkeypatch.setattr(settings, 'WORKSPACE_DIR', str(tmp_path))
+    monkeypatch.setattr('app.services.execution_policy.execution_mode', lambda _: ExecutionMode.DOCKER)
+    monkeypatch.setattr(docker_service, 'check_docker_daemon', lambda: True)
+    monkeypatch.setattr('app.services.runtime_log_capture.ensure_capture', lambda _: None)
     docker_service._active_deployments.clear()
     yield
     docker_service._active_deployments.clear()
@@ -32,7 +38,7 @@ def clean_registry():
 def test_a_session_with_no_container_is_not_reported_healthy():
     """The regression: a 200 UP on the shared port must not register a deployment."""
     with patch("app.services.docker_service.requests.get") as probe, \
-         patch("app.services.docker_service._containers_for_session", return_value=[]):
+         patch("app.services.local_runtime.inspect_session", return_value=None):
         probe.return_value.status_code = 200
         probe.return_value.json.return_value = {"status": "UP"}
 
@@ -53,7 +59,8 @@ def test_an_existing_record_is_probed_on_its_own_port():
     )
     docker_service._active_deployments["s1"] = session
 
-    with patch("app.services.docker_service.requests.get") as probe:
+    with patch("app.services.docker_service.requests.get") as probe, \
+         patch("app.services.local_runtime.inspect_session", side_effect=lambda _: session.model_copy(deep=True)):
         probe.return_value.status_code = 200
         probe.return_value.json.return_value = {"status": "UP"}
         result = docker_service.get_deployment_status("s1")
@@ -74,7 +81,9 @@ def test_state_is_recovered_from_the_compose_project_label():
         {"id": "app111", "name": "loanservice", "ports": "0.0.0.0:9092->8080/tcp", "status": "Up"},
         {"id": "db222", "name": "loanservice-postgres", "ports": "0.0.0.0:5432->5432/tcp", "status": "Up"},
     ]
-    with patch("app.services.docker_service._containers_for_session", return_value=rows), \
+    inspected = docker_service.LocalDeploymentSession(sessionId='session-x', containerId='app111',
+        databaseContainerId='db222', hostPort=9092, status=DeploymentStatus.RUNNING)
+    with patch("app.services.local_runtime.inspect_session", side_effect=lambda _: inspected.model_copy(deep=True)), \
          patch("app.services.docker_service.requests.get") as probe:
         probe.return_value.status_code = 200
         probe.return_value.json.return_value = {"status": "UP"}
@@ -89,10 +98,12 @@ def test_state_is_recovered_from_the_compose_project_label():
 def test_the_database_container_is_never_mistaken_for_the_service():
     """Only a database container running means the service is not up."""
     rows = [{"id": "db222", "name": "svc-postgres", "ports": "0.0.0.0:5432->5432/tcp", "status": "Up"}]
-    with patch("app.services.docker_service._containers_for_session", return_value=rows):
+    inspected = docker_service.LocalDeploymentSession(sessionId='session-y', databaseContainerId='db222',
+        status=DeploymentStatus.DEGRADED, healthStatus='DOWN')
+    with patch("app.services.local_runtime.inspect_session", return_value=inspected):
         session = docker_service.get_deployment_status("session-y")
 
-    assert session.status == DeploymentStatus.IDLE
+    assert session.status == DeploymentStatus.DEGRADED
     assert session.containerId is None
 
 

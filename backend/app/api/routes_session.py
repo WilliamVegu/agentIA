@@ -519,6 +519,7 @@ async def execute_generation_pipeline(
         db_sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if db_sess:
             db_sess.status = SessionStatus.BLOCKED
+            db_sess.phase = SessionPhase.FAILED
             db_sess.error_message = str(ex)
             _record_session_cost(session_id, "BLOCKED", db_sess=db_sess, db=db)
             db.commit()

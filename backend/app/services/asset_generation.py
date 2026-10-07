@@ -6,6 +6,7 @@ import shutil
 import uuid
 import tempfile
 from pathlib import Path
+from app.services.source_snapshot import _io_path
 
 TEMPLATE_VERSION = 5
 STAGING_ROOT = Path(__file__).resolve().parents[3] / '.run' / 'asset-staging'
@@ -34,7 +35,7 @@ def inventory(root):
         if path.is_symlink() or not path.resolve().is_relative_to(root):
             raise AssetConflict('Ruta enlazada fuera del proyecto; no se modifican activos.')
         if path.is_file():
-            result[relative.as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+            result[relative.as_posix()] = hashlib.sha256(_io_path(path).read_bytes()).hexdigest()
     return result
 
 
@@ -83,7 +84,7 @@ def generate_safely(workspace, session_id, writer, **configuration):
         for name in baseline:
             destination = stage / name
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(root / name, destination)
+            shutil.copyfile(_io_path(root / name), _io_path(destination))
         bundle = writer(str(stage), session_id, **configuration)
         from app.services.build_layout import build_layout
         tool, directory, _ = build_layout(stage)
@@ -98,32 +99,32 @@ def generate_safely(workspace, session_id, writer, **configuration):
             raise AssetConflict('El proyecto cambio durante la generacion; no se publican los activos preparados.')
         changed = [name for name, digest in staged.items() if baseline.get(name) != digest]
         # Each file is replaced atomically; rollback restores files if any commit step fails.
-        originals = {name: (root / name).read_bytes() if name in baseline else None for name in changed}
+        originals = {name: _io_path(root / name).read_bytes() if name in baseline else None for name in changed}
         try:
             for name in changed:
                 destination = root / name
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                temporary = destination.with_name(destination.name + '.agentia-' + uuid.uuid4().hex + '.tmp')
+                _io_path(destination.parent).mkdir(parents=True, exist_ok=True)
+                temporary = _io_path(destination.with_name(destination.name + '.agentia-' + uuid.uuid4().hex + '.tmp'))
                 try:
-                    shutil.copyfile(stage / name, temporary)
-                    temporary.replace(destination)
+                    shutil.copyfile(_io_path(stage / name), temporary)
+                    temporary.replace(_io_path(destination))
                 finally:
                     temporary.unlink(missing_ok=True)
             ledger = {'formatVersion': 1, 'templateVersion': TEMPLATE_VERSION, 'sessionId': session_id,
                       'configuration': config, 'files': {name: staged[name] for name in sorted(OWNED.intersection(staged))}}
-            ledger_file.parent.mkdir(parents=True, exist_ok=True)
-            temporary = ledger_file.with_name(ledger_file.name + '.' + uuid.uuid4().hex + '.tmp')
+            _io_path(ledger_file.parent).mkdir(parents=True, exist_ok=True)
+            temporary = _io_path(ledger_file.with_name(ledger_file.name + '.' + uuid.uuid4().hex + '.tmp'))
             try:
                 temporary.write_text(json.dumps(ledger, indent=2), encoding='utf-8')
-                temporary.replace(ledger_file)
+                temporary.replace(_io_path(ledger_file))
             finally:
                 temporary.unlink(missing_ok=True)
         except Exception:
             for name, content in originals.items():
                 if content is None:
-                    (root / name).unlink(missing_ok=True)
+                    _io_path(root / name).unlink(missing_ok=True)
                 else:
-                    (root / name).write_bytes(content)
+                    _io_path(root / name).write_bytes(content)
             raise
         return bundle
     finally:

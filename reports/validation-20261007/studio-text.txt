@@ -1,0 +1,57 @@
+Microservice Code Studio
+ENTERPRISE ARCHITECTURE
+Nuevo Microservicio
+MICROSERVICIOS (0)
+✨ + Crear Nuevo Microservicio
+Inicio rápido 1-click
+No hay sesiones registradas. Inicie una con el botón superior.
+Sprint 1 · v1.0.0
+TCS Global
+TCS MICROSERVICE CODE STUDIO
+/
+LangGraph Enterprise Orchestrator
+FastAPI
+DEEPSEEK
+(deepseek-flash)
+MVP local
+Acceso sin contraseña · MVP local
+Blueprints
+Resumen
+1. Requisitos
+2. Arquitectura
+3. Modelos & SQL
+4. Código & Fix
+5. Calidad SAST
+6. DevOps & Demo
+7. Entrega Git
+Monitor Live
+⚡ Nuevo Microservicio (Inicio Rápido 1-Click)
+Generación Autónoma de Microservicio Spring Boot 3
+
+Crea un proyecto de microservicio completo con especificación, arquitectura en 4 capas, entidades JPA, código Spring Boot 3 y suites de prueba Mockito con un solo clic.
+
+Nombre del Microservicio
+Motor de Base de Datos
+PostgreSQL (Producción)
+MySQL 8.0
+H2 In-Memory (Test)
+Descripción de Requisitos / Prompt del Negocio
+Volumen de peticiones
+Bajo
+Medio
+Alto
+Arquitectura
+Auto (inferir)
+Layered (4 capas)
+Hexagonal
+Hexagonal + DDD
+Build tool
+Auto
+Maven
+Gradle
+Ejecución de este microservicio
+Sin Docker — generar y exportar fuentes
+Con Docker — compilar, probar y desplegar
+Sin Docker permite terminar en laboratorios sin virtualización. Las pruebas de ejecución figurarán como no ejecutadas.
+⚡ Crear y Ejecutar Auto-Pilot Completo
+👣 Crear e Iniciar Modo Asistido

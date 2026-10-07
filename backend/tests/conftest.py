@@ -15,7 +15,7 @@ _LEGACY_AUTHENTICATED_SUITES = {
     'test_routes_artifact', 'test_routes_devops', 'test_routes_llm',
     'test_routes_orchestrator', 'test_routes_publish', 'test_routes_requirements',
     'test_routes_security', 'test_routes_session', 'test_routes_spec',
-    'test_routes_tests',
+    'test_routes_tests', 'test_sessions_api',
 }
 
 
@@ -23,6 +23,7 @@ _LEGACY_AUTHENTICATED_SUITES = {
 def legacy_endpoint_authentication(request, monkeypatch, tmp_path):
     module = request.module
     if module.__name__.split('.')[-1] not in _LEGACY_AUTHENTICATED_SUITES:
+        yield
         return
     from fastapi.testclient import TestClient
     from app.config import settings
@@ -37,11 +38,19 @@ def legacy_endpoint_authentication(request, monkeypatch, tmp_path):
         return result
 
     original = getattr(module, 'client', None)
+    persistent = None
     if isinstance(original, TestClient):
-        monkeypatch.setattr(module, 'client', authenticated_client(original.app,
-            raise_server_exceptions=original.raise_server_exceptions if hasattr(original, 'raise_server_exceptions') else False))
+        persistent = authenticated_client(original.app,
+            raise_server_exceptions=original.raise_server_exceptions if hasattr(original, 'raise_server_exceptions') else False)
+        persistent.__enter__()
+        monkeypatch.setattr(module, 'client', persistent)
     if hasattr(module, 'TestClient'):
         monkeypatch.setattr(module, 'TestClient', authenticated_client)
+    # Some legacy cases import TestClient inside the test body.
+    monkeypatch.setattr('fastapi.testclient.TestClient', authenticated_client)
+    yield
+    if persistent is not None:
+        persistent.__exit__(None, None, None)
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():

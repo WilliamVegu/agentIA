@@ -80,6 +80,7 @@ class _FakeRemote:
         self.urls: list[str] = []
         self.pushed: list[str] = []
         self._fail = fail
+        self.environments = []
 
     def set_url(self, url: str) -> None:
         self.urls.append(url)
@@ -117,6 +118,11 @@ def _publish(monkeypatch, workspace, remote, *, existing_remote=False, **overrid
         property(lambda self: [types.SimpleNamespace(name="origin")] if existing_remote else []),
     )
 
+    def push(command, name, refspec):
+        remote.environments.append(dict(command._environment))
+        return remote.push(refspec=refspec)
+    monkeypatch.setattr(git_service.git.Git, "push", push, raising=False)
+
     kwargs = dict(
         workspace_path=str(workspace),
         repository_url=CLEAN_URL,
@@ -145,7 +151,9 @@ def test_the_token_reaches_the_remote_during_the_push(monkeypatch, workspace):
 
     _publish(monkeypatch, workspace, remote, existing_remote=True)
 
-    assert AUTH_URL in remote.urls, "the authenticated URL never reached the remote"
+    import base64
+    assert remote.environments[0]["GIT_CONFIG_VALUE_0"] == "Authorization: Basic " + base64.b64encode(f"x-access-token:{TOKEN}".encode()).decode()
+    assert all(TOKEN not in url for url in remote.urls)
 
 
 def test_the_token_is_scrubbed_from_the_remote_after_a_successful_publish(monkeypatch, workspace):
@@ -159,11 +167,11 @@ def test_the_token_is_scrubbed_from_the_remote_after_a_successful_publish(monkey
         "repository config, which is exactly what Principle VI forbids"
     )
     assert TOKEN not in remote.urls[-1]
-    assert remote.urls[0] == AUTH_URL, "the authenticated URL was never set in the first place"
+    assert remote.urls[0] == CLEAN_URL  # credentials are passed only in the subprocess environment
 
 
-def test_a_new_remote_is_created_with_the_authenticated_url(monkeypatch, workspace):
-    """The create-remote branch: when no origin exists, it is created with the token."""
+def test_new_remote_uses_a_clean_url(monkeypatch, workspace):
+    """A new origin never persists credentials; the subprocess receives them temporarily."""
     import types
 
     created = {}
@@ -177,13 +185,14 @@ def test_a_new_remote_is_created_with_the_authenticated_url(monkeypatch, workspa
     monkeypatch.setattr(git_service.git.Repo, "create_remote", create_remote)
     monkeypatch.setattr(git_service.git.Repo, "remotes", property(lambda self: []))
 
+    monkeypatch.setattr(git_service.git.Git, "push", lambda self, name, refspec: remote.push(refspec=refspec), raising=False)
     result = publish_to_git(
         workspace_path=str(workspace), repository_url=CLEAN_URL,
         branch_name="feature/001", git_token=TOKEN,
     )
 
     assert created["name"] == "origin"
-    assert created["url"] == AUTH_URL, "a new remote was created without the token"
+    assert created["url"] == CLEAN_URL, "credentials must never enter the repository configuration"
     assert result["branchName"] == "feature/001"
 
 

@@ -713,7 +713,7 @@ class {ent_name}IntegrationTest {{
         Executes a single surgical self-repair attempt bounded by the adaptive constitutional limit of 5.
         """
         start_time = time.time()
-        max_attempts = getattr(settings, "MAX_REPAIR_ATTEMPTS", 5)
+        max_attempts = settings.MAX_REPAIR_ATTEMPTS
 
         if iteration_number > max_attempts:
             raise ValueError(f"Constitution Principle V Violation: Auto-repair cycle hard-capped at {max_attempts} iterations.")
