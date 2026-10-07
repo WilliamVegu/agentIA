@@ -1,0 +1,28 @@
+Microservice Code Studio
+ENTERPRISE ARCHITECTURE
+Generador Autónomo de Microservicios Empresariales
+Ingeniería de Software Automatizada para Arquitecturas Spring Boot 3 y Java 21
+
+Plataforma corporativa de Tata Consultancy Services para síntesis rigurosa de código fuente, validación sandbox en contenedores aislados, auditoría SAST continua y despliegue local verificado.
+
+Orquestación de ciclo de vida con LangGraph y auto-reparación en sandbox
+Quality Gate automatizado con detección de secretos y reporte SAST
+Manifiestos DevOps listos para producción (Docker, K8s, GitHub CI/CD)
+TCS Global Enterprise Security Standard
+Sprint 1 · v1.0.0
+Acceso al estudio
+
+Ingrese con el correo y la clave de acceso configurados para este estudio.
+
+Correo Electrónico Corporativo
+Contraseña de Dominio
+Motor de Inferencia Inicial
+DeepSeek
+Modo Offline (Mock Engine Local - Sin Consumo)
+Google Gemini (gemini-3.6-flash)
+Groq Cloud (qwen/qwen3.8-27b)
+OpenAI (gpt-4o-mini)
+Ingresar al Studio
+Entrar al MVP
+
+Acceso local sin correo ni contraseña.

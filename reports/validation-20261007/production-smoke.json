@@ -1,0 +1,196 @@
+[
+  {
+    "name": "http://127.0.0.1:8000 health",
+    "passed": true,
+    "detail": {
+      "status": "UP",
+      "timestamp": "2026-10-07T15:42:38.257692+00:00",
+      "app": "Microservice Code Studio",
+      "version": "1.0.0",
+      "dockerEnabled": true,
+      "mlflow": {
+        "tracing": false,
+        "failures": [
+          "tracing: could not enable autolog (MlflowException: API request to http://localhost:5000/api/2.0/mlflow/experiments/get-by-name failed with exception HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=agentia (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000210420F6EA0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')))"
+        ]
+      }
+    }
+  },
+  {
+    "name": "http://127.0.0.1:8000 denies anonymous access",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 denies external origin",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 local login",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 authenticated session",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 session list",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 missing session",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 invalid payload",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 logout",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:8000 revoked session",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 health",
+    "passed": true,
+    "detail": {
+      "status": "UP",
+      "timestamp": "2026-10-07T15:42:39.364077+00:00",
+      "app": "Microservice Code Studio",
+      "version": "1.0.0",
+      "dockerEnabled": true,
+      "mlflow": {
+        "tracing": false,
+        "failures": [
+          "tracing: could not enable autolog (MlflowException: API request to http://localhost:5000/api/2.0/mlflow/experiments/get-by-name failed with exception HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/2.0/mlflow/experiments/get-by-name?experiment_name=agentia (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000210420F6EA0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it')))"
+        ]
+      }
+    }
+  },
+  {
+    "name": "http://127.0.0.1:3001 denies anonymous access",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 denies external origin",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 local login",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 authenticated session",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 session list",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 missing session",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 invalid payload",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 logout",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "http://127.0.0.1:3001 revoked session",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser local login and studio render",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab Blueprints",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab Resumen",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab 1. Requisitos",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab 2. Arquitectura",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab 3. Modelos & SQL",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab 4. Código & Fix",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab 5. Calidad SAST",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab 6. DevOps & Demo",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab 7. Entrega Git",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser tab Monitor Live",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser authentication survives reload",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "browser no JavaScript exceptions",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "browser no HTTP 5xx",
+    "passed": true,
+    "detail": []
+  }
+]

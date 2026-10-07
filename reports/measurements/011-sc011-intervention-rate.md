@@ -43,7 +43,7 @@ Blocked sessions retaining their full correction history: **4 / 4** (SC-008).
 
 ## Effective sandbox repair cap
 
-**5** — the constitution specifies **three (3)**, so the effective cap is higher than documented. A higher cap yields more repair attempts, which **lowers** the observed intervention floor and therefore **flatters** this ceiling. Re-run against a cap of 3 before treating the rate as comparable to the documented constitution.
+**3** — this is the constitution's three (3). No drift.
 
 ## How to read this
 

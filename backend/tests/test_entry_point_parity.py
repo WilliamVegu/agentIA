@@ -134,7 +134,7 @@ def test_the_worker_decides_the_mode_with_the_credentials_and_states_the_key(wor
         return _Mode()
 
     async def acquire(session_id):
-        return None
+        return True
 
     async def release(session_id):
         return None

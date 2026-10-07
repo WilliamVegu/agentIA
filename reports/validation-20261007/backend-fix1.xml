@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="48" skipped="0" tests="67" time="95.908" timestamp="2026-10-07T10:53:27.541142-05:00" hostname="45HW011620"><testcase classname="backend.tests.test_app_examples" name="test_example_publish_to_git_with_mocked_boundary" time="0.447"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_app_examples.py:422: in test_example_publish_to_git_with_mocked_boundary
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_app_examples" name="test_example_export_blocked_when_quality_gate_fails" time="0.162"><failure message="AssertionError: assert 'Quality Gate is BLOCKED' in 'Source delivery requires completed generation and current verification or explicit unexecuted tests in no-Docker mode.'">backend\tests\test_app_examples.py:511: in test_example_export_blocked_when_quality_gate_fails
+    assert "Quality Gate is BLOCKED" in export.json()["detail"]
+E   AssertionError: assert 'Quality Gate is BLOCKED' in 'Source delivery requires completed generation and current verification or explicit unexecuted tests in no-Docker mode.'</failure></testcase><testcase classname="backend.tests.test_app_examples" name="test_example_export_returns_a_zip_when_gate_passes" time="0.128"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_app_examples.py:527: in test_example_export_returns_a_zip_when_gate_passes
+    assert response.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_app_examples" name="test_example_pipeline_stops_at_blocked_quality_gate" time="6.808"><failure message="AssertionError: assert not True&#10; +  where True = exists()&#10; +    where exists = ((WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-21/test_example_pipeline_stops_at0') / 'example-runner-session') / 'docker-compose.yml').exists">backend\tests\test_app_examples.py:568: in test_example_pipeline_stops_at_blocked_quality_gate
+    assert not (tmp_path / session_id / "docker-compose.yml").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = ((WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-21/test_example_pipeline_stops_at0') / 'example-runner-session') / 'docker-compose.yml').exists</failure></testcase><testcase classname="backend.tests.test_artifact_retrieval" name="test_architecture_design_save_and_retrieve" time="0.021"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404 Not Found]&gt;.status_code">backend\tests\test_artifact_retrieval.py:27: in test_architecture_design_save_and_retrieve
+    assert save.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404 Not Found]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_artifact_retrieval" name="test_models_design_save_and_retrieve" time="0.020"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404 Not Found]&gt;.status_code">backend\tests\test_artifact_retrieval.py:41: in test_models_design_save_and_retrieve
+    assert save.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404 Not Found]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_code_generation_module" name="test_complete_langgraph_generation_graph" time="2.081"><failure message="AssertionError: assert 'COMPLETED' == 'BLOCKED'&#10;  &#10;  - BLOCKED&#10;  + COMPLETED">backend\tests\test_code_generation_module.py:457: in test_complete_langgraph_generation_graph
+    assert final_state["status"] == SessionStatus.BLOCKED.value
+E   AssertionError: assert 'COMPLETED' == 'BLOCKED'
+E     
+E     - BLOCKED
+E     + COMPLETED</failure></testcase><testcase classname="backend.tests.test_code_generation_module" name="test_api_artifact_listing_and_export_zip" time="5.934"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_code_generation_module.py:575: in test_api_artifact_listing_and_export_zip
+    assert export_resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_devops_contract" name="test_published_contract_matches_actual_routes_and_models" time="0.455"><failure message="AssertionError: assert {'openapi': '...}}, ...}, ...} == {'openapi': '...}}, ...}, ...}&#10;  &#10;  Omitting 4 identical items, use -vv to show&#10;  Differing items:&#10;  {'components': {'securitySchemes': {'StudioSession': {'type': 'apiKey', 'in': 'cookie', 'name': 'agentia_session'}}, '... ['SKIPPED_BY_CHOICE', 'DEGRADED', 'IDLE', 'BUILDING', 'RUNNING', 'HEALTHY', ...], 'title': 'DeploymentStatus'}, ...}}} != {'components': {'securitySchemes': {'StudioSession': {'type': 'apiKey', 'in': 'cookie', 'name': 'agentia_session'}}, '... ['SKIPPED_BY_CHOICE', 'DEGRADED', 'IDLE', 'BUILDING', 'RUNNING', 'HEALTHY', ...], 'title': 'DeploymentStatus'}, ...}}}&#10;  Use -v to get more diff">backend\tests\test_devops_contract.py:21: in test_published_contract_matches_actual_routes_and_models
+    assert contract == build_contract(app, COOKIE)
+E   AssertionError: assert {'openapi': '...}}, ...}, ...} == {'openapi': '...}}, ...}, ...}
+E     
+E     Omitting 4 identical items, use -vv to show
+E     Differing items:
+E     {'components': {'securitySchemes': {'StudioSession': {'type': 'apiKey', 'in': 'cookie', 'name': 'agentia_session'}}, '... ['SKIPPED_BY_CHOICE', 'DEGRADED', 'IDLE', 'BUILDING', 'RUNNING', 'HEALTHY', ...], 'title': 'DeploymentStatus'}, ...}}} != {'components': {'securitySchemes': {'StudioSession': {'type': 'apiKey', 'in': 'cookie', 'name': 'agentia_session'}}, '... ['SKIPPED_BY_CHOICE', 'DEGRADED', 'IDLE', 'BUILDING', 'RUNNING', 'HEALTHY', ...], 'title': 'DeploymentStatus'}, ...}}}
+E     Use -v to get more diff</failure></testcase><testcase classname="backend.tests.test_diagnostic_record" name="test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion" time="0.789"><failure message="AssertionError: assert &lt;SessionPhase...ITIALIZATION'&gt; == &lt;SessionPhase...LED: 'FAILED'&gt;&#10;  &#10;  - FAILED&#10;  + INITIALIZATION">backend\tests\test_diagnostic_record.py:624: in test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion
+    assert row.phase == SessionPhase.FAILED
+E   AssertionError: assert &lt;SessionPhase...ITIALIZATION'&gt; == &lt;SessionPhase...LED: 'FAILED'&gt;
+E     
+E     - FAILED
+E     + INITIALIZATION</failure></testcase><testcase classname="backend.tests.test_e2e_flow" name="test_scenario_2_autonomous_generation_and_export" time="2.823"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_e2e_flow.py:76: in test_scenario_2_autonomous_generation_and_export
+    assert export_resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_e2e_flow" name="test_quickstart_feature_005_e2e" time="0.067"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404 Not Found]&gt;.status_code">backend\tests\test_e2e_flow.py:113: in test_quickstart_feature_005_e2e
+    assert repair_resp.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404 Not Found]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_e2e_flow" name="test_full_unified_orchestration_e2e" time="9.452"><failure message="assert 403 == 200&#10; +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code">backend\tests\test_e2e_flow.py:241: in test_full_unified_orchestration_e2e
+    assert bundle_resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = &lt;Response [403 Forbidden]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_entry_point_parity" name="test_the_worker_decides_the_mode_with_the_credentials_and_states_the_key" time="0.072" /><testcase classname="backend.tests.test_generation_stages_model" name="test_paired_blueprints_produce_differing_requests" time="0.036"><failure message="AssertionError: assert '@NotBlank' not in '# Domain mo...that file.\n'&#10;  &#10;  '@NotBlank' is contained here:&#10;  ?           ^^^^^&#10;     @Length, @NotBlank, and @Pattern MUST ONLY be applied to String and Collection types. NEVER place @Size, @NotBlank, or @Pattern on UUID, Long, Integer, Double, Boolean, or Date/Time fields, as Hibernate Validator will throw UnexpectedTypeException HV000030.&#10;  ?           ^^^^^^^^^^^^^^&#10;    &#10;    ## Untrusted input...&#10;  &#10;  ...Full output truncated (79 lines hidden), use '-vv' to show">backend\tests\test_generation_stages_model.py:475: in test_paired_blueprints_produce_differing_requests
+    assert rule not in requests["pair-a"]
+E   AssertionError: assert '@NotBlank' not in '# Domain mo...that file.\n'
+E     
+E     '@NotBlank' is contained here:
+E     ?           ^^^^^
+E        @Length, @NotBlank, and @Pattern MUST ONLY be applied to String and Collection types. NEVER place @Size, @NotBlank, or @Pattern on UUID, Long, Integer, Double, Boolean, or Date/Time fields, as Hibernate Validator will throw UnexpectedTypeException HV000030.
+E     ?           ^^^^^^^^^^^^^^
+E       
+E       ## Untrusted input...
+E     
+E     ...Full output truncated (79 lines hidden), use '-vv' to show</failure></testcase><testcase classname="backend.tests.test_qe_deploy_docker" name="test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up" time="0.502"><failure message="AssertionError: assert ['docker', 'c...ose.yml', ...] == ['docker', 'c...p', '-d', ...]&#10;  &#10;  At index 4 diff: '-f' != 'up'&#10;  Left contains 4 more items, first extra item: 'never'&#10;  Use -v to get more diff">backend\tests\test_qe_deploy_docker.py:269: in test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up
+    assert seen["cmd"] == ["docker", "compose", "-p", SESSION_ID, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180"]
+E   AssertionError: assert ['docker', 'c...ose.yml', ...] == ['docker', 'c...p', '-d', ...]
+E     
+E     At index 4 diff: '-f' != 'up'
+E     Left contains 4 more items, first extra item: 'never'
+E     Use -v to get more diff</failure></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_a_session_with_no_container_is_not_reported_healthy" time="0.006"><failure message="AssertionError: assert &lt;DeploymentSt...ED_BY_CHOICE'&gt; == &lt;DeploymentSt....IDLE: 'IDLE'&gt;&#10;  &#10;  - IDLE&#10;  + SKIPPED_BY_CHOICE">backend\tests\test_qe_deployment_identity.py:41: in test_a_session_with_no_container_is_not_reported_healthy
+    assert session.status == DeploymentStatus.IDLE
+E   AssertionError: assert &lt;DeploymentSt...ED_BY_CHOICE'&gt; == &lt;DeploymentSt....IDLE: 'IDLE'&gt;
+E     
+E     - IDLE
+E     + SKIPPED_BY_CHOICE</failure></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_an_existing_record_is_probed_on_its_own_port" time="0.005"><failure message="AssertionError: assert &lt;DeploymentSt...ED_BY_CHOICE'&gt; == &lt;DeploymentSt...HY: 'HEALTHY'&gt;&#10;  &#10;  - HEALTHY&#10;  + SKIPPED_BY_CHOICE">backend\tests\test_qe_deployment_identity.py:61: in test_an_existing_record_is_probed_on_its_own_port
+    assert result.status == DeploymentStatus.HEALTHY
+E   AssertionError: assert &lt;DeploymentSt...ED_BY_CHOICE'&gt; == &lt;DeploymentSt...HY: 'HEALTHY'&gt;
+E     
+E     - HEALTHY
+E     + SKIPPED_BY_CHOICE</failure></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_state_is_recovered_from_the_compose_project_label" time="0.005"><failure message="AssertionError: the app container, not the database&#10;assert None == 'app111'&#10; +  where None = LocalDeploymentSession(sessionId='session-x', dbEngine=None, containerId=None, databaseContainerId=None, sourceSnapsho...=None, operationId=None, operationKind=None, operationPhase=None, finishedAt=None, cancelRequested=False, message=None).containerId">backend\tests\test_qe_deployment_identity.py:83: in test_state_is_recovered_from_the_compose_project_label
+    assert session.containerId == "app111", "the app container, not the database"
+E   AssertionError: the app container, not the database
+E   assert None == 'app111'
+E    +  where None = LocalDeploymentSession(sessionId='session-x', dbEngine=None, containerId=None, databaseContainerId=None, sourceSnapsho...=None, operationId=None, operationKind=None, operationPhase=None, finishedAt=None, cancelRequested=False, message=None).containerId</failure></testcase><testcase classname="backend.tests.test_qe_deployment_identity" name="test_the_database_container_is_never_mistaken_for_the_service" time="0.005"><failure message="AssertionError: assert &lt;DeploymentSt...ED_BY_CHOICE'&gt; == &lt;DeploymentSt....IDLE: 'IDLE'&gt;&#10;  &#10;  - IDLE&#10;  + SKIPPED_BY_CHOICE">backend\tests\test_qe_deployment_identity.py:95: in test_the_database_container_is_never_mistaken_for_the_service
+    assert session.status == DeploymentStatus.IDLE
+E   AssertionError: assert &lt;DeploymentSt...ED_BY_CHOICE'&gt; == &lt;DeploymentSt....IDLE: 'IDLE'&gt;
+E     
+E     - IDLE
+E     + SKIPPED_BY_CHOICE</failure></testcase><testcase classname="backend.tests.test_qe_injection_guard" name="test_the_transform_endpoint_refuses_an_injected_narrative" time="0.014" /><testcase classname="backend.tests.test_qe_injection_guard" name="test_the_specification_ingestion_path_is_guarded" time="0.014" /><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_two_failed_repairs_do_not_block_phase_five" time="0.043"><failure message="AssertionError: assert &lt;PhaseStatus....'IN_PROGRESS'&gt; == &lt;PhaseStatus....: 'COMPLETED'&gt;&#10;  &#10;  - COMPLETED&#10;  + IN_PROGRESS">backend\tests\test_qe_lifecycle_rules.py:309: in test_two_failed_repairs_do_not_block_phase_five
+    assert state.phases[4].status == PhaseStatus.COMPLETED
+E   AssertionError: assert &lt;PhaseStatus....'IN_PROGRESS'&gt; == &lt;PhaseStatus....: 'COMPLETED'&gt;
+E     
+E     - COMPLETED
+E     + IN_PROGRESS</failure></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_a_blocked_quality_gate_blocks_phase_six_and_reports_why" time="0.038"><failure message="AssertionError: assert &lt;PhaseStatus....'NOT_STARTED'&gt; == &lt;PhaseStatus....ED: 'BLOCKED'&gt;&#10;  &#10;  - BLOCKED&#10;  + NOT_STARTED">backend\tests\test_qe_lifecycle_rules.py:327: in test_a_blocked_quality_gate_blocks_phase_six_and_reports_why
+    assert state.phases[5].status == PhaseStatus.BLOCKED
+E   AssertionError: assert &lt;PhaseStatus....'NOT_STARTED'&gt; == &lt;PhaseStatus....ED: 'BLOCKED'&gt;
+E     
+E     - BLOCKED
+E     + NOT_STARTED</failure></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_the_quality_gate_verdict_and_finding_count_reach_the_summary" time="0.034"><failure message="KeyError: 'qualityGate'">backend\tests\test_qe_lifecycle_rules.py:367: in test_the_quality_gate_verdict_and_finding_count_reach_the_summary
+    assert state.phases[5].artifact_summary["qualityGate"] == "APPROVED"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'qualityGate'</failure></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_a_compose_file_completes_phase_seven_and_surfaces_the_deploy_status" time="0.036"><failure message="AssertionError: assert &lt;PhaseStatus....'IN_PROGRESS'&gt; == &lt;PhaseStatus....: 'COMPLETED'&gt;&#10;  &#10;  - COMPLETED&#10;  + IN_PROGRESS">backend\tests\test_qe_lifecycle_rules.py:395: in test_a_compose_file_completes_phase_seven_and_surfaces_the_deploy_status
+    assert state.phases[6].status == PhaseStatus.COMPLETED
+E   AssertionError: assert &lt;PhaseStatus....'IN_PROGRESS'&gt; == &lt;PhaseStatus....: 'COMPLETED'&gt;
+E     
+E     - COMPLETED
+E     + IN_PROGRESS</failure></testcase><testcase classname="backend.tests.test_qe_lifecycle_rules" name="test_a_fully_complete_session_reports_completion" time="0.038"><failure message="AssertionError: assert 57.1 == 100.0&#10; +  where 57.1 = LifecycleState(session_id='qe-lifecycle-session', current_phase=&lt;LifecyclePhase.INITIAL: 'INITIAL'&gt;, completion_percen...PipelineExecutionMode.GUIDED_STEP: 'GUIDED_STEP'&gt;, is_outdated=False, pipeline_status=&lt;PipelineRunStatus.IDLE: 'IDLE'&gt;).completion_percentage">backend\tests\test_qe_lifecycle_rules.py:651: in test_a_fully_complete_session_reports_completion
+    assert state.completion_percentage == 100.0
+E   AssertionError: assert 57.1 == 100.0
+E    +  where 57.1 = LifecycleState(session_id='qe-lifecycle-session', current_phase=&lt;LifecyclePhase.INITIAL: 'INITIAL'&gt;, completion_percen...PipelineExecutionMode.GUIDED_STEP: 'GUIDED_STEP'&gt;, is_outdated=False, pipeline_status=&lt;PipelineRunStatus.IDLE: 'IDLE'&gt;).completion_percentage</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_pausing_after_a_step_stops_before_the_next_one[SECURITY_AUDIT]" time="5.034"><failure message="AssertionError: the step after SECURITY_AUDIT ran despite the pause&#10;assert not True&#10; +  where True = exists()&#10; +    where exists = (WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-21/test_pausing_after_a_step_stop0/qe-autopilot-session') / 'docker-compose.yml').exists">backend\tests\test_qe_pipeline_autopilot.py:184: in test_pausing_after_a_step_stops_before_the_next_one
+    assert not (ws / next_artifact).exists(), (
+E   AssertionError: the step after SECURITY_AUDIT ran despite the pause
+E   assert not True
+E    +  where True = exists()
+E    +    where exists = (WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-21/test_pausing_after_a_step_stop0/qe-autopilot-session') / 'docker-compose.yml').exists</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_pause_switches_the_session_to_guided_step" time="0.042"><failure message="AssertionError: assert False is True&#10; +  where False = &lt;function pause_pipeline at 0x0000022CA63274C0&gt;('qe-autopilot-session')&#10; +    where &lt;function pause_pipeline at 0x0000022CA63274C0&gt; = pr.pause_pipeline">backend\tests\test_qe_pipeline_autopilot.py:253: in test_pause_switches_the_session_to_guided_step
+    assert pr.pause_pipeline(session_id) is True
+E   AssertionError: assert False is True
+E    +  where False = &lt;function pause_pipeline at 0x0000022CA63274C0&gt;('qe-autopilot-session')
+E    +    where &lt;function pause_pipeline at 0x0000022CA63274C0&gt; = pr.pause_pipeline</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_pausing_a_session_that_was_never_started_reports_whether_it_is_paused" time="0.038"><failure message="AssertionError: assert False is True&#10; +  where False = &lt;function pause_pipeline at 0x0000022CA63274C0&gt;('qe-orphan')&#10; +    where &lt;function pause_pipeline at 0x0000022CA63274C0&gt; = pr.pause_pipeline">backend\tests\test_qe_pipeline_autopilot.py:269: in test_pausing_a_session_that_was_never_started_reports_whether_it_is_paused
+    assert pr.pause_pipeline("qe-orphan") is True
+E   AssertionError: assert False is True
+E    +  where False = &lt;function pause_pipeline at 0x0000022CA63274C0&gt;('qe-orphan')
+E    +    where &lt;function pause_pipeline at 0x0000022CA63274C0&gt; = pr.pause_pipeline</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_resume_replays_the_session_credentials_and_waits_for_the_old_thread" time="1.048"><failure message="AssertionError: assert False is True&#10; +  where False = &lt;function resume_pipeline at 0x0000022CA6327560&gt;('qe-autopilot-session')&#10; +    where &lt;function resume_pipeline at 0x0000022CA6327560&gt; = pr.resume_pipeline">backend\tests\test_qe_pipeline_autopilot.py:299: in test_resume_replays_the_session_credentials_and_waits_for_the_old_thread
+    assert pr.resume_pipeline(session_id) is True
+E   AssertionError: assert False is True
+E    +  where False = &lt;function resume_pipeline at 0x0000022CA6327560&gt;('qe-autopilot-session')
+E    +    where &lt;function resume_pipeline at 0x0000022CA6327560&gt; = pr.resume_pipeline</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_force_starts_a_run_even_while_another_is_alive" time="0.032"><failure message="AssertionError: assert False is True&#10; +  where False = &lt;function run_pipeline at 0x0000022CA6327A60&gt;('qe-autopilot-session', force=True)&#10; +    where &lt;function run_pipeline at 0x0000022CA6327A60&gt; = pr.run_pipeline">backend\tests\test_qe_pipeline_autopilot.py:351: in test_force_starts_a_run_even_while_another_is_alive
+    assert pr.run_pipeline(session_id, force=True) is True
+E   AssertionError: assert False is True
+E    +  where False = &lt;function run_pipeline at 0x0000022CA6327A60&gt;('qe-autopilot-session', force=True)
+E    +    where &lt;function run_pipeline at 0x0000022CA6327A60&gt; = pr.run_pipeline</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_a_failed_schema_synthesis_falls_back_to_this_blueprints_own_ddl" time="0.740"><failure message="AssertionError: the run died in the fallback instead of falling back&#10;assert &lt;PipelineRunS...LED: 'FAILED'&gt; == &lt;PipelineRunS...: 'COMPLETED'&gt;&#10;  &#10;  - COMPLETED&#10;  + FAILED">backend\tests\test_qe_pipeline_autopilot.py:617: in test_a_failed_schema_synthesis_falls_back_to_this_blueprints_own_ddl
+    assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED, (
+E   AssertionError: the run died in the fallback instead of falling back
+E   assert &lt;PipelineRunS...LED: 'FAILED'&gt; == &lt;PipelineRunS...: 'COMPLETED'&gt;
+E     
+E     - COMPLETED
+E     + FAILED</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_auto_deploy_asks_for_the_local_deployment" time="3.285"><failure message="AssertionError: assert [] == [('qe-autopil...lot-session')]&#10;  &#10;  Right contains one more item: ('qe-autopilot-session', 'C:\\Users\\GenAIAUGPERUSR2\\AppData\\Local\\Temp\\pytest-of-GenAIAUGPERUSR2\\pytest-21\\test_auto_deploy_asks_for_the_0\\qe-autopilot-session')&#10;  Use -v to get more diff">backend\tests\test_qe_pipeline_autopilot.py:639: in test_auto_deploy_asks_for_the_local_deployment
+    assert deployed == [(session_id, str(ws))]
+E   AssertionError: assert [] == [('qe-autopil...lot-session')]
+E     
+E     Right contains one more item: ('qe-autopilot-session', 'C:\\Users\\GenAIAUGPERUSR2\\AppData\\Local\\Temp\\pytest-of-GenAIAUGPERUSR2\\pytest-21\\test_auto_deploy_asks_for_the_0\\qe-autopilot-session')
+E     Use -v to get more diff</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy" time="2.312"><failure message="AssertionError: assert not True&#10; +  where True = exists()&#10; +    where exists = (WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-21/test_a_blocking_quality_gate_s0/qe-autopilot-session') / 'docker-compose.yml').exists">backend\tests\test_qe_pipeline_autopilot.py:667: in test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy
+    assert not (ws / "docker-compose.yml").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-21/test_a_blocking_quality_gate_s0/qe-autopilot-session') / 'docker-compose.yml').exists</failure></testcase><testcase classname="backend.tests.test_qe_pipeline_autopilot" name="test_an_entity_without_a_primary_key_gets_one" time="0.007"><failure message="app.services.specification_guard.UnlikelySpecificationError: spec does not look like a specification: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long">backend\tests\test_qe_pipeline_autopilot.py:861: in test_an_entity_without_a_primary_key_gets_one
+    draft = pr._get_or_create_draft(tmp_path, "cafe")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\pipeline_runner.py:336: in _get_or_create_draft
+    assert_looks_like_specification(target_to_check, field="spec")
+backend\app\services\specification_guard.py:282: in assert_looks_like_specification
+    raise UnlikelySpecificationError(assessment, field=field)
+E   app.services.specification_guard.UnlikelySpecificationError: spec does not look like a specification: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long</failure></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_a_successful_publish_returns_the_branch_urls_and_a_commit" time="6.933"><failure message="RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git push origin feature/001-order-service:feature/001-order-service&#10;  stderr: 'fatal: 'origin' does not appear to be a git repository&#10;fatal: Could not read from remote repository.&#10;&#10;Please make sure you have the correct access rights&#10;and the repository exists.'">backend\tests\test_qe_publish_git.py:133: in test_a_successful_publish_returns_the_branch_urls_and_a_commit
+    result = _publish(monkeypatch, workspace, remote, existing_remote=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_qe_publish_git.py:127: in _publish
+    return publish_to_git(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\git_service.py:83: in publish_to_git
+    raise RuntimeError(f"Git push failed to {clean_url}: {message}") from None
+E   RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push origin feature/001-order-service:feature/001-order-service
+E     stderr: 'fatal: 'origin' does not appear to be a git repository
+E   fatal: Could not read from remote repository.
+E   
+E   Please make sure you have the correct access rights
+E   and the repository exists.'</failure></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_the_token_reaches_the_remote_during_the_push" time="5.577"><failure message="RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git push origin feature/001-order-service:feature/001-order-service&#10;  stderr: 'fatal: 'origin' does not appear to be a git repository&#10;fatal: Could not read from remote repository.&#10;&#10;Please make sure you have the correct access rights&#10;and the repository exists.'">backend\tests\test_qe_publish_git.py:146: in test_the_token_reaches_the_remote_during_the_push
+    _publish(monkeypatch, workspace, remote, existing_remote=True)
+backend\tests\test_qe_publish_git.py:127: in _publish
+    return publish_to_git(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\git_service.py:83: in publish_to_git
+    raise RuntimeError(f"Git push failed to {clean_url}: {message}") from None
+E   RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push origin feature/001-order-service:feature/001-order-service
+E     stderr: 'fatal: 'origin' does not appear to be a git repository
+E   fatal: Could not read from remote repository.
+E   
+E   Please make sure you have the correct access rights
+E   and the repository exists.'</failure></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_the_token_is_scrubbed_from_the_remote_after_a_successful_publish" time="2.498"><failure message="RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git push origin feature/001-order-service:feature/001-order-service&#10;  stderr: 'fatal: 'origin' does not appear to be a git repository&#10;fatal: Could not read from remote repository.&#10;&#10;Please make sure you have the correct access rights&#10;and the repository exists.'">backend\tests\test_qe_publish_git.py:155: in test_the_token_is_scrubbed_from_the_remote_after_a_successful_publish
+    _publish(monkeypatch, workspace, remote, existing_remote=True)
+backend\tests\test_qe_publish_git.py:127: in _publish
+    return publish_to_git(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\git_service.py:83: in publish_to_git
+    raise RuntimeError(f"Git push failed to {clean_url}: {message}") from None
+E   RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push origin feature/001-order-service:feature/001-order-service
+E     stderr: 'fatal: 'origin' does not appear to be a git repository
+E   fatal: Could not read from remote repository.
+E   
+E   Please make sure you have the correct access rights
+E   and the repository exists.'</failure></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_a_new_remote_is_created_with_the_authenticated_url" time="2.634"><failure message="RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git push origin feature/001:feature/001&#10;  stderr: 'fatal: 'origin' does not appear to be a git repository&#10;fatal: Could not read from remote repository.&#10;&#10;Please make sure you have the correct access rights&#10;and the repository exists.'">backend\tests\test_qe_publish_git.py:180: in test_a_new_remote_is_created_with_the_authenticated_url
+    result = publish_to_git(
+backend\app\services\git_service.py:83: in publish_to_git
+    raise RuntimeError(f"Git push failed to {clean_url}: {message}") from None
+E   RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push origin feature/001:feature/001
+E     stderr: 'fatal: 'origin' does not appear to be a git repository
+E   fatal: Could not read from remote repository.
+E   
+E   Please make sure you have the correct access rights
+E   and the repository exists.'</failure></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_the_committer_identity_is_recorded" time="5.816"><failure message="RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git push origin feature/001-order-service:feature/001-order-service&#10;  stderr: 'fatal: 'origin' does not appear to be a git repository&#10;fatal: Could not read from remote repository.&#10;&#10;Please make sure you have the correct access rights&#10;and the repository exists.'">backend\tests\test_qe_publish_git.py:208: in test_the_committer_identity_is_recorded
+    _publish(monkeypatch, workspace, remote)
+backend\tests\test_qe_publish_git.py:127: in _publish
+    return publish_to_git(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\git_service.py:83: in publish_to_git
+    raise RuntimeError(f"Git push failed to {clean_url}: {message}") from None
+E   RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push origin feature/001-order-service:feature/001-order-service
+E     stderr: 'fatal: 'origin' does not appear to be a git repository
+E   fatal: Could not read from remote repository.
+E   
+E   Please make sure you have the correct access rights
+E   and the repository exists.'</failure></testcase><testcase classname="backend.tests.test_qe_publish_git" name="test_publishing_to_an_existing_repository_does_not_reinitialize" time="4.256"><failure message="RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git push origin feature/001-order-service:feature/001-order-service&#10;  stderr: 'fatal: 'origin' does not appear to be a git repository&#10;fatal: Could not read from remote repository.&#10;&#10;Please make sure you have the correct access rights&#10;and the repository exists.'">backend\tests\test_qe_publish_git.py:229: in test_publishing_to_an_existing_repository_does_not_reinitialize
+    result = _publish(monkeypatch, workspace, remote)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_qe_publish_git.py:127: in _publish
+    return publish_to_git(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\git_service.py:83: in publish_to_git
+    raise RuntimeError(f"Git push failed to {clean_url}: {message}") from None
+E   RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push origin feature/001-order-service:feature/001-order-service
+E     stderr: 'fatal: 'origin' does not appear to be a git repository
+E   fatal: Could not read from remote repository.
+E   
+E   Please make sure you have the correct access rights
+E   and the repository exists.'</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_completed_session_is_listed_at_one_hundred_percent" time="0.044"><failure message="AssertionError: assert 0.0 == 100.0&#10; +  where 0.0 = GenerationSessionListItem(session_id='qe-session-surface', spec_id='spec-qe', spec_name='OrderService', status=&lt;Sessio...lifecycle_mode='GUIDED_STEP', completion_percentage=0.0, created_at=datetime.datetime(2026, 10, 7, 15, 54, 56, 712826)).completion_percentage">backend\tests\test_qe_session_surface.py:434: in test_a_completed_session_is_listed_at_one_hundred_percent
+    assert listed.completion_percentage == 100.0
+E   AssertionError: assert 0.0 == 100.0
+E    +  where 0.0 = GenerationSessionListItem(session_id='qe-session-surface', spec_id='spec-qe', spec_name='OrderService', status=&lt;Sessio...lifecycle_mode='GUIDED_STEP', completion_percentage=0.0, created_at=datetime.datetime(2026, 10, 7, 15, 54, 56, 712826)).completion_percentage</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed" time="0.083"><failure message="AssertionError: assert 57.1 == 100.0&#10; +  where 57.1 = GenerationSessionListItem(session_id='qe-session-surface', spec_id='spec-qe', spec_name='OrderService', status=&lt;Sessio...ifecycle_mode='GUIDED_STEP', completion_percentage=57.1, created_at=datetime.datetime(2026, 10, 7, 15, 54, 56, 800474)).completion_percentage">backend\tests\test_qe_session_surface.py:469: in test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed
+    assert listed.completion_percentage == 100.0
+E   AssertionError: assert 57.1 == 100.0
+E    +  where 57.1 = GenerationSessionListItem(session_id='qe-session-surface', spec_id='spec-qe', spec_name='OrderService', status=&lt;Sessio...ifecycle_mode='GUIDED_STEP', completion_percentage=57.1, created_at=datetime.datetime(2026, 10, 7, 15, 54, 56, 800474)).completion_percentage</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_without_a_name_uses_a_stable_default" time="0.012"><failure message="fastapi.exceptions.HTTPException: 400: {'error': 'UNLIKELY_SPECIFICATION', 'field': 'prompt', 'message': 'La solicitud no describe un requerimiento de microservicio o arquitectura de software válido. Por favor, describa un objetivo de negocio o funcionalidad backend (ej. gestión de pedidos, clientes, inventario, procesamiento de pagos o catálogo de productos). Motivo detectado: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long.', 'detailMessage': 'prompt does not look like a specification: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long', 'plausible': False, 'reasons': ['it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then)', 'it is 1 word(s) long'], 'signals': {'words': 1, 'domainTerms': 0, 'structureMarkers': 0, 'readsAsQuestion': 0, 'outOfScopeMatches': 0}}">backend\app\api\routes_session.py:613: in quick_start_session
+    assert_looks_like_specification(validate_target, field="prompt")
+backend\app\services\specification_guard.py:282: in assert_looks_like_specification
+    raise UnlikelySpecificationError(assessment, field=field)
+E   app.services.specification_guard.UnlikelySpecificationError: prompt does not look like a specification: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long
+
+During handling of the above exception, another exception occurred:
+backend\tests\test_qe_session_surface.py:545: in test_quick_start_without_a_name_uses_a_stable_default
+    response = asyncio.run(rs.quick_start_session(QuickStartSessionRequest(rawText="algo")))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\Python312\Lib\asyncio\runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Program Files\Python312\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\Python312\Lib\asyncio\base_events.py:686: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:633: in quick_start_session
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=unlikely.to_dict())
+E   fastapi.exceptions.HTTPException: 400: {'error': 'UNLIKELY_SPECIFICATION', 'field': 'prompt', 'message': 'La solicitud no describe un requerimiento de microservicio o arquitectura de software válido. Por favor, describa un objetivo de negocio o funcionalidad backend (ej. gestión de pedidos, clientes, inventario, procesamiento de pagos o catálogo de productos). Motivo detectado: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long.', 'detailMessage': 'prompt does not look like a specification: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long', 'plausible': False, 'reasons': ['it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then)', 'it is 1 word(s) long'], 'signals': {'words': 1, 'domainTerms': 0, 'structureMarkers': 0, 'readsAsQuestion': 0, 'outOfScopeMatches': 0}}</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot" time="0.096"><failure message="AssertionError: a cancelled session must not hold a worker slot&#10;assert [] == ['qe-session-surface']&#10;  &#10;  Right contains one more item: 'qe-session-surface'&#10;  Use -v to get more diff">backend\tests\test_qe_session_surface.py:623: in test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot
+    assert released == [SESSION_ID], "a cancelled session must not hold a worker slot"
+E   AssertionError: a cancelled session must not hold a worker slot
+E   assert [] == ['qe-session-surface']
+E     
+E     Right contains one more item: 'qe-session-surface'
+E     Use -v to get more diff</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_completed_run_records_verified_and_reports_the_substituted_verification" time="0.124" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_completed_run_with_a_real_verification_reports_no_fallback" time="0.161" /><testcase classname="backend.tests.test_qe_session_surface" name="test_the_pipeline_streams_phase_transitions_logs_and_verification" time="0.204" /><testcase classname="backend.tests.test_qe_session_surface" name="test_the_test_node_announces_test_synthesis" time="0.172" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_repair_beyond_the_limit_is_reported_as_blocked" time="0.131" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_blocked_run_is_persisted_and_diagnosed" time="0.117" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_crash_inside_the_graph_still_terminates_the_session" time="0.100" /><testcase classname="backend.tests.test_qe_session_surface" name="test_the_instruction_revision_is_recorded_when_the_set_loads" time="0.112" /><testcase classname="backend.tests.test_qe_session_surface" name="test_an_unloadable_instruction_set_does_not_break_the_offline_path" time="0.133" /><testcase classname="backend.tests.test_qe_session_surface" name="test_the_worker_slot_is_released_even_when_the_run_crashes" time="0.166" /><testcase classname="backend.tests.test_qe_session_surface" name="test_the_generation_state_is_kept_for_inspection" time="0.197" /><testcase classname="backend.tests.test_qe_specification_persistence" name="test_the_uploaded_document_survives_and_keeps_its_content" time="0.067" /><testcase classname="backend.tests.test_routes_devops" name="test_generate_devops_manifests_success" time="4.148"><failure message="assert 'postgres:16-alpine' in &quot;services:\n  order-service:\n    image: ${COMPOSE_PROJECT_NAME}-order-service:local\n    pull_policy: never\n    buil... volumes:\n    - appdata:/app/data\n    network_mode: none\n    restart: 'no'\nvolumes:\n  appdata: {}\n  dbdata: {}\n&quot;">backend\tests\test_routes_devops.py:76: in test_generate_devops_manifests_success
+    assert "postgres:16-alpine" in data["dockerComposeContent"]
+E   assert 'postgres:16-alpine' in "services:\n  order-service:\n    image: ${COMPOSE_PROJECT_NAME}-order-service:local\n    pull_policy: never\n    buil... volumes:\n    - appdata:/app/data\n    network_mode: none\n    restart: 'no'\nvolumes:\n  appdata: {}\n  dbdata: {}\n"</failure></testcase><testcase classname="backend.tests.test_routes_security" name="test_session_audit_and_export_blocking" time="0.070"><failure message="AssertionError: assert 'Quality Gate is BLOCKED' in 'Source delivery requires completed generation and current verification or explicit unexecuted tests in no-Docker mode.'">backend\tests\test_routes_security.py:130: in test_session_audit_and_export_blocking
+    assert "Quality Gate is BLOCKED" in export_res.json()["detail"]
+E   AssertionError: assert 'Quality Gate is BLOCKED' in 'Source delivery requires completed generation and current verification or explicit unexecuted tests in no-Docker mode.'</failure></testcase><testcase classname="backend.tests.test_routes_tests" name="test_repair_endpoint_success_and_boundary" time="0.027"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404 Not Found]&gt;.status_code">backend\tests\test_routes_tests.py:88: in test_repair_endpoint_success_and_boundary
+    assert resp1.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404 Not Found]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_routes_tests" name="test_get_repairs_and_manual_override" time="0.033"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404 Not Found]&gt;.status_code">backend\tests\test_routes_tests.py:120: in test_get_repairs_and_manual_override
+    assert rep_resp.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404 Not Found]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_sessions_api" name="test_list_sessions_endpoint" time="0.071" /><testcase classname="backend.tests.test_sessions_api" name="test_quick_start_session_endpoint" time="0.048" /><testcase classname="backend.tests.test_sessions_api" name="test_quick_start_session_default_name" time="0.046" /><testcase classname="backend.tests.test_sessions_api" name="test_quick_start_session_with_auto_run" time="0.068" /><testcase classname="backend.tests.test_test_analysis_service" name="test_execute_repair_iteration_and_cap_at_5" time="0.020"><failure message="AssertionError: assert &lt;RepairOutcom...LED_CONTINUE'&gt; == &lt;RepairOutcom...SS: 'SUCCESS'&gt;&#10;  &#10;  - SUCCESS&#10;  + FAILED_CONTINUE">backend\tests\test_test_analysis_service.py:149: in test_execute_repair_iteration_and_cap_at_5
+    assert iter1.outcome == RepairOutcome.SUCCESS
+E   AssertionError: assert &lt;RepairOutcom...LED_CONTINUE'&gt; == &lt;RepairOutcom...SS: 'SUCCESS'&gt;
+E     
+E     - SUCCESS
+E     + FAILED_CONTINUE</failure></testcase></testsuite></testsuites>

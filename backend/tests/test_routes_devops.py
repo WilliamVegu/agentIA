@@ -24,6 +24,8 @@ def clean_devops_session():
             id=session_id,
             spec_id="dummy-spec",
             spec_name="order-service",
+            database_engine="POSTGRESQL",
+            execution_mode="DOCKER",
             status=SessionStatus.COMPLETED,
             phase=SessionPhase.VERIFIED,
             repair_attempts=0,
@@ -73,7 +75,7 @@ def test_generate_devops_manifests_success(clean_devops_session):
     assert data["serviceName"] == "order-service"
     assert data["databaseEngine"] == "POSTGRESQL"
     assert "agentia-runtime:21-v1" in data["dockerfileContent"]
-    assert "postgres:16-alpine" in data["dockerComposeContent"]
+    assert "postgres:16.4-alpine" in data["dockerComposeContent"]
     assert "deployment.yaml" in data["kubernetesManifests"]
 
     # Verify physical file existence

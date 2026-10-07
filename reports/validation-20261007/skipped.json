@@ -1,0 +1,254 @@
+[
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[single-with-space-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[single-with-space-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[multiple-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[multiple-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[missing-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[missing-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[not-executable-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[not-executable-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[corrupt-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_jar_selection_uses_contents_and_rejects_ambiguous_output[corrupt-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_compose_resolves_session_ports_volumes_and_credentials[POSTGRESQL-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_compose_resolves_session_ports_volumes_and_credentials[POSTGRESQL-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_compose_resolves_session_ports_volumes_and_credentials[MYSQL-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_compose_resolves_session_ports_volumes_and_credentials[MYSQL-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_compose_resolves_session_ports_volumes_and_credentials[H2-maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_build_layout_assets",
+    "test": "test_real_compose_resolves_session_ports_volumes_and_credentials[H2-gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_buildkit_cancel_real",
+    "test": "test_cli_cancel_finishes_exact_daemon_build",
+    "reason": "BuildKit real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_cost_recording",
+    "test": "test_ten_real_sessions_produce_priced_records",
+    "reason": "set AGENTIA_RUN_REAL_COST_TRACING=1 and provide DEEPSEEK_API_KEY to spend real tokens"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_docker_diagnostics_real",
+    "test": "test_real_cache_diagnostic_does_not_modify_prepared_builder",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_configuration",
+    "test": "test_real_prepared_sandbox_builds_maven_bootstrap",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_docker_real_isolation",
+    "test": "test_same_service_name_keeps_images_ports_data_and_stop_isolated",
+    "reason": "Docker real opt-in; no necesario en laboratorio"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_docker_real_migrations",
+    "test": "test_generated_schema_seed_and_persistence[H2-maven]",
+    "reason": "Migraciones Docker reales opt-in; no necesarias en laboratorio"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_docker_real_migrations",
+    "test": "test_generated_schema_seed_and_persistence[H2-gradle]",
+    "reason": "Migraciones Docker reales opt-in; no necesarias en laboratorio"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_docker_real_migrations",
+    "test": "test_generated_schema_seed_and_persistence[POSTGRESQL-maven]",
+    "reason": "Migraciones Docker reales opt-in; no necesarias en laboratorio"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_docker_real_migrations",
+    "test": "test_generated_schema_seed_and_persistence[POSTGRESQL-gradle]",
+    "reason": "Migraciones Docker reales opt-in; no necesarias en laboratorio"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_docker_real_migrations",
+    "test": "test_generated_schema_seed_and_persistence[MYSQL-maven]",
+    "reason": "Migraciones Docker reales opt-in; no necesarias en laboratorio"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_docker_real_migrations",
+    "test": "test_generated_schema_seed_and_persistence[MYSQL-gradle]",
+    "reason": "Migraciones Docker reales opt-in; no necesarias en laboratorio"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_local_operation_controls_real",
+    "test": "test_cli_cancel_is_honest_and_scoped_stop_preserves_volume_and_other_project",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_native_source_flow_real",
+    "test": "test_generation_verification_export_and_recovery_without_docker[True]",
+    "reason": "Native Windows opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_native_source_flow_real",
+    "test": "test_generation_verification_export_and_recovery_without_docker[False]",
+    "reason": "Native Windows opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_offline_kit_transfer_real",
+    "test": "test_real_windows_kit_roundtrip_preserves_image_ids_and_rejects_corruption",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_prepared_cache_isolation_real",
+    "test": "test_concurrent_private_caches_preserve_prepared_base[maven]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_prepared_cache_isolation_real",
+    "test": "test_concurrent_private_caches_preserve_prepared_base[gradle]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_runtime_lifecycle_real",
+    "test": "test_restart_preserves_h2_identity_and_resolves_port_then_explicit_cleanup",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_runtime_log_capture_real",
+    "test": "test_real_container_logs_reconnect_restart_identity_and_source_mode",
+    "reason": "Docker real opt-in; laboratorio no requiere Docker"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_sandbox_verifier_honesty",
+    "test": "test_sc003_real_build_pass_and_fail[asyncio]",
+    "reason": "set AGENTIA_RUN_REAL_SANDBOX=1 in a shell that can reach the container runtime"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_skillopt_iteration",
+    "test": "test_a_real_iteration_runs_end_to_end",
+    "reason": "set AGENTIA_RUN_REAL_SKILLOPT=1 AND AGENTIA_ALLOW_REAL_SPEND=1 to run a real iteration, which spends real money"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_source_snapshot_real",
+    "test": "test_verified_jar_becomes_same_runtime_image_and_sealed_export",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_standalone_delivery_real",
+    "test": "test_standalone_build_start_occupied_port_reuse_data_and_cleanup[basic]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_standalone_delivery_real",
+    "test": "test_standalone_build_start_occupied_port_reuse_data_and_cleanup[seeded]",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_verification_input_integrity_real",
+    "test": "test_real_build_success_with_late_source_change_is_outdated",
+    "reason": "Docker real opt-in"
+  },
+  {
+    "suite": "backend",
+    "module": "backend.tests.test_verification_operation_controls_real",
+    "test": "test_real_verification_cancel_and_timeout_remove_only_temporary_container",
+    "reason": "Docker real opt-in"
+  }
+]

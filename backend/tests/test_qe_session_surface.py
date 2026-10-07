@@ -425,13 +425,13 @@ def test_an_idle_stream_emits_a_keepalive(workspace):
 # ---------------------------------------------------------------------------
 # list_sessions
 # ---------------------------------------------------------------------------
-def test_a_completed_session_is_listed_at_one_hundred_percent(workspace):
+def test_completed_without_evidence_is_listed_at_zero_percent(workspace):
     _make_session(SESSION_ID, status=SessionStatus.COMPLETED, phase=SessionPhase.VERIFIED)
 
     items = asyncio.run(rs.list_sessions(limit=10))
 
     listed = next(i for i in items if i.session_id == SESSION_ID)
-    assert listed.completion_percentage == 100.0
+    assert listed.completion_percentage == 0.0  # a status label alone is not verification evidence
 
 
 def test_a_session_with_no_artifacts_is_listed_at_zero_percent(workspace):
@@ -443,7 +443,7 @@ def test_a_session_with_no_artifacts_is_listed_at_zero_percent(workspace):
     assert listed.completion_percentage == 0.0
 
 
-def test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed(workspace):
+def test_reading_artifacts_does_not_promote_an_unverified_session(workspace):
     """Repair for a session that finished before the status column was updated.
 
     The promotion is the only place ``list_sessions`` writes, so it is the one worth
@@ -466,9 +466,9 @@ def test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed(workspac
     items = asyncio.run(rs.list_sessions(limit=10))
 
     listed = next(i for i in items if i.session_id == SESSION_ID)
-    assert listed.completion_percentage == 100.0
-    assert listed.status == SessionStatus.COMPLETED
-    assert _row(SESSION_ID).current_lifecycle_phase == "COMPLETED"
+    assert listed.completion_percentage < 100.0
+    assert listed.status == SessionStatus.RUNNING
+    assert _row(SESSION_ID).current_lifecycle_phase == "INITIAL"
 
 
 def test_a_failing_lifecycle_calculation_does_not_break_the_session_list(workspace, monkeypatch):
@@ -542,7 +542,7 @@ def test_quick_start_accepts_prompt_as_an_alias_and_sets_auto_pilot(workspace, m
 
 
 def test_quick_start_without_a_name_uses_a_stable_default(workspace):
-    response = asyncio.run(rs.quick_start_session(QuickStartSessionRequest(rawText="algo")))
+    response = asyncio.run(rs.quick_start_session(QuickStartSessionRequest(rawText="Crear un servicio de pedidos con nombre y total")))
 
     assert response.spec_name == "app-service"
 
@@ -610,14 +610,14 @@ def test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot(workspace):
     _make_session(SESSION_ID, status=SessionStatus.RUNNING)
     released = []
 
-    async def fake_release(session_id):
+    def fake_release(session_id):
         released.append(session_id)
 
-    rs.queue_manager.release_slot = fake_release
+    rs.queue_manager.cancel_waiting = fake_release
     try:
         asyncio.run(rs.cancel_session(SESSION_ID))
     finally:
-        del rs.queue_manager.release_slot
+        del rs.queue_manager.cancel_waiting
 
     assert _row(SESSION_ID).status == SessionStatus.CANCELLED
     assert released == [SESSION_ID], "a cancelled session must not hold a worker slot"
@@ -629,7 +629,7 @@ def test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot(workspace):
 def _blocking_stubs(monkeypatch, steps, diagnostics_calls=None):
     """Neutralise the queue, the mode decision and the diagnostics writer."""
     async def acquire(session_id):
-        return None
+        return True
 
     async def release(session_id):
         return None
@@ -853,7 +853,7 @@ def test_the_worker_slot_is_released_even_when_the_run_crashes(workspace, monkey
     released = []
 
     async def acquire(session_id):
-        return None
+        return True
 
     async def release(session_id):
         released.append(session_id)

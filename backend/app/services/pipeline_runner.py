@@ -578,7 +578,11 @@ def _execute_pipeline_steps(
                     with open(model_file, "w", encoding="utf-8") as f:
                         json.dump(sql_resp.model_dump(), f, indent=2)
             except Exception as exc:
-                raise RuntimeError("Schema synthesis failed with the selected provider") from exc
+                if generation_mode == generation_journal.GENERATION_MODE_MODEL:
+                    raise RuntimeError("Schema synthesis failed with the selected provider") from exc
+                sql_file.write_text(schema_sql_from_draft(draft, selected_database), encoding='utf-8')
+                _emit_event(session_id, LifecyclePhase.DATA_MODEL, 'SQL determinista', 60.0,
+                    'Esquema derivado de las entidades del proyecto; no generado por un proveedor IA.', PhaseStatus.IN_PROGRESS)
         transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.DATA_MODEL):
@@ -906,6 +910,7 @@ def _execute_pipeline_steps(
             s = db_err.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
             if s:
                 s.status = SessionStatus.BLOCKED
+                s.phase = SessionPhase.FAILED
                 s.error_message = str(e)
                 db_err.commit()
         finally:

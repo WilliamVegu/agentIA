@@ -21,6 +21,8 @@ client = TestClient(app)
 def test_architecture_design_save_and_retrieve(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "WORKSPACE_DIR", str(tmp_path))
     sid = "sess-arch-retrieval"
+    from _support import repair_workspace
+    repair_workspace(sid, {})
     design = {"serviceName": "order-service", "components": [{"name": "OrderController", "layer": "controller"}]}
 
     save = client.post(f"/api/v1/architecture/sessions/{sid}/save", json=design)
@@ -35,6 +37,8 @@ def test_architecture_design_save_and_retrieve(monkeypatch, tmp_path):
 def test_models_design_save_and_retrieve(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "WORKSPACE_DIR", str(tmp_path))
     sid = "sess-models-retrieval"
+    from _support import repair_workspace
+    repair_workspace(sid, {})
     design = {"serviceName": "order-service", "schemaSql": "CREATE TABLE orders (id bigint)"}
 
     save = client.post(f"/api/v1/models/sessions/{sid}/save", json=design)

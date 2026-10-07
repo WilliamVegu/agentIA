@@ -128,7 +128,7 @@ class RepairExecutionRequest(BaseModel):
     provider: Optional[str] = None
     modelName: Optional[str] = None
     sessionId: str
-    iterationNumber: int = Field(..., ge=1, le=5)
+    iterationNumber: int = Field(..., ge=1, le=3)
     diagnostics: List[FailureDiagnostic]
     sourceFiles: Dict[str, str] = Field(default_factory=dict)
     apiKey: Optional[str] = None

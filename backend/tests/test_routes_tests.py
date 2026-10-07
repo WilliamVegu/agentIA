@@ -4,6 +4,42 @@ from app.main import app
 
 client = TestClient(app)
 
+
+def test_repair_missing_session_returns_404():
+    response = client.post('/api/v1/tests/repair', json={
+        'sessionId': 'missing-repair-session', 'iterationNumber': 1,
+        'diagnostics': [], 'sourceFiles': {},
+    })
+    assert response.status_code == 404
+
+
+def test_repair_busy_workspace_returns_409_without_changing_sources():
+    from _support import repair_workspace
+    from app.services.queue_service import queue_manager
+    files = {'src/main/java/App.java': 'class App {}'}
+    ws = repair_workspace('busy-repair-session', files)
+    assert queue_manager.try_acquire_slot_sync('busy-repair-session')
+    try:
+        response = client.post('/api/v1/tests/repair', json={
+            'sessionId': 'busy-repair-session', 'iterationNumber': 1,
+            'diagnostics': [], 'sourceFiles': files,
+        })
+        assert response.status_code == 409
+        assert (ws / 'src/main/java/App.java').read_text(encoding='utf-8') == files['src/main/java/App.java']
+    finally:
+        queue_manager.release_slot_sync('busy-repair-session')
+
+
+def test_repair_stale_sources_returns_409_without_overwriting():
+    from _support import repair_workspace
+    ws = repair_workspace('stale-repair-session', {'src/main/java/App.java': 'class App {}'})
+    response = client.post('/api/v1/tests/repair', json={
+        'sessionId': 'stale-repair-session', 'iterationNumber': 1,
+        'diagnostics': [], 'sourceFiles': {'src/main/java/App.java': 'class OldApp {}'},
+    })
+    assert response.status_code == 409
+    assert (ws / 'src/main/java/App.java').read_text(encoding='utf-8') == 'class App {}'
+
 @pytest.fixture
 def sample_blueprint():
     return {
@@ -84,22 +120,24 @@ def test_repair_endpoint_success_and_boundary():
     }
 
     # Iteration 1
+    from _support import repair_workspace
+    repair_workspace(payload['sessionId'], payload['sourceFiles'])
     resp1 = client.post("/api/v1/tests/repair", json=payload)
     assert resp1.status_code == 200
     assert resp1.json()["iterationNumber"] == 1
 
-    # Iteration 6 (Must be rejected per Principle V limit <= 5)
-    payload["iterationNumber"] = 6
+    # A fourth automatic repair exceeds the configured three-attempt limit.
+    payload["iterationNumber"] = 4
     resp6 = client.post("/api/v1/tests/repair", json=payload)
     assert resp6.status_code in (400, 422)
 
-def test_get_repairs_and_manual_override():
+def test_get_repairs_and_manual_override(monkeypatch):
     session_id = "blocked-session-999"
 
-    # Simulate 5th iteration failure (Constitutional Exhaustion)
+    # Simulate the third failed iteration (constitutional exhaustion).
     payload = {
         "sessionId": session_id,
-        "iterationNumber": 5,
+        "iterationNumber": 3,
         "diagnostics": [
             {
                 "id": "DIAG-BLOCK",
@@ -113,7 +151,12 @@ def test_get_repairs_and_manual_override():
             "src/main/java/com/corp/order/service/OrderServiceImpl.java": "public class OrderServiceImpl {}"
         }
     }
-    client.post("/api/v1/tests/repair", json=payload)
+    from _support import repair_workspace
+    repair_workspace(session_id, payload['sourceFiles'], mode='DOCKER')
+    monkeypatch.setattr('app.orchestrator.nodes.sandbox_node.sandbox_node', lambda state: {
+        'status': 'BLOCKED', 'error': 'test assertion failed', 'test_metrics': {
+            'totalTests': 1, 'passedTests': 0, 'failedTests': 1, 'allPassed': False, 'fallback_used': False}})
+    assert client.post("/api/v1/tests/repair", json=payload).status_code == 200
 
     # Check GET repairs
     rep_resp = client.get(f"/api/v1/sessions/{session_id}/repairs")
@@ -132,4 +175,5 @@ def test_get_repairs_and_manual_override():
         }
     )
     assert man_resp.status_code == 200
-    assert man_resp.json()["status"] == "REPAIR_APPLIED"
+    assert man_resp.json()["status"] == "BLOCKED"
+    assert man_resp.json()["diagnosticsResolved"] is False

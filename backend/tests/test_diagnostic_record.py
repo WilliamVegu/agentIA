@@ -588,6 +588,10 @@ def test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion(
             return {"serviceName": "notes-service", "packageName": "com.corp.notes",
                     "components": [], "mermaidDiagram": "graph TD"}
     monkeypatch.setattr(pipeline_runner, "design_architecture", lambda *a, **k: _Arch())
+    # Keep the scripted provider responses for the generation stages under test.
+    synthesize = pipeline_runner.model_sql_service.synthesize_domain_models_and_sql
+    monkeypatch.setattr(pipeline_runner.model_sql_service, 'synthesize_domain_models_and_sql',
+        lambda draft, **kwargs: synthesize(draft, provider='mock'))
 
     db = SessionLocal()
     try:

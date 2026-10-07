@@ -127,6 +127,13 @@ def _complete_phase_5(ws: Path):
     (ws / "pom.xml").write_text("<project/>", encoding="utf-8")
     (ws / "src" / "main" / "java").mkdir(parents=True, exist_ok=True)
     (ws / "src" / "main" / "java" / "App.java").write_text("class App {}", encoding="utf-8")
+    from app.services.verification_policy import workspace_fingerprint
+    with SessionLocal() as db:
+        row = db.get(GenerationSessionDB, ws.name)
+        if row.status not in (SessionStatus.BLOCKED, SessionStatus.CANCELLED):
+            row.status = SessionStatus.COMPLETED
+            row.verification_metrics_json = json.dumps({"sourceDeliveryReady": True, "sourceDeliveryFingerprint": workspace_fingerprint(ws)})
+            db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -389,6 +396,8 @@ def test_a_compose_file_completes_phase_seven_and_surfaces_the_deploy_status(ses
     _complete_through_phase_4(ws)
     _complete_phase_5(ws)
     (ws / "docker-compose.yml").write_text("services: {}", encoding="utf-8")
+    from _support import source_delivery
+    source_delivery(session_id, ws)
 
     state = lifecycle.get_session_lifecycle(session_id)
 
@@ -645,6 +654,8 @@ def test_a_fully_complete_session_reports_completion(session):
         "@RestControllerAdvice class GlobalExceptionHandler {}", encoding="utf-8"
     )
     (ws / "docker-compose.yml").write_text("services: {}", encoding="utf-8")
+    from _support import source_delivery
+    source_delivery(session_id, ws)
 
     state = lifecycle.get_session_lifecycle(session_id)
 

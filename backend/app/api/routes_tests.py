@@ -129,12 +129,15 @@ def execute_repair_iteration(
     """
     effective_key = request.apiKey or x_llm_api_key
 
-    if request.iterationNumber > 5:
+    from app.config import settings
+    if request.iterationNumber > settings.MAX_REPAIR_ATTEMPTS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Constitution Principle V Violation: Auto-repair cycle hard-capped at 5 iterations. Session is now BLOCKED.",
+            detail=f"Constitution Principle V Violation: Auto-repair cycle hard-capped at {settings.MAX_REPAIR_ATTEMPTS} iterations.",
         )
 
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws = get_validated_workspace_path(request.sessionId, require_exists=True)
     try:
         record = test_analysis_service.execute_repair_iteration(
             session_id=request.sessionId,
@@ -207,6 +210,8 @@ def execute_repair_iteration(
             }
 
         return record
+    except HTTPException:
+        raise
     except ValueError as ve:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

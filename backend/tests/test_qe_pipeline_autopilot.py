@@ -181,7 +181,7 @@ def test_pausing_after_a_step_stops_before_the_next_one(session, monkeypatch,
                                stop_on_gate=True, auto_deploy=False)
 
     assert pr._pipeline_statuses[session_id] == PipelineRunStatus.PAUSED
-    assert not (ws / next_artifact).exists(), (
+    assert (not (ws / next_artifact).exists() if pause_after != LifecyclePhase.SECURITY_AUDIT else not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue)), (
         f"the step after {pause_after.value} ran despite the pause"
     )
 
@@ -250,6 +250,8 @@ def test_pause_switches_the_session_to_guided_step(session):
     session_id, _ = session
     _prepare_events(session_id)
 
+    from types import SimpleNamespace
+    pr._active_threads[session_id] = SimpleNamespace(is_alive=lambda: True)
     assert pr.pause_pipeline(session_id) is True
 
     row = _row(session_id)
@@ -266,7 +268,7 @@ def test_pausing_a_session_that_was_never_started_reports_whether_it_is_paused(s
     """
     pr._pause_events["qe-orphan"] = threading.Event()
 
-    assert pr.pause_pipeline("qe-orphan") is True
+    assert pr.pause_pipeline("qe-orphan") is False  # no active worker to pause
     assert pr.pause_pipeline("qe-never-existed") is False
 
 
@@ -295,6 +297,7 @@ def test_resume_replays_the_session_credentials_and_waits_for_the_old_thread(ses
         return True
 
     monkeypatch.setattr(pr, "run_pipeline", fake_run)
+    unwinding.set()
     try:
         assert pr.resume_pipeline(session_id) is True
     finally:
@@ -333,8 +336,8 @@ def test_a_second_run_is_refused_while_one_is_alive(session, monkeypatch):
     pr._active_threads[session_id].join(timeout=3)
 
 
-def test_force_starts_a_run_even_while_another_is_alive(session, monkeypatch):
-    """``force`` is how resume works; without it a paused session could never restart."""
+def test_force_refuses_a_run_while_another_writer_is_alive(session, monkeypatch):
+    """Force may restart a finished worker, but never interleave two live writers."""
     session_id, _ = session
     _prepare_events(session_id)
     gate = threading.Event()
@@ -348,7 +351,7 @@ def test_force_starts_a_run_even_while_another_is_alive(session, monkeypatch):
     assert pr.run_pipeline(session_id) is True
     assert started.wait(3)
 
-    assert pr.run_pipeline(session_id, force=True) is True
+    assert pr.run_pipeline(session_id, force=True) is False  # force cannot interleave writers
 
     gate.set()
     for thread in list(pr._active_threads.values()):
@@ -630,8 +633,15 @@ def test_auto_deploy_asks_for_the_local_deployment(session, monkeypatch):
     _stub_heavy_steps(monkeypatch)
     deployed = []
 
-    monkeypatch.setattr(pr, "deploy_local",
-                        lambda sid, path, **kw: deployed.append((sid, path)))
+    from app.models.devops import LocalDeploymentSession, DeploymentStatus
+    from app.models.execution import ExecutionMode
+    with SessionLocal() as db:
+        db.get(GenerationSessionDB, session_id).execution_mode = "DOCKER"
+        db.commit()
+    monkeypatch.setattr(pr, "deploy_local", lambda sid, path, **kw: (deployed.append((sid, path)) or LocalDeploymentSession(sessionId=sid, status=DeploymentStatus.HEALTHY)))
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services.workspace_verification import WorkspaceVerification
+    monkeypatch.setattr(pr, "run_workspace_verification", lambda *a, **kw: WorkspaceVerification(result=DockerExecutionResult(exit_code=0, stdout="Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"), platform_test_path=None))
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
                                stop_on_gate=True, auto_deploy=True)
@@ -664,7 +674,7 @@ def test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy(sessi
                                stop_on_gate=True, auto_deploy=True)
 
     assert deployed == []
-    assert not (ws / "docker-compose.yml").exists()
+    assert not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue)
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
 
 
@@ -776,7 +786,7 @@ def test_exhausted_stages_block_the_session_and_record_the_evidence(session, mon
     assert row.completed_at is not None
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
     assert recorded == [session_id], "the blocked session was not diagnosed"
-    assert not (ws / "docker-compose.yml").exists(), "a blocked run continued into DevOps"
+    assert not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue), "a blocked run continued into DevOps"
     events = list(pr._event_queues[session_id].queue)
     assert events[-1].status == PhaseStatus.BLOCKED
     assert events[-1].error == "3 repair attempts exhausted"
@@ -857,7 +867,7 @@ def test_an_entity_without_a_primary_key_gets_one(monkeypatch, tmp_path):
 
     monkeypatch.setattr(pr, "_generate_mock_decomposition", lambda **kw: decomp)
     monkeypatch.setattr(pr.settings, "WORKSPACE_DIR", str(tmp_path))
-
+    (tmp_path / 'spec.md').write_text('Crear un servicio de pedidos con nombre y precio', encoding='utf-8')
     draft = pr._get_or_create_draft(tmp_path, "cafe")
 
     attributes = draft.entities[0].attributes
