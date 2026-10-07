@@ -1,0 +1,62 @@
+{
+  "maven": {
+    "create_status": 201,
+    "approve_status": 200,
+    "select_status": 200,
+    "skeleton_status": 200,
+    "build_status": 200,
+    "delivery_status": 200,
+    "export_status": 200,
+    "delivered_state": "Entregado",
+    "postgresql_selected_but_production_mssql": true,
+    "custom_contract_path_implemented_by_concrete_resources": false,
+    "reported_tests_executed": true,
+    "reported_tests_summary": {
+      "total_tests": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "coverage_percentage": 94.4,
+      "execution_time_ms": 1625,
+      "verdict": "BUILD SUCCESS",
+      "tested_entities": [
+        "Client",
+        "HistoryAuditMaven",
+        "ItemsHistoryAuditMaven"
+      ]
+    }
+  },
+  "gradle": {
+    "create_status": 201,
+    "approve_status": 200,
+    "select_status": 200,
+    "skeleton_status": 200,
+    "build_status": 200,
+    "delivery_status": 200,
+    "export_status": 200,
+    "delivered_state": "Entregado",
+    "postgresql_selected_but_production_mssql": true,
+    "custom_contract_path_implemented_by_concrete_resources": false,
+    "reported_tests_executed": true,
+    "reported_tests_summary": {
+      "total_tests": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "coverage_percentage": 94.4,
+      "execution_time_ms": 1625,
+      "verdict": "BUILD SUCCESS",
+      "tested_entities": [
+        "Client",
+        "HistoryAuditGradl",
+        "ItemsHistoryAuditGradle"
+      ]
+    }
+  },
+  "no_security": {
+    "approval_status": 400,
+    "response": {
+      "detail": "type object 'SecurityEnum' has no attribute 'OIDC'"
+    }
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "branch": "origin/Quarkus_refact_2",
+  "head": "7efbc188888dc80a76fa11b2116555a9340c95d0",
+  "reachable_commits": 172,
+  "factory_paths_checked": [
+    "backend/app/api/routes_quarkus_factory.py",
+    "backend/app/models/quarkus_factory.py",
+    "backend/app/services/quarkus_factory/factory_orchestrator.py",
+    "frontend/src/context/QuarkusContext.tsx",
+    "frontend/src/views/quarkus/QuarkusFactoryStudioView.tsx"
+  ],
+  "factory_path_occurrences": [],
+  "commits_with_quarkus_filenames": [],
+  "first_parent_history": [
+    "7efbc188888dc80a76fa11b2116555a9340c95d0 19627d87e75a25e0178493c73d4c43b7798d032b 2026-10-07T12:02:33-05:00 wq",
+    "19627d87e75a25e0178493c73d4c43b7798d032b 1a9223fd820de77551146b1da87d058817136276 000192f3ae00f7dfd3ecfbfc6510460171513a57 2026-10-02T12:13:42-05:00 Merge pull request #1 from WilliamVegu/no-docker",
+    "1a9223fd820de77551146b1da87d058817136276 616e49b304869f467d7eddde4dce7e9399bf0511 2026-09-23T02:58:40-05:00 aa",
+    "616e49b304869f467d7eddde4dce7e9399bf0511 2393800e0cd309d8279036da56065121e624efe8 2026-09-23T02:34:12-05:00 finn?",
+    "2393800e0cd309d8279036da56065121e624efe8 b835eafa9938ba3a46c16988bb3421477d368f42 2026-09-22T13:43:29-05:00 fin?",
+    "b835eafa9938ba3a46c16988bb3421477d368f42 b5839a6d20ac24b1f86ce8412133081fe08f5269 2026-09-18T08:35:53-05:00 fix(orchestrator): add reactive polling and live SSE bridging for generation pipeline",
+    "b5839a6d20ac24b1f86ce8412133081fe08f5269 93a4d6df40e14e87c6e3c6901cafdff1deef91ac 2026-09-18T08:20:34-05:00 fix(frontend): add ErrorBoundary and improve CodeExplorer artifact content resilience",
+    "93a4d6df40e14e87c6e3c6901cafdff1deef91ac 2da3f97791628ee00b1127b0af35ffd4d0bb8373 2026-09-18T08:01:28-05:00 feat(llm): support active Gemini 3.6 Flash and Groq models with resilient fallback and modern UI",
+    "2da3f97791628ee00b1127b0af35ffd4d0bb8373 d0caf20224e057f73ce28fb21a5491f6f4f121b3 2026-09-15T15:27:42-05:00 aa",
+    "d0caf20224e057f73ce28fb21a5491f6f4f121b3 586793f27e0f4545014481a7256a4ad00f84e4d5 2026-09-15T08:21:24-05:00 hl",
+    "586793f27e0f4545014481a7256a4ad00f84e4d5 cc1f2a2804c36b3dcf0bb8964897b1ecf6fda459 2026-09-14T15:46:48-05:00 feat: interfaz SaaS estilo TalentIA, soporte dinámico de modelos Groq y alta resiliencia",
+    "cc1f2a2804c36b3dcf0bb8964897b1ecf6fda459 09da6f1e5535e96b10e3ab033c832ccbcf120abf 2026-09-14T02:31:49-05:00 feat: proyecto completo AgentIA Microservices Code Studio",
+    "09da6f1e5535e96b10e3ab033c832ccbcf120abf  2026-09-13T13:42:35-05:00 chore: inicializar proyecto con spec-kit"
+  ],
+  "merge": {
+    "commit": "19627d87e75a25e0178493c73d4c43b7798d032b",
+    "parents": [
+      "1a9223fd820de77551146b1da87d058817136276",
+      "000192f3ae00f7dfd3ecfbfc6510460171513a57"
+    ],
+    "description": "commit 19627d87e75a25e0178493c73d4c43b7798d032b\nMerge: 1a9223f 000192f\nAuthor:     WilliamVegu <136489536+WilliamVegu@users.noreply.github.com>\nAuthorDate: Fri Oct 2 12:13:42 2026 -0500\nCommit:     GitHub <noreply@github.com>\nCommitDate: Fri Oct 2 12:13:42 2026 -0500\n\n    Merge pull request #1 from WilliamVegu/no-docker\n    \n    No docker"
+  },
+  "snapshots": {
+    "origin/Quarkus_refact_2": {
+      "commit": "7efbc188888dc80a76fa11b2116555a9340c95d0",
+      "metadata": "2026-10-07T12:02:33-05:00 wq",
+      "quarkus_paths": []
+    },
+    "1a9223fd820de77551146b1da87d058817136276": {
+      "commit": "1a9223fd820de77551146b1da87d058817136276",
+      "metadata": "2026-09-23T02:58:40-05:00 aa",
+      "quarkus_paths": []
+    },
+    "000192f3ae00f7dfd3ecfbfc6510460171513a57": {
+      "commit": "000192f3ae00f7dfd3ecfbfc6510460171513a57",
+      "metadata": "2026-10-02T12:08:01-05:00 Presentación",
+      "quarkus_paths": []
+    },
+    "10c10ae": {
+      "commit": "10c10aee0e3e0d2d9a21ea91609b5e4bd80476b1",
+      "metadata": "2026-10-02T09:16:57-05:00 feat(quarkus): implementar fabrica de agentes Quarkus 3.x con Java 21, explorador de codigo en vivo, arquitectura dinamica y verificacion automatizada",
+      "quarkus_paths": [
+        "backend/app/api/routes_quarkus_factory.py",
+        "backend/app/models/quarkus_factory.py",
+        "backend/app/services/quarkus_factory/__init__.py",
+        "backend/app/services/quarkus_factory/analyst_agent.py",
+        "backend/app/services/quarkus_factory/architect_agent.py",
+        "backend/app/services/quarkus_factory/developer_qa_service.py",
+        "backend/app/services/quarkus_factory/documenter_devops_service.py",
+        "backend/app/services/quarkus_factory/factory_orchestrator.py",
+        "backend/app/services/quarkus_factory/scaffolder_service.py",
+        "backend/tests/test_quarkus_factory.py",
+        "frontend/src/context/QuarkusContext.tsx",
+        "frontend/src/services/quarkusFactoryService.ts",
+        "frontend/src/types/quarkusFactory.ts",
+        "frontend/src/views/quarkus/QuarkusFactoryStudioView.tsx",
+        "frontend/src/views/quarkus/QuarkusStepperNav.tsx",
+        "frontend/src/views/quarkus/Step1OrderInput.tsx",
+        "frontend/src/views/quarkus/Step2Clarifications.tsx",
+        "frontend/src/views/quarkus/Step3ContractControl1.tsx",
+        "frontend/src/views/quarkus/Step4ArchitectureArchetype.tsx",
+        "frontend/src/views/quarkus/Step5ConstructionTracking.tsx",
+        "frontend/src/views/quarkus/Step6Documentation.tsx",
+        "frontend/src/views/quarkus/Step7RevisionControl2.tsx",
+        "frontend/src/views/quarkus/Step8DevOpsDelivery.tsx"
+      ]
+    },
+    "origin/Quarkus_refact": {
+      "commit": "e7511d1d03459d2263b84d38659d45a44e8f4054",
+      "metadata": "2026-10-05T09:52:13-05:00 Add files via upload",
+      "quarkus_paths": [
+        "backend/app/api/routes_quarkus_factory.py",
+        "backend/app/models/quarkus_factory.py",
+        "backend/app/services/quarkus_factory/__init__.py",
+        "backend/app/services/quarkus_factory/analyst_agent.py",
+        "backend/app/services/quarkus_factory/architect_agent.py",
+        "backend/app/services/quarkus_factory/developer_qa_service.py",
+        "backend/app/services/quarkus_factory/documenter_devops_service.py",
+        "backend/app/services/quarkus_factory/factory_orchestrator.py",
+        "backend/app/services/quarkus_factory/scaffolder_service.py",
+        "backend/tests/test_quarkus_factory.py",
+        "frontend/src/context/QuarkusContext.tsx",
+        "frontend/src/services/quarkusFactoryService.ts",
+        "frontend/src/types/quarkusFactory.ts",
+        "frontend/src/views/quarkus/QuarkusFactoryStudioView.tsx",
+        "frontend/src/views/quarkus/QuarkusStepperNav.tsx",
+        "frontend/src/views/quarkus/Step1OrderInput.tsx",
+        "frontend/src/views/quarkus/Step2Clarifications.tsx",
+        "frontend/src/views/quarkus/Step3ContractControl1.tsx",
+        "frontend/src/views/quarkus/Step4ArchitectureArchetype.tsx",
+        "frontend/src/views/quarkus/Step5ConstructionTracking.tsx",
+        "frontend/src/views/quarkus/Step6Documentation.tsx",
+        "frontend/src/views/quarkus/Step7RevisionControl2.tsx",
+        "frontend/src/views/quarkus/Step8DevOpsDelivery.tsx"
+      ]
+    },
+    "origin/Unificado": {
+      "commit": "5ebe5ded6b5215357f87d1492bee4c07a54e28f0",
+      "metadata": "2026-10-05T16:46:16-05:00 uniooon?",
+      "quarkus_paths": [
+        "backend/app/api/routes_quarkus_factory.py",
+        "backend/app/models/quarkus_factory.py",
+        "backend/app/services/quarkus_factory/__init__.py",
+        "backend/app/services/quarkus_factory/analyst_agent.py",
+        "backend/app/services/quarkus_factory/architect_agent.py",
+        "backend/app/services/quarkus_factory/developer_qa_service.py",
+        "backend/app/services/quarkus_factory/documenter_devops_service.py",
+        "backend/app/services/quarkus_factory/factory_orchestrator.py",
+        "backend/app/services/quarkus_factory/scaffolder_service.py",
+        "backend/tests/test_quarkus_factory.py",
+        "frontend/src/context/QuarkusContext.tsx",
+        "frontend/src/services/quarkusFactoryService.ts",
+        "frontend/src/types/quarkusFactory.ts",
+        "frontend/src/views/quarkus/QuarkusFactoryStudioView.tsx",
+        "frontend/src/views/quarkus/QuarkusStepperNav.tsx",
+        "frontend/src/views/quarkus/Step1OrderInput.tsx",
+        "frontend/src/views/quarkus/Step2Clarifications.tsx",
+        "frontend/src/views/quarkus/Step3ContractControl1.tsx",
+        "frontend/src/views/quarkus/Step4ArchitectureArchetype.tsx",
+        "frontend/src/views/quarkus/Step5ConstructionTracking.tsx",
+        "frontend/src/views/quarkus/Step6Documentation.tsx",
+        "frontend/src/views/quarkus/Step7RevisionControl2.tsx",
+        "frontend/src/views/quarkus/Step8DevOpsDelivery.tsx"
+      ]
+    }
+  },
+  "quarkus_commits_are_ancestors": {
+    "10c10ae": false,
+    "origin/Quarkus_refact": false,
+    "83dc944": false,
+    "e72e30c": false,
+    "origin/Unificado": false
+  },
+  "remote_tracking_reflog": [
+    "7efbc18 refs/remotes/origin/Quarkus_refact_2@{2026-10-07T12:01:10-05:00}: fetch: fast-forward",
+    "19627d8 refs/remotes/origin/Quarkus_refact_2@{2026-10-05T12:32:42-05:00}: fetch: storing head"
+  ],
+  "original_factory_source_delta": ""
+}

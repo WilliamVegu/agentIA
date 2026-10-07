@@ -1,0 +1,77 @@
+{
+  "unreachable_commits": [
+    {
+      "commit": "6d4f0d077fd86ddc242cc949f225d4809f82247f",
+      "metadata": "2026-09-29T23:50:31-05:00 feat(quarkus): implement Quarkus 3.x, Spanish BDD spec-driven workflow, guided phase execution, and fix circular JSON error",
+      "quarkus_paths": [
+        "specs/016-quarkus-ai-native-studio/plan.md",
+        "specs/016-quarkus-ai-native-studio/spec.md",
+        "specs/016-quarkus-ai-native-studio/tasks.md"
+      ]
+    },
+    {
+      "commit": "5d9b190019f3bcdf8067ea9c8deb77ad766b3f54",
+      "metadata": "2026-09-30T08:18:19-05:00 fix(architecture): enforce pure Quarkus 3.x, eradicate Spring stereotypes and eliminate cyclic dependencies",
+      "quarkus_paths": [
+        "specs/016-quarkus-ai-native-studio/plan.md",
+        "specs/016-quarkus-ai-native-studio/spec.md",
+        "specs/016-quarkus-ai-native-studio/tasks.md"
+      ]
+    },
+    {
+      "commit": "93eb05bc60871af43d4953d75a5f7a7fe7c92b12",
+      "metadata": "2026-09-30T07:17:14-05:00 fix(architecture): purge legacy Spring Boot remnants from architecture views, diagrams, and OpenAPI contracts",
+      "quarkus_paths": [
+        "specs/016-quarkus-ai-native-studio/plan.md",
+        "specs/016-quarkus-ai-native-studio/spec.md",
+        "specs/016-quarkus-ai-native-studio/tasks.md"
+      ]
+    },
+    {
+      "commit": "12b02c7c3f875f9f3d1c21d4557fc76c724293a1",
+      "metadata": "2026-09-30T06:26:25-05:00 feat(quarkus): enforce 100% native Quarkus 3.x stack and zero Spring Boot contamination across all methodology phases",
+      "quarkus_paths": [
+        "specs/016-quarkus-ai-native-studio/plan.md",
+        "specs/016-quarkus-ai-native-studio/spec.md",
+        "specs/016-quarkus-ai-native-studio/tasks.md"
+      ]
+    },
+    {
+      "commit": "78b697fe10c1ec436135a3033e9eb6789870091f",
+      "metadata": "2026-09-25T13:19:09-05:00 api",
+      "quarkus_paths": []
+    },
+    {
+      "commit": "bbbabb850eecf408eb83635db24fab39e8016d10",
+      "metadata": "2026-09-30T07:42:56-05:00 feat(requirements): enable manual creation and editing of user stories, and add resilient 503 fallback for architecture synthesis",
+      "quarkus_paths": [
+        "specs/016-quarkus-ai-native-studio/plan.md",
+        "specs/016-quarkus-ai-native-studio/spec.md",
+        "specs/016-quarkus-ai-native-studio/tasks.md"
+      ]
+    },
+    {
+      "commit": "c5bda02365ff597ca32c835044716d68fd1d1a5c",
+      "metadata": "2026-09-29T16:07:25-05:00 Correcciones Quakus V1",
+      "quarkus_paths": []
+    },
+    {
+      "commit": "9ffe4621feeb370b26d53ca9cb94bbfe6dc5ec1e",
+      "metadata": "2026-09-30T05:55:57-05:00 feat(architecture): enforce Spanish descriptions and responsibilities while preserving English programming terms",
+      "quarkus_paths": [
+        "specs/016-quarkus-ai-native-studio/plan.md",
+        "specs/016-quarkus-ai-native-studio/spec.md",
+        "specs/016-quarkus-ai-native-studio/tasks.md"
+      ]
+    }
+  ],
+  "candidate_unchanged_services": {
+    "analyst_agent.py": true,
+    "architect_agent.py": true,
+    "developer_qa_service.py": true,
+    "scaffolder_service.py": true
+  },
+  "factory_marker_history_in_quarkus_refact_2": "",
+  "candidate_services_delta": "diff --git a/backend/app/services/quarkus_factory/documenter_devops_service.py b/backend/app/services/quarkus_factory/documenter_devops_service.py\nindex 8b8eca2..3dd27dc 100644\n--- a/backend/app/services/quarkus_factory/documenter_devops_service.py\n+++ b/backend/app/services/quarkus_factory/documenter_devops_service.py\n@@ -327,4 +327,5 @@ spec:\n     targetPort: 8080\n   type: ClusterIP\n \"\"\"\n-        return artifacts\n+        devops_tokens = 1500\n+        return artifacts, devops_tokens\ndiff --git a/backend/app/services/quarkus_factory/factory_orchestrator.py b/backend/app/services/quarkus_factory/factory_orchestrator.py\nindex cc84539..9d68a7a 100644\n--- a/backend/app/services/quarkus_factory/factory_orchestrator.py\n+++ b/backend/app/services/quarkus_factory/factory_orchestrator.py\n@@ -6,6 +6,7 @@ la auditoría transversal de tokens y la persistencia de los pedidos.\n \n from datetime import datetime, timezone\n import io\n+from pathlib import Path\n import time\n import zipfile\n from typing import Dict, List, Optional, Any\n@@ -709,3 +710,58 @@ class FactoryOrchestrator:\n         zip_buffer.seek(0)\n         return zip_buffer.getvalue()\n \n+    @classmethod\n+    def publish_order_to_git(\n+        cls,\n+        order_id: str,\n+        repository_url: str,\n+        branch_name: str,\n+        git_token: Optional[str] = None,\n+        commit_message: Optional[str] = None\n+    ) -> Dict[str, Any]:\n+        \"\"\"\n+        Publica el código generado del microservicio Quarkus en una rama remota de Git (GitHub/GitLab).\n+        Escribe los archivos generados en disco en un workspace dedicado e invoca publish_to_git.\n+        \"\"\"\n+        from app.services.git_service import publish_to_git\n+        from app.config import settings\n+\n+        order = cls.get_order(order_id)\n+        if not order:\n+            raise ValueError(f\"Pedido {order_id} no encontrado\")\n+\n+        if not order.generated_files:\n+            raise ValueError(f\"El pedido {order_id} no tiene archivos de código generados aún.\")\n+\n+        ws_dir = Path(settings.WORKSPACE_DIR) / f\"quarkus_{order_id}\"\n+        ws_dir.mkdir(parents=True, exist_ok=True)\n+\n+        for file_path, content in order.generated_files.items():\n+            dest = ws_dir / file_path\n+            dest.parent.mkdir(parents=True, exist_ok=True)\n+            dest.write_text(content, encoding=\"utf-8\")\n+\n+        msg = commit_message or f\"feat(quarkus): microservicio {order.basic_data.service_name} generado por Fábrica Quarkus 3.x\"\n+        result = publish_to_git(\n+            workspace_path=str(ws_dir),\n+            repository_url=repository_url,\n+            branch_name=branch_name,\n+            git_token=git_token,\n+            commit_message=msg\n+        )\n+\n+        if not order.control_2_approval_info:\n+            order.control_2_approval_info = {}\n+        order.control_2_approval_info[\"published_to_git\"] = True\n+        order.control_2_approval_info[\"git_result\"] = result\n+\n+        order.timeline_events.append({\n+            \"timestamp\": datetime.now(timezone.utc).isoformat(),\n+            \"event\": \"PUBLICACION_GIT_EXITOSA\",\n+            \"message\": f\"Microservicio publicado exitosamente en Git ({result.get('branchUrl', branch_name)}).\",\n+            \"tokens\": 0\n+        })\n+\n+        return result\n+\n+",
+  "delivery_correction_commit": "83dc944 2026-10-05T11:50:24-05:00 feat(unified): integrar ecosistemas Spring Boot y Quarkus con pantalla inicial de seleccion"
+}

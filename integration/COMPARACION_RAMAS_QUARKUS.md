@@ -1,5 +1,7 @@
 # Comparación de Quarkus_refact y Quarkus_refact_2
 
+**Actualización posterior:** la búsqueda de commits sin referencia recuperó dos historias Quarkus anteriores y examinó la fábrica corregida de `Unificado`. Consultar [Historial y recuperación](HISTORIAL_Y_RECUPERACION_QUARKUS.md) antes de elegir la fuente final. Esta comparación conserva los resultados de las dos ramas remotas originales.
+
 Revisión del 7 de octubre de 2026. Se inspeccionaron los commits remotos y se ejecutaron ambas versiones en copias aisladas. No se cambiaron las aplicaciones ni la carpeta original de `no-docker`.
 
 ## Conclusión

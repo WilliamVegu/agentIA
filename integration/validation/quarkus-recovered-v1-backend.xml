@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="2" failures="0" skipped="0" tests="2" time="17.530" timestamp="2026-10-07T15:10:30.947980-05:00" hostname="45HW011620"><testcase classname="" name="backend.tests.test_generation_stages_model" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\GenAIAUGPERUSR2\Documents\agentIA-quarkus-v1-audit\backend\tests\test_generation_stages_model.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Program Files\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_generation_stages_model.py:291: in &lt;module&gt;
+    from app.orchestrator.stages import journal as journal_mod  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ImportError: cannot import name 'journal' from 'app.orchestrator.stages' (unknown location)</error></testcase><testcase classname="" name="backend.tests.test_generation_stages_offline" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\GenAIAUGPERUSR2\Documents\agentIA-quarkus-v1-audit\backend\tests\test_generation_stages_offline.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Program Files\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_generation_stages_offline.py:28: in &lt;module&gt;
+    from app.orchestrator.stages import journal as journal_mod  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ImportError: cannot import name 'journal' from 'app.orchestrator.stages' (unknown location)</error></testcase></testsuite></testsuites>
