@@ -67,25 +67,19 @@ export const DEFAULT_MODELS: Record<LlmProviderType, string> = {
 const LlmContext = createContext<LlmContextType | undefined>(undefined);
 
 export const LlmProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [provider, setProviderState] = useState<LlmProviderType>('deepseek');
+  const [provider, setProviderState] = useState<LlmProviderType>('gemini');
   const [apiKey, setApiKeyState] = useState<string>('');
-  const [model, setModelState] = useState<string>(DEFAULT_MODELS.deepseek);
+  const [model, setModelState] = useState<string>(DEFAULT_MODELS.gemini);
   const [isVerified, setIsVerified] = useState<boolean>(false);
   const [latencyMs, setLatencyMs] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>(
-    'Configure la clave y verifique la conexión con DeepSeek.'
+    'Configure su API Key en Ajustes para generar microservicios con IA real.'
   );
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
 
   useEffect(() => {
-    setEphemeralLlmCredentials(apiKey, provider, model);
-  }, [apiKey, provider, model]);
-
-  useEffect(() => {
-    const clearCredentials = () => { setApiKeyState(''); setIsVerified(false); setStatusMessage('Ingrese su clave para verificar la conexión.'); };
-    window.addEventListener('agentia:logout', clearCredentials);
-    return () => window.removeEventListener('agentia:logout', clearCredentials);
-  }, []);
+    setEphemeralLlmCredentials(apiKey, provider);
+  }, [apiKey, provider]);
 
   const setProvider = (p: LlmProviderType) => {
     setProviderState(p);
@@ -107,7 +101,6 @@ export const LlmProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setModel = (m: string) => {
     setModelState(m);
-    setIsVerified(false);
   };
 
   const verifyConnection = async (

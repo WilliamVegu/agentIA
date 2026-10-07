@@ -512,16 +512,12 @@ def test_the_graph_accumulator_preserves_artifacts_when_a_stage_exhausts(
         is_success = False
         fallback_reason = "test: the container runtime is not consulted"
         duration_ms = 0
-        stdout = ""
 
     async def _fake_sandbox(*args, **kwargs):
         return _Unverifiable()
 
-    # The seam moved: preparation and execution now live in one place
-    # (`workspace_verification`) so the sequential product path verifies identically
-    # rather than not at all. Patching the old location silently patched nothing.
     monkeypatch.setattr(
-        "app.services.workspace_verification.run_docker_sandbox", _fake_sandbox
+        "app.orchestrator.nodes.sandbox_node.run_docker_sandbox", _fake_sandbox
     )
 
     initial = _model_state(blueprint, workspace, "t015-c")
@@ -569,25 +565,6 @@ def test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion(
     # Keep the cost recorder off the real store; this test is not about cost.
     monkeypatch.setattr(settings, "COST_STORE_PATH", str(tmp_path / "cost.db"), raising=False)
     _script_responses(monkeypatch, _real_baseline_pattern(blueprint))
-
-    # The sequential path's spec/design phases would consume the scripted model and
-    # break the generation-stage exhaustion this test exercises; stub them to a
-    # deterministic draft so the scripted responses reach the generation stages.
-    from app.models.requirements import SpecificationDraft
-    from app.models.blueprint import DomainEntity, EntityAttribute, UserStoryRecord, AcceptanceScenarioRecord
-    monkeypatch.setattr(pipeline_runner, "transform_requirements", lambda *a, **k: SpecificationDraft(
-        serviceName="notes-service", packageName="com.corp.notes", basePort=8080,
-        entities=[DomainEntity(name="Note", tableName="notes",
-            attributes=[EntityAttribute(name="id", type="Long", isPrimaryKey=True)])],
-        userStories=[UserStoryRecord(id="US-1", priority="P1", role="user", intent="create a note",
-            benefit="persist it", scenarios=[AcceptanceScenarioRecord(scenarioId="AC-1", given="a note", when="created", then="saved")])],
-    ))
-
-    class _Arch:
-        def model_dump(self):
-            return {"serviceName": "notes-service", "packageName": "com.corp.notes",
-                    "components": [], "mermaidDiagram": "graph TD"}
-    monkeypatch.setattr(pipeline_runner, "design_architecture", lambda *a, **k: _Arch())
 
     db = SessionLocal()
     try:

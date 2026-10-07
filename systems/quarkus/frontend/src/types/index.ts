@@ -174,7 +174,6 @@ export interface LlmConfig {
 }
 
 export interface User {
-  accessMode?: 'mvp';
   email: string;
   name: string;
   role: 'Architect' | 'Lead' | 'Engineer' | 'Demo';

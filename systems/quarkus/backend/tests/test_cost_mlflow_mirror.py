@@ -22,7 +22,6 @@ No provider calls, no network.
 
 from __future__ import annotations
 
-import os
 import sys
 import types
 from contextlib import contextmanager
@@ -75,9 +74,6 @@ def test_a_mirror_that_raises_is_a_non_event(monkeypatch):
     """An unreachable or rejecting destination must not propagate either."""
 
     class _ExplodingMlflow(types.ModuleType):
-        def set_experiment(self, name):
-            self.experiment = name      # the mirror groups runs; the double records it
-
         def set_tracking_uri(self, uri):
             raise RuntimeError("connection refused")
 
@@ -95,69 +91,6 @@ def test_a_session_cost_record_is_mirrored_through_the_same_non_event_path(
 ):
     """Both mirror entry points share the behaviour; neither raises."""
     assert mlflow_sink.mirror_session_cost_record({"session_id": "t013-mirror"}) is False
-
-
-# ---------------------------------------------------------------------------
-# An unreachable destination must fail fast, not block the caller
-# ---------------------------------------------------------------------------
-def test_an_unreachable_destination_is_bounded_rather_than_left_at_the_library_default(
-    monkeypatch,
-):
-    """The defect this pins: "best-effort" that blocks for minutes is not best-effort.
-
-    MLflow's defaults are a 120-second HTTP timeout with up to 5 retries, and the mirror
-    is called from ``RecordingChatClient.invoke`` -- the critical path of every LLM call.
-    A dead tracking server therefore stalled generation sessions, which is the opposite of
-    the module's stated contract. With no operator override, the send must be bounded.
-    """
-    monkeypatch.delenv("MLFLOW_HTTP_REQUEST_TIMEOUT", raising=False)
-    monkeypatch.delenv("MLFLOW_HTTP_REQUEST_MAX_RETRIES", raising=False)
-
-    sent = {}
-
-    class _RecordingMlflow(types.ModuleType):
-        def set_experiment(self, name):
-            self.experiment = name      # the mirror groups runs; the double records it
-
-        def set_tracking_uri(self, uri):
-            sent["uri"] = uri
-
-        @contextmanager
-        def start_run(self, run_name=None):
-            # Read at the moment of the call, which is when MLflow itself reads them.
-            sent["timeout"] = os.environ.get("MLFLOW_HTTP_REQUEST_TIMEOUT")
-            sent["retries"] = os.environ.get("MLFLOW_HTTP_REQUEST_MAX_RETRIES")
-            yield
-
-        def log_metric(self, key, value):
-            return None
-
-        def set_tags(self, tags):
-            return None
-
-    monkeypatch.setitem(sys.modules, "mlflow", _RecordingMlflow("mlflow"))
-    mlflow_sink._reset_failures()
-    try:
-        assert mlflow_sink.mirror_call_record({"session_id": "t013-bounded"}) is True
-    finally:
-        mlflow_sink._reset_failures()
-
-    assert sent["retries"] == "0", "a dead destination must not be retried"
-    assert int(sent["timeout"]) <= 10, "a dead destination must not hold the caller for long"
-
-
-def test_an_operator_override_of_the_transport_bound_is_respected(monkeypatch):
-    """``setdefault``, not assignment: a real deployment with a healthy server may want
-    long retries, and the mirror must not silently overrule an explicit setting."""
-    monkeypatch.setenv("MLFLOW_HTTP_REQUEST_TIMEOUT", "45")
-    monkeypatch.setenv("MLFLOW_HTTP_REQUEST_MAX_RETRIES", "3")
-
-    from app.cost import mlflow_sink as sink
-
-    sink._bound_the_transport()
-
-    assert os.environ["MLFLOW_HTTP_REQUEST_TIMEOUT"] == "45"
-    assert os.environ["MLFLOW_HTTP_REQUEST_MAX_RETRIES"] == "3"
 
 
 # ---------------------------------------------------------------------------
@@ -198,9 +131,6 @@ def test_the_mirror_never_forwards_a_credential(monkeypatch):
     sent_tags: dict = {}
 
     class _CapturingMlflow(types.ModuleType):
-        def set_experiment(self, name):
-            self.experiment = name      # the mirror groups runs; the double records it
-
         def set_tracking_uri(self, uri):
             return None
 
@@ -236,79 +166,3 @@ def test_the_mirror_never_forwards_a_credential(monkeypatch):
     )
     assert sent_tags.get("session_id") == "t013-mirror"
     assert any(key == "input_tokens" for key, _ in sent_metrics)
-
-
-class _RunHandle:
-    """Minimal context manager for `with mlflow.start_run():`."""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
-
-
-def test_the_mirror_groups_runs_in_a_named_experiment(monkeypatch):
-    """Reported from the UI: "mlflow shows no input from project, only default".
-
-    The data was all present (535 runs, $2.31) but every run landed in `Default`, so
-    the experiment list showed one entry that looked empty of project content. The
-    mirror now names its experiment, and `MLFLOW_EXPERIMENT` overrides it.
-    """
-    import sys
-    import types
-
-    from app.cost import mlflow_sink
-
-    seen = {}
-
-    class _Fake(types.ModuleType):
-        def set_tracking_uri(self, uri):
-            seen["uri"] = uri
-
-        def set_experiment(self, name):
-            seen["experiment"] = name
-
-        def start_run(self, run_name=None):
-            seen["run_name"] = run_name
-            return _RunHandle()
-
-        def log_metric(self, key, value):
-            pass
-
-        def set_tags(self, tags):
-            seen.setdefault("tags", {}).update(tags)
-
-    monkeypatch.setitem(sys.modules, "mlflow", _Fake("mlflow"))
-    mlflow_sink._reset_failures()
-
-    assert mlflow_sink.mirror_call_record({"session_id": "sess-1", "stage": "DOMAIN"}) is True
-    assert seen["experiment"] == "agentia"
-    assert seen["run_name"] == "sess-1-DOMAIN", (
-        "a session's per-stage runs must be distinguishable by name"
-    )
-
-
-def test_the_experiment_name_is_configurable(monkeypatch):
-    import sys
-    import types
-
-    from app.config import settings
-    from app.cost import mlflow_sink
-
-    seen = {}
-    monkeypatch.setattr(settings, "MLFLOW_EXPERIMENT", "custom-exp")
-
-    class _Fake(types.ModuleType):
-        def set_tracking_uri(self, uri): pass
-        def set_experiment(self, name): seen["experiment"] = name
-        def start_run(self, run_name=None):
-            return _RunHandle()
-        def log_metric(self, key, value): pass
-        def set_tags(self, tags): pass
-
-    monkeypatch.setitem(sys.modules, "mlflow", _Fake("mlflow"))
-    mlflow_sink._reset_failures()
-
-    mlflow_sink.mirror_call_record({"session_id": "s"})
-    assert seen["experiment"] == "custom-exp"

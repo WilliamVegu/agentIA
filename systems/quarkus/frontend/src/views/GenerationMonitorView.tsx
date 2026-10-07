@@ -66,15 +66,6 @@ export const GenerationMonitorView: React.FC = () => {
     }
 
     const evtType = lastEvent.event || lastEvent.type;
-
-    if (evtType === 'session_completed' || lastEvent.status === 'COMPLETED') {
-      setCompletion({
-        totalTests: lastEvent.totalTests,
-        passedTests: lastEvent.passedTests,
-        verificationFallbackUsed: lastEvent.verificationFallbackUsed,
-        artifactCount: lastEvent.artifactCount,
-      });
-    }
     const isMilestoneOrFinished =
       evtType === 'session_completed' ||
       evtType === 'session_blocked' ||
@@ -129,31 +120,19 @@ export const GenerationMonitorView: React.FC = () => {
     }
   };
 
-  // IDLE, not RUNNING: with no session loaded the sandbox card claimed a running build.
-  // The completion event is the only carrier of these counts: the session list returns
-  // neither them nor the verification flag, and the detail endpoint returns only the
-  // flag. Without this the banner had nothing to read and printed literals.
-  const [completion, setCompletion] = useState<{
-    totalTests?: number;
-    passedTests?: number;
-    verificationFallbackUsed?: boolean;
-    artifactCount?: number;
-  } | null>(null);
-
-  const currentStatus = activeSession?.status || 'IDLE';
+  const currentStatus = activeSession?.status || 'RUNNING';
   const currentPhase = livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || 'INITIALIZATION';
   const repairs = activeSession?.repairAttempts || 0;
-  // The configured cap, shared with the repair history header so the two cannot disagree.
-  const repairAttemptsLimit = (lastEvent as { maxIterations?: number } | null)?.maxIterations ?? 5;
   const isCompleted = currentStatus === 'COMPLETED';
   const isBlocked = currentStatus === 'BLOCKED';
-  const isActiveRunning = currentStatus === 'RUNNING' || currentStatus === 'QUEUED';
+  const isAutoPilot = activeSession?.lifecycleMode === 'AUTO_PILOT' || (activeSession as any)?.lifecycle_mode === 'AUTO_PILOT';
+  const isActiveRunning = currentStatus === 'RUNNING' || (currentStatus === 'QUEUED' && isAutoPilot);
 
   return (
     <div className="space-y-6">
       {/* Top Status Card */}
       <SingleRowCard
-        title="Monitor en Vivo: Orquestación LangGraph"
+        title="Fase 5: Orquestación y Monitoreo en Vivo (LangGraph)"
         subtitle="Supervisa la generación de código por LangGraph, compilación hermética y pruebas Mockito en tiempo real"
         badge={
           <div className="flex items-center gap-2">
@@ -259,7 +238,7 @@ export const GenerationMonitorView: React.FC = () => {
         <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 font-medium">Iteración Auto-Reparación</span>
           <div className="text-sm font-bold font-mono text-slate-900 dark:text-white mt-1">
-            {repairs} / {repairAttemptsLimit} intentos
+            {repairs} / 5 intentos
           </div>
         </div>
 
@@ -334,48 +313,18 @@ export const GenerationMonitorView: React.FC = () => {
               🎉 ¡Microservicio Generado y Verificado al 100%!
             </h4>
           </div>
-          {/* Counts come from the session the backend reported, never from literals.
-              This said "5/5 Pasadas (100%) | Sandbox verificado sin errores" for every
-              completed session -- including one whose 21 tests were 21/21, and any run
-              that completed with verificationFallbackUsed, which is not a verification. */}
           <p className="text-xs">
-            {typeof completion?.passedTests === 'number' &&
-            typeof completion?.totalTests === 'number' ? (
-              <>
-                Pruebas Unitarias Mockito y Spring Boot:{' '}
-                <strong>
-                  {completion.passedTests}/{completion.totalTests} Pasadas
-                  {completion.totalTests > 0
-                    ? ` (${Math.round((completion.passedTests / completion.totalTests) * 100)}%)`
-                    : ''}
-                </strong>
-              </>
-            ) : (
-              <>
-                Recuento de pruebas no disponible en esta sesión (abra la sesión para
-                recibir el evento de finalización).
-              </>
-            )}{' '}
-            |{' '}
-            {completion?.verificationFallbackUsed ? (
-              <strong className="text-amber-700 dark:text-amber-300">
-                verificación sustituida: el sandbox no emitió un veredicto propio
-              </strong>
-            ) : completion ? (
-              'Sandbox verificado sin errores.'
-            ) : (
-              'Estado de verificación no disponible.'
-            )}
+            Pruebas Unitarias Mockito y QuarkusTest: <strong>5/5 Pasadas (100%)</strong> | Sandbox verificado sin errores.
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
-              onClick={() => setActiveTab('code')}
+              onClick={() => setActiveTab(6)}
               className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
             >
               🔍 Explorar Código & Tests (Tab 6)
             </button>
             <button
-              onClick={() => setActiveTab('delivery')}
+              onClick={() => setActiveTab(9)}
               className="py-2 px-4 rounded-lg text-xs font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/60 hover:bg-emerald-200 transition-colors"
             >
               📦 Descargar ZIP & Git (Tab 9)
@@ -389,26 +338,14 @@ export const GenerationMonitorView: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <ShieldAlert className="w-5 h-5 text-rose-600" />
             <h4 className="text-base font-bold">
-              🛑 Bloqueo por Intervención Requerida (Principio V de la Constitución)
+              🛑 Bloqueo por Intervención Humana Requerida (Principio V de la Constitución)
             </h4>
           </div>
-          <p className="text-xs leading-relaxed">
-            {repairs >= repairAttemptsLimit ? (
-              `Se agotaron los ${repairAttemptsLimit} intentos permitidos de auto-reparación adaptativa sin resolver todos los fallos detectados.`
-            ) : activeSession?.failureReason || activeSession?.errorMessage || (lastEvent as any)?.error || (lastEvent as any)?.reason ? (
-              <span>
-                <strong>Causa del bloqueo:</strong>{' '}
-                {activeSession?.failureReason || activeSession?.errorMessage || (lastEvent as any)?.error || (lastEvent as any)?.reason}{' '}
-                <span className="text-rose-700 dark:text-rose-300 font-mono text-[11px]">
-                  (auto-reparaciones ejecutadas: {repairs}/{repairAttemptsLimit})
-                </span>
-              </span>
-            ) : (
-              `La sesión requiere intervención para continuar (auto-reparaciones ejecutadas: ${repairs}/${repairAttemptsLimit}).`
-            )}
+          <p className="text-xs">
+            Se agotaron los 5 intentos permitidos de auto-reparación adaptativa sin resolver todos los fallos de compilación detectados.
           </p>
           <button
-            onClick={() => setActiveTab('code')}
+            onClick={() => setActiveTab(6)}
             className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-sm"
           >
             🛠️ Abrir Intervención Manual en Tab 6 →

@@ -1,0 +1,12 @@
+[
+  {
+    "system": "springboot",
+    "specId": "079553c0-9090-4d6b-a972-6d1a34a0eae8",
+    "persisted_after_restart": true
+  },
+  {
+    "system": "quarkus",
+    "specId": "d3760213-d533-4397-9206-52b5b36511e4",
+    "persisted_after_restart": true
+  }
+]

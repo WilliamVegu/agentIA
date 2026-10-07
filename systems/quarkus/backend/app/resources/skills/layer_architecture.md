@@ -4,7 +4,7 @@
 task-level
 
 ## When to apply
-Apply whenever generating or modifying a Spring Boot microservice, before writing
+Apply whenever generating or modifying a Quarkus 3.x microservice, before writing
 any class. Every artifact this skill covers belongs to exactly one layer, and the
 layer decides the file's package, its dependencies, and what it is allowed to
 return.

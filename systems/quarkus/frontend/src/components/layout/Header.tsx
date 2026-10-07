@@ -11,7 +11,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const { theme, toggleTheme } = useTheme();
-  const { user, logout, isAutomaticAccess } = useAuth();
+  const { user, logout } = useAuth();
   const { provider, model, isVerified } = useLlm();
 
   const [backendHealth, setBackendHealth] = useState<'UP' | 'DOWN' | 'CHECKING'>('CHECKING');
@@ -109,13 +109,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
                 {user.name}
               </span>
               <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                {isAutomaticAccess ? 'Acceso sin contraseña · MVP local' : `${user.role} · ${user.email}`}
+                {user.role} · @tcs.com
               </span>
             </div>
             <button
               onClick={logout}
               className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-              title="Cerrar sesión"
+              title="Cerrar sesión corporativa"
             >
               <LogOut className="w-4 h-4" />
             </button>

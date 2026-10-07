@@ -1,0 +1,21 @@
+{
+  "sessionId": "01ee598c-2e62-4e53-bf58-313c716f03b9",
+  "checks": [
+    "Lifecycle completed without pretending Maven ran",
+    "Generated source and delivery artifacts listed",
+    "Downloaded ZIP contains native Quarkus and test sources",
+    "Unexecuted Java tests are reported as unverified"
+  ],
+  "artifactCount": 30,
+  "phase": "TEST_SYNTHESIS",
+  "verification": {
+    "totalTests": 0,
+    "passedTests": 0,
+    "failedTests": 0,
+    "executionDurationMs": 0,
+    "allPassed": false,
+    "surefireReport": null,
+    "fallback_used": true,
+    "fallback_reason": "No persisted verification result is available for this session."
+  }
+}

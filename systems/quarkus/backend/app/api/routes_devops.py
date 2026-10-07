@@ -9,9 +9,6 @@ from app.models.devops import (
     DevOpsDeployRequest,
     DevOpsManifestBundle,
     LocalDeploymentSession,
-    PlaygroundProxyRequest,
-    PlaygroundProxyResponse,
-    PlaygroundResources,
     SmokeTestResult,
 )
 from app.models.session import GenerationSessionDB, SessionLocal
@@ -23,12 +20,6 @@ from app.services.docker_service import (
     run_smoke_test,
     stop_deployment,
     stream_logs,
-)
-from app.services.playground_proxy import (
-    PlaygroundProxyError,
-    default_resource,
-    discover_resources,
-    forward,
 )
 from app.services.security_service import audit_workspace
 
@@ -148,39 +139,3 @@ async def execute_smoke_test(session_id: str, host_port: Optional[int] = 8080):
     result = run_smoke_test(session_id, host_port=host_port or 8080)
     return result
 
-
-
-@router.post("/{session_id}/playground", response_model=PlaygroundProxyResponse)
-async def proxy_playground_call(session_id: str, payload: PlaygroundProxyRequest):
-    """Forward one Live Playground call to this session's deployed container.
-
-    The browser calls the platform (same origin); the platform calls the container.
-    That removes the cross-origin request entirely, which the generated service cannot
-    satisfy -- it ships no CORS configuration, so a direct browser call is rejected
-    with 403 and appears as "Failed to fetch" while Docker is perfectly healthy.
-    """
-    ws_path, _ = _resolve_session_context(session_id)
-    try:
-        return PlaygroundProxyResponse(**forward(
-            session_id, payload.method, payload.path, payload.body
-        ))
-    except PlaygroundProxyError as refused:
-        # 400, not 500: the caller asked for something the proxy will not do. The
-        # reason is returned verbatim because an operator debugging a legitimate call
-        # needs to know which rule fired.
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(refused))
-
-
-@router.get("/{session_id}/playground/resources", response_model=PlaygroundResources)
-async def get_playground_resources(session_id: str):
-    """The REST paths this service exposes, read from its generated controllers.
-
-    Exists so the CRUD form stops guessing. It previously posted to a hardcoded
-    `/api/v1/orders`, which is wrong for every blueprint without an `Order` entity.
-    """
-    ws_path, _ = _resolve_session_context(session_id)
-    return PlaygroundResources(
-        sessionId=session_id,
-        resources=discover_resources(session_id, str(ws_path)),
-        defaultResource=default_resource(session_id, str(ws_path)),
-    )

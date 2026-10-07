@@ -53,52 +53,52 @@
   {
     "name": "springboot: pestaña Blueprints",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña Resumen",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña 1. Requisitos",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña 2. Arquitectura",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña 3. Modelos & SQL",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña 4. Código & Fix",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña 5. Calidad SAST",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña 6. DevOps & Demo",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña 7. Entrega Git",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: pestaña Monitor Live",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "springboot: acceso persiste al recargar",
@@ -129,67 +129,67 @@
     "name": "quarkus: diez pestañas disponibles",
     "passed": true,
     "detail": [
-      "Blueprints",
-      "Resumen",
+      "0. Resumen",
       "1. Requisitos",
       "2. Arquitectura",
       "3. Modelos & SQL",
-      "4. Código & Fix",
-      "5. Calidad SAST",
-      "6. DevOps & Demo",
-      "7. Entrega Git",
-      "Monitor Live"
+      "4. Blueprints",
+      "5. Monitor Live",
+      "6. Código & Fix",
+      "7. Calidad SAST",
+      "8. DevOps & Demo",
+      "9. Entrega Git"
     ]
   },
   {
-    "name": "quarkus: pestaña Blueprints",
+    "name": "quarkus: pestaña 0. Resumen",
     "passed": true,
-    "detail": null
-  },
-  {
-    "name": "quarkus: pestaña Resumen",
-    "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "quarkus: pestaña 1. Requisitos",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "quarkus: pestaña 2. Arquitectura",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "quarkus: pestaña 3. Modelos & SQL",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
-    "name": "quarkus: pestaña 4. Código & Fix",
+    "name": "quarkus: pestaña 4. Blueprints",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
-    "name": "quarkus: pestaña 5. Calidad SAST",
+    "name": "quarkus: pestaña 5. Monitor Live",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
-    "name": "quarkus: pestaña 6. DevOps & Demo",
+    "name": "quarkus: pestaña 6. Código & Fix",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
-    "name": "quarkus: pestaña 7. Entrega Git",
+    "name": "quarkus: pestaña 7. Calidad SAST",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
-    "name": "quarkus: pestaña Monitor Live",
+    "name": "quarkus: pestaña 8. DevOps & Demo",
     "passed": true,
-    "detail": null
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
+  },
+  {
+    "name": "quarkus: pestaña 9. Entrega Git",
+    "passed": true,
+    "detail": "flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all select-none text-center whitespace-nowrap bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200/80 dark:border-blue-900/60 ring-1 ring-blue-500/20"
   },
   {
     "name": "quarkus: acceso persiste al recargar",
@@ -197,11 +197,10 @@
     "detail": null
   },
   {
-    "name": "Cookies separadas en un mismo navegador",
+    "name": "Cookie Spring y acceso demo Quarkus independientes",
     "passed": true,
     "detail": [
-      "127.0.0.1",
-      "localhost"
+      "127.0.0.1"
     ]
   },
   {
@@ -260,7 +259,7 @@
     "detail": null
   },
   {
-    "name": "Quarkus sigue autenticado tras salir de Spring",
+    "name": "Quarkus conserva su acceso demo tras salir de Spring",
     "passed": true,
     "detail": null
   },
@@ -270,7 +269,7 @@
     "detail": null
   },
   {
-    "name": "Cerrar sesión Quarkus",
+    "name": "API Quarkus sigue disponible",
     "passed": true,
     "detail": null
   },

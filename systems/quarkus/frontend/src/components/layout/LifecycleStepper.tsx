@@ -11,17 +11,16 @@ import {
   Info,
 } from 'lucide-react';
 import { useStudio } from '../../context/StudioContext';
-import type { TabKey } from '../../config/workspaceTabs';
 import { orchestratorService } from '../../services/orchestratorService';
 
-const CANONICAL_PHASES: { key: string; label: string; tab: TabKey }[] = [
-  { key: 'REQUIREMENTS', label: '1. Requisitos', tab: 'requirements' },
-  { key: 'STORIES', label: '2. Historias BDD', tab: 'requirements' },
-  { key: 'ARCHITECTURE', label: '3. Arquitectura', tab: 'architecture' },
-  { key: 'DATA_MODEL', label: '4. Modelos & DDL', tab: 'models' },
-  { key: 'CODE_TESTS', label: '5. Código & Tests', tab: 'code' },
-  { key: 'SECURITY_AUDIT', label: '6. Calidad SAST', tab: 'quality' },
-  { key: 'DEVOPS_DEPLOY', label: '7. DevOps Local', tab: 'devops' },
+const CANONICAL_PHASES = [
+  { key: 'REQUIREMENTS', label: '1. Requisitos', tab: 1 },
+  { key: 'STORIES', label: '2. Historias BDD', tab: 1 },
+  { key: 'ARCHITECTURE', label: '3. Arquitectura', tab: 2 },
+  { key: 'DATA_MODEL', label: '4. Modelos & DDL', tab: 3 },
+  { key: 'CODE_TESTS', label: '5. Código & Tests', tab: 6 },
+  { key: 'SECURITY_AUDIT', label: '6. Calidad SAST', tab: 7 },
+  { key: 'DEVOPS_DEPLOY', label: '7. DevOps Local', tab: 8 },
 ];
 
 export const LifecycleStepper: React.FC = () => {

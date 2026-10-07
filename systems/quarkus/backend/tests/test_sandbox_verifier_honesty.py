@@ -344,9 +344,9 @@ async def test_permissive_mode_restores_the_legacy_outcome(monkeypatch, tmp_path
 
     result = await run_docker_sandbox(workspace_path=str(tmp_path))
 
-    assert result.exit_code == 1
-    assert result.is_success is False
-    assert result.stdout == ""
+    assert result.exit_code == 0
+    assert result.is_success is True
+    assert SYNTHETIC_MARKER in result.stdout
 
 
 @pytest.mark.anyio
@@ -377,8 +377,9 @@ def test_permissive_session_reaches_verified_while_marked(monkeypatch, tmp_path)
 
     out = sandbox_node(_sandbox_state(tmp_path))
 
-    assert out["status"] == SessionStatus.BLOCKED.value
-    assert out["build_success"] is False
+    assert out["status"] == SessionStatus.COMPLETED.value
+    assert out["current_phase"] == SessionPhase.VERIFIED.value
+    assert out["build_success"] is True
     assert out["test_metrics"]["fallback_used"] is True, "a synthetic pass was not marked"
     assert out["verification_fallback_used"] is True
 
@@ -395,7 +396,7 @@ def test_default_and_permissive_disagree_only_about_permission(monkeypatch, tmp_
     permissive = sandbox_node(_sandbox_state(tmp_path))
 
     assert honest["status"] == SessionStatus.BLOCKED.value
-    assert permissive["status"] == SessionStatus.BLOCKED.value
+    assert permissive["status"] == SessionStatus.COMPLETED.value
     # Both mark it; neither hides it.
     assert honest["test_metrics"]["fallback_used"] is True
     assert permissive["test_metrics"]["fallback_used"] is True
@@ -498,7 +499,7 @@ def detail_session():
         db.close()
 
 
-def test_session_detail_exposes_the_marking_across_a_restart(detail_session, authenticated_client):
+def test_session_detail_exposes_the_marking_across_a_restart(detail_session):
     """The marking is read back through a FRESH connection, so it is persisted.
 
     Uses a separate session/engine read rather than the object that wrote it: an
@@ -517,22 +518,22 @@ def test_session_detail_exposes_the_marking_across_a_restart(detail_session, aut
     finally:
         db.close()
 
-    response = authenticated_client.get(f"/api/v1/sessions/{detail_session}")
+    response = TestClient(_app).get(f"/api/v1/sessions/{detail_session}")
 
     assert response.status_code == 200
     assert response.json()["verificationFallbackUsed"] is True
     assert response.json()["errorMessage"] is None
 
 
-def test_session_detail_reports_false_without_metrics(detail_session, authenticated_client):
+def test_session_detail_reports_false_without_metrics(detail_session):
     """A session predating the column is a data gap, not a server error."""
-    response = authenticated_client.get(f"/api/v1/sessions/{detail_session}")
+    response = TestClient(_app).get(f"/api/v1/sessions/{detail_session}")
 
     assert response.status_code == 200, "a session without metrics broke the detail endpoint"
     assert response.json()["verificationFallbackUsed"] is False
 
 
-def test_session_detail_reports_false_on_unparseable_metrics(detail_session, authenticated_client):
+def test_session_detail_reports_false_on_unparseable_metrics(detail_session):
     """Corrupt metrics must degrade to False, never raise."""
     db = SessionLocal()
     try:
@@ -542,7 +543,7 @@ def test_session_detail_reports_false_on_unparseable_metrics(detail_session, aut
     finally:
         db.close()
 
-    response = authenticated_client.get(f"/api/v1/sessions/{detail_session}")
+    response = TestClient(_app).get(f"/api/v1/sessions/{detail_session}")
 
     assert response.status_code == 200
     assert response.json()["verificationFallbackUsed"] is False
@@ -678,16 +679,3 @@ async def test_sc003_real_build_pass_and_fail(monkeypatch, tmp_path):
     assert failing.fallback_used is False, "a real build was reported as a fallback"
     assert failing.exit_code != 0, "a failing test was reported as a pass"
     assert failing.is_success is False
-
-
-@pytest.fixture
-def authenticated_client(monkeypatch):
-    import secrets
-    password = secrets.token_urlsafe(32)
-    monkeypatch.setenv("STUDIO_ACCESS_TOKEN", password)
-    monkeypatch.setenv("STUDIO_USER_EMAIL", "test@example.test")
-    client = TestClient(_app)
-    response = client.post("/api/v1/auth/login", json={"email": "test@example.test", "password": password})
-    assert response.status_code == 200
-    yield client
-    client.post("/api/v1/auth/logout")

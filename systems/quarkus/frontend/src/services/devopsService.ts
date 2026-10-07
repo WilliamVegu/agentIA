@@ -12,18 +12,6 @@ export interface LocalDeploymentSession {
   startedAt?: string;
 }
 
-export interface PlaygroundProxyResult {
-  statusCode: number | null;
-  url: string;
-  latencyMs: number | null;
-  contentType?: string;
-  truncated?: boolean;
-  body?: unknown;
-  bodyText?: string | null;
-  /** Populated only when the call did NOT complete. `statusCode` is null in that case. */
-  error: string | null;
-}
-
 export interface SmokeTestResult {
   sessionId: string;
   endpointTested: string;
@@ -34,27 +22,14 @@ export interface SmokeTestResult {
   message: string;
 }
 
-/**
- * Mirrors the API's `DevOpsManifestBundle` field for field.
- *
- * It previously declared `dockerfile`, `dockerCompose`, `k8sDeployment`, `k8sService`
- * and `githubCiWorkflow` -- **none of which the API returns**. A caller reading those
- * names got `undefined`, which is why the Kubernetes tab showed hardcoded sample YAML
- * instead: the real manifests were on the response under a name this interface did not
- * describe, so the response was simply never read.
- */
 export interface ManifestBundle {
   sessionId: string;
   serviceName: string;
-  databaseEngine: string;
-  dockerfileContent: string;
-  dockerignoreContent: string;
-  dockerComposeContent: string;
-  githubActionsWorkflow: string;
-  gitlabCiWorkflow: string;
-  /** filename -> file content, e.g. `{"deployment.yaml": "..."}`. */
-  kubernetesManifests: Record<string, string>;
-  generatedAt: string;
+  dockerfile: string;
+  dockerCompose: string;
+  k8sDeployment: string;
+  k8sService: string;
+  githubCiWorkflow: string;
 }
 
 export const devopsService = {
@@ -87,36 +62,6 @@ export const devopsService = {
 
   async stopContainers(sessionId: string): Promise<LocalDeploymentSession> {
     const response = await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/stop`);
-    return response.data;
-  },
-
-  /**
-   * Forward one playground call through the platform.
-   *
-   * The browser cannot call the container directly: the generated service ships no
-   * CORS configuration, so every cross-origin call is rejected (403 on preflight) and
-   * surfaces as "Failed to fetch" while Docker is healthy. The platform proxies it
-   * server-side, which also lets it refuse dangerous paths and derive the endpoint
-   * from the service's own controllers.
-   */
-  async proxyPlayground(
-    sessionId: string,
-    payload: { method: string; path: string; body?: unknown },
-  ): Promise<PlaygroundProxyResult> {
-    const response = await apiClient.post<PlaygroundProxyResult>(
-      `/devops/${sessionId}/playground`,
-      payload,
-    );
-    return response.data;
-  },
-
-  /** The REST paths the generated service exposes, read from its controllers. */
-  async getPlaygroundResources(sessionId: string): Promise<{
-    sessionId: string;
-    resources: string[];
-    defaultResource: string | null;
-  }> {
-    const response = await apiClient.get(`/devops/${sessionId}/playground/resources`);
     return response.data;
   },
 

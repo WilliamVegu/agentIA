@@ -55,7 +55,7 @@ export const ExportPublishView: React.FC = () => {
     <div className="space-y-6">
       {/* Top Banner */}
       <SingleRowCard
-        title="Fase 7: Entrega Integral, Empaquetado ZIP y Publicación Git"
+        title="Fase 9: Entrega Integral, Empaquetado ZIP y Publicación Git"
         subtitle="Exportación atómica del código verificado a repositorios corporativos"
         badge={
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">

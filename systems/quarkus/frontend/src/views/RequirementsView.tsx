@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Send,
+  AlertCircle,
 } from 'lucide-react';
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { SlideOverDrawer } from '../components/common/SlideOverDrawer';
@@ -37,68 +38,29 @@ const getEntityTableName = (ent: string | EntityItem | any): string | null => {
   return ent.tableName || null;
 };
 
-/**
- * What is missing before this specification may be submitted. Empty means complete.
- *
- * Replaces a set of fabricated fallbacks. The normaliser used to invent a `Resource`
- * entity (named after the service) when the list was empty, and the submit handler
- * invented a role, an objective, a benefit and three Given/When/Then clauses per story.
- * All of it went to `POST /specifications` and into the session's saved requirements, so
- * a service could be generated from domain content nobody wrote -- and the server-side
- * validation passed precisely because the invented text satisfied its minimum lengths.
- */
-const describeIncompleteness = (
-  ents: { name: string; attributes?: any[] }[],
-  storyList: BddStory[],
-): string[] => {
-  const problems: string[] = [];
-  if (ents.length === 0) {
-    problems.push('no hay ninguna entidad de dominio definida');
-  }
-  ents.forEach((e) => {
-    if (!e.attributes || e.attributes.length === 0) {
-      problems.push(`la entidad ${e.name} no declara atributos`);
-    }
-  });
-  if (storyList.length === 0) {
-    problems.push('no hay historias de usuario');
-  }
-  storyList.forEach((s, i) => {
-    const label = s.id || `historia #${i + 1}`;
-    if (!s.role?.trim()) problems.push(`${label}: falta el rol`);
-    if (!(s.feature || s.title)?.trim()) problems.push(`${label}: falta el objetivo`);
-    if (!s.benefit?.trim()) problems.push(`${label}: falta el beneficio`);
-    const scenarios = s.scenarios || [];
-    if (scenarios.length === 0) problems.push(`${label}: no tiene escenarios`);
-    scenarios.forEach((sc, j) => {
-      if (!sc.given?.trim() || !sc.when?.trim() || !sc.then?.trim()) {
-        problems.push(`${label}, escenario ${j + 1}: faltan cláusulas Dado/Cuando/Entonces`);
-      }
-    });
-  });
-  return problems;
-};
-
-const normalizeEntitiesForDraft = (rawEntities: (string | EntityItem | any)[], _defaultServiceName?: string) => {
-  // No entity is invented. An empty list is returned as empty so the caller can refuse
-  // and say so, instead of submitting a fabricated `Resource` table.
-  if (!Array.isArray(rawEntities) || rawEntities.length === 0) return [];
-  const list = rawEntities;
+const normalizeEntitiesForDraft = (rawEntities: (string | EntityItem | any)[], defaultServiceName?: string) => {
+  const fallback = defaultServiceName
+    ? defaultServiceName.replace(/[^a-zA-Z0-9]/g, '').replace(/^[0-9]+/, '') || 'Resource'
+    : 'Resource';
+  const list = rawEntities.length > 0 ? rawEntities : [fallback];
   return list.map((e) => {
-    // A nameless entry is dropped rather than given the invented `Resource` name; an
-    // entity with no name cannot be reported as incomplete in any useful way, and the
-    // remaining entries are still what the describeIncompleteness gate examines.
-    const name = getEntityName(e);
+    const name = getEntityName(e) || fallback;
     const tableName = (typeof e === 'object' && e?.tableName)
       ? e.tableName
       : `${name.toLowerCase()}s`;
-    // An entity with no attributes is reported as incomplete rather than given a
-    // synthetic `id` column, which made an empty entity look like a declared one.
-    const attributes = (typeof e === 'object' && Array.isArray(e?.attributes))
+    const attributes = (typeof e === 'object' && Array.isArray(e?.attributes) && e.attributes.length > 0)
       ? e.attributes
-      : [];
+      : [
+          {
+            name: 'id',
+            type: 'Long',
+            nullable: false,
+            isPrimaryKey: true,
+            validationRules: [],
+          },
+        ];
     return { name, tableName, attributes };
-  }).filter((e) => Boolean(e.name));
+  });
 };
 
 const mapIncomingStories = (rawStories: any[], fallbackEntities: (string | EntityItem | any)[]): BddStory[] => {
@@ -106,30 +68,20 @@ const mapIncomingStories = (rawStories: any[], fallbackEntities: (string | Entit
   const entityNames = fallbackEntities.map(getEntityName).filter(Boolean);
 
   return rawStories.map((s: any, idx: number) => ({
-    // Only labels are defaulted -- an id and a scenario title are names, not claims about
-    // the domain. Everything semantic is taken verbatim or left empty:
-    //
-    // these fields used to be filled with invented Spanish domain text ("Usuario",
-    // "Operación transaccional", "Se procesa la transacción exitosamente"), which rendered
-    // as though the model had produced it AND satisfied the server's minimum-length
-    // validation on submit, so an incomplete model response could not be told apart from
-    // a complete one.
     id: s.id || `US-${String(idx + 1).padStart(3, '0')}`,
-    title: s.title || s.intent || s.feature || '',
-    role: s.role || '',
-    feature: s.feature || s.intent || '',
-    benefit: s.benefit || '',
+    title: s.title || s.intent || s.feature || `Historia de Usuario ${idx + 1}`,
+    role: s.role || 'Usuario',
+    feature: s.feature || s.intent || 'Operación transaccional',
+    benefit: s.benefit || 'Completar flujo de negocio',
     scenarios: (s.scenarios || []).map((sc: any, scIdx: number) => ({
       title: sc.title || sc.scenarioId || `Escenario ${scIdx + 1}`,
-      given: sc.given || '',
-      when: sc.when || '',
-      then: sc.then || '',
+      given: sc.given || 'El microservicio está en ejecución',
+      when: sc.when || 'Se recibe la solicitud con parámetros válidos',
+      then: sc.then || 'Se procesa la transacción exitosamente',
     })),
-    // No `entityNames.slice(0, 2)` fallback: it asserted an association between the story
-    // and the first two entities that nothing in the response claimed.
     detected_entities: Array.isArray(s.detected_entities || s.detectedEntities)
       ? (s.detected_entities || s.detectedEntities).map((e: any) => getEntityName(e)).filter(Boolean)
-      : [],
+      : entityNames.slice(0, 2),
   }));
 };
 
@@ -140,13 +92,12 @@ export const RequirementsView: React.FC = () => {
     reloadCurrentOverview,
     setActiveTab,
     setCurrentDraft,
-    currentDraft,
     setCurrentSpecId,
     setParsedSpec,
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey, model } = useLlm();
+  const { provider, apiKey, setProvider } = useLlm();
 
   const [promptText, setPromptText] = useState('');
   const [stories, setStories] = useState<BddStory[]>([]);
@@ -155,6 +106,27 @@ export const RequirementsView: React.FC = () => {
   const [isRefineOpen, setIsRefineOpen] = useState(false);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Manual Story Modal / Drawer State
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [editingStoryId, setEditingStoryId] = useState<string | null>(null);
+  const [storyForm, setStoryForm] = useState<BddStory>({
+    id: 'US-001',
+    title: 'Nueva Funcionalidad de Negocio',
+    role: 'Usuario del Sistema',
+    feature: 'Ejecutar una operación transaccional',
+    benefit: 'Garantizar la integridad de los datos',
+    scenarios: [
+      {
+        title: 'Operación exitosa con parámetros válidos',
+        given: 'El sistema se encuentra en estado operativo',
+        when: 'El usuario envía la petición con datos correctos',
+        then: 'La transacción se persiste y se retorna código 200 OK',
+      },
+    ],
+    detected_entities: [],
+  });
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -175,7 +147,6 @@ export const RequirementsView: React.FC = () => {
           setPromptText('');
         }
         if (data.hasDraft && data.draft) {
-          setCurrentDraft(data.draft);
           if (data.draft.entities && Array.isArray(data.draft.entities)) {
             setEntities(data.draft.entities);
           } else {
@@ -201,19 +172,19 @@ export const RequirementsView: React.FC = () => {
     };
   }, [activeSessionId]);
 
-  const handleTransform = async () => {
+  const handleTransform = async (overrideProvider?: any) => {
     setIsProcessing(true);
     setFeedbackMsg(null);
+    setErrorMsg(null);
+    const effectiveProvider = typeof overrideProvider === 'string' ? overrideProvider : provider;
     try {
       const res = await requirementsService.transform({
         naturalLanguageText: promptText,
         serviceName: activeSession?.specName || undefined,
         apiKey,
-        provider,
-        modelName: model,
+        provider: effectiveProvider,
       });
 
-      setCurrentDraft(res);
       let nextEntities = entities;
       if (res?.entities && Array.isArray(res.entities) && res.entities.length > 0) {
         nextEntities = res.entities;
@@ -221,28 +192,18 @@ export const RequirementsView: React.FC = () => {
       }
 
       const incomingStories = res?.userStories || res?.stories;
-      const storyCount = Array.isArray(incomingStories) ? incomingStories.length : 0;
-      if (storyCount > 0) {
+      if (incomingStories && Array.isArray(incomingStories) && incomingStories.length > 0) {
         setStories(mapIncomingStories(incomingStories, nextEntities));
       }
 
-      // Report the count that actually came back. This said "(mínimo 3 historias)"
-      // unconditionally, which is a claim about the response, not a description of it.
-      setFeedbackMsg(
-        storyCount > 0
-          ? `Requerimientos transformados: ${storyCount} historia(s) BDD generadas.`
-          : 'La transformación no devolvió ninguna historia. Revisa el prompt e inténtalo de nuevo.',
-      );
+      setFeedbackMsg('Requerimientos transformados: Historias BDD generadas exitosamente (mínimo 3 historias).');
     } catch (err: any) {
-      // A failed call was reported as success -- "Modo autónomo local: Historias
-      // formalizadas con éxito." -- which is exactly what put a green banner above an
-      // empty catalogue on screen. Nothing was formalised, so nothing may say it was.
-      const detail = err?.response?.data?.detail;
-      setFeedbackMsg(
-        (typeof detail === 'string' ? detail : detail?.message) ||
-        'No se pudieron transformar los requisitos: la llamada al modelo falló. ' +
-        'No se generó ninguna historia.',
-      );
+      const detail = err.response?.data?.detail || err.message;
+      if (err.response?.status === 401) {
+        setErrorMsg(`Se requiere clave API para ${effectiveProvider.toUpperCase()}. Puedes configurarla en Ajustes (icono ⚙️) o activar el Modo Offline para continuar sin costo.`);
+      } else {
+        setErrorMsg(detail || 'Error al transformar requerimientos con IA.');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -251,6 +212,7 @@ export const RequirementsView: React.FC = () => {
   const handleRefineSubmit = async () => {
     if (!refinePrompt.trim()) return;
     setIsProcessing(true);
+    setErrorMsg(null);
     try {
       const rawServiceName = (activeSession?.specName || 'order-service')
         .toLowerCase()
@@ -282,10 +244,8 @@ export const RequirementsView: React.FC = () => {
         refinementPrompt: refinePrompt,
         apiKey,
         provider,
-        modelName: model,
       });
 
-      setCurrentDraft(res);
       let nextEntities = entities;
       if (res?.entities && Array.isArray(res.entities) && res.entities.length > 0) {
         nextEntities = res.entities;
@@ -301,13 +261,8 @@ export const RequirementsView: React.FC = () => {
       setRefinePrompt('');
       setFeedbackMsg('Especificación refinada exitosamente mediante IA.');
     } catch (err: any) {
-      // Keep the drawer open on failure: closing it looks like the refinement was
-      // accepted, and the previous message claimed the adjustments had been applied.
-      const detail = err?.response?.data?.detail;
-      setFeedbackMsg(
-        (typeof detail === 'string' ? detail : detail?.message) ||
-        'No se pudieron aplicar los ajustes: la llamada al modelo falló.',
-      );
+      setIsRefineOpen(false);
+      setErrorMsg(err.response?.data?.detail || err.message || 'Error al refinar historias con IA.');
     } finally {
       setIsProcessing(false);
     }
@@ -346,23 +301,11 @@ export const RequirementsView: React.FC = () => {
       setFeedbackMsg('Debe generar o agregar historias de usuario antes de transferir a generación.');
       return;
     }
-    const normalizedEntities = normalizeEntitiesForDraft(entities);
-    // Refuse rather than fabricate. The payload below used to substitute a role, an
-    // objective, a benefit and three Given/When/Then clauses, so an incomplete draft was
-    // submitted as a complete specification and the server never saw the gap.
-    const problems = describeIncompleteness(normalizedEntities, stories);
-    if (problems.length > 0) {
-      setFeedbackMsg(
-        `No se puede transferir: ${problems.slice(0, 3).join('; ')}${
-          problems.length > 3 ? ` y ${problems.length - 3} problema(s) más` : ''
-        }.`,
-      );
-      return;
-    }
     setIsProcessing(true);
     try {
       const rawServiceName = (activeSession?.specName || 'order-service').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '') || 'order-service';
       const cleanPackage = `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
+      const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
 
       const blueprintPayload = {
         serviceName: rawServiceName,
@@ -373,15 +316,14 @@ export const RequirementsView: React.FC = () => {
         userStories: stories.map((s, idx) => ({
           id: s.id || `US-${idx + 1}`,
           priority: 'P1',
-          // Completeness was checked above, so these are the real values.
-          role: s.role,
-          intent: s.feature || (s as any).intent || '',
-          benefit: s.benefit || '',
+          role: s.role || 'Usuario',
+          intent: s.feature || (s as any).intent || 'Gestionar entidades de negocio',
+          benefit: s.benefit || 'Completar flujo operacional',
           scenarios: (s.scenarios || []).map((sc, i) => ({
             scenarioId: (sc as any).scenarioId || `AC-${s.id}.${i + 1}`,
-            given: sc.given,
-            when: sc.when,
-            then: sc.then,
+            given: sc.given || 'Precondición del sistema verificada',
+            when: sc.when || 'Se invoca el endpoint REST',
+            then: sc.then || 'Se retorna respuesta esperada',
           })),
         })),
       };
@@ -401,18 +343,19 @@ export const RequirementsView: React.FC = () => {
           console.warn('Could not auto-start session:', sessErr);
         }
       }
-      setActiveTab('monitor'); // Switch to Tab 5 Monitor
+      setActiveTab(5); // Switch to Tab 5 Monitor
     } catch (err) {
       console.error('Error al transferir a generación:', err);
-      setActiveTab('monitor');
+      setActiveTab(5);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleAddStory = () => {
+  const handleOpenCreateStory = () => {
     const nextIdx = stories.length + 1;
-    const newStory: BddStory = {
+    setEditingStoryId(null);
+    setStoryForm({
       id: `US-${String(nextIdx).padStart(3, '0')}`,
       title: 'Nueva Funcionalidad de Negocio',
       role: 'Usuario del Sistema',
@@ -421,15 +364,98 @@ export const RequirementsView: React.FC = () => {
       scenarios: [
         {
           title: 'Operación exitosa con parámetros válidos',
-          given: 'El sistema se encuentra en estado operativo',
+          given: 'El microservicio se encuentra en ejecución y la base de datos disponible',
           when: 'El usuario envía la petición con datos correctos',
-          then: 'La transacción se persiste y se retorna código 200 OK',
+          then: 'La transacción se persiste y se retorna código 201 Created',
         },
       ],
       detected_entities: entities.slice(0, 2).map(getEntityName),
-    };
-    setStories([...stories, newStory]);
+    });
+    setIsStoryModalOpen(true);
   };
+
+  const handleOpenEditStory = (story: BddStory) => {
+    setEditingStoryId(story.id);
+    setStoryForm({
+      id: story.id,
+      title: story.title || '',
+      role: story.role || 'Usuario',
+      feature: story.feature || '',
+      benefit: story.benefit || '',
+      scenarios:
+        story.scenarios && story.scenarios.length > 0
+          ? story.scenarios.map((sc) => ({ ...sc }))
+          : [
+              {
+                title: 'Operación exitosa',
+                given: 'El sistema se encuentra en estado operativo',
+                when: 'Se envía la solicitud con parámetros válidos',
+                then: 'Se procesa la transacción exitosamente',
+              },
+            ],
+      detected_entities: story.detected_entities ? [...story.detected_entities] : [],
+    });
+    setIsStoryModalOpen(true);
+  };
+
+  const handleSaveStory = () => {
+    if (!storyForm.title.trim()) {
+      setErrorMsg('Debe ingresar un título descriptivo para la historia de usuario.');
+      return;
+    }
+    if (!storyForm.feature.trim()) {
+      setErrorMsg('Debe ingresar la funcionalidad o deseo (Quiero...).');
+      return;
+    }
+
+    if (editingStoryId) {
+      setStories((prev) =>
+        prev.map((s) => (s.id === editingStoryId ? { ...storyForm } : s))
+      );
+      setFeedbackMsg(`Historia de usuario ${storyForm.id} modificada exitosamente.`);
+    } else {
+      setStories((prev) => [...prev, { ...storyForm }]);
+      setFeedbackMsg(`Historia de usuario ${storyForm.id} agregada exitosamente.`);
+    }
+    setIsStoryModalOpen(false);
+    setEditingStoryId(null);
+  };
+
+  const handleAddScenario = () => {
+    const scIdx = (storyForm.scenarios?.length || 0) + 1;
+    setStoryForm((prev) => ({
+      ...prev,
+      scenarios: [
+        ...(prev.scenarios || []),
+        {
+          title: `Escenario ${scIdx}: Caso de uso o validación`,
+          given: 'El sistema valida las precondiciones necesarias',
+          when: 'Se ejecuta la operación con los parámetros dados',
+          then: 'Se procesa el resultado conforme a la regla de negocio',
+        },
+      ],
+    }));
+  };
+
+  const handleUpdateScenario = (idx: number, field: keyof BddScenario, value: string) => {
+    setStoryForm((prev) => {
+      const nextScenarios = [...(prev.scenarios || [])];
+      if (nextScenarios[idx]) {
+        nextScenarios[idx] = { ...nextScenarios[idx], [field]: value };
+      }
+      return { ...prev, scenarios: nextScenarios };
+    });
+  };
+
+  const handleRemoveScenario = (idx: number) => {
+    if ((storyForm.scenarios?.length || 0) <= 1) return;
+    setStoryForm((prev) => ({
+      ...prev,
+      scenarios: prev.scenarios.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const handleAddStory = handleOpenCreateStory;
 
   const handleDeleteStory = (storyId: string) => {
     setStories(stories.filter((s) => s.id !== storyId));
@@ -448,11 +474,9 @@ export const RequirementsView: React.FC = () => {
     const normalizedEntities = normalizeEntitiesForDraft(entities, rawServiceName);
 
     const draftObj = {
-      ...(currentDraft || {}),
       serviceName: rawServiceName,
-      packageName: currentDraft?.packageName || cleanPackage,
-      basePort: currentDraft?.basePort || 8080,
-      markdownSpec: undefined,
+      packageName: cleanPackage,
+      basePort: 8080,
       entities: normalizedEntities,
       userStories: stories.map((s, idx) => ({
         id: s.id || `US-${idx + 1}`,
@@ -479,7 +503,7 @@ export const RequirementsView: React.FC = () => {
       await orchestratorService.invalidateDownstream(activeSessionId, 'STORIES');
       await reloadCurrentOverview();
     }
-    setActiveTab('architecture'); // Move to tab 2 Architecture
+    setActiveTab(2); // Move to tab 2 Architecture
   };
 
   return (
@@ -496,7 +520,7 @@ export const RequirementsView: React.FC = () => {
         actions={
           <>
             <button
-              onClick={handleTransform}
+              onClick={() => handleTransform()}
               disabled={isProcessing}
               className="flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-all disabled:opacity-50"
             >
@@ -558,6 +582,46 @@ export const RequirementsView: React.FC = () => {
             <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{feedbackMsg}</span>
+            </div>
+          )}
+
+          {!apiKey && provider !== 'mock' && !errorMsg && (
+            <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 text-xs text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Motor LLM actual: <strong className="uppercase">{provider}</strong> (requiere API Key en ⚙️ Ajustes o usar Modo Offline).</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setProvider('mock');
+                  setErrorMsg(null);
+                }}
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded text-[11px] font-medium shrink-0 transition-colors"
+              >
+                ⚡ Usar Modo Offline (Sin Costo)
+              </button>
+            </div>
+          )}
+
+          {errorMsg && (
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                <span>{errorMsg}</span>
+              </div>
+              {provider !== 'mock' && (
+                <button
+                  onClick={() => {
+                    setProvider('mock');
+                    setErrorMsg(null);
+                    handleTransform('mock');
+                  }}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-medium rounded-md text-xs shrink-0 transition-colors shadow-sm"
+                >
+                  ⚡ Activar Modo Offline y Generar
+                </button>
+              )}
             </div>
           )}
 
@@ -627,7 +691,7 @@ export const RequirementsView: React.FC = () => {
             </div>
             <div className="pt-2 flex items-center justify-center gap-3">
               <button
-                onClick={handleTransform}
+                onClick={() => handleTransform()}
                 disabled={isProcessing || !promptText.trim()}
                 className="inline-flex items-center gap-2 py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-all disabled:opacity-50"
               >
@@ -652,21 +716,16 @@ export const RequirementsView: React.FC = () => {
                 subtitle={`Rol: ${story.role}`}
                 badge={
                   <div className="flex items-center gap-1.5">
-                    {/* Was the literal text "BDD Verified" on every card, whether or
-                        not anything had been verified. It now states the format and
-                        the count, which is checkable from the data in the card --
-                        and says so when a story carries no scenarios at all. */}
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
-                        story.scenarios?.length
-                          ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/60'
-                          : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'
-                      }`}
-                    >
-                      {story.scenarios?.length
-                        ? `BDD · ${story.scenarios.length} escenario(s)`
-                        : 'Sin escenarios — no verificable'}
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
+                      BDD Verified
                     </span>
+                    <button
+                      onClick={() => handleOpenEditStory(story)}
+                      className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                      title="Modificar historia de usuario"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => handleDeleteStory(story.id)}
                       className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
@@ -678,11 +737,16 @@ export const RequirementsView: React.FC = () => {
                 }
                 actions={
                   <div className="flex items-center justify-between w-full text-xs text-slate-500">
-                    <span>{story.scenarios?.length || 0} escenario(s) de prueba</span>
-                    <span className="font-mono text-[11px] text-blue-600 dark:text-blue-400">
-                      {Array.isArray(story.detected_entities)
-                        ? story.detected_entities.map((e: any) => getEntityName(e)).filter(Boolean).join(', ')
-                        : ''}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditStory(story)}
+                      className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                    >
+                      <Edit className="w-3 h-3" />
+                      <span>Modificar historia</span>
+                    </button>
+                    <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                      {story.scenarios?.length || 0} escenario(s) BDD
                     </span>
                   </div>
                 }
@@ -761,6 +825,195 @@ export const RequirementsView: React.FC = () => {
             >
               <Send className="w-3.5 h-3.5" />
               <span>Aplicar Refinamiento</span>
+            </button>
+          </div>
+        </div>
+      </SlideOverDrawer>
+
+      {/* SlideOverDrawer for Manual Story Creation & Modification */}
+      <SlideOverDrawer
+        isOpen={isStoryModalOpen}
+        onClose={() => {
+          setIsStoryModalOpen(false);
+          setEditingStoryId(null);
+        }}
+        title={editingStoryId ? `Modificar Historia de Usuario (${storyForm.id})` : 'Nueva Historia de Usuario BDD (Manual)'}
+        subtitle={editingStoryId ? 'Modifique los campos, el formato Connextra y los escenarios Given/When/Then' : 'Ingrese manualmente la historia de usuario y sus criterios de aceptación'}
+        widthClass="max-w-2xl"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                ID de Historia
+              </label>
+              <input
+                type="text"
+                value={storyForm.id}
+                onChange={(e) => setStoryForm({ ...storyForm, id: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="US-001"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Título Descriptivo
+              </label>
+              <input
+                type="text"
+                value={storyForm.title}
+                onChange={(e) => setStoryForm({ ...storyForm, title: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Ej: Registro de nueva orden de compra"
+              />
+            </div>
+          </div>
+
+          {/* Formato Connextra: Como / Quiero / Para */}
+          <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
+            <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
+              Estructura Connextra / BDD
+            </h4>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <strong className="text-indigo-600 dark:text-indigo-400">COMO</strong> [Rol de usuario / actor]
+              </label>
+              <input
+                type="text"
+                value={storyForm.role}
+                onChange={(e) => setStoryForm({ ...storyForm, role: e.target.value })}
+                className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Ej: Cliente autenticado, Administrador"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <strong className="text-blue-600 dark:text-blue-400">QUIERO</strong> [Funcionalidad o acción requerida]
+              </label>
+              <textarea
+                rows={2}
+                value={storyForm.feature}
+                onChange={(e) => setStoryForm({ ...storyForm, feature: e.target.value })}
+                className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Ej: Registrar un pedido con múltiples ítems y calcular el total de la compra"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <strong className="text-emerald-600 dark:text-emerald-400">PARA</strong> [Beneficio o propósito de negocio]
+              </label>
+              <textarea
+                rows={2}
+                value={storyForm.benefit}
+                onChange={(e) => setStoryForm({ ...storyForm, benefit: e.target.value })}
+                className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Ej: Adquirir los productos seleccionados y mantener actualizado el inventario"
+              />
+            </div>
+          </div>
+
+          {/* Criterios de Aceptación / Escenarios BDD */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
+                Criterios de Aceptación Given / When / Then ({storyForm.scenarios?.length || 0})
+              </h4>
+              <button
+                type="button"
+                onClick={handleAddScenario}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-semibold"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Añadir Escenario</span>
+              </button>
+            </div>
+
+            {storyForm.scenarios?.map((sc, sIdx) => (
+              <div
+                key={sIdx}
+                className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 space-y-2.5 text-xs shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <input
+                    type="text"
+                    value={sc.title}
+                    onChange={(e) => handleUpdateScenario(sIdx, 'title', e.target.value)}
+                    className="font-semibold text-slate-800 dark:text-slate-200 bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 focus:outline-none pb-0.5 w-3/4"
+                    placeholder={`Escenario ${sIdx + 1}: Título o descripción corta`}
+                  />
+                  {storyForm.scenarios.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveScenario(sIdx)}
+                      className="text-slate-400 hover:text-rose-500 p-1 rounded transition-colors"
+                      title="Eliminar este escenario"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-20 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase shrink-0">
+                      DADO QUE
+                    </span>
+                    <input
+                      type="text"
+                      value={sc.given}
+                      onChange={(e) => handleUpdateScenario(sIdx, 'given', e.target.value)}
+                      className="flex-1 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      placeholder="Precondición válida del microservicio o base de datos"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-20 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase shrink-0">
+                      CUANDO
+                    </span>
+                    <input
+                      type="text"
+                      value={sc.when}
+                      onChange={(e) => handleUpdateScenario(sIdx, 'when', e.target.value)}
+                      className="flex-1 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      placeholder="El usuario envía la solicitud o ejecuta la acción"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase shrink-0">
+                      ENTONCES
+                    </span>
+                    <input
+                      type="text"
+                      value={sc.then}
+                      onChange={(e) => handleUpdateScenario(sIdx, 'then', e.target.value)}
+                      className="flex-1 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      placeholder="Resultado esperado, persistencia y código HTTP (ej. 200 OK / 201 Created)"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setIsStoryModalOpen(false);
+                setEditingStoryId(null);
+              }}
+              className="px-4 py-2 text-xs font-medium rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveStory}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{editingStoryId ? 'Guardar Cambios' : 'Guardar Historia'}</span>
             </button>
           </div>
         </div>

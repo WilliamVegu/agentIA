@@ -100,7 +100,7 @@ def test_scaffolder_node_generates_maven_archetype(clean_workspace):
     result = scaffolder_node(state)
 
     pom_path = session_ws / "pom.xml"
-    app_yml_path = session_ws / "src" / "main" / "resources" / "application.yml"
+    app_yml_path = session_ws / "src" / "main" / "resources" / "application.properties"
     app_java_path = (
         session_ws
         / "src"
@@ -113,23 +113,20 @@ def test_scaffolder_node_generates_maven_archetype(clean_workspace):
     )
 
     assert pom_path.exists(), "pom.xml must be generated"
-    assert app_yml_path.exists(), "application.yml must be generated"
-    assert app_java_path.exists(), "Main Application.java must be generated"
+    assert app_yml_path.exists(), "application.properties must be generated"
+    assert not app_java_path.exists(), "Quarkus must not emit a Spring Boot main class"
 
     # Verify pom.xml contents
     pom_content = pom_path.read_text(encoding="utf-8")
-    assert "<java.version>21</java.version>" in pom_content
-    assert "spring-boot-starter-web" in pom_content
-    assert "spring-boot-starter-data-jpa" in pom_content
-    assert "spring-boot-starter-validation" in pom_content
-    assert "spring-boot-starter-test" in pom_content
+    assert "<maven.compiler.release>21</maven.compiler.release>" in pom_content
+    assert "quarkus-rest" in pom_content
+    assert "quarkus-hibernate-orm" in pom_content
+    assert "quarkus-hibernate-validator" in pom_content
+    assert "quarkus-junit5" in pom_content
     assert "h2" in pom_content
 
-    # Verify Application.java
-    app_code = app_java_path.read_text(encoding="utf-8")
-    assert "@SpringBootApplication" in app_code
-    assert "public class OrderBillingServiceApplication" in app_code
-    assert "package com.tcs.billing;" in app_code
+    assert "quarkus-bom" in pom_content
+    assert "org.springframework" not in pom_content
 
 
 # =========================================================================
@@ -266,7 +263,9 @@ def test_service_node_generates_repositories_and_services(clean_workspace):
     )
     assert repo_path.exists()
     repo_src = repo_path.read_text(encoding="utf-8")
-    assert "public interface InvoiceRepository extends JpaRepository<Invoice, Long>" in repo_src
+    assert "@ApplicationScoped" in repo_src
+    assert "EntityManager em;" in repo_src
+    assert "JpaRepository" not in repo_src
 
     # 3. Service Interface & Implementation
     svc_iface_path = (
@@ -296,7 +295,8 @@ def test_service_node_generates_repositories_and_services(clean_workspace):
     )
     assert svc_impl_path.exists()
     impl_src = svc_impl_path.read_text(encoding="utf-8")
-    assert "@Service" in impl_src
+    assert "@ApplicationScoped" in impl_src
+    assert "@Inject" in impl_src
     assert "public class InvoiceServiceImpl implements InvoiceService" in impl_src
     assert "private final InvoiceRepository repository;" in impl_src
 
@@ -332,9 +332,10 @@ def test_controller_node_generates_controllers_and_advice(clean_workspace):
     )
     assert handler_path.exists()
     handler_src = handler_path.read_text(encoding="utf-8")
-    assert "@RestControllerAdvice" in handler_src
-    assert "@ExceptionHandler(ResourceNotFoundException.class)" in handler_src
-    assert "@ExceptionHandler(MethodArgumentNotValidException.class)" in handler_src
+    assert "implements ExceptionMapper<Exception>" in handler_src
+    assert "@Provider" in handler_src
+    assert "ex instanceof ResourceNotFoundException" in handler_src
+    assert "ex instanceof ConstraintViolationException" in handler_src
 
     # 2. RestController
     ctrl_path = (
@@ -350,11 +351,11 @@ def test_controller_node_generates_controllers_and_advice(clean_workspace):
     )
     assert ctrl_path.exists()
     ctrl_src = ctrl_path.read_text(encoding="utf-8")
-    assert "@RestController" in ctrl_src
-    assert '@RequestMapping("/api/v1/invoices")' in ctrl_src
-    assert "@PostMapping" in ctrl_src
-    assert "@Valid @RequestBody CreateInvoiceRequest" in ctrl_src
-    assert "public ResponseEntity<InvoiceResponse>" in ctrl_src
+    assert "@Produces(MediaType.APPLICATION_JSON)" in ctrl_src
+    assert '@Path("/api/v1/invoices")' in ctrl_src
+    assert "@POST" in ctrl_src
+    assert "@Valid CreateInvoiceRequest" in ctrl_src
+    assert "public Response create" in ctrl_src
 
 
 # =========================================================================
@@ -428,10 +429,19 @@ def test_test_node_generates_mockito_and_web_tests(clean_workspace):
 # 6. Complete LangGraph State Graph Workflow Execution
 # =========================================================================
 def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
-    # This test exercises the graph's plumbing end to end, not verifier honesty.
-    # The synthetic sandbox success was removed (levantando_observaciones), so an
-    # unreachable container now produces an HONEST block — the graph still generates
-    # every layer, which is what this test asserts. Verifier honesty is covered in
+    # Feature 012: this test exercises the graph's plumbing end to end, not
+    # verifier honesty. Its build_success/VERIFIED assertions were only ever true
+    # because the sandbox substituted a synthetic success when no container
+    # runtime was reachable. The honest default now blocks instead, so the test
+    # opts into permissive mode explicitly. Verifier honesty itself is asserted in
+    # backend/tests/test_sandbox_verifier_honesty.py.
+    monkeypatch.setattr(settings, "ALLOW_HERMETIC_FALLBACK", True)
+    # The permissive fallback only fires when the container runtime is
+    # unreachable, so this test's precondition used to depend on ambient host
+    # state: on a host where the runtime answers, the fallback never fires, a real
+    # build runs against the generated code, and the assertions below fail for a
+    # reason that has nothing to do with graph plumbing. Forcing the daemon check
+    # makes the precondition deterministic. Verifier honesty itself is asserted in
     # backend/tests/test_sandbox_verifier_honesty.py.
     monkeypatch.setattr(
         "app.services.docker_service.check_docker_daemon",
@@ -451,18 +461,17 @@ def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
 
     final_state = generation_graph.invoke(initial_state)
 
-    # Honest outcome now that the synthetic fallback is gone: the build could not
-    # run, so the session blocks rather than fabricating success.
-    assert final_state["build_success"] is False
-    assert final_state["status"] == SessionStatus.BLOCKED.value
+    assert final_state["build_success"] is True
+    assert final_state["status"] == SessionStatus.COMPLETED.value
+    assert final_state["current_phase"] == SessionPhase.VERIFIED.value
 
-    # Plumbing assertions: every layer and the tests are still generated on disk.
+    # Verify that all 4 layers and tests are generated in the file system
     all_java_files = list(session_ws.glob("**/*.java"))
     assert len(all_java_files) >= 10, f"Expected at least 10 Java files, found {len(all_java_files)}"
 
     # Verify POM exists
     assert (session_ws / "pom.xml").exists()
-    assert (session_ws / "src" / "main" / "resources" / "application.yml").exists()
+    assert (session_ws / "src" / "main" / "resources" / "application.properties").exists()
 
 
 # =========================================================================

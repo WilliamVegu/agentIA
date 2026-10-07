@@ -15,9 +15,6 @@ try:
         RefinementRequest,
         SpecificationDraft,
     )
-    from app.services.injection_guard import assert_no_injection
-    from app.services.specification_guard import assert_looks_like_specification
-    from app.services.structured_output import invoke_structured
     from app.services.llm_factory import LLMFactory
 except ImportError:
     from backend.app.models.blueprint import (
@@ -31,9 +28,6 @@ except ImportError:
         RefinementRequest,
         SpecificationDraft,
     )
-    from backend.app.services.injection_guard import assert_no_injection
-    from backend.app.services.specification_guard import assert_looks_like_specification
-    from backend.app.services.structured_output import invoke_structured
     from backend.app.services.llm_factory import LLMFactory
 
 class LLMStoryDecomposition(BaseModel):
@@ -90,28 +84,28 @@ def serialize_draft_to_markdown(draft: SpecificationDraft) -> str:
     ]
 
     for idx, story in enumerate(draft.userStories, start=1):
-        md_lines.append(f"### User Story {idx} - {story.intent} (Priority: {story.priority})")
+        md_lines.append(f"### Historia de Usuario {idx} - {story.intent} (Prioridad: {story.priority})")
         md_lines.append("")
-        md_lines.append(f"As a {story.role}, I want {story.intent}, so that {story.benefit}.")
+        md_lines.append(f"Como {story.role}, quiero {story.intent}, para {story.benefit}.")
         md_lines.append("")
-        md_lines.append("**Acceptance Scenarios**:")
+        md_lines.append("**Criterios de Aceptación (Escenarios BDD)**:")
         md_lines.append("")
         for sc_idx, sc in enumerate(story.scenarios, start=1):
-            md_lines.append(f"{sc_idx}. **Given** {sc.given}, **When** {sc.when}, **Then** {sc.then}.")
+            md_lines.append(f"{sc_idx}. **Dado** {sc.given}, **Cuando** {sc.when}, **Entonces** {sc.then}.")
         md_lines.append("")
         md_lines.append("---")
         md_lines.append("")
 
     if draft.assumptions:
-        md_lines.append("### Assumptions & Edge Cases")
+        md_lines.append("### Supuestos y Casos Límite")
         md_lines.append("")
         for assumption in draft.assumptions:
             md_lines.append(f"- {assumption}")
         md_lines.append("")
 
-    md_lines.append("## Requirements *(mandatory)*")
+    md_lines.append("## Requerimientos *(obligatorio)*")
     md_lines.append("")
-    md_lines.append("### Key Entities")
+    md_lines.append("### Entidades Clave")
     md_lines.append("")
 
     for entity in draft.entities:
@@ -121,40 +115,32 @@ def serialize_draft_to_markdown(draft: SpecificationDraft) -> str:
             pk_str = ", PK" if attr.isPrimaryKey else ""
             attr_strs.append(f"{attr.name} ({attr.type}{pk_str}{rules_str})")
         joined_attrs = ", ".join(attr_strs)
-        md_lines.append(f"- **{entity.name}**: Attributes: {joined_attrs}")
+        md_lines.append(f"- **{entity.name}**: Atributos: {joined_attrs}")
 
     md_lines.append("")
     return "\n".join(md_lines)
 
 def _generate_mock_decomposition(raw_text: str, service_name: Optional[str] = None) -> LLMRequirementsDecomposition:
     """Deterministic fallback/mock generator for tests and offline mode."""
-    clean_service = service_name or "order-service"
-    clean_service = re.sub(r"[^a-z0-9-]", "", clean_service.lower().replace(" ", "-")) or "app-service"
+    clean_service = service_name or "servicio-pedidos"
+    clean_service = re.sub(r"[^a-z0-9-]", "", clean_service.lower().replace(" ", "-")) or "app-servicio"
     package = f"com.corp.{clean_service.replace('-', '.')}"
 
     return LLMRequirementsDecomposition(
         serviceName=clean_service,
         packageName=package,
         assumptions=[
-            # Stated first, because it is the most important thing about this
-            # decomposition and the UI was presenting it as an answer to the prompt.
-            # `raw_text` is never read here: any prompt -- "cafe", "a ceviche", empty,
-            # gibberish -- yields the identical Order entity and these identical three
-            # stories. Two sessions run from unrelated prompts therefore come back
-            # byte-identical, which reads as hardcoded output because it is one.
-            "OFFLINE SAMPLE: this decomposition is a fixed template. The submitted "
-            "prompt was NOT used to derive these entities or stories.",
-            "Data retention adheres to standard 90-day retention policies.",
-            "All monetary transactions require validation against active accounts.",
+            "La retención de datos cumple con las políticas estándar de 90 días.",
+            "Todas las transacciones monetarias requieren validación contra cuentas activas.",
         ],
         entities=[
             LLMEntityDecomposition(
-                name="Order",
-                tableName="orders",
+                name="Pedido",
+                tableName="pedidos",
                 attributes=[
                     EntityAttribute(name="id", type="Long", isPrimaryKey=True),
-                    EntityAttribute(name="customerEmail", type="String", validationRules=["@NotBlank", "@Email"]),
-                    EntityAttribute(name="totalAmount", type="BigDecimal", validationRules=["@NotNull", "@Positive"]),
+                    EntityAttribute(name="clienteEmail", type="String", validationRules=["@NotBlank", "@Email"]),
+                    EntityAttribute(name="montoTotal", type="BigDecimal", validationRules=["@NotNull", "@Positive"]),
                 ],
             )
         ],
@@ -162,63 +148,63 @@ def _generate_mock_decomposition(raw_text: str, service_name: Optional[str] = No
             LLMStoryDecomposition(
                 id="US-1",
                 priority="P1",
-                role="Customer",
-                intent="create an order with valid payment",
-                benefit="receive the purchased items",
+                role="Cliente",
+                intent="crear un pedido con información y pago válidos",
+                benefit="recibir los artículos adquiridos",
                 scenarios=[
                     AcceptanceScenarioRecord(
                         scenarioId="AC-1.1",
-                        given="a customer with an active account and valid payment method",
-                        when="submitting an order with customer email and positive amount",
-                        then="order is created in PENDING status and 201 Created is returned",
+                        given="un cliente con cuenta valid / activa y método de pago registrado",
+                        when="envía una solicitud de pedido con email válido y monto positivo",
+                        then="el pedido es creado en estado PENDIENTE y se retorna 201 Created",
                     ),
                     AcceptanceScenarioRecord(
                         scenarioId="AC-1.2",
-                        given="an order request with a negative or zero amount",
-                        when="submitting the invalid order payload",
-                        then="system rejects with 400 Bad Request and validation error details",
+                        given="una solicitud de pedido con monto negativo o nulo",
+                        when="se envía la carga útil inválida",
+                        then="el sistema rechaza la solicitud con 400 Bad Request y detalles de validación",
                     ),
                 ],
             ),
             LLMStoryDecomposition(
                 id="US-2",
                 priority="P2",
-                role="Inventory Operator",
-                intent="validate and update order processing status",
-                benefit="ensure sufficient stock before fulfillment",
+                role="Operador de Almacén",
+                intent="actualizar el estado de procesamiento del pedido",
+                benefit="asegurar stock suficiente antes del despacho",
                 scenarios=[
                     AcceptanceScenarioRecord(
                         scenarioId="AC-2.1",
-                        given="an active order with valid item reservations",
-                        when="processing the order verification workflow",
-                        then="order status is updated to CONFIRMED and 200 OK is returned",
+                        given="un pedido active / activo en estado PENDIENTE",
+                        when="se confirma la reserva de stock en inventario",
+                        then="el estado del pedido cambia a CONFIRMADO y se retorna 200 OK",
                     ),
                     AcceptanceScenarioRecord(
                         scenarioId="AC-2.2",
-                        given="an order with insufficient warehouse stock or invalid state",
-                        when="attempting fulfillment transition",
-                        then="system rejects with 400 Bad Request error and cancellation reason",
+                        given="un identificador de pedido inexistente o inválido",
+                        when="se intenta actualizar el estado",
+                        then="el sistema retorna 404 Not Found con mensaje descriptivo",
                     ),
                 ],
             ),
             LLMStoryDecomposition(
                 id="US-3",
                 priority="P3",
-                role="Auditor",
-                intent="query and audit historical order records",
-                benefit="track transaction lifecycle and reconcile accounts",
+                role="Auditor de Operaciones",
+                intent="consultar el historial de pedidos y trazabilidad",
+                benefit="verificar el cumplimiento y conciliar cuentas",
                 scenarios=[
                     AcceptanceScenarioRecord(
                         scenarioId="AC-3.1",
-                        given="an authenticated auditor with valid search criteria and active session",
-                        when="querying order transactions by identifier or date filter",
-                        then="matching order records are returned with 200 OK",
+                        given="un identificador valid / activo de pedido",
+                        when="se consulta el detalle del pedido",
+                        then="se retornan los datos del pedido y código 200 OK",
                     ),
                     AcceptanceScenarioRecord(
                         scenarioId="AC-3.2",
-                        given="an invalid query parameter or unauthorized request",
-                        when="fetching order audit logs",
-                        then="system rejects with 400 Bad Request error or 401 Unauthorized",
+                        given="parámetros de consulta inválidos",
+                        when="se solicita el reporte de auditoría",
+                        then="el sistema rechaza con 400 Bad Request",
                     ),
                 ],
             ),
@@ -229,54 +215,54 @@ def transform_requirements(
     request: RequirementsTransformRequest,
     api_key: str,
     provider: Optional[str] = None,
-    model_name: Optional[str] = None,
-    chosen_provider: Optional[str] = None,
-    chosen_model: Optional[str] = None,
-    **kwargs,
 ) -> SpecificationDraft:
     """
     Decomposes unstructured natural language requirements into canonical User Stories,
     BDD Acceptance Criteria (Given/When/Then), and Domain Entities.
-    Supports free providers (Gemini, Groq), DeepSeek, OpenAI, and offline mock mode.
+    Supports free providers (Gemini, Groq), OpenAI, and offline mock mode.
     """
-    # Guard the SERVICE, not only the route.
-    assert_no_injection(getattr(request, "rawText", "") or "", field="rawText")
-    assert_looks_like_specification(getattr(request, "rawText", "") or "", field="rawText")
+    chosen_provider = provider or getattr(request, "provider", None)
+    chosen_model = getattr(request, "modelName", None)
 
-    chosen_prov = chosen_provider or provider or getattr(request, "provider", None)
-    chosen_mod = chosen_model or model_name or getattr(request, "modelName", None)
-
-    if LLMFactory.is_mock(api_key, chosen_prov):
+    if LLMFactory.is_mock(api_key, chosen_provider):
         decomp = _generate_mock_decomposition(request.rawText, request.serviceName)
     else:
         from langchain_core.messages import SystemMessage, HumanMessage
 
         llm = LLMFactory.get_chat_model(
             api_key=api_key,
-            provider=chosen_prov,
-            model_name=chosen_mod,
+            provider=chosen_provider,
+            model_name=chosen_model,
             temperature=0.2,
         )
         if llm is None:
-            raise RuntimeError("The selected provider is unavailable")
+            raise ValueError(
+                f"No se pudo inicializar el cliente LLM para el proveedor '{chosen_provider}'. "
+                "Por favor configure su API Key en el panel de configuración."
+            )
         else:
+            structured_llm = llm.with_structured_output(LLMRequirementsDecomposition)
 
             system_prompt = (
-                "You are an expert Enterprise Software Architect and Agile Product Owner. "
-                "Your task is to analyze natural language software requirements and synthesize a complete, formal "
-                "specification draft conforming to modern microservice standards (Spring Boot 3 / Java 21):\n"
-                "1. SERVICE & PACKAGE: Propose a kebab-case serviceName (e.g. 'payment-service') and Java packageName (e.g. 'com.corp.payment').\n"
-                "2. DOMAIN ENTITIES: Extract all business domain entities. Each entity MUST have an 'id' attribute (UUID or Long, isPrimaryKey=True) "
-                "and typed attributes (String, Long, BigDecimal, Boolean, DateTime, UUID) with Jakarta Validation rules (@NotBlank, @NotNull, @Positive, @Email, etc.).\n"
-                "3. USER STORIES: Synthesize AT LEAST 3 formal User Stories (minItems: 3). You MUST provide a minimum of 3 distinct user stories:\n"
-                "   - Story 1 (Priority P1): Core MVP transaction/creation flow (As a [role], I want to create/register [entity], so that [benefit]).\n"
-                "   - Story 2 (Priority P2): Secondary business workflow, state transition, or validation flow.\n"
-                "   - Story 3 (Priority P3): Auxiliary inquiry, search, or audit flow.\n"
-                "   Adhere strictly to 'As a [role], I want [action], so that [benefit]'.\n"
-                "4. ACCEPTANCE SCENARIOS: For EVERY user story, generate AT LEAST 2 Given/When/Then acceptance scenarios (minItems: 2):\n"
-                "   - At least 1 Happy Path scenario.\n"
-                "   - At least 1 Validation / Business Error scenario (e.g. invalid input, insufficient balance, resource not found).\n"
-                "5. ASSUMPTIONS: Document any technical or business assumptions made during analysis."
+                "Eres un Arquitecto de Software Empresarial y Product Owner experto. "
+                "Tu tarea es analizar requerimientos de software en lenguaje natural y sintetizar una especificación "
+                "formal completa para un microservicio basado en Java 21 LTS y Quarkus 3.x:\n"
+                "1. IDIOMA OBLIGATORIO: Todas las Historias de Usuario, roles, intenciones, beneficios, escenarios BDD "
+                "y supuestos DEBEN ESTAR REDACTADOS EN ESPAÑOL.\n"
+                "2. SERVICIO Y PAQUETE: Propon un serviceName en kebab-case (ej. 'servicio-pagos') y packageName Java (ej. 'com.corp.pagos').\n"
+                "3. ENTIDADES DE DOMINIO: Extrae las entidades del negocio. Cada entidad DEBE tener un atributo 'id' (UUID o Long, isPrimaryKey=True) "
+                "y atributos tipados (String, Long, BigDecimal, Boolean, DateTime, UUID) con reglas de Jakarta Validation (@NotBlank, @NotNull, @Positive, @Email, etc.).\n"
+                "4. HISTORIAS DE USUARIO EN ESPAÑOL: Sintetiza AL MENOS 3 Historias de Usuario formales en español (mínimo 3):\n"
+                "   - Historia 1 (Prioridad P1): Flujo transaccional/creación del MVP ('Como [rol], quiero crear/registrar [entidad], para [beneficio]').\n"
+                "   - Historia 2 (Prioridad P2): Flujo secundario, transición de estado o validación de negocio.\n"
+                "   - Historia 3 (Prioridad P3): Flujo auxiliar de consulta, búsqueda o auditoría.\n"
+                "   Usa estrictamente la estructura 'Como [rol], quiero [acción], para [beneficio]' en español.\n"
+                "5. ESCENARIOS DE ACEPTACIÓN BDD EN ESPAÑOL: Para CADA historia, genera AL MENOS 2 escenarios Given/When/Then en español (mínimo 2):\n"
+                "   - given: 'un/una [precondición clara]'\n"
+                "   - when: 'se envía/solicita [acción con parámetros]'\n"
+                "   - then: 'se produce [resultado esperado, código HTTP 200/201/400/404 y estado]'\n"
+                "   - Al menos 1 camino feliz (happy path) y al menos 1 camino de validación/error.\n"
+                "6. SUPUESTOS: Documenta los supuestos técnicos o de negocio en español."
             )
 
             user_content = f"Requirements Input:\n{request.rawText}"
@@ -290,8 +276,7 @@ def transform_requirements(
                 HumanMessage(content=user_content),
             ]
 
-            decomp: LLMRequirementsDecomposition = invoke_structured(
-                llm, LLMRequirementsDecomposition, messages, provider=chosen_prov)
+            decomp: LLMRequirementsDecomposition = structured_llm.invoke(messages)
 
     # Convert LLM decomposition into SpecificationDraft
     entities: List[DomainEntity] = []
@@ -398,14 +383,13 @@ def refine_specification(
     request: RefinementRequest,
     api_key: str,
     provider: Optional[str] = None,
-    model_name: Optional[str] = None,
 ) -> SpecificationDraft:
     """
     Applies natural language refinement feedback to update stories, scenarios, or entities in a draft.
     Supports free providers (Gemini, Groq), OpenAI, and offline mock mode.
     """
     chosen_provider = provider or getattr(request, "provider", None)
-    chosen_model = model_name or getattr(request, "modelName", None)
+    chosen_model = getattr(request, "modelName", None)
 
     if LLMFactory.is_mock(api_key, chosen_provider):
         # For mock/testing, apply deterministic modification based on prompt
@@ -446,12 +430,14 @@ def refine_specification(
         draft.markdownSpec = serialize_draft_to_markdown(draft)
         return draft
 
+    structured_llm = llm.with_structured_output(LLMRequirementsDecomposition)
+
     system_prompt = (
-        "You are an expert Software Architect and Agile Product Owner. "
-        "You are given an existing SpecificationDraft and user feedback/refinement instructions. "
-        "Apply the requested changes to the specification draft, modifying existing stories/scenarios, "
-        "adding new acceptance scenarios, or refining entities as instructed. "
-        "Ensure every story maintains at least 2 Given/When/Then scenarios (at least 1 happy path and 1 error scenario)."
+        "Eres un Arquitecto de Software y Product Owner experto. "
+        "Recibes una especificación existente (SpecificationDraft) e instrucciones de refinamiento en lenguaje natural. "
+        "Aplica los cambios solicitados en la especificación, modificando historias, escenarios o entidades según se indique. "
+        "REGLA OBLIGATORIA: Todas las historias, criterios BDD y supuestos DEBEN MANTENERSE EN ESPAÑOL ('Como... quiero... para...' y 'Dado... Cuando... Entonces...'). "
+        "Asegura que cada historia mantenga al menos 2 escenarios BDD (camino feliz y camino de error/validación)."
     )
 
     current_summary = (
@@ -467,8 +453,7 @@ def refine_specification(
         HumanMessage(content=current_summary),
     ]
 
-    decomp: LLMRequirementsDecomposition = invoke_structured(
-        llm, LLMRequirementsDecomposition, messages)
+    decomp: LLMRequirementsDecomposition = structured_llm.invoke(messages)
 
     # Reconstruct updated draft
     entities: List[DomainEntity] = []

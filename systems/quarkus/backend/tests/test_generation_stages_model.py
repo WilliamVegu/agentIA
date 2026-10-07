@@ -42,14 +42,14 @@ def _allowlisted_pom() -> str:
     <project xmlns="http://maven.apache.org/POM/4.0.0">
       <modelVersion>4.0.0</modelVersion>
       <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.3</version>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-parent</artifactId>
+        <version>3.15.1</version>
       </parent>
       <dependencies>
         <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-web</artifactId>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-rest</artifactId>
         </dependency>
       </dependencies>
       <build>
@@ -67,9 +67,9 @@ def _allowlisted_pom() -> str:
 UNLISTED_DEP_POM = """
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.2.3</version>
+    <groupId>io.quarkus</groupId>
+    <artifactId>quarkus-parent</artifactId>
+    <version>3.15.1</version>
   </parent>
   <dependencies>
     <dependency>
@@ -105,14 +105,14 @@ def test_allowlist_rule_rejects_non_deterministic_version_selectors():
     pom = """
     <project xmlns="http://maven.apache.org/POM/4.0.0">
       <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.3</version>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-parent</artifactId>
+        <version>3.15.1</version>
       </parent>
       <dependencies>
         <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-web</artifactId>
+          <groupId>io.quarkus</groupId>
+          <artifactId>quarkus-rest</artifactId>
           <version>1.0.0-SNAPSHOT</version>
         </dependency>
       </dependencies>
@@ -160,7 +160,7 @@ CONTROLLER_IMPORTING_REPOSITORY = {
         "public class XController { private XRepository repository; }\n"
     ),
     "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java": (
-        "package com.corp.x.controller;\n@RestControllerAdvice\npublic class GlobalExceptionHandler {}\n"
+        "package com.corp.x.controller;\n@Provider\npublic class GlobalExceptionHandler {}\n"
     ),
 }
 
@@ -197,7 +197,7 @@ def test_adapter_keeps_the_strictest_severity_on_collision():
             "package com.corp.x.model.entity;\n@Data\npublic class X {}\n"
         ),
         "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java": (
-            "package com.corp.x.controller;\n@RestControllerAdvice\npublic class GlobalExceptionHandler {}\n"
+            "package com.corp.x.controller;\n@Provider\npublic class GlobalExceptionHandler {}\n"
         ),
     }
     verdict = normalize_verdict(files, stage_scope=("src/main/java/*/model/entity/*.java",))
@@ -210,7 +210,7 @@ def test_adapter_keeps_the_strictest_severity_on_collision():
 def test_whole_project_rule_is_accumulated_not_local():
     """FR-006: a stage must not be blamed for a rule only the project can satisfy.
 
-    With no @RestControllerAdvice anywhere, family B reports the omission against
+    With no @Provider anywhere, family B reports the omission against
     'src/main/java', which is outside every stage's artifact scope.
     """
     files = {
@@ -241,7 +241,7 @@ def test_local_violations_do_reject_and_are_returned():
 def test_clean_artifact_set_passes():
     files = {
         "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java": (
-            "package com.corp.x.controller;\n@RestControllerAdvice\npublic class GlobalExceptionHandler {}\n"
+            "package com.corp.x.controller;\n@Provider\npublic class GlobalExceptionHandler {}\n"
         ),
     }
     verdict = normalize_verdict(files, stage_scope=CONTROLLER_SCOPE)
@@ -268,7 +268,7 @@ def test_credential_rule_flags_embedded_secret():
 def test_credential_rule_is_part_of_the_verdict():
     files = {
         "src/main/java/com/corp/x/controller/GlobalExceptionHandler.java": (
-            "package com.corp.x.controller;\n@RestControllerAdvice\npublic class GlobalExceptionHandler {}\n"
+            "package com.corp.x.controller;\n@Provider\npublic class GlobalExceptionHandler {}\n"
         ),
         "src/main/java/com/corp/x/Config.java": (
             'package com.corp.x;\npublic class Config { static final String K = '
@@ -915,7 +915,7 @@ def test_adversarial_embedded_credential_persists_nothing(monkeypatch, tmp_path)
         ),
         "src/main/java/com/corp/notes/controller/GlobalExceptionHandler.java": (
             "package com.corp.notes.controller;\n\n"
-            "@RestControllerAdvice\npublic class GlobalExceptionHandler {}\n"
+            "@Provider\npublic class GlobalExceptionHandler {}\n"
         ),
     }
     _script(monkeypatch, *[fm.canonical_json_response(leaked)] * 3)

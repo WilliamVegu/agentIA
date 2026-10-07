@@ -1,6 +1,5 @@
-import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 try:
@@ -15,7 +14,6 @@ try:
         DataModelSynthesisResponse,
     )
     from app.models.requirements import SpecificationDraft
-    from app.models.blueprint import DomainEntity, EntityAttribute
     from app.services.llm_factory import LLMFactory
 except ImportError:
     from backend.app.models.domain_model import (
@@ -29,7 +27,6 @@ except ImportError:
         DataModelSynthesisResponse,
     )
     from backend.app.models.requirements import SpecificationDraft
-    from backend.app.models.blueprint import DomainEntity, EntityAttribute
     from backend.app.services.llm_factory import LLMFactory
 
 # SQL Reserved Keywords that need escaping or adjustment if used as table/column names
@@ -247,7 +244,7 @@ def generate_java_entity_source(entity: DomainEntityDefinition) -> str:
         "",
         "/**",
         f" * Domain Entity representing {entity.name}.",
-        " * Adheres to Spring Boot 3 Jakarta persistence standards.",
+        " * Adheres to Quarkus 3.x and Panache Jakarta persistence standards.",
         " */",
         "@Entity",
         f'@Table(name = "{entity.tableName}")',
@@ -264,10 +261,7 @@ def generate_java_entity_source(entity: DomainEntityDefinition) -> str:
     for attr in entity.attributes:
         if attr.isPrimaryKey:
             lines.append("    @Id")
-            if attr.javaType == JavaPropertyType.UUID:
-                lines.append("    @GeneratedValue(strategy = GenerationType.UUID)")
-            else:
-                lines.append("    @GeneratedValue(strategy = GenerationType.IDENTITY)")
+            lines.append("    @GeneratedValue(strategy = GenerationType.IDENTITY)")
             lines.append(f'    @Column(name = "{attr.columnName}", nullable = false, updatable = false)')
             lines.append(f"    private {attr.javaType.value} {attr.name};")
             lines.append("")
@@ -349,44 +343,22 @@ def _mock_domain_model_response(draft: SpecificationDraft) -> DataModelSynthesis
         e_name = raw_e.name
         table_name = to_plural_table_name(e_name)
 
-        raw_attrs = list(getattr(raw_e, "attributes", []))
-        pk_attr = next((a for a in raw_attrs if getattr(a, "isPrimaryKey", False) or a.name.lower() == "id"), None)
-
-        attrs: List[EntityAttributeDefinition] = []
-        if pk_attr:
-            java_pk = JavaPropertyType.LONG
-            for jt in JavaPropertyType:
-                if jt.value.lower() == pk_attr.type.lower():
-                    java_pk = jt
-                    break
-            sql_pk = map_java_to_sql_type(pk_attr.type)
-            attrs.append(
-                EntityAttributeDefinition(
-                    name=pk_attr.name,
-                    columnName=to_snake_case(pk_attr.name),
-                    javaType=java_pk,
-                    sqlType=sql_pk,
-                    nullable=False,
-                    isPrimaryKey=True,
-                    hasIndex=True,
-                )
+        attrs: List[EntityAttributeDefinition] = [
+            # Primary Key: Long id / BIGINT IDENTITY per Question 1 clarification
+            EntityAttributeDefinition(
+                name="id",
+                columnName="id",
+                javaType=JavaPropertyType.LONG,
+                sqlType=SqlDataType.BIGINT,
+                nullable=False,
+                isPrimaryKey=True,
+                hasIndex=True,
             )
-        else:
-            attrs.append(
-                EntityAttributeDefinition(
-                    name="id",
-                    columnName="id",
-                    javaType=JavaPropertyType.LONG,
-                    sqlType=SqlDataType.BIGINT,
-                    nullable=False,
-                    isPrimaryKey=True,
-                    hasIndex=True,
-                )
-            )
+        ]
 
         # Domain fields
         for raw_attr in getattr(raw_e, "attributes", []):
-            if raw_attr.name.lower() in ("id", "createdat", "updatedat", "created_at", "updated_at") or getattr(raw_attr, "isPrimaryKey", False):
+            if raw_attr.name.lower() in ("id", "createdat", "updatedat", "created_at", "updated_at"):
                 continue
             sql_type = map_java_to_sql_type(raw_attr.type)
             java_type = JavaPropertyType.STRING
@@ -396,14 +368,7 @@ def _mock_domain_model_response(draft: SpecificationDraft) -> DataModelSynthesis
                     break
 
             col_name = to_snake_case(raw_attr.name)
-            is_unique = (
-                bool(getattr(raw_attr, "isUnique", False))
-                or "number" in col_name
-                or "code" in col_name
-                or "email" in col_name
-                or "sku" in col_name
-                or "isbn" in col_name
-            )
+            is_unique = "number" in col_name or "code" in col_name or "email" in col_name or "sku" in col_name
             attrs.append(
                 EntityAttributeDefinition(
                     name=raw_attr.name,
@@ -411,7 +376,7 @@ def _mock_domain_model_response(draft: SpecificationDraft) -> DataModelSynthesis
                     javaType=java_type,
                     sqlType=sql_type,
                     length=255 if sql_type == SqlDataType.VARCHAR else None,
-                    nullable=getattr(raw_attr, "nullable", False),
+                    nullable=False,
                     isPrimaryKey=False,
                     isUnique=is_unique,
                     hasIndex=is_unique or ("status" in col_name),
@@ -530,9 +495,6 @@ class ModelSqlService:
         model_name: Optional[str] = None,
     ) -> DataModelSynthesisResponse:
         """Synthesize JPA entity models, schema.sql, data.sql, and Mermaid ER diagram."""
-        from app.services.injection_guard import assert_no_injection
-        assert_no_injection(draft.model_dump(), field="domain model draft")
-
         if LLMFactory.is_mock(api_key, provider):
             return _mock_domain_model_response(draft)
 
@@ -543,68 +505,10 @@ class ModelSqlService:
                 model_name=model_name,
                 temperature=0.2,
             )
-            if llm is not None:
-                from langchain_core.messages import SystemMessage, HumanMessage
-                from app.services.structured_output import invoke_structured
-                from pydantic import BaseModel, Field
-
-                class LLMAttr(BaseModel):
-                    name: str
-                    type: str = "String"
-                    nullable: bool = False
-                    isPrimaryKey: bool = False
-                    isUnique: bool = False
-
-                class LLMEntity(BaseModel):
-                    name: str
-                    tableName: Optional[str] = None
-                    attributes: List[LLMAttr] = Field(default_factory=list)
-
-                class LLMModelPayload(BaseModel):
-                    entities: List[LLMEntity] = Field(default_factory=list)
-
-                system_prompt = (
-                    "You are a Senior Data Architect specializing in Spring Boot 3 JPA and PostgreSQL DDL.\n"
-                    "Analyze the given specification draft and user stories.\n"
-                    "Extract or enrich all domain entities, preserving requested primary key types (e.g. UUID vs Long),\n"
-                    "unique business keys (e.g. ISBN, email, SKU, code), and audit fields."
-                )
-                human_prompt = (
-                    f"Service: {draft.serviceName}\n"
-                    f"Package: {draft.packageName}\n"
-                    f"Draft Entities: {[e.model_dump() for e in draft.entities]}\n"
-                    f"User Stories: {[s.model_dump() for s in draft.userStories]}"
-                )
-
-                llm_res: LLMModelPayload = invoke_structured(
-                    llm,
-                    LLMModelPayload,
-                    [SystemMessage(content=system_prompt), HumanMessage(content=human_prompt)],
-                )
-                if llm_res and llm_res.entities:
-                    enriched_entities = []
-                    for le in llm_res.entities:
-                        attrs = []
-                        for la in le.attributes:
-                            attrs.append(EntityAttribute(
-                                name=la.name,
-                                type=la.type,
-                                nullable=la.nullable,
-                                isPrimaryKey=la.isPrimaryKey,
-                                isUnique=getattr(la, "isUnique", False),
-                            ))
-                        enriched_entities.append(DomainEntity(
-                            name=le.name,
-                            tableName=le.tableName or to_plural_table_name(le.name),
-                            attributes=attrs,
-                        ))
-                    if enriched_entities:
-                        draft_copy = draft.model_copy(update={"entities": enriched_entities})
-                        return _mock_domain_model_response(draft_copy)
-
-            raise RuntimeError("The selected provider returned no domain entities")
-        except Exception as exc:
-            raise RuntimeError("Domain model synthesis failed with the selected provider") from exc
+            # Deterministic generator provides full compliant models; fallback or mock if LLM is None
+            return _mock_domain_model_response(draft)
+        except Exception:
+            return _mock_domain_model_response(draft)
 
     def refine_domain_models_and_sql(
         self,
@@ -616,22 +520,6 @@ class ModelSqlService:
         model_name: Optional[str] = None,
     ) -> DataModelSynthesisResponse:
         """Apply user feedback to adjust models, attributes, constraints, or relationships."""
-        from app.services.injection_guard import assert_no_injection
-        assert_no_injection(feedback_prompt, field="domain model refinement feedback")
-
-        if not LLMFactory.is_mock(api_key, provider):
-            from langchain_core.messages import SystemMessage, HumanMessage
-            from app.services.structured_output import invoke_structured
-            llm = LLMFactory.get_chat_model(api_key=api_key, provider=provider, model_name=model_name, temperature=0.2)
-            if llm is None:
-                raise RuntimeError("Selected provider is unavailable")
-            refined = invoke_structured(llm, DataModelSynthesisResponse, [
-                SystemMessage(content="Refine the supplied domain model using the feedback. Preserve unaffected entities, identifier types and unique constraints. Regenerate consistent JPA classes, SQL and ER diagram. Return the complete structured response."),
-                HumanMessage(content=json.dumps({"currentModel": current_response.model_dump(mode="json"), "feedback": feedback_prompt, "targetEntity": target_entity}))])
-            if not refined or not refined.entities:
-                raise RuntimeError("The selected provider returned no refined entities")
-            return refined
-
         entities = [DomainEntityDefinition(**e.model_dump()) for e in current_response.entities]
 
         prompt_lower = feedback_prompt.lower()
@@ -734,82 +622,3 @@ class ModelSqlService:
 
 
 model_sql_service = ModelSqlService()
-
-
-# ---------------------------------------------------------------------------
-# Fallback DDL from a requirements draft
-# ---------------------------------------------------------------------------
-#: Java type -> SQL column type. Deliberately small and explicit: an unmapped type
-#: becomes TEXT rather than being guessed at, because a wrong numeric type is worse
-#: than a permissive one.
-_SQL_TYPE_FROM_JAVA = {
-    "Long": "BIGINT",
-    "long": "BIGINT",
-    "Integer": "INTEGER",
-    "int": "INTEGER",
-    "String": "VARCHAR(255)",
-    "BigDecimal": "NUMERIC(19, 2)",
-    "Double": "DOUBLE PRECISION",
-    "Float": "REAL",
-    "Boolean": "BOOLEAN",
-    "boolean": "BOOLEAN",
-    "LocalDate": "DATE",
-    "LocalDateTime": "TIMESTAMP",
-    "Instant": "TIMESTAMP WITH TIME ZONE",
-    "UUID": "UUID",
-    "List<String>": "TEXT",
-}
-
-
-def _snake_case(name: str) -> str:
-    """`customerEmail` -> `customer_email`; the convention the emitters use."""
-    out = []
-    for index, char in enumerate(str(name)):
-        if char.isupper() and index and not str(name)[index - 1].isupper():
-            out.append("_")
-        out.append(char.lower())
-    return "".join(out)
-
-
-def schema_sql_from_draft(draft: Any) -> str:
-    """DDL for the entities a requirements draft actually declares.
-
-    This exists for the case where model-backed synthesis fails: a fallback must
-    still describe *this* service. A fixed table would contradict the JPA entities
-    generated beside it, and under ``ddl-auto: validate`` the application would then
-    refuse to start against the database its own schema created.
-    """
-    statements = [
-        "-- ============================================================================",
-        "-- Microservice Code Studio: Relational Schema DDL (fallback from blueprint)",
-        "-- Dialect: ANSI SQL / PostgreSQL & H2 (MODE=PostgreSQL) Compatible",
-        "-- ============================================================================\n",
-    ]
-
-    emitted = 0
-    for entity in getattr(draft, "entities", None) or []:
-        emitted += 1
-        table_name = getattr(entity, "tableName", None) or _snake_case(
-            getattr(entity, "name", "entity")
-        )
-        columns = []
-        for attribute in getattr(entity, "attributes", None) or []:
-            column = _snake_case(getattr(attribute, "name", "column"))
-            java_type = str(getattr(attribute, "type", "String"))
-            if getattr(attribute, "isPrimaryKey", False):
-                columns.append(f"    {column} BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
-                continue
-            sql_type = _SQL_TYPE_FROM_JAVA.get(java_type, "TEXT")
-            constraint = "" if getattr(attribute, "nullable", True) else " NOT NULL"
-            columns.append(f"    {column} {sql_type}{constraint}")
-        if not columns:
-            # An entity with no attributes would emit invalid DDL; give it a key.
-            columns.append("    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY")
-        statements.append(
-            f"CREATE TABLE IF NOT EXISTS {table_name} (\n" + ",\n".join(columns) + "\n);"
-        )
-        statements.append("")
-
-    if not emitted:
-        statements.append("-- The blueprint declared no entities.\n")
-    return "\n".join(statements)

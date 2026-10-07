@@ -9,10 +9,10 @@ The node module of the same name now delegates to the stage execution
 boundary, which dispatches here for DETERMINISTIC sessions.
 """
 
+from app.orchestrator.stages.deterministic.schema import identifier
 from pathlib import Path
 from typing import Dict, Any, List
 from app.orchestrator.state import GenerationAgentState
-from app.orchestrator.stages.deterministic import module_layout
 
 def _map_java_type(attr_type: str) -> str:
     t = attr_type.lower()
@@ -43,12 +43,13 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
 
     pkg_path = package_name.replace(".", "/")
     entities = blueprint.get("entities", [])
-    prefix = module_layout.module_prefix_for("DOMAIN", state.get("architecture_plan"))
 
     logs.append(f"[DOMAIN] Synthesizing {len(entities)} JPA entities and Record DTOs")
 
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        id_name, id_type = identifier(ent)
+        id_cap = id_name[0].upper() + id_name[1:]
         attrs = ent.get("attributes", [])
         
         # Ensure 'id' exists
@@ -61,16 +62,17 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
         getter_setter_code = []
         for a in attrs:
             name = a.get("name")
-            is_id = a.get("isPrimaryKey") or a.get("is_identifier", False) or name == "id"
+            is_id = name == id_name
             if is_id:
-                jtype = "Long"
+                jtype = id_type
             else:
                 jtype = _map_java_type(a.get("type", "String"))
             is_required = a.get("required", False) or (not a.get("nullable", True))
             
             field_annotations = []
             if is_id:
-                field_annotations.append("    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)")
+                strategy = "UUID" if id_type in ("java.util.UUID", "String") else "IDENTITY"
+                field_annotations.append(f"    @Id\n    @GeneratedValue(strategy = GenerationType.{strategy})")
             else:
                 if is_required:
                     if jtype == "String":
@@ -97,7 +99,7 @@ import jakarta.validation.constraints.*;
 import java.util.Objects;
 
 @Entity
-@Table(name = "{ent_name.lower()}s")
+@Table(name = "{ent.get('tableName') or ent_name.lower()+'s'}")
 public class {ent_name} {{
 
 {chr(10).join(fields_code)}
@@ -112,19 +114,19 @@ public class {ent_name} {{
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         {ent_name} that = ({ent_name}) o;
-        return Objects.equals(id, that.id);
+        return Objects.equals({id_name}, that.{id_name});
     }}
 
     @Override
     public int hashCode() {{
-        return Objects.hash(id);
+        return Objects.hash({id_name});
     }}
 }}
 """
 
         # 2. Record DTOs (Principle II)
         # Create Request DTO (excluding id)
-        non_id_attrs = [a for a in attrs if not (a.get("isPrimaryKey") or a.get("is_identifier") or a.get("name") == "id")]
+        non_id_attrs = [a for a in attrs if a.get("name") != id_name]
         create_params = []
         for a in non_id_attrs:
             jtype = _map_java_type(a.get("type", "String"))
@@ -146,9 +148,9 @@ public record Create{ent_name}Request(
         from_entity_mappings = []
         for a in attrs:
             aname = a.get("name")
-            is_id = a.get("isPrimaryKey") or a.get("is_identifier", False) or aname == "id"
+            is_id = aname == id_name
             if is_id:
-                jtype = "Long"
+                jtype = id_type
             else:
                 jtype = _map_java_type(a.get("type", "String"))
             cap_name = aname[0].upper() + aname[1:]
@@ -172,9 +174,9 @@ public record {ent_name}Response(
 """
 
         # Record files in map
-        entity_path = f"{prefix}src/main/java/{pkg_path}/model/entity/{ent_name}.java"
-        create_dto_path = f"{prefix}src/main/java/{pkg_path}/model/dto/Create{ent_name}Request.java"
-        resp_dto_path = f"{prefix}src/main/java/{pkg_path}/model/dto/{ent_name}Response.java"
+        entity_path = f"src/main/java/{pkg_path}/model/entity/{ent_name}.java"
+        create_dto_path = f"src/main/java/{pkg_path}/model/dto/Create{ent_name}Request.java"
+        resp_dto_path = f"src/main/java/{pkg_path}/model/dto/{ent_name}Response.java"
 
         generated_files[entity_path] = entity_src
         generated_files[create_dto_path] = create_dto_src

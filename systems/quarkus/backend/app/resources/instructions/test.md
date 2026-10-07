@@ -2,124 +2,65 @@
 
 ## Technology contract
 
-You produce the automated test suite of a Spring Boot microservice. Automated compliance
+You produce the automated test suite of a Quarkus microservice. Automated compliance
 validation runs before anything you write is persisted.
 
 - **Language level**: Java 21 LTS.
-- **Framework**: Spring Boot 3.x test support.
+- **Framework**: Quarkus 3.x test support (`@QuarkusTest`, `io.quarkus.test.junit.QuarkusTest`).
 - **Namespace**: `jakarta.*` exclusively. `javax.*` is a validation failure.
-- **Test frameworks (Stack rule)**: **JUnit 5 (Jupiter)** as the test engine, **Mockito** for
-  mocking and interaction verification, and **AssertJ** for fluent assertions. These three
-  are the required stack; do not substitute a different engine, a different mocking library,
-  or bare `assertTrue`-style assertions where a fluent assertion expresses the intent.
+- **Test frameworks (Stack rule)**: **JUnit 5 (Jupiter)**, **Mockito** (`@InjectMock`),
+  **REST-assured** for endpoint verification, and **AssertJ** for fluent assertions.
+  These four are the required stack; do not substitute a different test engine or bare
+  assertions.
 - **Coverage obligation (Constitution V)**: every declared functionality must be covered for
-  both the happy path and the alternative and failure paths — failed validation, resource
-  not found, and business-rule violations. Zero failing tests are permitted; the built
-  service is only considered acceptable at a 100% pass rate.
+  both happy path and alternative/failure paths (failed validation, resource not found,
+  business error). Zero failing tests are permitted.
 - **Hermetic operation (Constitution IV and VI)**: the suite must run entirely offline with
-  no network access. It must make no call to any external service, and in particular **no
-  call to any language-model or other remote API**. Any such integration must be mocked with
-  a deterministic stub.
-- **Contracts**: tests operate against the record contracts and service interfaces produced
-  by earlier stages. They must not reach into persistence entities to construct expectations
-  in a way that bypasses the service contract.
-
-
-### Requested architecture profile
-
-The task payload's architecture_preference takes precedence over the default layered paths above.
-For hexagonal / ports-and-adapters use domain/model for domain types, domain/port for interfaces,
-application/dto for immutable contracts, application/service for use cases, infrastructure/persistence
-for JPA entities, infrastructure/adapter/out for repository adapters, and infrastructure/adapter/in
-for REST controllers and exception handling. Domain and application depend on ports, never on
-Spring Data repositories or infrastructure. The SERVICE stage implements ports and outgoing adapters;
-the DOMAIN stage owns domain types, ports, DTOs and persistence entities. Reuse all prior artifacts and
-respect the selected identifier types. Tests must reference these actual package names.
-For layered architecture retain the default output contract. Never substitute layered packages for a
-requested hexagonal architecture. For Gradle use build.gradle/build.gradle.kts, never require pom.xml.
-
+  no network access. It must make no call to external services or remote LLM APIs.
+- **Contracts**: tests operate against record contracts, REST endpoints, and service interfaces.
 
 ## Rules
 
-1. Read the blueprint payload, and in particular its **acceptance scenarios**. The scenarios
-   — not a fixed list of method names — are the specification of what must be tested. Every
-   scenario must map to at least one test method.
-2. Derive each test method from the scenario it verifies: cover the precondition the
-   scenario states, perform the action it describes, and assert the outcome it declares.
-   Name each method after the behaviour it verifies, so the scenario-to-test mapping is
-   readable from the test report.
-3. Cover, per entity, at minimum: successful creation, successful retrieval by identifier,
-   the not-found path for a missing resource, and successful retrieval of the full
-   collection. Derive any further cases from additional declared scenarios.
-4. Cover the failure paths explicitly — a missing resource must be asserted to raise the
-   dedicated not-found exception, not merely to return an empty result.
-5. Unit-test the service implementation in isolation: substitute the repository with a mock,
-   inject it through the constructor, and verify both the returned value and the
-   interactions the implementation is required to perform.
-5a. **Unit tests do not prove persistence, so also emit a slice test that does.** A
-   `@DataJpaTest` per entity, exercising the repository against a real database, must
-   perform an actual `save()` and then read the row back. This is not optional coverage:
-   a Mockito test substitutes the repository, so no persistence provider and no
-   pre-insert entity validation runs, and a service whose every insert fails will pass its
-   entire unit suite. A `@DataJpaTest` is the only layer in this contract that calls
-   `save()` for real.
-5b. **Emit a `@WebMvcTest` per controller.** With the service layer replaced by
-   `@MockitoBean`, assert the HTTP contract: the created resource returns 201, an invalid
-   body returns 400 through the global handler, and a missing resource returns 404. This
-   covers the transport boundary that neither the unit tests nor the slice test exercises.
-5c. Note what each layer cannot see, and do not claim otherwise in a test name: the unit
-   test cannot see persistence, and the web slice cannot see either persistence or
-   business logic.
-6. Stub only what the test actually exercises. Do not add stubbings that no assertion depends
-   on, because unnecessary stubbing fails under strict stub enforcement and is reported as a
-   test error rather than a test failure.
-7. Assert with fluent AssertJ assertions that express the intent — for example that a
-   collection is not empty and has the expected size, or that an exception is thrown with a
-   particular type — rather than asserting a bare boolean.
-8. Emit a context-load test for the application entry point that confirms the Spring context
-   starts with the generated configuration. It must be a genuine context assertion, not a
-   placeholder that always passes.
-9. Keep unit tests free of a running HTTP server and a real database. Where a test genuinely
-   requires a Spring context, use the narrowest slice that satisfies it and keep the
-   datasource in-memory.
-10. Ensure the test tree mirrors the main source package layout exactly, so that test classes
-    are discoverable by the build without additional configuration.
+1. Read the blueprint payload and acceptance scenarios. Every scenario must map to at least
+   one test method.
+2. Derive each test method from the scenario it verifies: test preconditions, execute the
+   action, and assert the outcome. Name methods descriptively.
+3. Test service implementations in isolation using JUnit 5, AssertJ, and Mockito: mock the
+   Panache repository, inject it, and verify returned record contracts and interactions.
+4. Test HTTP resources using `@QuarkusTest` and REST-assured: verify HTTP status codes
+   (`201 Created`, `200 OK`, `400 Bad Request`, `404 Not Found`), response content-type,
+   and JSON payload bodies.
+5. Cover failure paths explicitly: missing resources must return 404 with standard RFC 7807
+   error details; invalid payloads must return 400 with validation violations.
+6. Stub only what the test exercises. Avoid unnecessary stubbing.
+7. Use AssertJ fluent assertions (`assertThat(...)`) to express expectations clearly.
+8. Emit an application health / startup test verifying that the Quarkus runtime boots
+   successfully and exposes the service catalogue.
+9. Keep unit tests isolated and fast; use in-memory H2 database for integration tests.
+10. Ensure the test directory structure mirrors `src/main/java` package layout exactly.
+11. STRICT 100% QUARKUS TEST ONLY: Do NOT use Spring Boot test annotations (`@SpringBootTest`, `@WebMvcTest`,
+    `@MockBean`, `org.springframework.test.*`). Use ONLY `@QuarkusTest`, `io.quarkus.test.junit.QuarkusTest`,
+    `io.quarkus.test.junit.mockito.InjectMock`, and `io.restassured.RestAssured`. Mixing Spring test
+    frameworks is strictly prohibited.
 
 ## Output contract
 
-Produce exactly these artifacts, at exactly these workspace-relative paths. Emit one service
-test class per declared domain entity, plus exactly one application context test.
+Produce exactly these artifacts, at exactly these workspace-relative paths. Emit one unit
+test suite and one resource integration test suite per entity, plus the lifecycle test.
 
 | Path | Artifact |
 | --- | --- |
-| `src/test/java/<package-path>/<ServiceName>ApplicationTests.java` | Application context-load test for the Spring Boot entry point. Emitted once. |
-| `src/test/java/<package-path>/service/<Entity>ServiceTest.java` | Mockito-backed unit tests for the entity's service implementation, derived from the declared acceptance scenarios. |
-| `src/test/java/<package-path>/service/<Entity>ServiceTest.java` | (continued) |
-| `src/test/java/<package-path>/repository/<Entity>RepositoryTest.java` | `@DataJpaTest` slice: saves and reads back a real row for each entity. The only generated test that exercises persistence. |
-| `src/test/java/<package-path>/controller/<Entity>ControllerTest.java` | `@WebMvcTest` slice: asserts the HTTP contract (201/400/404) with the service layer mocked. |
+| `src/test/java/<package-path>/service/<EntityName>ServiceTest.java` | Unit tests for service logic with Mockito and AssertJ. |
+| `src/test/java/<package-path>/controller/<EntityName>ResourceTest.java` | Endpoint integration tests using `@QuarkusTest` and REST-assured. |
+| `src/test/java/<package-path>/ApplicationLifecycleTest.java` | Quarkus boot and catalogue verification test. Emitted once. |
 
-`<package-path>` is the base package name with `/` separators. `<ServiceName>` is the service
-identity in PascalCase; `<Entity>` is the PascalCase entity name from the blueprint. Package
-declarations must match the directory layout exactly.
+`<package-path>` is the base package with segments separated by `/`. `<EntityName>` is the
+entity name in PascalCase.
 
 ## Prohibitions
 
-- **Do not make any network call from a test** — no remote API, no language-model provider,
-  no external HTTP service. This is a blocking constitutional rule (Constitution VI) and it
-  also breaks the hermetic offline build.
-- **Do not emit a fixed, entity-independent set of test method names.** Coverage must follow
-  the supplied acceptance scenarios; a suite that ignores them is non-compliant even if it
-  passes.
-- **Do not emit placeholder assertions** that cannot fail, such as asserting a literal
-  constant is true purely to make a test exist.
-- **Do not stub a method that the test does not exercise**, and do not disable strict stub
-  checking to work around it.
-- **Do not connect a unit test to a real external database**, and do not require a running
-  server for a unit-scoped test.
-- **Do not import `javax.*`.**
-- **Do not use `@Data`**, `@Value`, or `@SneakyThrows`.
-- **Do not hardcode credentials**, tokens, or environment-specific hosts in test
-  configuration.
-- **Do not weaken or bypass an assertion to make a test pass** — for example by catching an
-  expected exception and asserting nothing.
-- **Do not emit artifacts outside the Output contract**, and do not omit any listed artifact.
+- **Do not use `javax.*` anywhere.**
+- **Do not make network or external API calls during tests.**
+- **Do not leave unasserted scenarios or placeholder tests that always pass.**
+- **Do not bypass the service boundary to touch persistence state directly in unit tests.**
+- **Do not use untested random data or non-deterministic test ordering.**

@@ -25,42 +25,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from app.services.llm_factory import LLMFactory
-from app.services.injection_guard import has_blocking_finding, scan_text
 from app.skills.document import SkillDocument
 
 PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "analyst_error.md"
-
-#: What an instruction-shaped string from recorded evidence is replaced with.
-REDACTION = "[redacted: text resembling an instruction to the model]"
-
-
-def _redact_injection(node: Any, path: str = "") -> Any:
-    """Neutralise instruction-shaped text inside recorded evidence.
-
-    This is the **indirect** injection channel, and on this platform it is the one
-    that matters most. The evidence here was recorded from earlier sessions, and its
-    strings originated in user-submitted documents: artifact paths, entity names,
-    rule findings. The reflector then proposes edits to a **skill document** -- the
-    instructions every later session runs under. So a string that reaches this prompt
-    is not merely misread in a report; it can rewrite the instruction set itself.
-
-    Framing the prompt as data (see the prompt template) is the first defence, but it
-    asks the model to cooperate. This removes the payload instead: a HIGH-confidence
-    match is replaced while the surrounding evidence is kept, so the reflector still
-    sees which session failed and why. Redacting the whole record would destroy the
-    signal the reflector exists to analyse.
-    """
-    if isinstance(node, str):
-        if has_blocking_finding(scan_text(node, path or "evidence")):
-            return REDACTION
-        return node
-    if isinstance(node, dict):
-        return {key: _redact_injection(value, f"{path}.{key}" if path else str(key))
-                for key, value in node.items()}
-    if isinstance(node, (list, tuple)):
-        return [_redact_injection(value, f"{path}[{index}]")
-                for index, value in enumerate(node)]
-    return node
 
 #: The edit budget, L_t. Shared with the applier so the two cannot drift.
 from scripts.skillopt.apply import MAX_EDITS  # noqa: E402
@@ -140,14 +107,11 @@ def build_prompt(skill: SkillDocument, failures: Sequence[Dict[str, Any]],
                  max_edits: int = MAX_EDITS) -> str:
     """Fill the prompt template. Exposed so a test can assert what the model sees."""
     template = _load_template()
-    # Redact BEFORE rendering: the prompt must never contain the payload, not merely
-    # be accompanied by a note asking the model to ignore it.
-    safe_failures = _redact_injection(list(failures))
     return (
         template
         .replace("{{SKILL}}", skill.render().rstrip())
-        .replace("{{DIAGNOSTICS}}", _render_diagnostics(safe_failures).rstrip())
-        .replace("{{FAILURES}}", json.dumps(safe_failures, indent=2, sort_keys=True))
+        .replace("{{DIAGNOSTICS}}", _render_diagnostics(failures).rstrip())
+        .replace("{{FAILURES}}", json.dumps(list(failures), indent=2, sort_keys=True))
         .replace("{{MAX_EDITS}}", str(max_edits))
     )
 

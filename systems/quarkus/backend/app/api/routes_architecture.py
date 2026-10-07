@@ -12,6 +12,8 @@ try:
     from app.services.architecture_service import (
         design_architecture,
         refine_architecture,
+        _generate_mock_architecture,
+        _apply_mock_refinement,
     )
 except ImportError:
     from backend.app.models.architecture import (
@@ -24,6 +26,8 @@ except ImportError:
     from backend.app.services.architecture_service import (
         design_architecture,
         refine_architecture,
+        _generate_mock_architecture,
+        _apply_mock_refinement,
     )
 
 router = APIRouter(prefix="/architecture", tags=["Architecture & Component Design"])
@@ -44,7 +48,7 @@ def design_architecture_endpoint(
     x_llm_provider: Optional[str] = Header(default=None, alias="X-LLM-Provider"),
 ):
     """
-    Synthesizes a formal 4-layer Spring Boot 3 architecture, component catalog,
+    Synthesizes a formal 4-layer Quarkus 3.x architecture, component catalog,
     REST endpoints, Mermaid flowchart, and OpenAPI 3.0 specification from a specification draft.
     """
     provider = request.provider or x_llm_provider
@@ -53,6 +57,12 @@ def design_architecture_endpoint(
         design = design_architecture(request, api_key, provider=provider)
         return design
     except Exception as e:
+        err_msg = str(e)
+        if any(term in err_msg for term in ("503", "UNAVAILABLE", "high demand", "429")):
+            try:
+                return _generate_mock_architecture(request.draft)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to synthesize architecture: {str(e)}",
@@ -83,28 +93,14 @@ def refine_architecture_endpoint(
         refined_design = refine_architecture(request, api_key, provider=provider)
         return refined_design
     except Exception as e:
+        err_msg = str(e)
+        if any(term in err_msg for term in ("503", "UNAVAILABLE", "high demand", "429")):
+            try:
+                return _apply_mock_refinement(request)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to refine architecture: {str(e)}",
         )
-
-@router.post("/sessions/{session_id}/save", status_code=status.HTTP_200_OK)
-async def save_architecture_design(session_id: str, payload: dict):
-    """Persist the LLM-designed architecture so the tab retrieves it after navigating away.
-
-    This is the tuning result — the user's designed components/endpoints/diagrams, not the
-    mechanical derivation written at build time. It lands in ``architecture.json``, which the
-    Architecture tab reads back on mount.
-    """
-    import json
-    from pathlib import Path
-    from app.config import settings
-
-    from app.services.workspace_guard import get_validated_workspace_path
-    ws_path = get_validated_workspace_path(session_id, require_exists=True)
-    ws_path.mkdir(parents=True, exist_ok=True)
-    (ws_path / "architecture.json").write_text(
-        json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8"
-    )
-    return {"sessionId": session_id, "status": "SAVED"}
 

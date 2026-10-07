@@ -16,10 +16,10 @@ from app.services.devops_service import (
 
 def test_generate_dockerfile():
     dockerfile = generate_dockerfile("order-service")
-    # Verify multi-stage layertools
-    assert "FROM eclipse-temurin:21-jre-alpine AS builder" in dockerfile
-    assert "java -Djarmode=layertools -jar application.jar extract" in dockerfile
+    # Verify multi-stage quarkus fast-jar
+    assert "FROM maven:3.9-eclipse-temurin-21-alpine AS builder" in dockerfile
     assert "FROM eclipse-temurin:21-jre-alpine AS runner" in dockerfile
+    assert "quarkus-run.jar" in dockerfile
     # Verify non-root user
     assert "USER appuser:appgroup" in dockerfile
     assert "10001" in dockerfile
@@ -27,7 +27,7 @@ def test_generate_dockerfile():
     assert "-XX:MaxRAMPercentage=75.0" in dockerfile
     # Verify healthcheck
     assert "HEALTHCHECK" in dockerfile
-    assert "/actuator/health" in dockerfile
+    assert "/q/health" in dockerfile
 
 
 def test_generate_dockerignore():
@@ -42,34 +42,10 @@ def test_generate_docker_compose_postgresql():
     assert "version: '3.8'" in compose
     assert "image: postgres:16-alpine" in compose
     assert "5432:5432" in compose
+    assert "schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro" in compose
     assert "pgdata:/var/lib/postgresql/data" in compose
     assert "condition: service_healthy" in compose
-    assert "SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/order-service_db" in compose
-
-
-def test_the_compose_file_does_not_initialise_the_schema_from_a_bind_mount():
-    """The schema travels inside the artifact; the database container is not told about it.
-
-    This asserted the opposite until the bind mount was removed, because the mount
-    failed on a real host: `docker compose up` creates a missing mount source as a
-    DIRECTORY, and even once it was a 0644 regular file the container was refused it --
-    root inside the container, SELinux disabled, no ACLs, XFS, fresh volume and
-    --force-recreate. Reproduced by the user, so it was not an artefact of one shell.
-
-    The replacement contract is stronger: the schema is on the classpath, Spring applies
-    it (SPRING_SQL_INIT_MODE=always), and Hibernate is told `none` so it cannot silently
-    alter a schema the platform authored.
-    """
-    compose = generate_docker_compose("order-service", "POSTGRESQL", 8080)
-
-    assert "docker-entrypoint-initdb.d" not in compose, (
-        "database initialisation depends on a host bind mount again"
-    )
-    assert "SPRING_SQL_INIT_MODE=always" in compose
-    assert "SPRING_JPA_HIBERNATE_DDL_AUTO=none" in compose
-    assert "ddl_auto=update" not in compose, (
-        "`update` silently alters the authored schema and hides schema defects"
-    )
+    assert "QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/order-service_db" in compose
 
 
 def test_generate_docker_compose_mysql():
@@ -77,12 +53,12 @@ def test_generate_docker_compose_mysql():
     assert "image: mysql:8.0-debian" in compose
     assert "3306:3306" in compose
     assert "mysqldata:/var/lib/mysql" in compose
-    assert "SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/inventory-service_db" in compose
+    assert "QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://db:3306/inventory-service_db" in compose
 
 
 def test_generate_docker_compose_h2():
     compose = generate_docker_compose("test-service", "H2", 8082)
-    assert "SPRING_PROFILES_ACTIVE=h2" in compose
+    assert "QUARKUS_DATASOURCE_DB_KIND=h2" in compose
     assert "jdbc:h2:mem:test-service_db" in compose
     # H2 standalone should NOT have a separate db container
     assert "image: postgres" not in compose
@@ -117,8 +93,8 @@ def test_generate_kubernetes_manifests():
     assert "kind: Deployment" in deploy
     assert "runAsNonRoot: true" in deploy
     assert "runAsUser: 10001" in deploy
-    assert "/actuator/health/liveness" in deploy
-    assert "/actuator/health/readiness" in deploy
+    assert "/q/health/live" in deploy
+    assert "/q/health/ready" in deploy
 
     ingress = k8s["ingress.yaml"]
     assert "ingressClassName: nginx" in ingress

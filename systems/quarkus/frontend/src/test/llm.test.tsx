@@ -33,16 +33,16 @@ describe('LlmContext & SettingsDrawer', () => {
     vi.clearAllMocks();
   });
 
-  it('initializes with mock provider in verified offline state', () => {
+  it('initializes with gemini provider requiring configuration', () => {
     render(
       <LlmProvider>
         <TestLlmConsumer />
       </LlmProvider>
     );
 
-    expect(screen.getByTestId('provider')).toHaveTextContent('mock');
-    expect(screen.getByTestId('model')).toHaveTextContent('offline-mock');
-    expect(screen.getByTestId('isVerified')).toHaveTextContent('VERIFIED');
+    expect(screen.getByTestId('provider')).toHaveTextContent('gemini');
+    expect(screen.getByTestId('model')).toHaveTextContent('gemini-3.6-flash');
+    expect(screen.getByTestId('isVerified')).toHaveTextContent('UNVERIFIED');
   });
 
   it('updates provider and resets verification state for external providers', () => {

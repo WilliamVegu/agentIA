@@ -204,7 +204,7 @@ def _pkg(blueprint: Mapping[str, Any]) -> str:
 def compliant_artifacts(stage: str, blueprint: Mapping[str, Any]) -> Dict[str, str]:
     """Artifacts that satisfy every rule the gate checks for that stage.
 
-    The set includes ``@RestControllerAdvice`` in the controller stage so the
+    The set includes ``@Provider`` in the controller stage so the
     whole-project error-handler rule is satisfied by accumulation, which is the
     behaviour FR-006 exists to protect.
     """
@@ -219,14 +219,14 @@ def compliant_artifacts(stage: str, blueprint: Mapping[str, Any]) -> Dict[str, s
                 "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n"
                 "  <modelVersion>4.0.0</modelVersion>\n"
                 "  <parent>\n"
-                "    <groupId>org.springframework.boot</groupId>\n"
-                "    <artifactId>spring-boot-starter-parent</artifactId>\n"
-                "    <version>3.2.3</version>\n"
+                "    <groupId>io.quarkus</groupId>\n"
+                "    <artifactId>quarkus-parent</artifactId>\n"
+                "    <version>3.15.1</version>\n"
                 "  </parent>\n"
                 "  <dependencies>\n"
                 "    <dependency>\n"
-                "      <groupId>org.springframework.boot</groupId>\n"
-                "      <artifactId>spring-boot-starter-web</artifactId>\n"
+                "      <groupId>io.quarkus</groupId>\n"
+                "      <artifactId>quarkus-rest</artifactId>\n"
                 "    </dependency>\n"
                 "  </dependencies>\n"
                 "  <build>\n"
@@ -239,7 +239,7 @@ def compliant_artifacts(stage: str, blueprint: Mapping[str, Any]) -> Dict[str, s
                 "  </build>\n"
                 "</project>\n"
             ),
-            "src/main/resources/application.yml": f"spring:\n  application:\n    name: {blueprint.get('serviceName')}\n",
+            "src/main/resources/application.properties": f"quarkus.application.name={blueprint.get('serviceName')}\n",
         }
 
     if stage == "DOMAIN":
@@ -273,7 +273,7 @@ def compliant_artifacts(stage: str, blueprint: Mapping[str, Any]) -> Dict[str, s
             ),
             f"src/main/java/{path}/controller/GlobalExceptionHandler.java": (
                 f"package {pkg}.controller;\n\n"
-                f"@RestControllerAdvice\npublic class GlobalExceptionHandler {{}}\n"
+                f"@Provider\npublic class GlobalExceptionHandler {{}}\n"
             ),
         }
 
@@ -304,7 +304,7 @@ def violate_layer_isolation(blueprint: Mapping[str, Any]) -> Dict[str, str]:
         # Include the advice so the *whole-project* rule cannot also fire; this
         # isolates the layer-isolation rule being tested.
         f"src/main/java/{path}/controller/GlobalExceptionHandler.java": (
-            f"package {pkg}.controller;\n\n@RestControllerAdvice\npublic class GlobalExceptionHandler {{}}\n"
+            f"package {pkg}.controller;\n\n@Provider\npublic class GlobalExceptionHandler {{}}\n"
         ),
     }
 
@@ -321,7 +321,7 @@ def violate_contract_immutability(blueprint: Mapping[str, Any]) -> Dict[str, str
 
 
 def violate_centralized_errors(blueprint: Mapping[str, Any]) -> Dict[str, str]:
-    """Principle III, whole-project rule: no @RestControllerAdvice anywhere.
+    """Principle III, whole-project rule: no @Provider anywhere.
 
     The violation is reported against ``src/main/java``, which is outside every
     stage's artifact scope, so it resolves to ACCUMULATED and must not reject the
@@ -371,9 +371,9 @@ def violate_dependency_allowlist(blueprint: Mapping[str, Any]) -> Dict[str, str]
             "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n"
             "  <modelVersion>4.0.0</modelVersion>\n"
             "  <parent>\n"
-            "    <groupId>org.springframework.boot</groupId>\n"
-            "    <artifactId>spring-boot-starter-parent</artifactId>\n"
-            "    <version>3.2.3</version>\n"
+            "    <groupId>io.quarkus</groupId>\n"
+            "    <artifactId>quarkus-parent</artifactId>\n"
+            "    <version>3.15.1</version>\n"
             "  </parent>\n"
             "  <dependencies>\n"
             "    <dependency>\n"

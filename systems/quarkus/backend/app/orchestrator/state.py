@@ -53,10 +53,3 @@ class GenerationAgentState(TypedDict, total=False):
     llm_api_key: Optional[str]                  # provider credential for MODEL mode
     llm_provider: Optional[str]                 # resolved provider for MODEL mode
     llm_model: Optional[str]                    # resolved model name for MODEL mode
-
-    # --- Feature levantando_observaciones additive field. The deterministic
-    # --- scaffolder records the ArchitecturePlan inferred from the blueprint's
-    # --- inputInterface here, so downstream stages and the API can see the chosen
-    # --- architecture without recomputing it. Optional: absent for blueprints with
-    # --- no inputInterface, and for all pre-reframing sessions.
-    architecture_plan: Optional[Dict[str, Any]]

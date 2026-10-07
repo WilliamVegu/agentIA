@@ -121,9 +121,9 @@ describe('Views: ArchitectureView & DomainModelsView', () => {
         serviceName: 'payment-service',
         mermaidDiagram: 'graph TD\n  Client --> Controller\n  Controller --> Service\n  Service --> Repository',
         components: [
-          { name: 'PaymentController', layer: 'controller', stereotype: '@RestController', description: 'REST Endpoints' },
-          { name: 'PaymentService', layer: 'service', stereotype: '@Service', description: 'Business Logic' },
-          { name: 'PaymentRepository', layer: 'repository', stereotype: '@Repository', description: 'JPA Data' },
+          { name: 'PaymentResource', layer: 'controller', stereotype: '@Path', description: 'REST Endpoints' },
+          { name: 'PaymentService', layer: 'service', stereotype: '@ApplicationScoped', description: 'Business Logic' },
+          { name: 'PaymentRepository', layer: 'repository', stereotype: 'PanacheRepository<Payment>', description: 'Panache ORM' },
           { name: 'Payment', layer: 'model', stereotype: '@Entity', description: 'JPA Entity' },
         ],
       });
@@ -143,7 +143,7 @@ describe('Views: ArchitectureView & DomainModelsView', () => {
         expect(architectureService.design).toHaveBeenCalled();
         expect(screen.getByText(/Capa Controlador \(REST \/ HTTP\)/i)).toBeInTheDocument();
         expect(screen.getByText(/Capa Servicio \(Lógica de Negocio\)/i)).toBeInTheDocument();
-        expect(screen.getByText(/Capa Repositorio \(Persistencia Spring Data JPA\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/Capa Repositorio \(Persistencia Panache Hibernate ORM\)/i)).toBeInTheDocument();
         expect(screen.getByText(/Capa Dominio & Modelos/i)).toBeInTheDocument();
       });
     });
@@ -156,7 +156,7 @@ describe('Views: ArchitectureView & DomainModelsView', () => {
             serviceName: 'payment-service',
             mermaidDiagram: 'graph TD\n  A-->B',
             components: [
-              { name: 'PaymentController', layer: 'controller', stereotype: '@RestController', description: 'REST' },
+              { name: 'PaymentResource', layer: 'controller', stereotype: '@Path', description: 'REST' },
             ],
           });
         }, [setArchitectureDesign]);

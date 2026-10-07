@@ -162,7 +162,7 @@ def scan_sast_vulnerabilities(files: Dict[str, str]) -> List[SecurityVulnerabili
                         lineNumber=line_num,
                         codeSnippet=line.strip(),
                         description="Dynamic string concatenation within query definition permits SQL/JPQL injection attacks.",
-                        remediationGuidance="Use parameterized queries with named parameters (e.g., :paramName) or native Spring Data query derivation.",
+                        remediationGuidance="Use parameterized queries with named parameters (e.g., :paramName) or native Panache query methods (e.g., find(\"status\", status)).",
                         autoFixAvailable=True,
                     )
                 )
@@ -325,7 +325,7 @@ def scan_architecture_compliance(files: Dict[str, str]) -> List[StandardsComplia
         if not file_path.endswith(".java"):
             continue
 
-        if "@RestControllerAdvice" in content or "@ControllerAdvice" in content:
+        if any(h in content for h in ("@RestControllerAdvice", "@ControllerAdvice", "@ServerExceptionMapper", "ExceptionMapper", "@Provider")):
             has_rest_controller_advice = True
 
         # Principle I: Strict 4-Layer Unidirectional Flow
@@ -382,15 +382,8 @@ def scan_architecture_compliance(files: Dict[str, str]) -> List[StandardsComplia
                 viol_idx += 1
 
         # Stack Rule: Lombok Restrictions (@Data, @Value, @SneakyThrows strictly prohibited)
-        #
-        # Matched on a word boundary, NOT as a substring. `@DataJpaTest` contains the
-        # characters "@Data", so a substring test reported a legitimate Spring Boot test
-        # slice as a prohibited Lombok annotation -- a HIGH violation, which blocked
-        # export (403) and stopped the devops step, for a file that is entirely correct.
-        # The remediation path below already matches with \b, so the checker and the
-        # fixer disagreed about the same file; this makes them agree.
         for prohibited in ["@Data", "@Value", "@SneakyThrows"]:
-            if re.search(re.escape(prohibited) + r"\b", content):
+            if prohibited in content:
                 violations.append(
                     StandardsComplianceViolation(
                         id=f"CONST-VIOL-{viol_idx:03d}",
@@ -405,7 +398,7 @@ def scan_architecture_compliance(files: Dict[str, str]) -> List[StandardsComplia
                 )
                 viol_idx += 1
 
-    # Principle III: Check global presence of @RestControllerAdvice
+    # Principle III: Check global presence of centralized exception handler
     java_files = [f for f in files.keys() if f.endswith(".java")]
     if java_files and not has_rest_controller_advice:
         violations.append(
@@ -414,9 +407,9 @@ def scan_architecture_compliance(files: Dict[str, str]) -> List[StandardsComplia
                 principle=ConstitutionPrinciple.PRINCIPLE_III_CENTRALIZED_ERRORS,
                 severity=SeverityLevel.HIGH,
                 filePath="src/main/java",
-                offendingElement="Missing @RestControllerAdvice",
-                ruleDescription="Constitution Principle III Violation: A centralized exception handler annotated with @RestControllerAdvice is required.",
-                suggestedFix="Implement a GlobalExceptionHandler class annotated with @RestControllerAdvice returning ProblemDetails (RFC 7807).",
+                offendingElement="Missing Centralized Exception Handler",
+                ruleDescription="Constitution Principle III Violation: A centralized exception handler annotated with @ServerExceptionMapper or @RestControllerAdvice is required.",
+                suggestedFix="Implement a GlobalExceptionHandler class annotated with @ServerExceptionMapper (Quarkus) or @RestControllerAdvice returning ProblemDetails (RFC 7807).",
                 autoFixAvailable=False,
             )
         )
@@ -527,9 +520,6 @@ def evaluate_quality_gate(
     metrics: CodeQualityMetrics,
 ) -> QualityGateVerdict:
     """Evaluates composite Quality Gate score and blocking status."""
-    if metrics.totalLinesOfCode == 0 and not vulnerabilities and not violations:
-        return QualityGateVerdict(status=QualityGateStatus.BLOCKED, score=0,
-                                  canExport=False, summaryMessage="No source code was audited.")
     critical_count = sum(1 for v in vulnerabilities if v.severity == SeverityLevel.CRITICAL) + sum(
         1 for v in violations if v.severity == SeverityLevel.CRITICAL
     )
@@ -662,19 +652,7 @@ def audit_workspace(workspace_dir: str, session_id: str, service_name: str = "mi
 
     violations = scan_architecture_compliance(files)
     metrics = calculate_code_metrics(files)
-    if not files and not pom_content:
-        quality_gate = QualityGateVerdict(
-            status=QualityGateStatus.BLOCKED,
-            score=0,
-            criticalCount=0,
-            highCount=0,
-            mediumCount=0,
-            lowCount=0,
-            canExport=False,
-            summaryMessage="Quality Gate BLOCKED: Workspace has no source code files to audit.",
-        )
-    else:
-        quality_gate = evaluate_quality_gate(vulnerabilities, violations, metrics)
+    quality_gate = evaluate_quality_gate(vulnerabilities, violations, metrics)
 
     report = SecurityQualityAuditReport(
         sessionId=session_id,

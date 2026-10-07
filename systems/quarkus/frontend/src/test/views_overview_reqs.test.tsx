@@ -203,9 +203,49 @@ describe('Views: StudioOverview, SpecIngestion, Requirements', () => {
       const createManualBtn = screen.getByRole('button', { name: /Crear Manualmente/i });
       fireEvent.click(createManualBtn);
 
+      const saveBtn = await screen.findByRole('button', { name: /Guardar Historia/i });
+      fireEvent.click(saveBtn);
+
       await waitFor(() => {
         expect(screen.getByText(/Catálogo de Historias de Usuario BDD \(1\)/i)).toBeInTheDocument();
         expect(screen.getByText(/Nueva Funcionalidad de Negocio/i)).toBeInTheDocument();
+      });
+    });
+
+    it('allows selecting and modifying an existing user story', async () => {
+      renderWithProviders(<RequirementsView />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/No hay historias de usuario en esta sesión/i)).toBeInTheDocument();
+      });
+
+      // Add one story first
+      const createManualBtn = screen.getByRole('button', { name: /Crear Manualmente/i });
+      fireEvent.click(createManualBtn);
+      const saveBtn = await screen.findByRole('button', { name: /Guardar Historia/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Nueva Funcionalidad de Negocio/i)).toBeInTheDocument();
+      });
+
+      // Click modify button
+      const editBtn = screen.getAllByRole('button', { name: /Modificar historia/i })[0];
+      fireEvent.click(editBtn);
+
+      // Verify drawer opens with title
+      expect(await screen.findByText(/Modificar Historia de Usuario/i)).toBeInTheDocument();
+
+      // Change title
+      const titleInput = screen.getByPlaceholderText(/Ej: Registro de nueva orden de compra/i);
+      fireEvent.change(titleInput, { target: { value: 'Gestión Avanzada de Pedidos Modificada' } });
+
+      // Save changes
+      const saveChangesBtn = screen.getByRole('button', { name: /Guardar Cambios/i });
+      fireEvent.click(saveChangesBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Gestión Avanzada de Pedidos Modificada/i)).toBeInTheDocument();
       });
     });
 

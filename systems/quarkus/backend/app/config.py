@@ -37,13 +37,14 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8501",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
     ]
     
     # Concurrency and worker queue limit (FR-004)
     MAX_CONCURRENT_SESSIONS: int = Field(default=2, description="Max concurrent Docker sandbox executions")
     
     # Sandbox & Docker Execution
-    DOCKER_ENABLED: bool = Field(default=False, description="Enable Docker execution; disable in environments without virtualization.")
     DOCKER_IMAGE: str = Field(
         default="maven:3.9-eclipse-temurin-21",
         description="Docker base image with pre-cached Maven 3.9 and Java 21 LTS"
@@ -70,13 +71,8 @@ class Settings(BaseSettings):
         description="Directory where generated code is synthesized and built"
     )
     SPECIFICATION_DIR: str = Field(
-        default=str(Path(__file__).resolve().parent.parent / "specifications"),
-        description=(
-            "Where ingested blueprints are persisted. They were held only in a "
-            "process-local dict, so every restart -- including each uvicorn --reload "
-            "during development -- discarded them, and the ingest-then-generate flow "
-            "failed at the second step with 'Specification not found'."
-        ),
+        default=str(Path(__file__).resolve().parent.parent / "quarkus_specifications"),
+        description="Persisted Quarkus blueprints, independent from Spring Boot.",
     )
     
     # Maximum auto-repair iterations (Adaptive Constitution Principle V)
@@ -103,14 +99,6 @@ class Settings(BaseSettings):
     MLFLOW_TRACKING_URI: str = Field(
         default="http://localhost:5000",
         description="Telemetry destination for mirrored cost records. Unreachable is a non-event.",
-    )
-    MLFLOW_EXPERIMENT: str = Field(
-        default="agentia",
-        description=(
-            "MLflow experiment that mirrored runs are grouped under. Without a named "
-            "experiment every run lands in `Default`, which is why the tracking UI "
-            "looked like it held nothing from this project while holding 535 runs."
-        ),
     )
     # The durable local store that IS the system of record. The report reads only
     # this, which is what makes the figures deterministic and offline (FR-005, FR-006).

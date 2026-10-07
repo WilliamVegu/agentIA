@@ -16,7 +16,6 @@ export interface VerifyLlmResponse {
 }
 
 export interface HealthCheckResponse {
-  dockerEnabled?: boolean;
   status: string;
   timestamp: string;
   app: string;

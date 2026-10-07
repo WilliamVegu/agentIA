@@ -5,33 +5,21 @@ from datetime import datetime, timezone
 from app.models.devops import DatabaseEngine, DevOpsManifestBundle
 
 
-def generate_dockerfile(service_name: str = "microservice", build_tool: str = "maven") -> str:
-    """Generates an optimized, multi-stage Dockerfile based on Eclipse Temurin JRE 21 LTS using Spring Boot layertools."""
-    content = f"""# ==============================================================================
-# Multi-Stage Layered Dockerfile for Spring Boot 3 / Java 21 LTS
+def generate_dockerfile(service_name: str = "microservice") -> str:
+    """Generates an optimized, multi-stage Fast-Jar Dockerfile for Quarkus 3 / Java 21 LTS."""
+    return f"""# ==============================================================================
+# Multi-Stage Fast-Jar Dockerfile for Quarkus 3 / Java 21 LTS
 # Hermetic & Non-Root Execution (Constitution Principles IV & VI)
 # ==============================================================================
 
-# Stage 1: Build fat JAR inside container with Maven (Hermetic build)
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder-mvn
+# Stage 1: Build fast-jar inside container with Maven
+FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /workspace
 COPY pom.xml .
 COPY src ./src
-RUN mvn clean package -Dmaven.test.skip=true
+RUN mvn clean package -DskipTests
 
-# Stage 2: Spring Boot Layer Extractor
-FROM eclipse-temurin:21-jre-alpine AS builder
-WORKDIR /workspace
-
-# Copy pre-built fat JAR from Maven build stage
-COPY --from=builder-mvn /workspace/target/*.jar application.jar
-
-# Extract Spring Boot layers (dependencies, spring-boot-loader, snapshot-dependencies, application)
-RUN java -Djarmode=layertools -jar application.jar extract
-
-# ------------------------------------------------------------------------------
-# Stage 3: Minimal Non-Root Runtime Image
-# ------------------------------------------------------------------------------
+# Stage 2: Minimal Non-Root Runtime Image
 FROM eclipse-temurin:21-jre-alpine AS runner
 WORKDIR /app
 
@@ -39,11 +27,11 @@ WORKDIR /app
 RUN addgroup -g 10001 -S appgroup && \\
     adduser -u 10001 -S appuser -G appgroup
 
-# Copy extracted layers in optimal caching order
-COPY --from=builder /workspace/dependencies/ ./
-COPY --from=builder /workspace/spring-boot-loader/ ./
-COPY --from=builder /workspace/snapshot-dependencies/ ./
-COPY --from=builder /workspace/application/ ./
+# Copy Quarkus fast-jar application files
+COPY --from=builder /workspace/target/quarkus-app/lib/ /app/lib/
+COPY --from=builder /workspace/target/quarkus-app/*.jar /app/
+COPY --from=builder /workspace/target/quarkus-app/app/ /app/app/
+COPY --from=builder /workspace/target/quarkus-app/quarkus/ /app/quarkus/
 
 # Change ownership of application files
 RUN chown -R appuser:appgroup /app
@@ -53,26 +41,17 @@ USER appuser:appgroup
 
 # Configure JVM container memory management & network defaults
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
-ENV SERVER_PORT=8080
+ENV QUARKUS_HTTP_PORT=8080
 
 EXPOSE 8080
 
-# Native container healthcheck polling Spring Boot Actuator
-HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 \\
-  CMD wget -q -O - http://localhost:8080/actuator/health | grep UP || exit 1
+# Native container healthcheck polling Quarkus SmallRye Health
+HEALTHCHECK --interval=15s --timeout=3s --start-period=15s --retries=3 \\
+  CMD wget -q -O - http://localhost:8080/q/health | grep UP || exit 1
 
-# Launch using Spring Boot JarLauncher
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+# Launch using Quarkus fast-jar
+ENTRYPOINT ["java", "-jar", "/app/quarkus-run.jar"]
 """
-    if build_tool == "gradle":
-        content = content.replace("maven:3.9-eclipse-temurin-21-alpine", "gradle:8-jdk21")
-        content = content.replace("builder-mvn", "builder-gradle")
-        content = content.replace("COPY pom.xml .", "COPY . .")
-        content = content.replace("RUN mvn clean package -Dmaven.test.skip=true", "RUN gradle --no-daemon clean bootJar -x test")
-        content = content.replace("/workspace/target/*.jar", "/workspace/build/libs/*.jar")
-    return content
-
-
 
 
 def generate_dockerignore() -> str:
@@ -81,8 +60,6 @@ def generate_dockerignore() -> str:
 .gitignore
 .dockerignore
 target/
-build/
-.gradle/
 *.log
 *.class
 *.jar
@@ -113,12 +90,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: {service_name}
     ports:
       - "{host_port}:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=h2
-      - SERVER_PORT=8080
-      - SPRING_DATASOURCE_URL=jdbc:h2:mem:{service_name}_db;MODE=PostgreSQL
+      - QUARKUS_PROFILE=prod
+      - QUARKUS_HTTP_PORT=8080
+      - QUARKUS_DATASOURCE_DB_KIND=h2
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:h2:mem:{service_name}_db;MODE=PostgreSQL
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
     networks:
       - app-network
     restart: unless-stopped
@@ -136,17 +116,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: {service_name}
     ports:
       - "{host_port}:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SERVER_PORT=8080
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/{service_name}_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${{DB_PASSWORD:-root}}
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
-      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.MySQLDialect
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - QUARKUS_PROFILE=prod
+      - QUARKUS_HTTP_PORT=8080
+      - QUARKUS_DATASOURCE_DB_KIND=mysql
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://db:3306/{service_name}_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - QUARKUS_DATASOURCE_USERNAME=root
+      - QUARKUS_DATASOURCE_PASSWORD=${{DB_PASSWORD:-root}}
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
     depends_on:
       db:
         condition: service_healthy
@@ -156,6 +136,7 @@ services:
 
   db:
     image: mysql:8.0-debian
+    container_name: {service_name}-mysql
     ports:
       - "3306:3306"
     environment:
@@ -163,6 +144,7 @@ services:
       - MYSQL_DATABASE={service_name}_db
     volumes:
       - mysqldata:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -189,32 +171,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: {service_name}
     ports:
       - "{host_port}:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SERVER_PORT=8080
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/{service_name}_db
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=${{DB_PASSWORD:-postgres}}
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
-      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
-      # The schema is applied by Spring Boot from the classpath
-      # (src/main/resources/schema.sql, mounted into the image at build time), NOT by
-      # mounting schema.sql into the database container's init directory.
-      #
-      # That bind mount is gone because it failed on a real host: the source path is
-      # created as a DIRECTORY by `docker compose up` when missing, and even once it
-      # was a 0644 regular file the container could not read it -- root inside the
-      # container got "Permission denied" with SELinux disabled, no ACLs, XFS, and on
-      # a fresh volume with --force-recreate. Rather than leave database initialisation
-      # dependent on a mount that a real environment refused, it now depends on
-      # nothing but the artifact itself.
-      - SPRING_SQL_INIT_MODE=always
-      # `none`, not `update`: the schema is authored and shipped, so Hibernate must not
-      # silently alter it. `update` was hiding every schema defect, and `create-drop`
-      # (the base config) dropped the schema on every shutdown.
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
+      - QUARKUS_PROFILE=prod
+      - QUARKUS_HTTP_PORT=8080
+      - QUARKUS_DATASOURCE_DB_KIND=postgresql
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/{service_name}_db
+      - QUARKUS_DATASOURCE_USERNAME=postgres
+      - QUARKUS_DATASOURCE_PASSWORD=${{DB_PASSWORD:-postgres}}
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
     depends_on:
       db:
         condition: service_healthy
@@ -224,6 +191,7 @@ services:
 
   db:
     image: postgres:16-alpine
+    container_name: {service_name}-postgres
     ports:
       - "5432:5432"
     environment:
@@ -232,6 +200,7 @@ services:
       - POSTGRES_PASSWORD=${{DB_PASSWORD:-postgres}}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d {service_name}_db"]
       interval: 5s
@@ -433,17 +402,17 @@ spec:
               memory: "1024Mi"
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /q/health/live
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 20
             periodSeconds: 15
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /q/health/ready
               port: 8080
-            initialDelaySeconds: 20
+            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 2
@@ -471,9 +440,9 @@ kind: ConfigMap
 metadata:
   name: {service_name}-config
 data:
-  SPRING_PROFILES_ACTIVE: "prod"
-  SERVER_PORT: "8080"
-  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  QUARKUS_PROFILE: "prod"
+  QUARKUS_HTTP_PORT: "8080"
+  QUARKUS_SMALLRYE_HEALTH_ROOT_PATH: "/q/health"
 """
 
     ingress_yaml = f"""apiVersion: networking.k8s.io/v1
@@ -518,8 +487,7 @@ def generate_all_devops_assets(
     ws.mkdir(parents=True, exist_ok=True)
 
     # 1. Dockerfile & .dockerignore
-    build_tool = "gradle" if (ws / "build.gradle").exists() or (ws / "build.gradle.kts").exists() else "maven"
-    dockerfile = generate_dockerfile(service_name, build_tool)
+    dockerfile = generate_dockerfile(service_name)
     dockerignore = generate_dockerignore()
     (ws / "Dockerfile").write_text(dockerfile, encoding="utf-8")
     (ws / ".dockerignore").write_text(dockerignore, encoding="utf-8")
@@ -529,43 +497,53 @@ def generate_all_devops_assets(
     if pom_path.exists():
         pom_text = pom_path.read_text(encoding="utf-8")
         deps_to_add = []
-        if "spring-boot-starter-actuator" not in pom_text:
-            deps_to_add.append("""        <dependency>
+        is_quarkus = "quarkus" in pom_text.lower()
+        if is_quarkus:
+            if "quarkus-smallrye-health" not in pom_text:
+                deps_to_add.append("""        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>""")
+            if db_engine.upper() == "POSTGRESQL" and "quarkus-jdbc-postgresql" not in pom_text:
+                deps_to_add.append("""        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>""")
+            elif db_engine.upper() == "MYSQL" and "quarkus-jdbc-mysql" not in pom_text:
+                deps_to_add.append("""        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-mysql</artifactId>
+        </dependency>""")
+        else:
+            if "spring-boot-starter-actuator" not in pom_text:
+                deps_to_add.append("""        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>""")
-        if db_engine.upper() == "POSTGRESQL" and "postgresql" not in pom_text:
-            deps_to_add.append("""        <dependency>
+            if db_engine.upper() == "POSTGRESQL" and "postgresql" not in pom_text:
+                deps_to_add.append("""        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>""")
-        elif db_engine.upper() == "MYSQL" and "mysql-connector-j" not in pom_text:
-            deps_to_add.append("""        <dependency>
+            elif db_engine.upper() == "MYSQL" and "mysql-connector-j" not in pom_text:
+                deps_to_add.append("""        <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>""")
         if deps_to_add and "</dependencies>" in pom_text:
             injection = "\n" + "\n".join(deps_to_add) + "\n    </dependencies>"
-            pom_text = pom_text.replace("</dependencies>", injection, 1)
+            # The first closing tag belongs to the platform BOM. Runtime
+            # extensions must go in the project's direct dependencies instead.
+            management_end = pom_text.find("</dependencyManagement>")
+            search_start = management_end + len("</dependencyManagement>") if management_end >= 0 else 0
+            dependencies_end = pom_text.find("</dependencies>", search_start)
+            if dependencies_end < 0:
+                raise ValueError("Project dependencies section is missing")
+            pom_text = pom_text[:dependencies_end] + injection + pom_text[dependencies_end + len("</dependencies>"):]
             pom_path.write_text(pom_text, encoding="utf-8")
-
-    if build_tool == "gradle":
-        gradle_file = ws / ("build.gradle.kts" if (ws / "build.gradle.kts").exists() else "build.gradle")
-        text = gradle_file.read_text(encoding="utf-8")
-        dependencies = []
-        kotlin = gradle_file.suffix == ".kts"
-        def dependency(kind, coordinate):
-            return f'    {kind}("{coordinate}")' if kotlin else f"    {kind} '{coordinate}'"
-        if "spring-boot-starter-actuator" not in text:
-            dependencies.append(dependency("implementation", "org.springframework.boot:spring-boot-starter-actuator"))
-        if db_engine.upper() == "POSTGRESQL" and "org.postgresql" not in text:
-            dependencies.append(dependency("runtimeOnly", "org.postgresql:postgresql"))
-        if db_engine.upper() == "MYSQL" and "com.mysql" not in text:
-            dependencies.append(dependency("runtimeOnly", "com.mysql:mysql-connector-j"))
-        if dependencies:
-            gradle_file.write_text(text + "\ndependencies {\n" + "\n".join(dependencies) + "\n}\n", encoding="utf-8")
 
     # 2. docker-compose.yml
     compose = generate_docker_compose(service_name, db_engine, host_port)
@@ -574,11 +552,6 @@ def generate_all_devops_assets(
     # 3. CI/CD Workflows
     github_actions = generate_github_actions(service_name)
     gitlab_ci = generate_gitlab_ci(service_name)
-    if build_tool == "gradle":
-        github_actions = github_actions.replace("mvn clean test -B", "gradle --no-daemon clean test").replace("mvn package -DskipTests -B", "gradle --no-daemon bootJar -x test").replace("cache: maven", "cache: gradle").replace("cache: 'maven'", "cache: 'gradle'").replace('cache: "maven"', 'cache: "gradle"')
-        github_actions = github_actions.replace('      - name: "Run Hermetic Maven Tests (Principle IV & Spec 005)"', '      - uses: gradle/actions/setup-gradle@v4\n        with:\n          gradle-version: "8"\n      - name: "Run Gradle Tests"').replace('      - name: "Package Application JAR"', '      - uses: gradle/actions/setup-gradle@v4\n        with:\n          gradle-version: "8"\n      - name: "Package Application JAR"')
-        gitlab_ci = gitlab_ci.replace("maven:3.9-eclipse-temurin-21", "gradle:8-jdk21").replace("mvn clean test -B", "gradle --no-daemon clean test").replace("target/", "build/")
-
 
     gh_dir = ws / ".github" / "workflows"
     gh_dir.mkdir(parents=True, exist_ok=True)

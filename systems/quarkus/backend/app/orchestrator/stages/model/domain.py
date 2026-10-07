@@ -23,7 +23,7 @@ STAGE = "DOMAIN"
 
 #: Stage-specific emphasis appended to the authored instruction.
 STAGE_EMPHASIS = (
-    "Entity and data-contract artifacts. Every declared attribute constraint MUST be expressed as a Jakarta Validation annotation; invent none that the payload does not declare."
+    "Entity and data-contract artifacts. Every declared attribute constraint MUST be expressed as a Jakarta Validation annotation; invent none that the payload does not declare. STRICTLY 100% Hibernate ORM with Panache (@Entity) and Java 21 Records. NEVER use Spring Data JPA or Spring annotations."
 )
 
 

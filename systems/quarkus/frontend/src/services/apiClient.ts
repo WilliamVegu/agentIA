@@ -2,15 +2,11 @@ import axios from 'axios';
 
 // Ephemeral in-memory storage for LLM credentials (Constitution Principle VI)
 let ephemeralApiKey: string = '';
-let ephemeralModel = '';
-let activeSessionForApi: string | null = null;
-export const setActiveSessionForApi = (sessionId: string | null) => { activeSessionForApi = sessionId; };
-let ephemeralProvider: string = 'mock';
+let ephemeralProvider: string = 'gemini';
 
-export const setEphemeralLlmCredentials = (apiKey: string, provider: string, model: string = '') => {
+export const setEphemeralLlmCredentials = (apiKey: string, provider: string) => {
   ephemeralApiKey = apiKey || '';
-  ephemeralModel = model;
-  ephemeralProvider = provider || 'mock';
+  ephemeralProvider = provider || 'gemini';
 };
 
 export const getEphemeralLlmCredentials = () => ({
@@ -20,16 +16,10 @@ export const getEphemeralLlmCredentials = () => ({
 
 export const apiClient = axios.create({
   baseURL: '/api/v1',
-  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
-  // LLM-backed endpoints (requirements transform, architecture design, model
-  // synthesis, code generation) can legitimately exceed 60s — DeepSeek is given a
-  // 120s window server-side. A 60s client cap cut those calls off with "timeout of
-  // 60000ms exceeded" before the server could answer. 300s gives generation headroom
-  // while still bounding a genuinely hung request.
-  timeout: 300000,
+  timeout: 60000,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -39,10 +29,6 @@ apiClient.interceptors.request.use((config) => {
   if (ephemeralProvider) {
     config.headers['X-LLM-Provider'] = ephemeralProvider;
   }
-  if (ephemeralModel && config.data && typeof config.data === 'object' && !('modelName' in config.data)) {
-    config.data.modelName = ephemeralModel;
-  }
-  if (activeSessionForApi) config.headers['X-Session-ID'] = activeSessionForApi;
   return config;
 });
 

@@ -60,8 +60,7 @@ async def audit_session_workspace(session_id: str):
     finally:
         db.close()
 
-    from app.services.workspace_guard import get_validated_workspace_path
-    ws_path = get_validated_workspace_path(session_id, require_exists=True)
+    ws_path = Path(settings.WORKSPACE_DIR) / session_id
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -77,36 +76,18 @@ async def remediate_finding(payload: RemediationRequest):
     """Applies a 1-click surgical auto-repair patch to remediate a supported security or compliance violation."""
     source_code = payload.sourceCode
 
-    # If sourceCode not provided, attempt to locate file safely in workspace
+    # If sourceCode not provided, attempt to locate file in workspace
     target_path = None
     if not source_code:
-        raw_path = Path(payload.filePath)
-        if raw_path.is_absolute():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Absolute file paths are not permitted for security remediation.",
-            )
-
-        ws_root = Path(settings.WORKSPACE_DIR).resolve()
-        if payload.sessionId:
-            ws_path = (ws_root / payload.sessionId).resolve()
-            if not ws_path.is_relative_to(ws_root) or not ws_path.exists():
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Session workspace '{payload.sessionId}' not found.",
-                )
-            potential = (ws_path / payload.filePath).resolve()
-            if not potential.is_relative_to(ws_path):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Path traversal attempt outside session workspace.",
-                )
-            if potential.exists() and potential.is_file():
-                target_path = potential
-                source_code = potential.read_text(encoding="utf-8", errors="ignore")
+        # Check if filePath exists as is or inside workspace
+        potential_path = Path(payload.filePath)
+        if potential_path.exists() and potential_path.is_file():
+            target_path = potential_path
+            source_code = potential_path.read_text(encoding="utf-8", errors="ignore")
         else:
-            clean_file_path = payload.filePath.lstrip("/\\")
-            matches = [p for p in ws_root.glob(f"**/{clean_file_path}") if p.resolve().is_relative_to(ws_root)]
+            # Look in workspace directories
+            ws_root = Path(settings.WORKSPACE_DIR)
+            matches = list(ws_root.glob(f"**/{payload.filePath}"))
             if matches:
                 target_path = matches[0]
                 source_code = target_path.read_text(encoding="utf-8", errors="ignore")

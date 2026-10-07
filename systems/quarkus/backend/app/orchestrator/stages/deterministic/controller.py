@@ -1,18 +1,9 @@
-"""Deterministic (offline) implementation of a generation stage.
+"""Native Quarkus offline generator, restored and wired into the Studio stage boundary."""
 
-Moved verbatim from ``app/orchestrator/nodes/controller_node.py`` as part of T020.
-The f-string logic is unchanged: identical input MUST yield identical output,
-identical disk writes, and identical return values. That equivalence is what
-keeps the frozen pre-migration baseline a valid comparison target.
-
-The node module of the same name now delegates to the stage execution
-boundary, which dispatches here for DETERMINISTIC sessions.
-"""
-
+from app.orchestrator.stages.deterministic.schema import identifier
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
-from app.orchestrator.stages.deterministic import module_layout
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
     blueprint = state.get("blueprint", {})
@@ -20,89 +11,72 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
-    prefix = module_layout.module_prefix_for("CONTROLLER", state.get("architecture_plan"))
     logs = state.get("logs", [])
 
     pkg_path = package_name.replace(".", "/")
     entities = blueprint.get("entities", [])
     base_dir = Path(workspace_path)
 
-    # 1. GlobalExceptionHandler (@RestControllerAdvice - Principle III)
+    # 1. GlobalExceptionHandler (JAX-RS @Provider ExceptionMapper - Principle III:
+    # exactly one central, application-wide exception handler)
     handler_src = f"""package {package_name}.controller;
 
 import {package_name}.exception.ResourceNotFoundException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-@RestControllerAdvice
-public class GlobalExceptionHandler {{
+@Provider
+public class GlobalExceptionHandler implements ExceptionMapper<Exception> {{
 
-    // Every handled exception is logged with its stack trace. A catch-all that returns
-    // a tidy envelope and writes nothing converts a diagnosable failure into an
-    // undocumented one: a deployed service returned 500 on every POST, the database log
-    // was silent because nothing reached it, and this handler reported
-    // "An unexpected error occurred" with no cause anywhere. The bug was a single
-    // @NotNull on a generated id -- invisible for exactly as long as nothing logged it.
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {{
+    @Override
+    public Response toResponse(Exception ex) {{
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", HttpStatus.NOT_FOUND.value());
-        body.put("error", "Not Found");
-        body.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
-    }}
 
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException ex) {{
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", HttpStatus.NOT_FOUND.value());
-        body.put("error", "Not Found");
-        body.put("message", "Endpoint o recurso estático no encontrado: /" + ex.getResourcePath());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
-    }}
+        if (ex instanceof WebApplicationException webException) {{
+            return Response.status(webException.getResponse().getStatus())
+                    .type(MediaType.APPLICATION_JSON).entity(body).build();
+        }}
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {{
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", HttpStatus.BAD_REQUEST.value());
-        body.put("error", "Bad Request");
-        List<String> errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
-                .collect(Collectors.toList());
-        body.put("errors", errors);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
-    }}
+        if (ex instanceof ResourceNotFoundException) {{
+            body.put("status", Response.Status.NOT_FOUND.getStatusCode());
+            body.put("error", "Not Found");
+            body.put("message", ex.getMessage());
+            return Response.status(Response.Status.NOT_FOUND)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(body)
+                    .build();
+        }}
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {{
-        logger.error("Unhandled exception", ex);
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        if (ex instanceof ConstraintViolationException) {{
+            body.put("status", Response.Status.BAD_REQUEST.getStatusCode());
+            body.put("error", "Bad Request");
+            body.put("message", ex.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(body)
+                    .build();
+        }}
+
+        body.put("status", Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
         body.put("error", "Internal Server Error");
         body.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(body)
+                .build();
     }}
 }}
 """
-    handler_path = f"{prefix}src/main/java/{pkg_path}/controller/GlobalExceptionHandler.java"
+    handler_path = f"src/main/java/{pkg_path}/controller/GlobalExceptionHandler.java"
     generated_files[handler_path] = handler_src
     h_fp = base_dir / handler_path
     h_fp.parent.mkdir(parents=True, exist_ok=True)
@@ -113,36 +87,38 @@ public class GlobalExceptionHandler {{
     endpoints_html = []
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        id_name, id_type = identifier(ent)
+        id_cap = id_name[0].upper() + id_name[1:]
         plural = ent_name.lower() + "s"
-        endpoints_java.append(f'            "/api/v1/{plural}",')
+        endpoints_java.append(f'            "/api/v1/{plural}"')
         endpoints_html.append(f"""                  <a class="link-item" href="/api/v1/{plural}" target="_blank">
                     <span><span class="method">GET</span>/api/v1/{plural}</span>
                     <span class="tag">{ent_name} API ↗</span>
                   </a>""")
 
-    java_endpoints_str = "\n".join(endpoints_java)
+    java_endpoints_str = ",\n".join(endpoints_java)
     html_links_str = "\n".join(endpoints_html)
 
     home_src = f"""package {package_name}.controller;
 
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@RestController
-@CrossOrigin(origins = "*")
+@Path("/")
 public class HomeController {{
 
-    @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> homeHtml() {{
-        return ResponseEntity.ok(\"\"\"
+    @GET
+    @Produces(MediaType.TEXT_HTML)
+    public Response homeHtml() {{
+        return Response.ok(\"\"\"
             <!DOCTYPE html>
             <html lang="es">
             <head>
@@ -169,14 +145,10 @@ public class HomeController {{
               <div class="card">
                 <span class="badge"><span class="badge-dot"></span>SISTEMA OPERATIVO (UP 200 OK)</span>
                 <h1>Microservicio: {service_name}</h1>
-                <p>Spring Boot 3.2.3 &bull; Java 21 LTS &bull; PostgreSQL &bull; TCS Architecture Studio</p>
+                <p>Quarkus 3.x &bull; Java 21 LTS &bull; H2 &bull; TCS Architecture Studio</p>
                 <div class="endpoints">
                   <h3>Endpoints REST Disponibles</h3>
 {html_links_str}
-                  <a class="link-item" href="/actuator/health" target="_blank">
-                    <span><span class="method">GET</span>/actuator/health</span>
-                    <span class="tag">Health Status ↗</span>
-                  </a>
                 </div>
                 <div class="footer">
                   TCS Microservice Code Studio &bull; Generación Autónoma con Arquitectura Limpia
@@ -184,26 +156,26 @@ public class HomeController {{
               </div>
             </body>
             </html>
-        \"\"\");
+        \"\"\").build();
     }}
 
-    @GetMapping(value = "/", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Map<String, Object>> homeJson() {{
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response homeJson() {{
         Map<String, Object> info = new HashMap<>();
         info.put("service", "{service_name}");
         info.put("status", "UP");
-        info.put("framework", "Spring Boot 3.2.3 / Java 21 LTS");
+        info.put("framework", "Quarkus 3.x / Java 21 LTS");
         info.put("timestamp", LocalDateTime.now().toString());
         info.put("description", "TCS Microservice Code Studio - Microservicio Activo");
         info.put("endpoints", List.of(
 {java_endpoints_str}
-            "/actuator/health"
         ));
-        return ResponseEntity.ok(info);
+        return Response.ok(info).build();
     }}
 }}
 """
-    home_path = f"{prefix}src/main/java/{pkg_path}/controller/HomeController.java"
+    home_path = f"src/main/java/{pkg_path}/controller/HomeController.java"
     generated_files[home_path] = home_src
     home_fp = base_dir / home_path
     home_fp.write_text(home_src, encoding="utf-8")
@@ -212,6 +184,8 @@ public class HomeController {{
     # 3. Controllers for each entity
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        id_name, id_type = identifier(ent)
+        id_cap = id_name[0].upper() + id_name[1:]
         plural = ent_name.lower() + "s"
 
         ctrl_src = f"""package {package_name}.controller;
@@ -219,50 +193,58 @@ public class HomeController {{
 import {package_name}.model.dto.Create{ent_name}Request;
 import {package_name}.model.dto.{ent_name}Response;
 import {package_name}.service.{ent_name}Service;
+import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/api/v1/{plural}")
-@Validated
-@CrossOrigin(origins = "*")
+@Path("/api/v1/{plural}")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class {ent_name}Controller {{
 
     private final {ent_name}Service service;
 
+    @Inject
     public {ent_name}Controller({ent_name}Service service) {{
         this.service = service;
     }}
 
-    @PostMapping
-    public ResponseEntity<{ent_name}Response> create(@Valid @RequestBody Create{ent_name}Request request) {{
+    @POST
+    public Response create(@Valid Create{ent_name}Request request) {{
         {ent_name}Response response = service.create(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return Response.status(Response.Status.CREATED).entity(response).build();
     }}
 
-    @GetMapping("/{{id}}")
-    public ResponseEntity<{ent_name}Response> getById(@PathVariable Long id) {{
-        return ResponseEntity.ok(service.findById(id));
+    @GET
+    @Path("/{{id}}")
+    public Response getById(@PathParam("id") {id_type} id) {{
+        return Response.ok(service.findById(id)).build();
     }}
 
-    @GetMapping
-    public ResponseEntity<List<{ent_name}Response>> getAll() {{
-        return ResponseEntity.ok(service.findAll());
+    @GET
+    public List<{ent_name}Response> getAll() {{
+        return service.findAll();
     }}
 
-    @DeleteMapping("/{{id}}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {{
+    @DELETE
+    @Path("/{{id}}")
+    public Response delete(@PathParam("id") {id_type} id) {{
         service.delete(id);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }}
 }}
 """
-        ctrl_path = f"{prefix}src/main/java/{pkg_path}/controller/{ent_name}Controller.java"
+        ctrl_path = f"src/main/java/{pkg_path}/controller/{ent_name}Controller.java"
         generated_files[ctrl_path] = ctrl_src
         c_fp = base_dir / ctrl_path
         c_fp.parent.mkdir(parents=True, exist_ok=True)

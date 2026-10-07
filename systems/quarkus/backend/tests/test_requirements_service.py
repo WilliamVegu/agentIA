@@ -32,8 +32,8 @@ def test_transform_requirements_mock_mode():
     # Constitution Principle V: >= 2 scenarios per story
     for story in draft.userStories:
         assert len(story.scenarios) >= 2
-        assert any("valid" in sc.given.lower() or "active" in sc.given.lower() for sc in story.scenarios)
-        assert any("reject" in sc.then.lower() or "error" in sc.then.lower() or "400" in sc.then for sc in story.scenarios)
+        assert any("valid" in sc.given.lower() or "válid" in sc.given.lower() or "activ" in sc.given.lower() or "exist" in sc.given.lower() for sc in story.scenarios)
+        assert any("reject" in sc.then.lower() or "rechaz" in sc.then.lower() or "error" in sc.then.lower() or "400" in sc.then or "404" in sc.then for sc in story.scenarios)
 
 def test_entity_extraction_types_and_primary_key():
     req = RequirementsTransformRequest(
@@ -93,9 +93,9 @@ def test_markdown_serialization_spec_kit_compatibility():
     md = serialize_draft_to_markdown(draft)
     assert "# Feature Specification: Customer Service" in md
     assert "**Feature Branch**: `customer-service`" in md
-    assert "### Key Entities" in md
+    assert "### Entidades Clave" in md or "### Key Entities" in md
     assert "**Customer**" in md
-    assert "### User Story 1 - register an account (Priority: P1)" in md
+    assert "### Historia de Usuario 1 - register an account" in md or "### User Story 1 - register an account" in md
 
     # Verify that spec_service.py can successfully parse this generated markdown
     blueprint = parse_spec_markdown(md)

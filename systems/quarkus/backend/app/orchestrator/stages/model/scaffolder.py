@@ -56,12 +56,21 @@ def build_request(state: Mapping[str, Any], instruction: str) -> str:
     hint that helps the model comply, not the enforcement itself.
     """
     allowlist = load_dependency_allowlist()
+    # Filter out any legacy Spring Boot dependencies so LLM strictly receives Quarkus 3.x dependencies
+    clean_dependencies = [
+        d for d in allowlist.get("dependencies", [])
+        if not d.get("groupId", "").startswith("org.springframework")
+    ]
+    clean_plugins = [
+        p for p in allowlist.get("build_plugins", [])
+        if not p.get("groupId", "").startswith("org.springframework")
+    ]
     permitted = json.dumps(
         {
             "parent": allowlist.get("parent"),
-            "dependencies": allowlist.get("dependencies"),
-            "build_plugins": allowlist.get("build_plugins"),
-            "prohibited": allowlist.get("prohibited"),
+            "dependencies": clean_dependencies,
+            "build_plugins": clean_plugins,
+            "prohibited": list(allowlist.get("prohibited", [])) + ["Any org.springframework.* artifact, annotation, or plugin."],
         },
         indent=2,
         sort_keys=True,

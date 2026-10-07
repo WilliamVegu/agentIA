@@ -1,9 +1,0 @@
-\contentsline {section}{\numberline {1}The spine}{1}{section.1}%
-\contentsline {section}{\numberline {2}The blueprint (the primary spec)}{1}{section.2}%
-\contentsline {section}{\numberline {3}The Spec-Kit document (the human-facing spec)}{2}{section.3}%
-\contentsline {section}{\numberline {4}The constitution (the governance spec)}{2}{section.4}%
-\contentsline {section}{\numberline {5}The instruction documents (the procedural spec)}{2}{section.5}%
-\contentsline {section}{\numberline {6}The dependency allowlist (the build spec)}{2}{section.6}%
-\contentsline {section}{\numberline {7}The contract suite (the behavioural spec)}{3}{section.7}%
-\contentsline {section}{\numberline {8}The skill format (the optimisation spec)}{3}{section.8}%
-\contentsline {section}{\numberline {9}Where each spec is consumed}{3}{section.9}%

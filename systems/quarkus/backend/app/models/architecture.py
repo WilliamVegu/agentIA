@@ -15,8 +15,6 @@ class LayerType(str, Enum):
     REPOSITORY = "repository"
     MODEL = "model"
     INFRASTRUCTURE = "infrastructure"
-    DOMAIN = "domain"
-    APPLICATION = "application"
 
 class HttpMethod(str, Enum):
     GET = "GET"
@@ -32,9 +30,9 @@ class InteractionType(str, Enum):
     INTERCEPTS = "intercepts"
 
 class ComponentDefinition(BaseModel):
-    name: str = Field(..., description="PascalCase component name, e.g. OrderController, OrderService")
+    name: str = Field(..., description="PascalCase component name, e.g. OrderResource, OrderService")
     layer: LayerType = Field(..., description="Architectural layer")
-    stereotype: str = Field(..., description="Spring stereotype, e.g. @RestController, @Service, @Repository")
+    stereotype: str = Field(..., description="Quarkus / CDI stereotype, e.g. @Path, @ApplicationScoped, PanacheRepository, @Entity, @ServerExceptionMapper")
     packageName: str = Field(..., description="Full Java package name, e.g. com.corp.order.controller")
     responsibilities: List[str] = Field(default_factory=list, description="List of component responsibilities")
     dependencies: List[str] = Field(default_factory=list, description="Target component names this component depends on")
@@ -56,7 +54,6 @@ class ComponentInteraction(BaseModel):
     interactionType: InteractionType = Field(default=InteractionType.CALLS, description="Type of interaction")
 
 class ArchitectureDesignRequest(BaseModel):
-    architecturePreference: Optional[str] = None
     draft: SpecificationDraft = Field(..., description="Specification draft with entities and user stories")
     apiKey: Optional[str] = Field(default=None, description="Optional ephemeral LLM API key")
     provider: Optional[str] = Field(default=None, description="Optional LLM provider: 'gemini', 'groq', 'openai', or 'mock'")

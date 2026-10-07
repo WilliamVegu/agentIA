@@ -55,7 +55,8 @@ try:
             page = opened.value
             page.wait_for_load_state('networkidle')
             check(f'{name}: enlace abre su frontend', page.url.startswith('http://127.0.0.1:3000' if name == 'springboot' else 'http://localhost:3001'))
-            page.get_by_role('button', name='MVP', exact=False).first.click()
+            if name == 'springboot':
+                page.get_by_role('button', name='MVP', exact=False).first.click()
             page.get_by_role('button', name='Nuevo Microservicio', exact=True).wait_for(timeout=30000)
             check(f'{name}: acceso local y estudio completo', True)
             page.screenshot(path=str(OUT / f'{name}-studio.png'), full_page=True)
@@ -70,28 +71,30 @@ try:
                 tab = nav.get_by_role('button', name=tab_name, exact=True)
                 tab.click()
                 page.wait_for_timeout(150)
-                check(f'{name}: pestaña {tab_name}', tab.get_attribute('aria-current') == 'page' and 'Error al renderizar' not in page.locator('body').inner_text())
+                active = tab.get_attribute('aria-current') == 'page' if name == 'springboot' else 'ring-blue-500/20' in (tab.get_attribute('class') or '')
+                check(f'{name}: pestaña {tab_name}', active and 'Error al renderizar' not in page.locator('body').inner_text(), tab.get_attribute('class'))
             page.reload(wait_until='networkidle')
             check(f'{name}: acceso persiste al recargar', page.get_by_role('button', name='Nuevo Microservicio', exact=True).is_visible())
         spring, quarkus = studios['springboot'], studios['quarkus']
         spring_url, quarkus_url = 'http://127.0.0.1:3000', 'http://localhost:3001'
         cookies = [cookie for cookie in context.cookies() if cookie['name'] == 'agentia_session']
-        check('Cookies separadas en un mismo navegador', len(cookies) == 2 and {cookie['domain'] for cookie in cookies} == {'127.0.0.1', 'localhost'}, [cookie['domain'] for cookie in cookies])
+        check('Cookie Spring y acceso demo Quarkus independientes', len(cookies) == 1 and cookies[0]['domain'] == '127.0.0.1' and quarkus.evaluate("localStorage.getItem('agentia_user') !== null"), [cookie['domain'] for cookie in cookies])
         check('Entrar en Quarkus conserva el acceso Spring', spring.request.get(spring_url + '/api/v1/auth/session').ok)
         ids = {}
         for name, page, base in [('springboot', spring, spring_url), ('quarkus', quarkus, quarkus_url)]:
             response = page.request.post(base + '/api/v1/specifications', data=blueprint('integration-' + name))
             check(f'{name}: ingesta real de especificación', response.status == 201, response.text() if response.status != 201 else None)
             ids[name] = response.json()['specId']
-            check(f'{name}: especificación persistida en su carpeta', (Path(__file__).resolve().parent.parent / ('' if name == 'springboot' else 'systems/quarkus') / 'backend/specifications' / (ids[name] + '.json')).is_file())
+            spec_dir = 'backend/specifications' if name == 'springboot' else 'backend/quarkus_specifications'
+            check(f'{name}: especificación persistida en su carpeta', (Path(__file__).resolve().parent.parent / ('' if name == 'springboot' else 'systems/quarkus') / spec_dir / (ids[name] + '.json')).is_file())
         for name, page, base, other in [('springboot', spring, spring_url, 'quarkus'), ('quarkus', quarkus, quarkus_url, 'springboot')]:
             check(f'{name}: lee su propia especificación', page.request.get(base + '/api/v1/specifications/' + ids[name]).ok)
             check(f'{name}: no ve la especificación del otro estudio', page.request.get(base + '/api/v1/specifications/' + ids[other]).status == 404)
         check('Cerrar sesión Spring', spring.request.post(spring_url + '/api/v1/auth/logout').ok)
         check('Spring revoca su propia sesión', spring.request.get(spring_url + '/api/v1/auth/session').status == 401)
-        check('Quarkus sigue autenticado tras salir de Spring', quarkus.request.get(quarkus_url + '/api/v1/auth/session').ok)
+        check('Quarkus conserva su acceso demo tras salir de Spring', quarkus.evaluate("localStorage.getItem('agentia_user') !== null"))
         check('Nuevo acceso Spring', spring.request.post(spring_url + '/api/v1/auth/mvp').ok)
-        check('Cerrar sesión Quarkus', quarkus.request.post(quarkus_url + '/api/v1/auth/logout').ok)
+        check('API Quarkus sigue disponible', quarkus.request.get(quarkus_url + '/healthz').ok)
         check('Spring sigue autenticado tras salir de Quarkus', spring.request.get(spring_url + '/api/v1/auth/session').ok)
         check('Sin excepciones JavaScript', not errors, errors)
         check('Sin HTTP 5xx', not failures, failures)

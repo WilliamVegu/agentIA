@@ -55,17 +55,18 @@ def test_synthesize_test_suites_hybrid(sample_blueprint):
     assert "@Mock" in svc_test.fullSourceCode
     assert "assertThat" in svc_test.fullSourceCode
 
-    # Check Controller Web Test
+    # Check Controller Web Test (Quarkus REST)
     web_test = next(s for s in resp.suites if s.testType == TestType.INTEGRATION_WEB)
     assert web_test.className == "OrderControllerTest"
-    assert "@WebMvcTest(OrderController.class)" in web_test.fullSourceCode
-    assert "mockMvc.perform(post(\"/api/v1/orders\")" in web_test.fullSourceCode
+    assert "@QuarkusTest" in web_test.fullSourceCode
+    assert "@InjectMock" in web_test.fullSourceCode
+    assert "given()" in web_test.fullSourceCode
 
-    # Check Context Integration Test
+    # Check Context Integration Test (Quarkus)
     db_test = next(s for s in resp.suites if s.testType == TestType.INTEGRATION_DB)
     assert db_test.className == "OrderIntegrationTest"
-    assert "@SpringBootTest" in db_test.fullSourceCode
-    assert "@ActiveProfiles(\"test\")" in db_test.fullSourceCode
+    assert "@QuarkusTest" in db_test.fullSourceCode
+    assert "given()" in db_test.fullSourceCode
 
 def test_analyze_code_compliance_violations():
     source_files = {

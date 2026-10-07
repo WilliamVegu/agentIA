@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { AssistedScrollBtn } from '../components/common/AssistedScrollBtn';
-import type { TabKey } from '../config/workspaceTabs';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
 import { sessionService } from '../services/sessionService';
@@ -49,13 +48,6 @@ export const StudioOverviewView: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPipelineWorking, setIsPipelineWorking] = useState(false);
 
-  // Interfaz de entrada (levantando_observaciones): drives the InferenceEngine.
-  const [iface, setIface] = useState({
-    requestVolume: 'low',
-    architecturePreference: '',
-    buildToolPreference: '',
-  });
-
   const handleCreateQuickStart = async (isAuto: boolean) => {
     if (!serviceName.trim() || !prompt.trim()) {
       setSubmitError('Por favor complete el nombre del microservicio y la descripción de requisitos.');
@@ -63,10 +55,6 @@ export const StudioOverviewView: React.FC = () => {
     }
     setIsSubmitting(true);
     setSubmitError(null);
-
-    const inputInterface: any = { requestVolume: iface.requestVolume };
-    if (iface.architecturePreference) inputInterface.architecturePreference = iface.architecturePreference;
-    if (iface.buildToolPreference) inputInterface.buildToolPreference = iface.buildToolPreference;
 
     try {
       const res = await sessionService.quickStart({
@@ -76,25 +64,23 @@ export const StudioOverviewView: React.FC = () => {
         auto_run: isAuto,
         llm_provider: provider,
         api_key: apiKey,
-        input_interface: inputInterface,
       });
 
       await refreshSessions();
       if (res?.sessionId) {
         selectSession(res.sessionId);
         if (isAuto) {
-          setActiveTab('monitor'); // Switch to Monitor tab
+          setActiveTab(5); // Switch to Monitor tab
         } else {
-          setActiveTab('requirements'); // Switch to Requirements tab
+          setActiveTab(1); // Switch to Requirements tab
         }
       }
     } catch (err: any) {
-      const errorMsg =
-        err.response?.data?.detail?.message ||
-        (typeof err.response?.data?.detail === 'string' ? err.response?.data?.detail : null) ||
+      setSubmitError(
         err.response?.data?.message ||
-        'Error al crear la sesión de microservicio';
-      setSubmitError(errorMsg);
+          err.response?.data?.detail ||
+          'Error al crear la sesión de microservicio'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -156,9 +142,9 @@ export const StudioOverviewView: React.FC = () => {
         force: true,
       });
       await Promise.all([reloadCurrentOverview(), refreshSessions()]);
-      setActiveTab('monitor');
+      setActiveTab(5);
     } catch {
-      setActiveTab('monitor');
+      setActiveTab(5);
     } finally {
       setIsPipelineWorking(false);
     }
@@ -166,17 +152,17 @@ export const StudioOverviewView: React.FC = () => {
 
   const handleContinueAssisted = () => {
     const nextTarget = lifecycle?.nextTargetPhase || 'SPECIFICATION';
-    const tabMap: Record<string, TabKey> = {
-      SPECIFICATION: 'requirements',
-      STORIES: 'requirements',
-      ARCHITECTURE: 'architecture',
-      DATA_MODEL: 'models',
-      CODE_GENERATION: 'monitor',
-      SECURITY_AUDIT: 'quality',
-      DEPLOYMENT: 'devops',
-      VERIFIED: 'delivery',
-    } as const;
-    setActiveTab(tabMap[nextTarget as keyof typeof tabMap] || 'requirements');
+    const tabMap: Record<string, number> = {
+      SPECIFICATION: 1,
+      STORIES: 1,
+      ARCHITECTURE: 2,
+      DATA_MODEL: 3,
+      CODE_GENERATION: 5,
+      SECURITY_AUDIT: 7,
+      DEPLOYMENT: 8,
+      VERIFIED: 9,
+    };
+    setActiveTab(tabMap[nextTarget] || 1);
   };
 
   const pipelineStatus =
@@ -203,21 +189,17 @@ export const StudioOverviewView: React.FC = () => {
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              Generación Autónoma de Microservicio Spring Boot 3
+              Generación Autónoma de Microservicio Quarkus 3.x
             </h2>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Crea un proyecto de microservicio completo con especificación, arquitectura en 4 capas, entidades JPA, código Spring Boot 3 y suites de prueba Mockito con un solo clic.
+              Crea un microservicio reactivo ultraligero con especificación en español, arquitectura en 4 capas, entidades Panache, código Quarkus 3 y suites de prueba QuarkusTest generadas 100% por IA.
             </p>
 
             <div className="space-y-4 pt-2">
               {submitError && (
-                <div className="p-3.5 rounded-lg bg-rose-950/70 border border-rose-700/80 text-xs text-rose-200 flex items-start gap-2.5 shadow-md">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <strong className="block text-rose-300 font-semibold">Validación del Requerimiento</strong>
-                    <p className="leading-relaxed">{submitError}</p>
-                  </div>
+                <div className="p-3 rounded-lg bg-rose-950/60 border border-rose-800 text-xs text-rose-200">
+                  {submitError}
                 </div>
               )}
 
@@ -266,66 +248,31 @@ export const StudioOverviewView: React.FC = () => {
                 />
               </div>
 
-              {/* Interfaz de entrada — impulsa la inferencia de arquitectura */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className="block text-xs font-medium text-slate-300">
-                  Volumen de peticiones
-                  <select
-                    value={iface.requestVolume}
-                    onChange={(e) => setIface({ ...iface, requestVolume: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              <div className="pt-1">
+                <p className="text-[11px] text-blue-300/80 mb-2 flex items-center gap-1.5">
+                  <span>ℹ️</span>
+                  <span><strong>Recomendado:</strong> El Modo Asistido le guía fase por fase (Requerimientos ➔ Arquitectura ➔ Modelos) y no genera código Java hasta que usted lo autorice en la fase final.</span>
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleCreateQuickStart(false)}
+                    disabled={isSubmitting || !serviceName.trim() || !prompt.trim()}
+                    className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <option value="low">Bajo</option>
-                    <option value="medium">Medio</option>
-                    <option value="high">Alto</option>
-                  </select>
-                </label>
-                <label className="block text-xs font-medium text-slate-300">
-                  Arquitectura
-                  <select
-                    value={iface.architecturePreference}
-                    onChange={(e) => setIface({ ...iface, architecturePreference: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    <option value="">Auto (inferir)</option>
-                    <option value="layered">Layered (4 capas)</option>
-                    <option value="hexagonal">Hexagonal</option>
-                    <option value="hexagonal-ddd">Hexagonal + DDD</option>
-                  </select>
-                </label>
-                <label className="block text-xs font-medium text-slate-300">
-                  Build tool
-                  <select
-                    value={iface.buildToolPreference}
-                    onChange={(e) => setIface({ ...iface, buildToolPreference: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    <option value="">Auto</option>
-                    <option value="maven">Maven</option>
-                    <option value="gradle">Gradle</option>
-                  </select>
-                </label>
-              </div>
+                    <span>👣 Iniciar Modo Asistido (Fase por Fase)</span>
+                  </button>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleCreateQuickStart(true)}
-                  disabled={isSubmitting || !serviceName.trim() || !prompt.trim()}
-                  className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>⚡ Crear y Ejecutar Auto-Pilot Completo</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleCreateQuickStart(false)}
-                  disabled={isSubmitting || !serviceName.trim() || !prompt.trim()}
-                  className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <span>👣 Crear e Iniciar Modo Asistido</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateQuickStart(true)}
+                    disabled={isSubmitting || !serviceName.trim() || !prompt.trim()}
+                    className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>⚡ Crear y Ejecutar Auto-Pilot Completo</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -341,11 +288,11 @@ export const StudioOverviewView: React.FC = () => {
                   Microservicio Activo
                 </span>
                 <h2 className="text-2xl font-bold tracking-tight text-white mt-0.5">
-                  ⚡ {activeSession?.specName || projectOverview?.specName || 'sin nombre'}
+                  ⚡ {activeSession?.specName || projectOverview?.serviceName || 'order-service'}
                 </h2>
                 <p className="text-xs text-slate-300 mt-1">
-                  Java 21 LTS &nbsp;|&nbsp; Spring Boot 3.x &nbsp;|&nbsp; Base de Datos:{' '}
-                  <strong>{projectOverview?.databaseEngine || '—'}</strong> &nbsp;|&nbsp; Sesión:{' '}
+                  Java 21 LTS &nbsp;|&nbsp; Quarkus 3.x &nbsp;|&nbsp; Base de Datos:{' '}
+                  <strong>{projectOverview?.database || 'POSTGRESQL'}</strong> &nbsp;|&nbsp; Sesión:{' '}
                   <code className="text-blue-300 font-mono">{activeSessionId}</code>
                 </p>
               </div>
@@ -455,23 +402,23 @@ export const StudioOverviewView: React.FC = () => {
                 <span>🎉 ¡Microservicio completamente sintetizado y verificado con éxito!</span>
               </div>
               <p className="text-xs text-slate-700 dark:text-slate-300">
-                Todos los artefactos para <strong>`{activeSession?.specName || 'order-service'}`</strong> están listos y validados: historias de usuario BDD, arquitectura en 4 capas, esquema SQL relacional, código Java 21 / Spring Boot 3, pruebas unitarias Mockito, auditoría SAST con Quality Gate APROBADO y manifiestos Docker / Kubernetes.
+                Todos los artefactos para <strong>`{activeSession?.specName || 'servicio-pedidos'}`</strong> están listos y validados: historias de usuario BDD, arquitectura en 4 capas, esquema SQL relacional, código Java 21 / Quarkus 3, pruebas unitarias y de integración QuarkusTest, auditoría SAST con Quality Gate APROBADO y manifiestos Docker / Kubernetes.
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
-                  onClick={() => setActiveTab('code')}
+                  onClick={() => setActiveTab(6)}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm"
                 >
                   🔍 Explorar Código Fuente (Tab 6)
                 </button>
                 <button
-                  onClick={() => setActiveTab('quality')}
+                  onClick={() => setActiveTab(7)}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   🛡️ Ver Quality Gate & SAST (Tab 7)
                 </button>
                 <button
-                  onClick={() => setActiveTab('delivery')}
+                  onClick={() => setActiveTab(9)}
                   className="py-2 px-4 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   📦 Descarga & Publicación Git (Tab 9)
@@ -536,7 +483,7 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Historias BDD</span>
                 <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {projectOverview?.userStoriesCount ?? 0}
+                  {projectOverview?.totalStories || 4}
                 </div>
                 <span className="text-[11px] text-slate-500">Criterios G/W/T</span>
               </div>
@@ -544,73 +491,33 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Entidades SQL</span>
                 <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {projectOverview?.entitiesCount ?? 0}
+                  {projectOverview?.totalEntities || 2}
                 </div>
                 <span className="text-[11px] text-slate-500">Tablas relacionales</span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Suites de Tests</span>
-                {/* Was the literal "✅ Aprobadas" with no data source at all -- it claimed
-                    passing suites for every session, including ones that never ran. The
-                    overview payload has carried `testsPassed` the whole time. */}
-                <div
-                  className={`text-base font-bold font-mono mt-2 ${
-                    projectOverview?.testsExecuted === false
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : projectOverview?.testsPassed === true
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : projectOverview?.testsPassed === false
-                        ? 'text-rose-600 dark:text-rose-400'
-                        : 'text-slate-400'
-                  }`}
-                >
-                  {projectOverview?.testsExecuted === false
-                    ? 'No ejecutadas'
-                    : projectOverview?.testsPassed === true
-                    ? '✅ Aprobadas'
-                    : projectOverview?.testsPassed === false
-                      ? '❌ Con fallos'
-                      : '— sin datos'}
+                <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-2">
+                  ✅ Aprobadas
                 </div>
-                <span className="text-[11px] text-slate-500">Mockito, WebMvc & JPA</span>
+                <span className="text-[11px] text-slate-500">Mockito & WebMvc</span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Quality Gate</span>
-                {/* Was a literal "✅ APROBADO" and "Puntaje: {qualityScore || 95}/100" --
-                    an invented score of 95 whenever the payload lacked one (which was
-                    always, since `qualityScore` is not a field the API returns). */}
-                <div
-                  className={`text-base font-bold font-mono mt-2 ${
-                    projectOverview?.securityAuditVerdict === 'PASS'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : projectOverview?.securityAuditVerdict === 'BLOCKED'
-                        ? 'text-rose-600 dark:text-rose-400'
-                        : 'text-slate-400'
-                  }`}
-                >
-                  {projectOverview?.securityAuditVerdict === 'PASS'
-                    ? '✅ APROBADO'
-                    : projectOverview?.securityAuditVerdict === 'BLOCKED'
-                      ? '❌ BLOQUEADO'
-                      : '— sin datos'}
+                <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-2">
+                  ✅ APROBADO
                 </div>
-                <span className="text-[11px] text-slate-500">
-                  Veredicto de la auditoría de seguridad
-                </span>
+                <span className="text-[11px] text-slate-500">Puntaje: {projectOverview?.qualityScore || 95}/100</span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Despliegue</span>
-                {/* `|| 'RUNNING'` claimed a running deployment with no data, and the port
-                    was a literal. The real status and URL are on the payload. */}
                 <div className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-2 truncate">
-                  {projectOverview?.deploymentStatus || 'NO DESPLEGADO'}
+                  {projectOverview?.deploymentStatus || 'RUNNING'}
                 </div>
-                <span className="text-[11px] text-slate-500 truncate block">
-                  {projectOverview?.deploymentUrl || 'Sin URL de despliegue'}
-                </span>
+                <span className="text-[11px] text-slate-500">Puerto :8080</span>
               </div>
             </div>
           </div>

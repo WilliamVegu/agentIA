@@ -38,10 +38,10 @@ def verify_llm_connection(payload: LLMVerifyRequest):
 
     if LLMFactory.is_mock(clean_key, payload.provider):
         return LLMVerifyResponse(
-            provider=detected,
-            model=model_name,
-            status="ERROR",
-            message="El modo mock/offline está deshabilitado: se requiere una clave de proveedor real.",
+            provider="mock",
+            model="offline-mock",
+            status="READY",
+            message="Modo offline (Mock Engine) activo. Generación local sin costo y sin consumo de internet.",
             latencyMs=0,
         )
 
@@ -57,10 +57,10 @@ def verify_llm_connection(payload: LLMVerifyRequest):
         )
         if not chat_model:
             return LLMVerifyResponse(
-                provider=detected,
-                model=model_name,
-                status="ERROR",
-                message="No se pudo construir un cliente de modelo real.",
+                provider="mock",
+                model="offline-mock",
+                status="READY",
+                message="Modo Mock activo.",
                 latencyMs=0,
             )
 

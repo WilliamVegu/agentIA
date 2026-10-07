@@ -48,21 +48,7 @@ class SessionDiagnosticRecord(Base):
     #: Unnormalised weighted penalty behind ``score``.
     raw_penalty = Column(Integer, nullable=False)
     #: Size-comparable measure: penalty per 100 artifacts (FR-007).
-    #:
-    #: **Retained for continuity, and NOT the decision metric.** It is a ratio, so
-    #: it is lowered just as well by emitting more files as by fixing anything --
-    #: the mirror image of the raw count's flaw. See ``new_penalty``.
     density = Column(Float, nullable=False)
-    #: Absolute severity-weighted penalty of findings a frozen baseline does not
-    #: account for. No denominator, so neither shrinking nor padding the artifact
-    #: set can move it.
-    #:
-    #: **Nullable on purpose.** A record written before this column existed is
-    #: back-filled as NULL, which means *not measured* -- and the contribution
-    #: measure falls back to ``density`` for it. Defaulting to 0 would have made
-    #: every historical session read as having no findings, i.e. as perfect, which
-    #: is the opposite of what an unknown value should say.
-    new_penalty = Column(Integer, nullable=True, default=None)
     #: How many artifacts were examined; the denominator behind ``density``.
     artifact_count = Column(Integer, nullable=False)
 
@@ -142,7 +128,6 @@ def write_diagnostic_record(
     score: int,
     raw_penalty: int,
     density: float,
-    new_penalty: Optional[int] = None,
     artifact_count: int,
     evaluable: bool = True,
     unverified: bool = False,
@@ -172,7 +157,6 @@ def write_diagnostic_record(
         row.score = int(score)
         row.raw_penalty = int(raw_penalty)
         row.density = float(density)
-        row.new_penalty = None if new_penalty is None else int(new_penalty)
         row.artifact_count = int(artifact_count)
         row.evaluable = 1 if evaluable else 0
         row.unverified = 1 if unverified else 0
@@ -237,7 +221,6 @@ def _row_to_dict(row: SessionDiagnosticRecord) -> Dict[str, Any]:
         "score": row.score,
         "raw_penalty": row.raw_penalty,
         "density": row.density,
-        "new_penalty": row.new_penalty,
         "artifact_count": row.artifact_count,
         "evaluable": bool(row.evaluable),
         "unverified": bool(row.unverified),

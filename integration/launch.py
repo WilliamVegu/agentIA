@@ -1,4 +1,4 @@
-"""Run two unchanged studios and a static selector, in separate processes."""
+"""Run two independent studios and a static selector in separate processes."""
 from __future__ import annotations
 
 import argparse
@@ -57,14 +57,15 @@ def install() -> None:
 def service_environment(name: str, system: dict) -> dict:
     env = os.environ.copy()
     backend = system['root'] / 'backend'
+    prefix = 'quarkus_' if name == 'quarkus' else ''
     # Override inherited paths: never share SQLite, workspaces, specifications or telemetry.
     env.update({
         'PYTHONPATH': str(backend),
         'PYTHONUNBUFFERED': '1',
-        'DATABASE_URL': f"sqlite:///{(backend / 'studio.db').as_posix()}",
-        'COST_STORE_PATH': str(backend / 'cost_tracking.db'),
-        'WORKSPACE_DIR': str(backend / 'workspaces'),
-        'SPECIFICATION_DIR': str(backend / 'specifications'),
+        'DATABASE_URL': f"sqlite:///{(backend / (prefix + 'studio.db')).as_posix()}",
+        'COST_STORE_PATH': str(backend / (prefix + 'cost_tracking.db')),
+        'WORKSPACE_DIR': str(backend / (prefix + 'workspaces')),
+        'SPECIFICATION_DIR': str(backend / (prefix + 'specifications')),
         'MLFLOW_EXPERIMENT': f'agentia-{name}',
         'CORS_ORIGINS': json.dumps([f"http://{system['host']}:{system['frontend']}"]),
         'HOST': '127.0.0.1',

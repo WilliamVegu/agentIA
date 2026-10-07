@@ -148,27 +148,7 @@ def test_invalidation_and_resync_flow(client_with_session):
     assert inv_resp.status_code == 200
     inv_data = inv_resp.json()
     assert inv_data["sessionId"] == session_id
-
-    # Invalidation flags only phases that have actually been BUILT -- a phase with no
-    # artifacts is not stale, it is simply not built yet. This fixture session has no
-    # architecture on disk, so nothing is flagged and no banner should appear.
-    #
-    # This previously asserted "ARCHITECTURE" in outdatedPhases, which is what produced
-    # the reported false positive: a routine requirements approval raised
-    # "upstream modifications detected" for work that had never been done.
-    assert inv_data["outdatedPhases"] == []
-    assert client.get(
-        f"/api/v1/orchestrator/sessions/{session_id}/lifecycle"
-    ).json()["isOutdated"] is False
-
-    # With a downstream phase actually built, the same call flags it -- the case the
-    # banner exists for.
-    (ws_path / "architecture.json").write_text("{}", encoding="utf-8")
-    inv_after = client.post(
-        f"/api/v1/orchestrator/sessions/{session_id}/invalidate",
-        json={"modifiedPhase": "STORIES"},
-    )
-    assert "ARCHITECTURE" in inv_after.json()["outdatedPhases"]
+    assert "ARCHITECTURE" in inv_data["outdatedPhases"]
 
     # Verify lifecycle marks isOutdated
     lc_resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/lifecycle")

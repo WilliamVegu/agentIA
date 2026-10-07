@@ -16,8 +16,6 @@ def _route_after_validator(state: GenerationAgentState) -> str:
     return "scaffolder"
 
 def _route_after_sandbox(state: GenerationAgentState) -> str:
-    if (state.get("test_metrics") or {}).get("verificationSkipped"):
-        return END
     if state.get("build_success", False):
         return END
     if state.get("status") == "BLOCKED":

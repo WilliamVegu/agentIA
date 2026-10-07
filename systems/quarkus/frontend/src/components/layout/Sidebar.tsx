@@ -18,7 +18,16 @@ export const Sidebar: React.FC = () => {
     startNewService();
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (sessOrStatus: any) => {
+    const status = typeof sessOrStatus === 'string' ? sessOrStatus : sessOrStatus?.status;
+    const isGuided = typeof sessOrStatus === 'object' && (sessOrStatus?.lifecycleMode === 'GUIDED_STEP' || sessOrStatus?.lifecycle_mode === 'GUIDED_STEP');
+
+    if (isGuided) {
+      if (status === 'COMPLETED') return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+      if (status === 'CANCELLED') return <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />;
+      return <Box className="w-3.5 h-3.5 text-blue-500 shrink-0" />;
+    }
+
     switch (status) {
       case 'COMPLETED':
         return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
@@ -111,7 +120,7 @@ export const Sidebar: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate min-w-0">
-                  {getStatusBadge(sess.status)}
+                  {getStatusBadge(sess)}
                   <div className="truncate">
                     <div
                       className={`font-semibold truncate ${

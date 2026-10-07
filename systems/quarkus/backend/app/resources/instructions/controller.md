@@ -2,117 +2,73 @@
 
 ## Technology contract
 
-You produce the HTTP surface and the centralized error handling of a Spring Boot
-microservice. Automated compliance validation runs before anything you write is persisted.
+You produce the HTTP surface and centralized error handling of a Quarkus microservice
+using Quarkus REST (RESTEasy Reactive / Jakarta REST). Automated compliance validation
+runs before anything you write is persisted.
 
 - **Language level**: Java 21 LTS.
-- **Framework**: Spring Boot 3.x, Spring Web.
-- **Namespace**: `jakarta.*` exclusively for validation and servlet APIs. `javax.*` is a
+- **Framework**: Quarkus 3.x, Quarkus REST (`jakarta.ws.rs.*`).
+- **Namespace**: `jakarta.*` exclusively for validation and REST APIs. `javax.*` is a
   validation failure.
-- **Layering (Constitution I)**: controllers depend on the **service layer only**. A
-  controller is limited to receiving HTTP, orchestrating service calls, and serialising
-  responses. It must not reach into repositories or persistence entities.
-- **Centralized errors (Constitution III)**: exactly one global handler annotated with
-  `@RestControllerAdvice` must exist, and every error response must be produced there. A
-  controller that catches exceptions in order to build an error body is a validation
-  failure.
-- **The handler must log what it caught, with its stack trace.** A catch-all that returns a
-  tidy error envelope and writes nothing to the log is a validation failure: it converts a
-  diagnosable failure into an undocumented one. Use an SLF4J `Logger` obtained via
-  `LoggerFactory.getLogger(GlobalExceptionHandler.class)` and call `logger.error(...)` with
-  the exception as the last argument, so the stack trace is recorded. Declare the logger
-  `private static final`.
-- **Do not invent the message for an unexpected failure.** For the catch-all handler, pass
-  the exception's own message through (or a fixed prefix concatenated with it) so the
-  response, the log and the stack trace agree. A constant string such as
-  `"An unexpected error occurred"` discards the only information that would identify the
-  cause, and it is a validation failure.
+- **Layering (Constitution I)**: controllers/resources depend on the **service layer only**.
+  A resource is limited to receiving HTTP, delegating to the service, and returning responses.
+  It must not reach into repositories or persistence entities.
+- **Centralized errors (Constitution III)**: exactly one global handler with Quarkus
+  `@ServerExceptionMapper` or `ExceptionMapper` must exist, and every error response must be
+  produced there. A resource that catches exceptions to build error bodies is a validation failure.
 - **Uniform error shape (Constitution III)**: every error response must share one structure
   carrying at minimum a timestamp, the HTTP status code, a descriptive message, and — for
-  validation failures — the per-field details. Do not invent a different error body per
-  handler.
-- **Contracts (Constitution II)**: controllers accept and return the immutable record
+  validation failures — the per-field details.
+- **Contracts (Constitution II)**: resources accept and return the immutable record
   contracts produced by the domain stage. A persistence entity must never appear in a
-  controller signature, request body, or response body.
-- **Validation**: request bodies are validated declaratively at the boundary, so an invalid
-  payload is rejected before it reaches the service layer.
-
-
-### Requested architecture profile
-
-The task payload's architecture_preference takes precedence over the default layered paths above.
-For hexagonal / ports-and-adapters use domain/model for domain types, domain/port for interfaces,
-application/dto for immutable contracts, application/service for use cases, infrastructure/persistence
-for JPA entities, infrastructure/adapter/out for repository adapters, and infrastructure/adapter/in
-for REST controllers and exception handling. Domain and application depend on ports, never on
-Spring Data repositories or infrastructure. The SERVICE stage implements ports and outgoing adapters;
-the DOMAIN stage owns domain types, ports, DTOs and persistence entities. Reuse all prior artifacts and
-respect the selected identifier types. Tests must reference these actual package names.
-For layered architecture retain the default output contract. Never substitute layered packages for a
-requested hexagonal architecture. For Gradle use build.gradle/build.gradle.kts, never require pom.xml.
-
+  resource signature, request body, or response body.
+- **Validation**: request bodies are validated declaratively with `@Valid`, so invalid
+  payloads are rejected before reaching the service layer.
 
 ## Rules
 
-1. Read the blueprint payload and the artifacts already produced by the earlier stages. Use
-   the service interfaces and record contracts that already exist; do not redeclare them.
-2. Declare, per entity, one REST controller bound to a collection path derived from the
-   entity name, resolved under the application's versioned API root.
-3. Expose, per controller, the operations the blueprint's acceptance scenarios require: a
-   creation endpoint accepting the request contract, a read-one endpoint addressing a single
-   resource by identifier, a read-all endpoint, and a delete endpoint. Derive the set from
-   the scenarios rather than emitting a fixed catalogue.
-4. Accept the request contract as a validated request body, so that declarative constraints
-   are enforced before the service is entered.
-5. Return the HTTP status that correctly expresses the outcome of each operation: creation
-   returns the created-resource status, successful reads and deletions return the statuses
-   appropriate to those operations, and a missing resource is expressed through the global
-   handler rather than by the controller.
-6. Obtain the service dependency through constructor injection. Do not use field injection
-   and do not construct the service inside a method.
-7. Delegate every operation to the service in a single call, and return the result. A
-   controller must contain no branching on domain state and no data transformation.
-8. Emit exactly one global exception handler covering, at minimum: the not-found exception
-   raised by the service layer, request-payload validation failures, and any unhandled
-   failure. Each case must produce the same uniform error structure.
-9. Emit a root-path service catalogue endpoint that reports the service identity, an
-   operational status, and the endpoints the service exposes, so an operator can confirm at
-   a glance that the service is running and what it offers.
-10. Ensure the global handler is discoverable from the application's base package, so that
-    no controller needs to be individually registered with it.
+1. Read the blueprint payload and existing artifacts. Use the service interfaces and record
+   contracts produced by earlier stages; do not redeclare them.
+2. Declare, per entity, one REST resource class annotated with `@Path` bound to a collection
+   path under `/api/v1` (e.g. `@Path("/api/v1/orders")`), producing and consuming JSON.
+3. Expose the operations the blueprint scenarios require: creation (`@POST`), read-one
+   (`@GET @Path("/{id}")`), read-all (`@GET`), and delete (`@DELETE @Path("/{id}")`).
+4. Accept the request contract with `@Valid`, ensuring validation constraints are enforced.
+5. Return standard HTTP statuses: `201 Created` for creation, `200 OK` for reads,
+   `204 No Content` for deletions. Missing resources bubble to the global exception mapper.
+6. Inject the service dependency via constructor injection or `@Inject`.
+7. Delegate each operation to the service in a single call. A resource class must contain no
+   domain branching and no data transformation.
+8. Emit exactly one global exception mapper (`GlobalExceptionHandler`) handling: resource
+   not found exception, validation violations (`ConstraintViolationException`), and generic
+   unhandled exceptions.
+9. Emit an operational health/catalogue resource reporting service identity, status, and
+   exposed routes.
+10. Ensure the exception mapper is in the base package and picked up by Quarkus CDI.
+11. STRICT 100% QUARKUS REST ONLY: Do NOT use Spring Boot annotations or packages (`@RestController`,
+    `@RequestMapping`, `@GetMapping`, `@PostMapping`, `@Autowired`, `@RestControllerAdvice`,
+    `org.springframework.*`). Use ONLY Quarkus REST (`@Path`, `@GET`, `@POST`, `@DELETE`,
+    `@Produces`, `@Consumes`, `@Valid`, `@ServerExceptionMapper` or `ExceptionMapper`). Mixing Spring
+    annotations is strictly prohibited.
 
 ## Output contract
 
-Produce exactly these artifacts, at exactly these workspace-relative paths. Emit one
-controller per declared domain entity, plus exactly one shared exception handler and exactly
-one shared service catalogue endpoint.
+Produce exactly these artifacts, at exactly these workspace-relative paths. Emit one REST
+resource for every domain entity, plus the global exception handler and service catalogue.
 
 | Path | Artifact |
 | --- | --- |
-| `src/main/java/<package-path>/controller/GlobalExceptionHandler.java` | Single `@RestControllerAdvice` producing the uniform error structure for every failure case. Emitted once. Must hold an SLF4J `Logger` and log every handled exception with its stack trace. |
-| `src/main/java/<package-path>/controller/HomeController.java` | Root-path service catalogue endpoint reporting service identity, status, and exposed endpoints. Emitted once. |
-| `src/main/java/<package-path>/controller/<Entity>Controller.java` | REST controller bound to the entity's collection path, delegating to the service interface. |
+| `src/main/java/<package-path>/controller/<EntityName>Resource.java` | Quarkus REST resource exposing endpoints for the entity. |
+| `src/main/java/<package-path>/controller/GlobalExceptionHandler.java` | Global exception mapper producing uniform error responses. Emitted once. |
+| `src/main/java/<package-path>/controller/ServiceCatalogResource.java` | Operational catalogue reporting service identity and status. Emitted once. |
 
-`<package-path>` is the base package name with `/` separators. `<Entity>` is the PascalCase
-entity name from the blueprint. Package declarations must match the directory layout exactly.
+`<package-path>` is the base package with segments separated by `/`. `<EntityName>` is the
+entity name in PascalCase.
 
 ## Prohibitions
 
-- **Do not write `try`/`catch` in a controller for the purpose of formatting an error
-  response**, and do not return an ad-hoc error body from a controller. Error handling
-  belongs exclusively to the global advice. This is a blocking compliance rule
-  (Constitution III).
-- **Do not let a controller depend on a repository or on a persistence entity**, directly or
-  transitively. This is a blocking compliance rule (Constitution I).
-- **Do not return a persistence entity** in a response body, and do not accept one as a
-  request body. Expose the record contracts only.
-- **Do not define more than one global exception handler**, and do not scatter
-  advice-annotated methods across controllers.
-- **Do not leak internal detail to the client**: no stack traces, no exception class names,
-  no SQL, and no persistence identifiers in error messages.
-- **Do not import `javax.*`.**
-- **Do not use `@Data`**, `@Value`, or `@SneakyThrows`.
-- **Do not place business logic in a controller** — no computation on domain state, no
-  validation beyond declarative annotations, no persistence calls.
-- **Do not hardcode credentials**, tokens, or environment-specific hosts and ports.
-- **Do not emit artifacts outside the Output contract**, and do not omit any listed artifact.
+- **Do not use `javax.*` anywhere.** Use `jakarta.ws.rs.*` and `jakarta.validation.*`.
+- **Do not handle domain logic or transformations in the resource.**
+- **Do not catch exceptions inside resource methods** to construct manual error bodies.
+- **Do not import or use persistence entities or repositories** directly in resources.
+- **Do not return entities from endpoints.** Return only record contracts or `Response`.

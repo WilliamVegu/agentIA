@@ -2,53 +2,151 @@
   "schema_version": 1,
   "purpose": "Bounds the dependencies, parent, and build plugins that generated build configuration may declare. Enforced against the scaffolded POM before it is persisted (FR-017). Every entry must be resolvable from a pre-populated local Maven repository, because the hermetic offline build runs with network access disabled (Constitution IV).",
   "deliberately_outside_instructions_dir": "This file lives in backend/app/resources/, NOT inside backend/app/resources/instructions/. It is a generation constraint, not an instruction document, and is excluded from the instruction-set revision digest so that editing the allowlist does not change the revision recorded against generated artifacts. See specs/011-llm-generation-nodes/contracts/instruction-document.md.",
-  "seeded_from": "The dependency set of the known-good POM template emitted by the pre-migration scaffolder stage, which is verified to resolve in the shipped offline build environment.",
+  "seeded_from": "The dependency set of the Quarkus 3.x and Java 21 LTS runtime baseline.",
   "parent": {
-    "groupId": "org.springframework.boot",
-    "artifactId": "spring-boot-starter-parent",
-    "versionLine": "3.2.x",
-    "resolvedVersion": "3.2.3",
-    "note": "Dependency versions are managed by the parent. Individual dependencies must not pin their own versions unless listed below."
+    "groupId": "io.quarkus.platform",
+    "artifactId": "quarkus-bom",
+    "versionLine": "3.x",
+    "resolvedVersion": "3.15.1",
+    "note": "Primary Quarkus 3.x platform BOM."
   },
+  "parents": [
+    {
+      "groupId": "io.quarkus.platform",
+      "artifactId": "quarkus-bom",
+      "versionLine": "3.x",
+      "resolvedVersion": "3.15.1"
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-parent",
+      "versionLine": "3.x",
+      "resolvedVersion": "3.15.1"
+    }
+  ],
   "dependencies": [
     {
-      "groupId": "org.springframework.boot",
-      "artifactId": "spring-boot-starter-web",
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-resteasy-reactive",
       "scope": "compile",
-      "why": "HTTP surface for the generated controllers."
+      "why": "Quarkus REST / RESTEasy Reactive core HTTP framework."
     },
     {
-      "groupId": "org.springframework.boot",
-      "artifactId": "spring-boot-starter-data-jpa",
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-resteasy-reactive-jackson",
       "scope": "compile",
-      "why": "Persistence and repository support for generated entities."
+      "why": "Quarkus REST with Jackson JSON serialization."
     },
     {
-      "groupId": "org.springframework.boot",
-      "artifactId": "spring-boot-starter-validation",
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-rest",
       "scope": "compile",
-      "why": "Jakarta Validation support for declaratively constrained request contracts."
+      "why": "Quarkus REST alias."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-rest-jackson",
+      "scope": "compile",
+      "why": "Quarkus REST Jackson alias."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-hibernate-orm-panache",
+      "scope": "compile",
+      "why": "Panache Repository and EntityManager for domain entities."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-hibernate-validator",
+      "scope": "compile",
+      "why": "Jakarta Validation integration for declarative constraints."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-jdbc-h2",
+      "scope": "runtime",
+      "why": "In-memory H2 database driver for hermetic testing."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-jdbc-postgresql",
+      "scope": "runtime",
+      "why": "PostgreSQL database driver for production deployment."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-smallrye-openapi",
+      "scope": "compile",
+      "why": "OpenAPI / Swagger documentation endpoint."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-smallrye-health",
+      "scope": "compile",
+      "why": "SmallRye Health endpoints (/q/health)."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-junit5",
+      "scope": "test",
+      "why": "JUnit 5 integration for @QuarkusTest."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-junit5-mockito",
+      "scope": "test",
+      "why": "Mockito and @InjectMock integration for Quarkus."
+    },
+    {
+      "groupId": "io.rest-assured",
+      "artifactId": "rest-assured",
+      "scope": "test",
+      "why": "HTTP test client for Quarkus endpoint tests."
+    },
+    {
+      "groupId": "org.assertj",
+      "artifactId": "assertj-core",
+      "scope": "test",
+      "why": "Fluent assertion library for JUnit test suites."
     },
     {
       "groupId": "com.h2database",
       "artifactId": "h2",
       "scope": "runtime",
-      "why": "In-memory datasource so a freshly generated project runs and tests without provisioning."
+      "why": "Legacy compatibility."
     },
     {
-      "groupId": "org.postgresql",
-      "artifactId": "postgresql",
-      "scope": "runtime",
-      "why": "Durable relational driver for the inferred production datasource (high/medium volume). NOTE: the hermetic offline build still runs against H2 until this artifact is present in the local Maven cache."
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-arc",
+      "scope": "compile",
+      "why": "Native Quarkus generator runtime/test dependency."
     },
     {
-      "groupId": "org.springframework.boot",
-      "artifactId": "spring-boot-starter-test",
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-hibernate-orm",
+      "scope": "compile",
+      "why": "Native Quarkus generator runtime/test dependency."
+    },
+    {
+      "groupId": "org.mockito",
+      "artifactId": "mockito-junit-jupiter",
       "scope": "test",
-      "why": "JUnit 5, Mockito, and AssertJ, which the test instruction mandates."
+      "why": "Native Quarkus generator runtime/test dependency."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-jdbc-mysql",
+      "scope": "compile",
+      "why": "Selected MySQL production datasource."
     }
   ],
   "build_plugins": [
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-maven-plugin",
+      "version": "managed-by-bom",
+      "why": "Builds fast-jar and manages Quarkus build-time augmentation."
+    },
     {
       "groupId": "org.apache.maven.plugins",
       "artifactId": "maven-compiler-plugin",
@@ -56,16 +154,10 @@
       "why": "Pins the Java 21 release level deterministically."
     },
     {
-      "groupId": "org.springframework.boot",
-      "artifactId": "spring-boot-maven-plugin",
-      "version": "managed-by-parent",
-      "why": "Produces the executable artifact."
-    },
-    {
       "groupId": "org.apache.maven.plugins",
       "artifactId": "maven-surefire-plugin",
       "version": "3.1.2",
-      "why": "Runs the JUnit 5 suite."
+      "why": "Runs the test suite."
     }
   ],
   "prohibited": [
@@ -81,6 +173,6 @@
     "blocking": true,
     "stage": "SCAFFOLDER",
     "rule_id": "FR-017-DEPENDENCY-ALLOWLIST",
-    "on_violation": "Reject the candidate artifact set; the POM must not be persisted with an unlisted declaration. Failure to enforce this is absorbed silently by the verification environment's offline-cache fallback, so it must be caught before persistence, not after the build."
+    "on_violation": "Reject candidate artifact set if POM contains unlisted dependencies or plugins."
   }
 }

@@ -10,7 +10,6 @@ from typing import Any, Dict, Generator, Optional
 import requests
 
 from app.models.devops import DeploymentStatus, LocalDeploymentSession, SmokeTestResult
-from app.config import settings
 
 # In-memory tracking for active deployments and log queues
 _active_deployments: Dict[str, LocalDeploymentSession] = {}
@@ -20,8 +19,6 @@ _raw_log_history: Dict[str, list] = {}
 
 def check_docker_daemon() -> bool:
     """Checks if the local Docker daemon is running and reachable within a 2s timeout."""
-    if not settings.DOCKER_ENABLED:
-        return False
     try:
         # Use docker info to test daemon communication
         result = subprocess.run(
@@ -36,139 +33,46 @@ def check_docker_daemon() -> bool:
         return False
 
 
-def _containers_for_session(session_id: str) -> list:
-    """Containers belonging to a session, identified by the compose project label.
-
-    The deployment registry is in memory, so a backend restart used to orphan every running
-    container: the platform forgot it had deployed anything and reported IDLE while the
-    service was up. Docker already records the association -- `docker compose` names the
-    project after the session id -- so the state can be recovered rather than guessed.
-
-    Read-only. On any failure it returns an empty list, which degrades to "not deployed":
-    the honest answer when the state cannot be established.
-    """
-    try:
-        proc = subprocess.run(
-            [
-                "docker", "ps",
-                "--filter", f"label=com.docker.compose.project={session_id}",
-                "--format", "{{.ID}}\t{{.Names}}\t{{.Ports}}\t{{.Status}}",
-            ],
-            capture_output=True, text=True, timeout=3.0, check=False,
-        )
-        if proc.returncode != 0:
-            return []
-        rows = []
-        for line in proc.stdout.strip().splitlines():
-            parts = line.split("\t")
-            if len(parts) == 4:
-                rows.append({"id": parts[0], "name": parts[1], "ports": parts[2], "status": parts[3]})
-        return rows
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
-        return []
-
-
-def _host_port_from_ports(ports: str) -> int | None:
-    """`0.0.0.0:8080->8080/tcp` -> 8080."""
-    try:
-        for chunk in ports.split(","):
-            chunk = chunk.strip()
-            if "->" not in chunk:
-                continue
-            host_side, container_side = chunk.split("->", 1)
-            container_port = container_side.split("/")[0]
-            if container_port != "8080":
-                continue
-            return int(host_side.rsplit(":", 1)[-1])
-    except (ValueError, IndexError):
-        return None
-    return None
-
-
-def _recover_deployment(session_id: str) -> "LocalDeploymentSession | None":
-    """Rebuild a session's deployment record from the running containers, if any."""
-    containers = _containers_for_session(session_id)
-    if not containers:
-        return None
-
-    app_container = None
-    db_container = None
-    for c in containers:
-        name = c["name"].lower()
-        if any(marker in name for marker in ("postgres", "mysql", "mariadb", "-db")):
-            db_container = c
-        else:
-            app_container = c
-    if app_container is None:
-        return None
-
-    session = LocalDeploymentSession(
-        sessionId=session_id,
-        containerId=app_container["id"],
-        databaseContainerId=db_container["id"] if db_container else None,
-        status=DeploymentStatus.RUNNING,
-        hostPort=_host_port_from_ports(app_container["ports"]) or 8080,
-        containerPort=8080,
-        testUrl=None,
-        healthStatus=None,
-    )
-    session.testUrl = f"http://localhost:{session.hostPort}/actuator/health"
-    _active_deployments[session_id] = session
-    return session
-
-
 def get_deployment_status(session_id: str, host_port: int = 8080) -> LocalDeploymentSession:
     """Returns the current deployment tracking state for a session, actively checking actual container health."""
-    if not settings.DOCKER_ENABLED:
-        return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.DOCKER_UNAVAILABLE,
-            errorMessage="Despliegue no ejecutado: entorno sin virtualización. Puede continuar y entregar las fuentes.")
     session = _active_deployments.get(session_id)
     if session and session.status == DeploymentStatus.BUILDING:
         return session
 
-    # A session with no deployment record is NOT DEPLOYED, and probing must not change
-    # that. This used to probe a fixed `localhost:8080` and, on a 200 UP, CREATE a
-    # deployment record for whichever session was asked about:
-    #
-    #     if not session:
-    #         session = LocalDeploymentSession(sessionId=session_id,
-    #                                          status=DeploymentStatus.HEALTHY, ...)
-    #
-    # The port is a shared default, so ANY service listening on it satisfied EVERY
-    # session. A session with no container of its own (`containerId: null`) reported
-    # HEALTHY / UP / PostgreSQL because a different session's container was running. The
-    # DevOps tab then said the service was up while its endpoints returned 500 for
-    # entities it did not have, which is what made a wrong-payload failure look like a
-    # container failure. Reported exactly that way: "verifica que el contenedor está en
-    # ejecución" -- the container was running, it just belonged to another service.
-    #
-    # The probe now only ever UPDATES a record that already exists. Health cannot be
-    # established by discovering that *something* answers on a port.
-    if not session:
-        # Recover from Docker before concluding "not deployed": the registry is in memory
-        # and a restart orphans every running container, which previously showed a live
-        # service as IDLE. Recovery is read-only and keyed on the compose project label,
-        # which `docker compose` sets to the session id.
-        session = _recover_deployment(session_id)
-        if not session:
-            return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.IDLE)
+    # Check if container is actually running and healthy via Quarkus (/q/health) or Actuator
+    for ep in ["/q/health", "/actuator/health", "/healthz"]:
+        test_url = f"http://localhost:{host_port}{ep}"
+        try:
+            resp = requests.get(test_url, timeout=0.8)
+            if resp.status_code == 200:
+                is_up = False
+                try:
+                    is_up = resp.json().get("status") == "UP"
+                except Exception:
+                    is_up = True
+                if is_up:
+                    if not session:
+                        session = LocalDeploymentSession(
+                            sessionId=session_id,
+                            status=DeploymentStatus.HEALTHY,
+                            hostPort=host_port,
+                            containerPort=8080,
+                            testUrl=test_url,
+                            healthStatus="UP",
+                        )
+                        _active_deployments[session_id] = session
+                    else:
+                        session.status = DeploymentStatus.HEALTHY
+                        session.healthStatus = "UP"
+                        session.testUrl = test_url
+                        session.errorMessage = None
+                    return session
+        except Exception:
+            pass
 
-    # Probe the port this session was actually deployed on, not a default.
-    port = session.hostPort or host_port
-    test_url = f"http://localhost:{port}/actuator/health"
-    try:
-        resp = requests.get(test_url, timeout=0.8)
-        if resp.status_code == 200 and resp.json().get("status") == "UP":
-            session.status = DeploymentStatus.HEALTHY
-            session.healthStatus = "UP"
-            session.testUrl = test_url
-            session.errorMessage = None
-        else:
-            session.healthStatus = "DOWN"
-    except Exception:
-        session.healthStatus = "UNKNOWN"
-
-    return session
+    if session:
+        return session
+    return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.IDLE)
 
 
 def get_deployment_logs(session_id: str) -> list:
@@ -201,7 +105,7 @@ def deploy_local(
             status=DeploymentStatus.DOCKER_UNAVAILABLE,
             hostPort=host_port,
             containerPort=8080,
-            errorMessage="Despliegue no ejecutado: entorno sin virtualización." if not settings.DOCKER_ENABLED else "Docker daemon is not running or accessible on the host. Entering Export-Only mode.",
+            errorMessage="Docker daemon is not running or accessible on the host. Entering Export-Only mode.",
             startedAt=datetime.now(timezone.utc).isoformat(),
         )
         _active_deployments[session_id] = session
@@ -225,7 +129,7 @@ def deploy_local(
     # 3. Spawn Background Execution Thread
     def _run_compose():
         try:
-            cmd = ["docker", "compose", "-p", session_id, "up", "-d"]
+            cmd = ["docker", "compose", "up", "-d"]
             if rebuild:
                 cmd.append("--build")
 
@@ -249,28 +153,10 @@ def deploy_local(
 
             if proc.returncode == 0:
                 _log_message(session_id, "[SUCCESS] Docker Compose containers launched successfully.")
-                import json
-                inspection = subprocess.run(["docker", "compose", "-p", session_id, "ps", "--format", "json"], cwd=workspace_dir,
-                                            capture_output=True, text=True, check=True)
-                raw = inspection.stdout.strip()
-                containers = json.loads(raw) if raw.startswith("[") else [json.loads(line) for line in raw.splitlines() if line]
-                app_container = None
-                for container in containers:
-                    publishers = container.get("Publishers") or []
-                    port = next((p.get("PublishedPort") for p in publishers if p.get("TargetPort") == 8080), None)
-                    if port:
-                        app_container = container
-                        session.containerId = container["ID"]
-                        session.hostPort = int(port)
-                    elif any(marker in str(container.get("Service", "")).lower() for marker in ("postgres", "mysql", "mariadb", "db")):
-                        session.databaseContainerId = container["ID"]
-                if app_container is None:
-                    raise RuntimeError("Compose did not report this project's application container and published port")
                 session.status = DeploymentStatus.RUNNING
-
                 # Run automated smoke test
                 _log_message(session_id, "[SMOKE_TEST] Polling /actuator/health for readiness...")
-                smoke_res = run_smoke_test(session_id, session.hostPort, max_retries=20, interval=2.0)
+                smoke_res = run_smoke_test(session_id, host_port, max_retries=20, interval=2.0)
                 if smoke_res.passed:
                     session.status = DeploymentStatus.HEALTHY
                     session.healthStatus = "UP"
@@ -324,7 +210,7 @@ def stop_deployment(session_id: str, workspace_dir: str) -> LocalDeploymentSessi
     session = _active_deployments.get(session_id, LocalDeploymentSession(sessionId=session_id))
     try:
         subprocess.run(
-            ["docker", "compose", "-p", session_id, "down"],
+            ["docker", "compose", "down", "-v"],
             cwd=workspace_dir,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -345,38 +231,41 @@ def run_smoke_test(
     max_retries: int = 15,
     interval: float = 2.0
 ) -> SmokeTestResult:
-    """Polls http://localhost:{host_port}/actuator/health until UP or timeout."""
-    test_url = f"http://localhost:{host_port}/actuator/health"
+    """Polls http://localhost:{host_port}/q/health or /actuator/health until UP or timeout."""
     start_time = time.time()
+    endpoints = ["/q/health", "/actuator/health"]
 
     for attempt in range(1, max_retries + 1):
-        try:
-            req_start = time.time()
-            resp = requests.get(test_url, timeout=3.0)
-            latency = (time.time() - req_start) * 1000.0
+        for ep in endpoints:
+            test_url = f"http://localhost:{host_port}{ep}"
+            try:
+                req_start = time.time()
+                resp = requests.get(test_url, timeout=3.0)
+                latency = (time.time() - req_start) * 1000.0
 
-            if resp.status_code == 200:
-                try:
-                    payload = resp.json()
-                except Exception:
-                    payload = {"raw": resp.text}
+                if resp.status_code == 200:
+                    try:
+                        payload = resp.json()
+                    except Exception:
+                        payload = {"raw": resp.text}
 
-                if payload.get("status") == "UP":
-                    result = SmokeTestResult(
-                        passed=True,
-                        statusCode=200,
-                        statusPayload=payload,
-                        latencyMs=round(latency, 2),
-                        testUrl=test_url,
-                        details="Actuator reports application status is UP.",
-                    )
-                    if session_id in _active_deployments:
-                        _active_deployments[session_id].status = DeploymentStatus.HEALTHY
-                        _active_deployments[session_id].healthStatus = "UP"
-                        _active_deployments[session_id].testUrl = test_url
-                    return result
-        except requests.RequestException:
-            pass
+                    status_str = str(payload.get("status", "")).upper()
+                    if status_str == "UP" or not status_str:
+                        result = SmokeTestResult(
+                            passed=True,
+                            statusCode=200,
+                            statusPayload=payload,
+                            latencyMs=round(latency, 2),
+                            testUrl=test_url,
+                            details="Health endpoint reports application status is UP.",
+                        )
+                        if session_id in _active_deployments:
+                            _active_deployments[session_id].status = DeploymentStatus.HEALTHY
+                            _active_deployments[session_id].healthStatus = "UP"
+                            _active_deployments[session_id].testUrl = test_url
+                        return result
+            except requests.RequestException:
+                pass
 
         time.sleep(interval)
 

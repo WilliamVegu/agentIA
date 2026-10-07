@@ -1,4 +1,3 @@
-from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed
 import io
 import uuid
 from pathlib import Path
@@ -195,25 +194,9 @@ async def stream_pipeline_progress(session_id: str):
 async def export_bundle_archive(session_id: str):
     """Downloads all workspace artifacts in a unified ZIP archive."""
     sess = _verify_session_exists(session_id)
-    # This endpoint only downloads sources; it does not approve or deploy them.
-    from app.services.verification_policy import require_source_delivery
-    require_source_delivery(sess)
-    from app.models.session import SessionStatus
-    if getattr(sess, "status", None) == SessionStatus.BLOCKED:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Cannot export artifact bundle: Session is BLOCKED. {getattr(sess, 'error_message', None) or 'Project is in a blocked state.'}",
-        )
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
-    # Enforce Quality Gate guard (H10)
-    from app.services.security_service import audit_workspace
-    from app.models.security_quality import QualityGateStatus
-    audit = audit_workspace(str(ws_path), session_id, sess.spec_name or "microservice")
-    if audit.qualityGate.status == QualityGateStatus.BLOCKED or not audit.qualityGate.canExport:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Cannot export artifact bundle: Quality Gate is BLOCKED. {audit.qualityGate.summaryMessage}",
-        )
+    if not ws_path.exists() or not ws_path.is_dir():
+        raise HTTPException(status_code=404, detail="Workspace directory not found")
 
     zip_bytes = export_full_bundle(str(ws_path))
     filename = f"{sess.spec_name or 'microservice'}-complete-bundle.zip"

@@ -1,25 +1,15 @@
-"""Deterministic (offline) implementation of a generation stage.
+"""Native Quarkus offline generator, restored and wired into the Studio stage boundary."""
 
-Moved verbatim from ``app/orchestrator/nodes/service_node.py`` as part of T020.
-The f-string logic is unchanged: identical input MUST yield identical output,
-identical disk writes, and identical return values. That equivalence is what
-keeps the frozen pre-migration baseline a valid comparison target.
-
-The node module of the same name now delegates to the stage execution
-boundary, which dispatches here for DETERMINISTIC sessions.
-"""
-
+from app.orchestrator.stages.deterministic.schema import identifier
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
-from app.orchestrator.stages.deterministic import module_layout
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
     blueprint = state.get("blueprint", {})
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
-    prefix = module_layout.module_prefix_for("SERVICE", state.get("architecture_plan"))
     logs = state.get("logs", [])
 
     pkg_path = package_name.replace(".", "/")
@@ -35,7 +25,7 @@ public class ResourceNotFoundException extends RuntimeException {{
     }}
 }}
 """
-    ex_path = f"{prefix}src/main/java/{pkg_path}/exception/ResourceNotFoundException.java"
+    ex_path = f"src/main/java/{pkg_path}/exception/ResourceNotFoundException.java"
     generated_files[ex_path] = not_found_ex
     fp = base_dir / ex_path
     fp.parent.mkdir(parents=True, exist_ok=True)
@@ -43,21 +33,63 @@ public class ResourceNotFoundException extends RuntimeException {{
 
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        id_name, id_type = identifier(ent)
+        id_cap = id_name[0].upper() + id_name[1:]
         attrs = ent.get("attributes", [])
-        non_id_attrs = [a for a in attrs if not (a.get("isPrimaryKey") or a.get("is_identifier") or a.get("name") == "id")]
+        non_id_attrs = [a for a in attrs if a.get("name") != id_name]
 
-        # 2. Repository interface
+        # 2. Repository (CDI bean over EntityManager -- exposes the same method
+        # shapes a Spring Data JpaRepository would (save/findById/findAll/
+        # existsById/deleteById) so the service layer below does not need to
+        # change its calls, only its own annotations/imports).
         repo_src = f"""package {package_name}.repository;
 
 import {package_name}.model.entity.{ent_name};
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 
-@Repository
-public interface {ent_name}Repository extends JpaRepository<{ent_name}, Long> {{
+import java.util.List;
+import java.util.Optional;
+
+@ApplicationScoped
+public class {ent_name}Repository {{
+
+    @Inject
+    EntityManager em;
+
+    @Transactional
+    public {ent_name} save({ent_name} entity) {{
+        if (entity.get{id_cap}() == null) {{
+            em.persist(entity);
+            return entity;
+        }}
+        return em.merge(entity);
+    }}
+
+    public Optional<{ent_name}> findById({id_type} id) {{
+        return Optional.ofNullable(em.find({ent_name}.class, id));
+    }}
+
+    public List<{ent_name}> findAll() {{
+        return em.createQuery("FROM {ent_name}", {ent_name}.class).getResultList();
+    }}
+
+    public boolean existsById({id_type} id) {{
+        return em.find({ent_name}.class, id) != null;
+    }}
+
+    @Transactional
+    public void deleteById({id_type} id) {{
+        {ent_name} entity = em.find({ent_name}.class, id);
+        if (entity != null) {{
+            em.remove(entity);
+        }}
+    }}
 }}
 """
-        repo_path = f"{prefix}src/main/java/{pkg_path}/repository/{ent_name}Repository.java"
+        repo_path = f"src/main/java/{pkg_path}/repository/{ent_name}Repository.java"
         generated_files[repo_path] = repo_src
 
         # 3. Service Interface
@@ -69,12 +101,12 @@ import java.util.List;
 
 public interface {ent_name}Service {{
     {ent_name}Response create(Create{ent_name}Request request);
-    {ent_name}Response findById(Long id);
+    {ent_name}Response findById({id_type} id);
     List<{ent_name}Response> findAll();
-    void delete(Long id);
+    void delete({id_type} id);
 }}
 """
-        service_path = f"{prefix}src/main/java/{pkg_path}/service/{ent_name}Service.java"
+        service_path = f"src/main/java/{pkg_path}/service/{ent_name}Service.java"
         generated_files[service_path] = service_iface
 
         # 4. Service Implementation
@@ -95,23 +127,25 @@ import {package_name}.model.entity.{ent_name};
 import {package_name}.repository.{ent_name}Repository;
 import {package_name}.service.{ent_name}Service;
 import {package_name}.exception.ResourceNotFoundException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Service
-@Transactional
+@ApplicationScoped
 public class {ent_name}ServiceImpl implements {ent_name}Service {{
 
     private final {ent_name}Repository repository;
 
+    @Inject
     public {ent_name}ServiceImpl({ent_name}Repository repository) {{
         this.repository = repository;
     }}
 
     @Override
+    @Transactional
     public {ent_name}Response create(Create{ent_name}Request request) {{
         {ent_name} entity = new {ent_name}();
 {setters_block}
@@ -120,15 +154,13 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
     }}
 
     @Override
-    @Transactional(readOnly = true)
-    public {ent_name}Response findById(Long id) {{
+    public {ent_name}Response findById({id_type} id) {{
         {ent_name} entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("{ent_name} not found with id: " + id));
         return {ent_name}Response.fromEntity(entity);
     }}
 
     @Override
-    @Transactional(readOnly = true)
     public List<{ent_name}Response> findAll() {{
         return repository.findAll().stream()
                 .map({ent_name}Response::fromEntity)
@@ -136,7 +168,7 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
     }}
 
     @Override
-    public void delete(Long id) {{
+    public void delete({id_type} id) {{
         if (!repository.existsById(id)) {{
             throw new ResourceNotFoundException("{ent_name} not found with id: " + id);
         }}
@@ -144,7 +176,7 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
     }}
 }}
 """
-        impl_path = f"{prefix}src/main/java/{pkg_path}/service/impl/{ent_name}ServiceImpl.java"
+        impl_path = f"src/main/java/{pkg_path}/service/impl/{ent_name}ServiceImpl.java"
         generated_files[impl_path] = service_impl
 
         # Write files to disk

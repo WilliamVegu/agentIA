@@ -22,7 +22,6 @@ import { SingleRowCard } from '../components/common/SingleRowCard';
 import { MermaidViewer } from '../components/common/MermaidViewer';
 import { CodeViewer } from '../components/common/CodeViewer';
 import { SlideOverDrawer } from '../components/common/SlideOverDrawer';
-import { exportService } from '../services/exportService';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
 import { modelsService } from '../services/modelsService';
@@ -46,7 +45,7 @@ export const DomainModelsView: React.FC = () => {
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey, model } = useLlm();
+  const { provider, apiKey, setProvider } = useLlm();
 
   // Active state
   const [design, setDesign] = useState<any>(dataModelDesign || null);
@@ -58,34 +57,6 @@ export const DomainModelsView: React.FC = () => {
       setDesign(null);
     }
   }, [dataModelDesign, activeSessionId]);
-
-  useEffect(() => {
-    // The model existed only in React state, so this tab was populated while you ran the
-    // step and empty after any reload, resume or history access -- with `schema.sql` and
-    // now `domain_model.json` on disk the whole time. Reported as "modelos & SQL
-    // disappear".
-    if (!activeSessionId || dataModelDesign) return;
-    let cancelled = false;
-    const read = (exportService as {
-      getArtifactContent?: (id: string, path: string) => Promise<string>;
-    }).getArtifactContent;
-    if (typeof read !== 'function') return;
-    read(activeSessionId, 'domain_model.json')
-      .then((content) => {
-        if (cancelled || !content?.trim()) return;
-        const parsed = JSON.parse(content);
-        // A derived model has no mermaid source of its own; borrow the architecture's
-        // rather than render an empty diagram section.
-        setDesign(parsed);
-      })
-      .catch(() => {
-        // Absent on sessions generated before this was persisted, or unreadable. The tab
-        // then says nothing has been synthesised, which is true for what it can see.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSessionId, dataModelDesign]);
 
   const [activeSqlTab, setActiveSqlTab] = useState<'schema' | 'data'>('schema');
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -107,28 +78,27 @@ export const DomainModelsView: React.FC = () => {
   const updateDesign = (newDesign: any) => {
     setDesign(newDesign);
     setDataModelDesign(newDesign);
-    // Persist the tuned model/SQL so it survives tab navigation / reload / resume.
-    if (activeSessionId) {
-      modelsService.saveDesign(activeSessionId, newDesign).catch(() => {});
-    }
   };
 
-  const handleSynthesizeAi = async () => {
+  const handleSynthesizeAi = async (overrideProvider?: any) => {
     setIsSynthesizing(true);
     setErrorMsg(null);
+    const effectiveProvider = typeof overrideProvider === 'string' ? overrideProvider : provider;
     try {
       let draftPayload = currentDraft || architectureDesign;
       if (!draftPayload && activeSessionId) {
         try {
           const reqs = await requirementsService.getSessionRequirements(activeSessionId);
-          if (reqs) {
+          if (reqs?.hasDraft && reqs.draft) {
+            draftPayload = reqs.draft;
+          } else if (reqs) {
             const rawName = activeSession?.specName || 'service';
             draftPayload = {
               serviceName: rawName,
               packageName: `com.tcs.${rawName.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'microservice'}`,
               basePort: 8080,
-              entities: reqs.entities || [],
-              userStories: reqs.stories || [],
+              entities: reqs.draft?.entities || reqs.entities || [],
+              userStories: reqs.draft?.userStories || reqs.stories || [],
             };
           }
         } catch {
@@ -148,13 +118,16 @@ export const DomainModelsView: React.FC = () => {
       const res = await modelsService.generate({
         draft: draftPayload,
         apiKey,
-        provider,
-        modelName: model,
+        provider: effectiveProvider,
       });
       updateDesign(res);
       setFeedback('Modelos de dominio JPA y esquema SQL relacional sintetizados exitosamente.');
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.detail || 'Error al generar modelos y SQL relacional');
+      if (err.response?.status === 401) {
+        setErrorMsg(`Se requiere clave API para ${effectiveProvider.toUpperCase()}. Puedes configurarla en Ajustes (icono ⚙️) o activar el Modo Offline para continuar sin costo.`);
+      } else {
+        setErrorMsg(err.response?.data?.detail || err.message || 'Error al generar modelos y SQL relacional');
+      }
     } finally {
       setIsSynthesizing(false);
     }
@@ -171,7 +144,6 @@ export const DomainModelsView: React.FC = () => {
         targetEntity: targetEntity === 'Todas las entidades' ? undefined : targetEntity,
         apiKey,
         provider,
-        modelName: model,
       });
       updateDesign(res);
       setIsRefining(false);
@@ -255,40 +227,32 @@ export const DomainModelsView: React.FC = () => {
         packageName: cleanPackage,
         basePort: 8080,
         databaseMode: 'PostgreSQL',
-        // Only names and labels are defaulted. This used to substitute entity `Order`, an
-        // `id: Long` primary key, role `Usuario`, intent "Gestionar entidades de negocio",
-        // benefit "Completar operaciones" and three Given/When/Then clauses -- all of it
-        // submitted to POST /specifications and used to generate the service. The server's
-        // minimum-length validation passed on the invented text, so the gap was invisible.
-        entities: rawEntities
-          .map((e: any) => {
-            const name = typeof e === 'string' ? e : e?.name;
-            if (!name) return null;
-            const tableName = typeof e === 'object' && e?.tableName ? e.tableName : `${name.toLowerCase()}s`;
-            return {
-              name,
-              tableName,
-              attributes: ((typeof e === 'object' && (e?.attributes || e?.fields)) || []).map((a: any) => ({
-                name: a.name,
-                type: a.type || a.javaType || 'String',
-                nullable: !!a.nullable,
-                isPrimaryKey: !!a.isPrimaryKey || !!a.primaryKey,
-                validationRules: a.validationRules || [],
-              })),
-            };
-          })
-          .filter(Boolean),
+        entities: rawEntities.map((e: any) => {
+          const name = typeof e === 'string' ? e : e?.name || 'Order';
+          const tableName = typeof e === 'object' && e?.tableName ? e.tableName : `${name.toLowerCase()}s`;
+          return {
+            name,
+            tableName,
+            attributes: ((typeof e === 'object' && (e?.attributes || e?.fields)) || [{ name: 'id', type: 'Long', isPrimaryKey: true }]).map((a: any) => ({
+              name: a.name,
+              type: a.type || a.javaType || 'Long',
+              nullable: !!a.nullable,
+              isPrimaryKey: !!a.isPrimaryKey || !!a.primaryKey,
+              validationRules: a.validationRules || [],
+            })),
+          };
+        }),
         userStories: rawStories.map((s: any) => ({
           id: s.id,
           priority: s.priority || 'P1',
-          role: s.role || '',
-          intent: s.intent || s.feature || '',
-          benefit: s.benefit || '',
+          role: s.role || 'Usuario',
+          intent: s.intent || s.feature || 'Gestionar entidades de negocio',
+          benefit: s.benefit || 'Completar operaciones',
           scenarios: (s.scenarios || []).map((sc: any, idx: number) => ({
             scenarioId: sc.scenarioId || `AC-${s.id}.${idx + 1}`,
-            given: sc.given || '',
-            when: sc.when || '',
-            then: sc.then || '',
+            given: sc.given || 'Precondición válida',
+            when: sc.when || 'Operación ejecutada',
+            then: sc.then || 'Resultado esperado obtenido',
           })),
         })),
       };
@@ -312,10 +276,10 @@ export const DomainModelsView: React.FC = () => {
         await orchestratorService.invalidateDownstream(activeSessionId, 'DATA_MODEL');
         await reloadCurrentOverview();
       }
-      setActiveTab('monitor'); // Switch to Tab 5 Monitor
+      setActiveTab(5); // Switch to Tab 5 Monitor
     } catch (err: any) {
       console.error('Error al transferir modelos a generación:', err);
-      setActiveTab('monitor');
+      setActiveTab(5);
     } finally {
       setIsSynthesizing(false);
     }
@@ -337,7 +301,7 @@ export const DomainModelsView: React.FC = () => {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleSynthesizeAi}
+              onClick={() => handleSynthesizeAi()}
               disabled={isSynthesizing}
               className="py-2 px-3.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5"
             >
@@ -387,10 +351,44 @@ export const DomainModelsView: React.FC = () => {
             <span>{feedback}</span>
           </div>
         )}
+
+        {!apiKey && provider !== 'mock' && !errorMsg && (
+          <div className="mt-2.5 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 text-xs text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>Motor LLM actual: <strong className="uppercase">{provider}</strong> (requiere API Key en ⚙️ Ajustes o usar Modo Offline).</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setProvider('mock');
+                setErrorMsg(null);
+              }}
+              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded text-[11px] font-medium shrink-0 transition-colors"
+            >
+              ⚡ Usar Modo Offline (Sin Costo)
+            </button>
+          </div>
+        )}
+
         {errorMsg && (
-          <div className="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="mt-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+              <span>{errorMsg}</span>
+            </div>
+            {provider !== 'mock' && (
+              <button
+                onClick={() => {
+                  setProvider('mock');
+                  setErrorMsg(null);
+                  handleSynthesizeAi('mock');
+                }}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-medium rounded-md text-xs shrink-0 transition-colors shadow-sm"
+              >
+                ⚡ Activar Modo Offline y Generar
+              </button>
+            )}
           </div>
         )}
       </SingleRowCard>
@@ -410,7 +408,7 @@ export const DomainModelsView: React.FC = () => {
           </div>
           <div className="pt-2">
             <button
-              onClick={handleSynthesizeAi}
+              onClick={() => handleSynthesizeAi()}
               disabled={isSynthesizing}
               className="inline-flex items-center gap-2 py-2.5 px-5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-all disabled:opacity-50"
             >

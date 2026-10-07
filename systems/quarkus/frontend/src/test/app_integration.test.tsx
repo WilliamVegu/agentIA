@@ -5,7 +5,6 @@ import { App } from '../App';
 import { sessionService } from '../services/sessionService';
 import { orchestratorService } from '../services/orchestratorService';
 import { llmService } from '../services/llmService';
-import { ALL_TABS } from '../config/workspaceTabs';
 import { useStudio } from '../context/StudioContext';
 
 vi.mock('../services/llmService', () => ({
@@ -68,16 +67,14 @@ const TabSwitcher: React.FC = () => {
   const { setActiveTab, activeTab } = useStudio();
   return (
     <div data-testid="tab-switcher">
-      {/* Iterates the real registry, so this test follows a reorder instead of asserting
-          a positional number that no longer means anything. */}
       <span data-testid="active-tab-num">{activeTab}</span>
-      {ALL_TABS.map((tab) => (
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((tabNum) => (
         <button
-          key={tab.key}
-          data-testid={`btn-switch-tab-${tab.key}`}
-          onClick={() => setActiveTab(tab.key)}
+          key={tabNum}
+          data-testid={`btn-switch-tab-${tabNum}`}
+          onClick={() => setActiveTab(tabNum)}
         >
-          Tab {tab.key}
+          Tab {tabNum}
         </button>
       ))}
     </div>
@@ -111,9 +108,7 @@ describe('App End-to-End Integration & WorkspaceRouter', () => {
     });
   });
 
-  // Titles are read from the same registry the UI renders, so a reorder or a renumber
-  // changes what this test clicks without changing what it claims to verify.
-  it('navigates seamlessly across every Workspace tab', async () => {
+  it('navigates seamlessly across all 10 Workspace tabs', async () => {
     render(
       <App />
     );
@@ -140,40 +135,40 @@ describe('App End-to-End Integration & WorkspaceRouter', () => {
       expect(screen.getByText(/Fase 3: Modelos de Dominio JPA/i)).toBeInTheDocument();
     });
 
-    // Blueprints (first tab: the specification entry point)
-    fireEvent.click(screen.getByTitle('Blueprints'));
+    // Tab 4: Blueprints
+    fireEvent.click(screen.getByTitle('4. Blueprints'));
     await waitFor(() => {
-      expect(screen.getByText(/Ingesta y Validación Formal de Blueprints/i)).toBeInTheDocument();
+      expect(screen.getByText(/Fase 4: Ingesta y Validación Formal de Blueprints/i)).toBeInTheDocument();
     });
 
-    // Monitor Live (separate surface, not a step)
-    fireEvent.click(screen.getByTitle('Monitor Live'));
+    // Tab 5: Monitor Live
+    fireEvent.click(screen.getByTitle('5. Monitor Live'));
     await waitFor(() => {
-      expect(screen.getByText(/Monitor en Vivo: Orquestación LangGraph/i)).toBeInTheDocument();
+      expect(screen.getByText(/Fase 5: Orquestación y Monitoreo en Vivo/i)).toBeInTheDocument();
     });
 
-    // Step 4: Código & Fix
-    fireEvent.click(screen.getByTitle('4. Código & Fix'));
+    // Tab 6: Código & Fix
+    fireEvent.click(screen.getByTitle('6. Código & Fix'));
     await waitFor(() => {
-      expect(screen.getByText(/Explorador de Fuentes Spring Boot 3/i)).toBeInTheDocument();
+      expect(screen.getByText(/Explorador de Fuentes (Spring Boot 3|Quarkus 3)/i)).toBeInTheDocument();
     });
 
-    // Step 5: Calidad SAST
-    fireEvent.click(screen.getByTitle('5. Calidad SAST'));
+    // Tab 7: Calidad SAST
+    fireEvent.click(screen.getByTitle('7. Calidad SAST'));
     await waitFor(() => {
       expect(screen.getByText(/Auditoría SAST y Quality Gate/i)).toBeInTheDocument();
     });
 
-    // Step 6: DevOps & Demo
-    fireEvent.click(screen.getByTitle('6. DevOps & Demo'));
+    // Tab 8: DevOps & Demo
+    fireEvent.click(screen.getByTitle('8. DevOps & Demo'));
     await waitFor(() => {
-      expect(screen.getByText(/Fase 6: DevOps, Contenerización/i)).toBeInTheDocument();
+      expect(screen.getByText(/Fase 8: DevOps, Contenerización/i)).toBeInTheDocument();
     });
 
-    // Step 7: Entrega Git
-    fireEvent.click(screen.getByTitle('7. Entrega Git'));
+    // Tab 9: Entrega Git
+    fireEvent.click(screen.getByTitle('9. Entrega Git'));
     await waitFor(() => {
-      expect(screen.getByText(/Fase 7: Entrega Integral, Empaquetado ZIP/i)).toBeInTheDocument();
+      expect(screen.getByText(/Fase 9: Entrega Integral, Empaquetado ZIP/i)).toBeInTheDocument();
     });
   });
 

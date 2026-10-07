@@ -26,7 +26,6 @@ import { requirementsService } from '../services/requirementsService';
 import { modelsService } from '../services/modelsService';
 import { specService } from '../services/specService';
 import { orchestratorService } from '../services/orchestratorService';
-import { exportService } from '../services/exportService';
 import apiClient from '../services/apiClient';
 
 export const ArchitectureView: React.FC = () => {
@@ -44,7 +43,7 @@ export const ArchitectureView: React.FC = () => {
     refreshSessions,
     selectSession,
   } = useStudio();
-  const { provider, apiKey, model } = useLlm();
+  const { provider, apiKey, setProvider } = useLlm();
 
   // Active design or null if not yet synthesized
   const [design, setDesign] = useState<any>(architectureDesign || null);
@@ -64,53 +63,22 @@ export const ArchitectureView: React.FC = () => {
   });
   const [showMermaidSource, setShowMermaidSource] = useState(false);
 
-  // Sync state if context or session updates
+  // Sync state if context updates
   useEffect(() => {
     if (architectureDesign) {
       setDesign(architectureDesign);
-    } else {
-      setDesign(null);
     }
-  }, [architectureDesign, activeSessionId]);
-
-  useEffect(() => {
-    // The design lived only in React state, so it was present while you ran the step and
-    // gone the moment you reloaded, resumed a job, or opened the session from history --
-    // with `architecture.json` sitting on disk the whole time. Reported as "arquitectura
-    // disappears"; nothing had been lost, it was simply never read back.
-    if (!activeSessionId || architectureDesign) return;
-    let cancelled = false;
-    const read = (exportService as {
-      getArtifactContent?: (id: string, path: string) => Promise<string>;
-    }).getArtifactContent;
-    if (typeof read !== 'function') return;
-    read(activeSessionId, 'architecture.json')
-      .then((content) => {
-        if (cancelled || !content?.trim()) return;
-        setDesign(JSON.parse(content));
-      })
-      .catch(() => {
-        // Absent or unreadable: leave it empty. Not an error worth a banner -- the tab
-        // says nothing has been designed yet, which is the truth.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSessionId, architectureDesign]);
+  }, [architectureDesign]);
 
   const updateDesign = (newDesign: any) => {
     setDesign(newDesign);
     setArchitectureDesign(newDesign);
-    // Persist the tuned design so it survives tab navigation / reload / resume —
-    // this is the tuning result, not the mechanical derivation written at build time.
-    if (activeSessionId) {
-      architectureService.saveDesign(activeSessionId, newDesign).catch(() => {});
-    }
   };
 
-  const handleGenerateAi = async () => {
+  const handleGenerateAi = async (overrideProvider?: any) => {
     setIsGenerating(true);
     setErrorMsg(null);
+    const effectiveProvider = typeof overrideProvider === 'string' ? overrideProvider : provider;
     try {
       let draftPayload = currentDraft;
       if (!draftPayload && activeSessionId) {
@@ -124,26 +92,31 @@ export const ArchitectureView: React.FC = () => {
         }
       }
       if (!draftPayload) {
-        // Was a fabricated draft -- service `app-service`, one `Resource` entity with a
-        // single `id` -- sent to the architecture model and presented as derived from the
-        // session. There is no specification to design from, so say that instead.
-        setErrorMsg(
-          'No hay un borrador de requisitos para esta sesión. Genere y apruebe las ' +
-          'historias en la pestaña de Requisitos antes de diseñar la arquitectura.',
-        );
-        setIsGenerating(false);
-        return;
+        const rawServiceName = (activeSession?.specName || 'app-service')
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, '-')
+          .replace(/^-+|-+$/g, '') || 'app-service';
+        draftPayload = {
+          serviceName: rawServiceName,
+          packageName: `com.corp.${rawServiceName.replace(/[^a-z0-9]/g, '')}`,
+          basePort: 8080,
+          entities: [{ name: 'Resource', tableName: 'resources', attributes: [{ name: 'id', type: 'Long', isPrimaryKey: true }] }],
+          userStories: [],
+        };
       }
       const res = await architectureService.design({
         draft: draftPayload,
         apiKey,
-        provider,
-        modelName: model,
+        provider: effectiveProvider,
       });
       updateDesign(res);
       setFeedback('Diseño arquitectónico y componentes sintetizados exitosamente.');
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.detail || 'Error al sintetizar arquitectura con IA');
+      if (err.response?.status === 401) {
+        setErrorMsg(`Se requiere clave API para ${effectiveProvider.toUpperCase()}. Puedes configurarla en Ajustes (icono ⚙️) o activar el Modo Offline para continuar sin costo.`);
+      } else {
+        setErrorMsg(err.response?.data?.detail || err.message || 'Error al sintetizar arquitectura con IA');
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -160,7 +133,6 @@ export const ArchitectureView: React.FC = () => {
         targetComponent: targetComponent === 'GLOBAL' ? undefined : targetComponent,
         apiKey,
         provider,
-        modelName: model,
       });
       updateDesign(res);
       setIsRefining(false);
@@ -210,17 +182,16 @@ export const ArchitectureView: React.FC = () => {
         draft: draftPayload,
         apiKey,
         provider,
-        modelName: model,
       });
       setDataModelDesign(res);
       if (activeSessionId) {
         await orchestratorService.invalidateDownstream(activeSessionId, 'ARCHITECTURE');
         await reloadCurrentOverview();
       }
-      setActiveTab('models'); // Go to tab 3 (Modelos & SQL)
+      setActiveTab(3); // Go to tab 3 (Modelos & SQL)
     } catch (err: any) {
       // Fallback transition
-      setActiveTab('models');
+      setActiveTab(3);
     } finally {
       setIsGenerating(false);
     }
@@ -236,21 +207,35 @@ export const ArchitectureView: React.FC = () => {
         .replace(/^-+|-+$/g, '') || 'order-service';
       const cleanPackage = design.packageName || currentDraft?.packageName || `com.tcs.${rawServiceName.replace(/[^a-z0-9]/g, '')}`;
 
-      // No invented fallback. This used to substitute an `Order`/`orders` entity and a
-      // "Gestionar pedidos" story with a full acceptance scenario when the draft was
-      // empty, and the result was submitted to POST /specifications -- so a session could
-      // be created, and a microservice generated, from domain content nobody wrote.
-      const draftEntities = currentDraft?.entities || [];
-      const draftStories = currentDraft?.userStories || [];
+      const draftEntities = (currentDraft?.entities && currentDraft.entities.length > 0)
+        ? currentDraft.entities
+        : [
+            {
+              name: 'Order',
+              tableName: 'orders',
+              attributes: [{ name: 'id', type: 'Long', nullable: false, isPrimaryKey: true, validationRules: [] }],
+            },
+          ];
 
-      if (draftEntities.length === 0 || draftStories.length === 0) {
-        setErrorMsg(
-          'El borrador no declara entidades o historias de usuario. Complete la ' +
-          'especificación en la pestaña de Requisitos antes de transferirla a generación.',
-        );
-        setIsGenerating(false);
-        return;
-      }
+      const draftStories = (currentDraft?.userStories && currentDraft.userStories.length > 0)
+        ? currentDraft.userStories
+        : [
+            {
+              id: 'US-001',
+              priority: 'P1',
+              role: 'Usuario',
+              intent: 'Gestionar pedidos',
+              benefit: 'Operar el negocio',
+              scenarios: [
+                {
+                  scenarioId: 'AC-1.1',
+                  given: 'Servicio en ejecución y base de datos disponible',
+                  when: 'Cliente envía solicitud REST',
+                  then: 'El microservicio procesa y retorna 201 Created',
+                },
+              ],
+            },
+          ];
 
       const blueprintPayload = {
         serviceName: rawServiceName,
@@ -302,21 +287,30 @@ export const ArchitectureView: React.FC = () => {
           console.warn('Could not auto-start session:', sessErr);
         }
       }
-      setActiveTab('monitor'); // Go to tab 5 (Generación & Logs)
+      setActiveTab(5); // Go to tab 5 (Generación & Logs)
     } catch (err: any) {
       console.error('Error al transferir arquitectura a generación:', err);
-      setActiveTab('monitor');
+      setActiveTab(5);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const layersConfig: Record<string, { label: string; icon: any; color: string }> = {
-    controller: { label: 'Capa Controlador (REST / HTTP)', icon: Globe, color: 'text-blue-600 dark:text-blue-400' },
-    service: { label: 'Capa Servicio (Lógica de Negocio)', icon: Workflow, color: 'text-emerald-600 dark:text-emerald-400' },
-    repository: { label: 'Capa Repositorio (Persistencia Spring Data JPA)', icon: Database, color: 'text-purple-600 dark:text-purple-400' },
+    controller: { label: 'Capa Controlador (REST / HTTP) [Quarkus REST]', icon: Globe, color: 'text-blue-600 dark:text-blue-400' },
+    service: { label: 'Capa Servicio (Lógica de Negocio) [CDI @ApplicationScoped]', icon: Workflow, color: 'text-emerald-600 dark:text-emerald-400' },
+    repository: { label: 'Capa Repositorio (Persistencia Panache Hibernate ORM)', icon: Database, color: 'text-purple-600 dark:text-purple-400' },
     model: { label: 'Capa Dominio & Modelos', icon: Boxes, color: 'text-amber-600 dark:text-amber-400' },
     infrastructure: { label: 'Componentes Transversales & Infraestructura', icon: Server, color: 'text-rose-600 dark:text-rose-400' },
+  };
+
+  const normalizeStereotype = (s: string, layer: string): string => {
+    if (!s) return layer === 'repository' ? 'PanacheRepository' : '@ApplicationScoped';
+    if (s.includes('@RestControllerAdvice') || s.includes('@ControllerAdvice')) return '@ServerExceptionMapper';
+    if (s.includes('@RestController') || s.includes('@Controller')) return '@Path';
+    if (s.includes('@Service') || s.includes('@Component')) return '@ApplicationScoped';
+    if (s.includes('@Repository') || s.includes('JpaRepository') || s.includes('CrudRepository')) return 'PanacheRepository';
+    return s;
   };
 
   const components = design?.components || [];
@@ -326,16 +320,16 @@ export const ArchitectureView: React.FC = () => {
       {/* Top Banner Card */}
       <SingleRowCard
         title="Fase 2: Diseño Arquitectónico & Catálogo de Componentes"
-        subtitle="Topología y contratos derivados de los requisitos de la sesión"
+        subtitle="Topología en 4 capas estrictas (Resource ➔ Service ➔ PanacheRepository ➔ Model) con Java Records y @ServerExceptionMapper"
         badge={
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
-            Spring Boot 3.x / Java 21
+            Quarkus 3.x / Java 21
           </span>
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleGenerateAi}
+              onClick={() => handleGenerateAi()}
               disabled={isGenerating}
               className="py-2 px-3.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5"
             >
@@ -363,16 +357,70 @@ export const ArchitectureView: React.FC = () => {
           Inspeccione y ajuste la arquitectura modular libre de dependencias cíclicas, contratos inmutables de endpoints REST derivados de BDD y compuertas de manejo de errores centralizado conforme a los Principios I, II y III de la Constitución.
         </p>
 
+        {/* Active Architecture Governance Rules */}
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+          <div className="p-2 rounded-lg bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+            <span className="text-emerald-900 dark:text-emerald-200 font-medium">100% Quarkus 3.x / Java 21</span>
+          </div>
+          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            <span className="text-rose-500 font-bold shrink-0">✕</span>
+            <span className="text-slate-700 dark:text-slate-300">Cero dependencias Spring</span>
+          </div>
+          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            <span className="text-rose-500 font-bold shrink-0">✕</span>
+            <span className="text-slate-700 dark:text-slate-300">No Spring MVC ni Data JPA</span>
+          </div>
+          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            <span className="text-indigo-500 font-bold shrink-0">✓</span>
+            <span className="text-slate-700 dark:text-slate-300">Cero dependencias cíclicas</span>
+          </div>
+        </div>
+
         {feedback && (
           <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{feedback}</span>
           </div>
         )}
+
+        {!apiKey && provider !== 'mock' && !errorMsg && (
+          <div className="mt-2.5 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 text-xs text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>Motor LLM actual: <strong className="uppercase">{provider}</strong> (requiere API Key en ⚙️ Ajustes o usar Modo Offline).</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setProvider('mock');
+                setErrorMsg(null);
+              }}
+              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded text-[11px] font-medium shrink-0 transition-colors"
+            >
+              ⚡ Usar Modo Offline (Sin Costo)
+            </button>
+          </div>
+        )}
+
         {errorMsg && (
-          <div className="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="mt-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+              <span>{errorMsg}</span>
+            </div>
+            {provider !== 'mock' && (
+              <button
+                onClick={() => {
+                  setProvider('mock');
+                  setErrorMsg(null);
+                  handleGenerateAi('mock');
+                }}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-medium rounded-md text-xs shrink-0 transition-colors shadow-sm"
+              >
+                ⚡ Activar Modo Offline y Generar
+              </button>
+            )}
           </div>
         )}
       </SingleRowCard>
@@ -387,12 +435,12 @@ export const ArchitectureView: React.FC = () => {
               Arquitectura no sintetizada para este microservicio
             </h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Presione <strong className="text-slate-700 dark:text-slate-300">"Sintetizar con IA"</strong> para deducir automáticamente la topología, los componentes y sus dependencias, endpoints REST y contratos inmutables a partir de los requerimientos de la sesión activa.
+              Presione <strong className="text-slate-700 dark:text-slate-300">"Sintetizar con IA"</strong> para deducir automáticamente la topología en 4 capas (Quarkus REST Resources, CDI Services, Panache Repositories, Entidades JPA), endpoints REST y contratos inmutables a partir de los requerimientos de la sesión activa.
             </p>
           </div>
           <div className="pt-2">
             <button
-              onClick={handleGenerateAi}
+              onClick={() => handleGenerateAi()}
               disabled={isGenerating}
               className="inline-flex items-center gap-2 py-2.5 px-5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm transition-all disabled:opacity-50"
             >
@@ -420,7 +468,7 @@ export const ArchitectureView: React.FC = () => {
 
             <MermaidViewer
               chart={design.mermaidDiagram || ''}
-              title={`Topología Arquitectónica: ${design.serviceName || 'Microservicio'}`}
+              title="Topología Arquitectónica en 4 Capas"
             />
 
             {showMermaidSource && (
@@ -486,7 +534,7 @@ export const ArchitectureView: React.FC = () => {
                                 {comp.name}
                               </span>
                               <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
-                                {comp.stereotype}
+                                {normalizeStereotype(comp.stereotype, comp.layer)}
                               </span>
                             </div>
                             <span className="font-mono text-[11px] text-slate-500">

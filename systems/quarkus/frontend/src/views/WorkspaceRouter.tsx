@@ -14,29 +14,38 @@ import { ExportPublishView } from './ExportPublishView';
 export const WorkspaceRouter: React.FC = () => {
   const { activeTab } = useStudio();
 
-  // Keyed, not positional: reordering the tab row cannot change which view renders.
-  switch (activeTab) {
-    case 'blueprints':
-      return <SpecIngestionView />;
-    case 'overview':
-      return <StudioOverviewView />;
-    case 'requirements':
-      return <RequirementsView />;
-    case 'architecture':
-      return <ArchitectureView />;
-    case 'models':
-      return <DomainModelsView />;
-    case 'code':
-      return <CodeExplorerView />;
-    case 'quality':
-      return <SecurityQualityView />;
-    case 'devops':
-      return <DevOpsDeploymentView />;
-    case 'delivery':
-      return <ExportPublishView />;
-    case 'monitor':
-      return <GenerationMonitorView />;
-    default:
-      return <StudioOverviewView />;
-  }
+  return (
+    <>
+      <div className={activeTab === 0 ? 'block' : 'hidden'}>
+        <StudioOverviewView />
+      </div>
+      <div className={activeTab === 1 ? 'block' : 'hidden'}>
+        <RequirementsView />
+      </div>
+      <div className={activeTab === 2 ? 'block' : 'hidden'}>
+        <ArchitectureView />
+      </div>
+      <div className={activeTab === 3 ? 'block' : 'hidden'}>
+        <DomainModelsView />
+      </div>
+      <div className={activeTab === 4 ? 'block' : 'hidden'}>
+        <SpecIngestionView />
+      </div>
+      <div className={activeTab === 5 ? 'block' : 'hidden'}>
+        <GenerationMonitorView />
+      </div>
+      <div className={activeTab === 6 ? 'block' : 'hidden'}>
+        <CodeExplorerView />
+      </div>
+      <div className={activeTab === 7 ? 'block' : 'hidden'}>
+        <SecurityQualityView />
+      </div>
+      <div className={activeTab === 8 ? 'block' : 'hidden'}>
+        <DevOpsDeploymentView />
+      </div>
+      <div className={activeTab === 9 ? 'block' : 'hidden'}>
+        <ExportPublishView />
+      </div>
+    </>
+  );
 };

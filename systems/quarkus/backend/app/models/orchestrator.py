@@ -115,13 +115,12 @@ class PhaseTransitionRequest(BaseModel):
 
 
 class ProjectOverviewSummary(BaseModel):
-    tests_executed: bool = Field(False, alias="testsExecuted")
     model_config = ConfigDict(populate_by_name=True)
 
     session_id: str = Field(..., alias="sessionId")
     spec_name: str = Field(..., alias="specName")
     lifecycle: LifecycleState
-    framework: str = "Java 21 / Spring Boot 3"
+    framework: str = "Java 21 / Quarkus 3.x"
     database_engine: str = Field("POSTGRESQL", alias="databaseEngine")
     user_stories_count: int = Field(0, alias="userStoriesCount")
     entities_count: int = Field(0, alias="entitiesCount")

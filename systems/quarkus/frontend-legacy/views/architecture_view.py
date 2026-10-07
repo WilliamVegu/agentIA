@@ -67,11 +67,11 @@ def render_architecture_view(backend_url: str, openai_key: str = None, provider:
 
     components = design.get("components", [])
     layers = {
-        "controller": "Capa Controlador (REST / HTTP)",
-        "service": "Capa Servicio (Lógica de Negocio)",
-        "repository": "Capa Repositorio (Persistencia Spring Data JPA)",
-        "model": "Capa Dominio & Modelos",
-        "infrastructure": "Componentes Transversales & Infraestructura (@RestControllerAdvice)",
+        "controller": "Capa Controlador (REST / HTTP) [Quarkus REST]",
+        "service": "Capa Servicio (Lógica de Negocio) [CDI @ApplicationScoped]",
+        "repository": "Capa Repositorio (Persistencia Panache Hibernate ORM)",
+        "model": "Capa Dominio & Modelos (@Entity)",
+        "infrastructure": "Componentes Transversales & Infraestructura (@ServerExceptionMapper)",
     }
 
     for layer_key, layer_label in layers.items():

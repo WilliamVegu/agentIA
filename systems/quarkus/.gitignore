@@ -60,11 +60,6 @@ Thumbs.db
 # Generated test & execution workspaces
 backend/workspaces/*
 !backend/workspaces/.gitkeep
-
-# Ingested blueprints, persisted so they survive a restart. Runtime data, like the
-# workspaces above. Path-anchored: a bare `specifications/` would also exclude any
-# directory of that name elsewhere, including in the frontend.
-/backend/specifications/
 # A workspace written at the repository root (e.g. by a script run from there).
 # Root-anchored deliberately: a bare `workspaces/` would also exclude the
 # backend/workspaces/ directory itself, which the negation above must be able to
@@ -79,8 +74,6 @@ backend/app/resources/ca-bundle.pem
 
 # Node / Frontend
 node_modules/
-# Local npm cache (set explicitly so installs work inside the sandbox)
-frontend/.npm-cache/
 frontend/dist/
 frontend/.vite/
 frontend-legacy/.streamlit/
@@ -96,9 +89,8 @@ test_open.pptx
 warmup/
 mlruns/
 
-# coverage.py data file
-.coverage
-
-# start_services.sh runtime state (pids, logs)
+# Independent Quarkus runtime data
+/backend/quarkus_workspaces/
+/backend/quarkus_specifications/
+/backend/specifications/
 .run/
-docs/fig/*-1.png

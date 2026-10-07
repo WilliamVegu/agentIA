@@ -23,7 +23,7 @@ STAGE = "CONTROLLER"
 
 #: Stage-specific emphasis appended to the authored instruction.
 STAGE_EMPHASIS = (
-    "Controllers depend on services only. Do NOT catch exceptions to build error bodies: exceptions bubble to the single @RestControllerAdvice so the whole-project rule holds by construction."
+    "Controllers/Resources depend on services only. Do NOT catch exceptions to build error bodies: exceptions bubble to the single @ServerExceptionMapper so the whole-project rule holds by construction. STRICTLY 100% Quarkus REST (@Path, @GET, @POST, @Produces, @Consumes, @Valid). NEVER use Spring MVC or Spring Boot annotations."
 )
 
 

@@ -1,0 +1,26 @@
+[
+  {
+    "method": "GET",
+    "path": "/q/health",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/items",
+    "status": 201,
+    "expected": 201
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/items/4ce41dbb-6794-4260-a691-48eb1c6974e5",
+    "status": 200,
+    "expected": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/items",
+    "status": 201,
+    "expected": 400
+  }
+]

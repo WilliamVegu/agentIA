@@ -1,44 +1,51 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-- Version change: 1.0.0 → 1.1.0 (MINOR: incorporación de principio de seguridad de secretos y frontera del orquestador LangGraph/LLM)
+- Version change: 1.1.0 → 2.0.0 (MAJOR: Transición estructural del framework base de Spring Boot 3.x a Quarkus 3.x, consagración del principio AI-First / Zero-Defaults y formalización obligatoria de Historias de Usuario y BDD en Español)
 - List of modified principles:
-  * Principios I a V: Se mantienen íntegros y vigentes.
+  * Principio I: Adaptado a la arquitectura en capas con Quarkus 3.x (JAX-RS/Quarkus REST `@Path`, CDI `@ApplicationScoped`, Hibernate ORM con Panache).
+  * Principio II: Mantiene Records inmutables y Jakarta Validation, desacoplados de entidades Panache/JPA.
+  * Principio III: Manejo centralizado de excepciones mediante Quarkus `@ServerExceptionMapper` / `ExceptionMapper<E>`.
+  * Principio IV: Determinismo Offline-First adaptado al ciclo de build de Quarkus Maven.
+  * Principio V: Quality Gates y auto-reparación basados en `@QuarkusTest` y suites de prueba Quarkus.
+  * Principio VI: Seguridad de Secretos y frontera del orquestador (inmutable).
 - Added sections/principles:
-  * VI. Seguridad de Secretos y Frontera del Orquestador (LangGraph & LLM API Keys)
-  * Reglas de inyección de credenciales y aislamiento del motor de IA en el Stack Tecnológico
+  * VII. Generación Exclusiva por IA y Cero Datos Predeterminados (AI-First & Zero-Default): Prohibición de datos simulados/mocks estáticos hardcodeados en flujos de usuario; inicio en estado limpio (Empty State); generación 100% dirigida por LLM.
+  * VIII. Requerimientos Canónicos e Historias de Usuario en Español: Sintaxis obligatoria 'Como [rol], quiero [funcionalidad], para [beneficio]' y criterios BDD 'Dado [contexto], Cuando [evento], Entonces [resultado esperado]'.
 - Removed sections: Ninguna
-- Follow-up TODOs: Ninguno
+- Follow-up TODOs:
+  * Actualizar specs y plantillas de agentes (scaffolder, domain, controller, service, test) para el stack Quarkus 3.x.
+  * Refactorizar backend (prompts, services, dependencias) y frontend (limpieza de mocks y labels Quarkus).
 -->
 
-# Java/Spring Boot Microservices Platform Constitution
+# Java/Quarkus Microservices Platform Constitution
 
 ## Core Principles
 
-### I. Arquitectura en Capas Estricta y Separación de Responsabilidades
-El diseño de cada microservicio MUST seguir de forma inquebrantable una estructura en capas unidireccional:
-`controller` -> `service` (interfaz e implementación) -> `repository` -> `model` / `entity`.
+### I. Arquitectura en Capas Estricta y Separación de Responsabilidades en Quarkus
+El diseño de cada microservicio MUST seguir de forma inquebrantable una estructura en capas unidireccional adaptada al ecosistema Quarkus 3.x:
+`resource / controller` -> `service` (CDI `@ApplicationScoped`) -> `repository` (Hibernate ORM con `PanacheRepository<T>`) -> `model` / `entity`.
 - Cada capa solo puede interactuar con su capa inmediata inferior.
-- Los `controllers` se limitan exclusivamente a la recepción HTTP, orquestación de llamadas al servicio y serialización de respuestas.
-- Los `services` son los únicos responsables de concentrar la lógica de negocio y reglas de dominio.
-- Los `repositories` gestionan exclusivamente el acceso a datos y consultas de persistencia.
+- Los controladores / endpoints exponen APIs reactivas o bloqueantes usando Jakarta REST / Quarkus REST (`@Path`, `@GET`, `@POST`, `@PUT`, `@DELETE`, `@Produces`, `@Consumes`).
+- Los servicios de negocio son beans CDI anotados con `@ApplicationScoped` y gestionan transacciones declarativas mediante `@Transactional`.
+- Los repositorios implementan el patrón repositorio de Panache (`PanacheRepository<T>`), encapsulando el acceso a datos sin filtrar lógica de persistencia a capas superiores.
 
-*Rationale*: Garantiza desacoplamiento, mantenibilidad a largo plazo, alta testabilidad con mocks independientes y preparación para auditorías de código corporativas.
+*Rationale*: Garantiza desacoplamiento absoluto, alta testabilidad unitaria y de integración ligera con `@QuarkusTest`, y aprovechamiento óptimo del build-time optimization característico de Quarkus.
 
 ### II. Contratos Inmutables y Validación Temprana
 Los contratos de API (DTOs) MUST ser inmutables y estar estrictamente desacoplados de la persistencia:
-- Todos los DTOs de Request y Response MUST implementarse mediante Java Records nativos.
-- Queda terminantemente PROHIBIDO exponer entidades JPA directamente en los controllers o retornos de API.
+- Todos los DTOs de Request y Response MUST implementarse mediante Java Records nativos (`record`).
+- Queda terminantemente PROHIBIDO exponer entidades JPA o Panache directamente en los recursos REST o retornos de API.
 - Todo record de Request MUST incorporar validaciones declarativas tempranas mediante anotaciones de Jakarta Validation (`@NotNull`, `@NotBlank`, `@Positive`, `@Email`, etc.).
 - Ningún payload no validado debe alcanzar la capa de servicio.
 
-*Rationale*: Previene mutaciones no intencionadas de estado en memoria, evita la exposición accidental del esquema de base de datos y detiene transacciones inválidas en el borde de la aplicación.
+*Rationale*: Previene mutaciones imprevistas de estado en memoria, evita la exposición del esquema relacional y detiene transacciones inválidas en la frontera de la API.
 
 ### III. Manejo Centralizado de Excepciones y Limpieza de Código
-Toda respuesta de fallo MUST estar estandarizada y ser predecible para clientes internos y externos:
-- Se DEBE implementar un manejador global mediante `@RestControllerAdvice`.
-- Ningún controller debe contener bloques `try-catch` con fines de formateo de respuesta ni devolver entidades de error ad-hoc.
-- Toda respuesta de error MUST responder a una estructura uniforme `ProblemDetails` (RFC 7807) o `ApiErrorRecord` conteniendo: `timestamp`, código de estado HTTP (`status`), mensaje descriptivo (`message`) y detalles de validación de campo cuando aplique.
+Toda respuesta de fallo MUST estar estandarizada y ser predecible:
+- Se DEBE implementar el manejo global de excepciones utilizando Quarkus `@ServerExceptionMapper` o implementaciones de `ExceptionMapper<E>`.
+- Ningún resource o controller debe contener bloques `try-catch` con fines de formateo de respuesta ni devolver entidades de error ad-hoc.
+- Toda respuesta de error MUST responder a una estructura uniforme RFC 7807 (`ProblemDetails` o `ApiErrorRecord`) conteniendo: `timestamp`, código de estado HTTP (`status`), mensaje descriptivo (`message`) y detalles de validación cuando aplique.
 - Clean Code obligatorio: Prohibido colocar lógica de negocio en capas de presentación o persistencia.
 
 *Rationale*: Elimina inconsistencias en el consumo de APIs, simplifica la observabilidad y previene la fuga de stack traces o datos sensibles hacia el cliente.
@@ -46,66 +53,62 @@ Toda respuesta de fallo MUST estar estandarizada y ser predecible para clientes 
 ### IV. Determinismo Offline-First y Aislamiento en Sandbox
 La generación, compilación y verificación de código MUST ser estrictamente deterministas y autosuficientes:
 - Las compilaciones y ejecuciones de pruebas MUST funcionar al 100% en modo offline (`mvn test -o`) dentro de contenedores Docker aislados sin acceso a redes externas.
-- Queda terminantemente PROHIBIDO declarar o incorporar dependencias en `pom.xml` que no se encuentren previamente cacheadas en la imagen base de Docker.
-- Prohibida cualquier dependencia dinámica, descarga de scripts remotos en tiempo de compilación o resolución de artefactos de red en tiempo de build.
+- Queda terminantemente PROHIBIDO declarar dependencias en `pom.xml` que no pertenezcan al BOM de Quarkus o a la lista de dependencias permitidas previamente cacheadas en la imagen base.
+- Prohibida cualquier descarga dinámica o resolución de red en tiempo de compilación.
 
-*Rationale*: Garantiza reproducibilidad absoluta en entornos de integración continua (CI/CD) corporativos de alta seguridad, elimina vulnerabilidades de la cadena de suministro (supply-chain attacks) y asegura la ejecución en sandboxes herméticos.
+*Rationale*: Garantiza reproducibilidad absoluta en entornos de integración continua (CI/CD) corporativos de alta seguridad y ejecución confiable en sandboxes herméticos.
 
 ### V. Quality Gates y Ciclo Acotado de Auto-Reparación
 La validación del código generado y los límites de intervención autónoma MUST obedecer a compuertas estrictas:
-- Aprobación 100% en pruebas: Todo microservicio DEBE superar el 100% de los tests unitarios ejecutados por Maven para considerarse aprobado. Cero pruebas fallidas permitidas.
-- Cobertura exhaustiva: Toda funcionalidad DEBE contener pruebas unitarias con Mockito y AssertJ tanto para el camino feliz (happy path) como para los caminos alternativos y excepciones (validaciones fallidas, recurso no existente, errores de negocio).
+- Aprobación 100% en pruebas: Todo microservicio DEBE superar el 100% de los tests unitarios y de integración ejecutados por Maven (`@QuarkusTest`, REST-assured, AssertJ, Mockito con `@InjectMock`).
+- Cobertura exhaustiva: Toda funcionalidad DEBE contener pruebas tanto para el camino feliz (*happy path*) como para los caminos alternativos y excepciones (validaciones fallidas, recurso no existente, errores de negocio).
 - Límite de auto-reparación: Ante fallos de compilación o aserción en pruebas, el agente autónomo dispone de un límite estricto de tres (3) iteraciones de corrección automática, guiándose exclusivamente por el stack trace emitido por Maven.
 - Si la compilación o las pruebas no son exitosas al 3er intento, la tarea MUST ser abortada de forma inmediata y etiquetada bajo el estado: `Bloqueo por intervención humana requerida`.
 
-*Rationale*: Evita bucles infinitos de alucinación o degradación de código, manteniendo un proceso de desarrollo autónomo seguro, transparente y con control humano preventivo.
+*Rationale*: Evita bucles infinitos de alucinación o degradación de código, asegurando un desarrollo autónomo seguro y transparente.
 
 ### VI. Seguridad de Secretos y Frontera del Orquestador (LangGraph & LLMs)
 La interacción entre el orquestador de IA, las API keys de modelos y el código del microservicio MUST cumplir límites estrictos:
-- **Cero Secretos Hardcodeados**: Queda terminantemente PROHIBIDO hardcodear, commitear o exponer API keys de LLMs (OpenAI, Anthropic, Gemini, etc.), tokens o credenciales en código fuente, archivos de configuración (`application.yml`, `application.properties`), scripts, Dockerfiles o mensajes de commit.
-- **Frontera de LangGraph**: LangGraph opera estrictamente en la capa externa de orquestación del agente (ej. en el pipeline de ejecución y supervisor de tareas). El código de los microservicios Java generados DEBE mantenerse desacoplado y libre de dependencias del framework del orquestador, salvo requerimiento funcional explícito de negocio.
-- **Aislamiento en Pruebas (Zero LLM Network Calls)**: Queda terminantemente PROHIBIDO que los tests unitarios o el proceso de build offline (`mvn test -o`) realicen peticiones de red hacia APIs de LLMs externas. Si el microservicio incluye integración con modelos de lenguaje, toda llamada MUST ser 100% simulada mediante mocks deterministas (Mockito).
-- **Inyección en Tiempo de Ejecución**: Toda credencial o API key requerida por el microservicio en ambientes productivos MUST suministrarse exclusivamente a través de variables de entorno seguras (`${LLM_API_KEY}`) o gestores de secretos corporativos (Vault, AWS Secrets Manager).
+- **Cero Secretos Hardcodeados**: Queda terminantemente PROHIBIDO hardcodear o exponer API keys de LLMs, tokens o credenciales en código fuente, archivos `application.properties`, scripts, Dockerfiles o commits.
+- **Frontera del Orquestador**: LangGraph y los frameworks de IA operan estrictamente en la capa externa de orquestación. El código Quarkus generado DEBE mantenerse desacoplado y libre de dependencias del framework del orquestador.
+- **Aislamiento en Pruebas**: Queda terminantemente PROHIBIDO que los tests unitarios o el build offline realicen llamadas a APIs de LLMs externas. Toda llamada debe ser simulada con mocks deterministas.
+- **Inyección en Runtime**: Toda credencial en ambientes productivos MUST suministrarse vía variables de entorno seguras (`${LLM_API_KEY}`) o gestores de secretos.
 
-*Rationale*: Protege la seguridad corporativa evitando filtraciones de claves en repositorios, previene costos imprevistos de API durante pruebas y preserva la regla inquebrantable de compilación hermética y offline.
+*Rationale*: Protege la seguridad corporativa y previene costos imprevistos de API durante pruebas y verificación hermética.
+
+### VII. Generación Exclusiva por IA y Cero Datos Predeterminados (AI-First & Zero-Default)
+La plataforma MUST operar bajo el paradigma de generación autónoma auténtica sin datos preestablecidos:
+- **Lienzo Limpio al Inicio (Empty State)**: La plataforma (Frontend y Backend) no debe precargar sesiones ficticias, especificaciones dummy ni microservicios de ejemplo (como `order-service` hardcodeado). El usuario debe iniciar en una pantalla limpia invitando a la creación genuina.
+- **Generación Exclusiva por LLM**: Todo artefacto (historias de usuario, especificaciones, arquitectura, entidades, código fuente, suites de prueba y manifiestos) DEBE ser generado dinámicamente por la IA a partir de las instrucciones o requerimientos del usuario.
+- **Prohibición de Fallback a Datos Simulados en Producción**: Queda prohibido el uso silencioso de datos sintéticos estáticos o simulados cuando el usuario espera una generación real de IA. Si no se configuran credenciales válidas, el sistema debe informar claramente la necesidad de configurar un proveedor de IA en lugar de simular una generación fija.
+
+*Rationale*: Garantiza que la plataforma aporte valor real de ingeniería asistida por IA, evitando artefactos prefabricados o engañosos que no reflejen los requerimientos del usuario.
+
+### VIII. Requerimientos Canónicos e Historias de Usuario en Español
+Para garantizar la máxima claridad y alineación con los equipos de producto y negocio hispanohablantes:
+- **Historias de Usuario**: Todas las historias de usuario generadas por la IA MUST redactarse obligatoriamente en español bajo la estructura canónica:
+  `Como [rol del interesado], quiero [acción o capacidad técnica], para [beneficio o valor de negocio].`
+- **Criterios de Aceptación BDD**: Todos los escenarios de prueba y aceptación MUST formularse en español bajo la convención Gherkin/BDD:
+  `Dado [contexto o precondición inicial], Cuando [evento, acción o solicitud recibida], Entonces [resultado esperado, código de respuesta y estado resultante].`
+- **Supuestos y Reglas de Negocio**: Todas las asunciones técnicas y restricciones del dominio deben expresarse en español estándar.
+
+*Rationale*: Facilita la comprensión, validación y trazabilidad entre las partes interesadas hispanohablantes y los artefactos técnicos generados.
 
 ## Stack Tecnológico Base y Versiones
 
-Las siguientes versiones y tecnologías representan la línea base obligatoria e inmutable del repositorio:
+- **Lenguaje**: Java 21 LTS (Records, Pattern Matching, Sealed Types, Text Blocks).
+- **Framework Principal**: Quarkus 3.x (Quarkus REST / RESTEasy Reactive, Hibernate ORM con Panache, SmallRye OpenAPI, Quarkus Hibernate Validator).
+- **Inyección de Dependencias**: Jakarta CDI (`@ApplicationScoped`, `@Inject`, `@RequestScoped`).
+- **Gestor de Construcción**: Maven 3.9+ con `quarkus-maven-plugin` y BOM `io.quarkus.platform:quarkus-bom`.
+- **Persistencia en Pruebas**: Base de datos H2 en memoria (`quarkus-jdbc-h2`) con compatibilidad PostgreSQL o PostgreSQL DevServices.
+- **Frameworks de Pruebas**: `@QuarkusTest`, `quarkus-junit5`, REST-assured, AssertJ y Mockito (`@InjectMock`).
+- **Contratos y Validación**: Java 21 Records inmutables y Jakarta Validation (`jakarta.validation.constraints.*`).
+- **Despliegue Containerizado**: Dockerfile multi-stage basado en Eclipse Temurin 21 (Quarkus Fast-jar) y manifiestos de salud vinculados a SmallRye Health (`/q/health`).
 
-- **Lenguaje**: Java 21 LTS (aprovechando Records, Pattern Matching y características modernas de la plataforma).
-- **Framework Principal**: Spring Boot 3.x (Spring Web, Spring Data JPA, Spring Validation).
-- **Gestor de Construcción**: Maven 3.9+ (con configuración para compilación determinista y ejecución offline).
-- **Persistencia en Pruebas**: Base de datos H2 en memoria configurada en sintaxis PostgreSQL (`jdbc:h2:mem:testdb;MODE=PostgreSQL`).
-- **Frameworks de Pruebas**: JUnit 5 (Jupiter), Mockito (mocking y verificación de interacciones) y AssertJ (aserciones fluidas).
-- **Librerías de Utilidad**: Project Lombok queda estrictamente RESTRINGIDO a las siguientes anotaciones:
-  - `@Getter`
-  - `@Setter`
-  - `@Builder`
-  - `@NoArgsConstructor`
-  - `@AllArgsConstructor`
-  - *Nota*: Se prohíbe el uso de `@Data`, `@SneakyThrows` o `@Value` en clases de entidad o servicio para evitar efectos colaterales en Equals/HashCode o enmascaramiento de excepciones.
-- **Capa de Orquestación y Agentes**:
-  - *Orquestador Autónomo*: LangGraph (gestionado exclusivamente en el plano de control del agente / pipeline CI/CD externo, fuera del artefacto JAR final).
-  - *Gestión de Secretos de IA*: Variables de entorno seguras en el host/contenedor; ninguna clave persistida en el repositorio.
-  - *Aislamiento de IA en Pruebas*: Mockito para desacoplar cualquier cliente de LLM en las compuertas de calidad.
+## Gobernanza y Enmiendas
 
-## Ciclo de Vida de Entrega y Auditoría
+- **Inmutabilidad y Cumplimiento**: Esta Constitución es la norma suprema del repositorio. Todo agente y flujo autónomo DEBE cumplirla sin excepciones.
+- **Versionamiento**: SemVer (Mayor.Menor.Parche).
+- **Control de Cambios**: Toda evolución requiere justificación técnica y análisis de impacto en los artefactos generados.
 
-- **Generación basada en Especificaciones**: Todo microservicio se genera a partir de especificaciones formales gestionadas por Spec Kit.
-- **Aislamiento de Entregables**: Todo código final validado y probado DEBE aislarse en una rama Git dedicada bajo la convención:
-  `feature/[nombre-spec]`
-- **Commits Atómicos**: Cada entrega debe constar de commits atómicos, concisos y conformes a Conventional Commits (e.g., `feat(order-service): implement order creation endpoints`), listos para apertura de Pull Request sin dependencias de ramas sucias ni secretos residuales.
-- **Preparación para Auditoría Interna**: El código debe ser limpio, autodocumentado, sin dead code ni variables sin usar, cumpliendo con las guías de estilo institucionales y preparado para pasar herramientas de escaneo estático y análisis de secretos (SonarQube, GitGuardian, TruffleHog).
-
-## Gobernanza
-
-- **Inmutabilidad y Supremacía**: Esta Constitución constituye la ley fundamental y suprema para el desarrollo y generación de microservicios en este repositorio. Ningún agente autónomo ni contribuidor humano puede revocar o ignorar estas reglas de forma tácita.
-- **Procedimiento de Enmienda**: Cualquier modificación a estas normas exige un proceso de revisión formal, aprobación colegiada, justificación técnica y un plan de migración para los microservicios existentes.
-- **Política de Versionamiento**: Este documento sigue Semantic Versioning (SemVer):
-  - **MAJOR**: Remoción, debilitamiento o cambio incompatible de principios o gobernanza.
-  - **MINOR**: Incorporación de nuevos principios, estándares de arquitectura o ampliación sustancial del stack tecnológico.
-  - **PATCH**: Correcciones de formato, aclaraciones tipográficas o refinamientos no semánticos.
-- **Verificación de Cumplimiento**: Todo Pull Request, pipeline de CI y ciclo de revisión debe verificar explícitamente el cumplimiento de los seis Principios Fundamentales antes del merge.
-
-**Version**: 1.1.0 | **Ratified**: 2026-09-13 | **Last Amended**: 2026-09-13
+**Version**: 2.0.0 | **Ratified**: 2026-09-13 | **Last Amended**: 2026-09-29

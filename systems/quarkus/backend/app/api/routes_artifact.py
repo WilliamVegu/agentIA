@@ -72,17 +72,12 @@ async def list_artifacts(session_id: str):
 @router.get("/{session_id}/artifacts/content")
 async def get_artifact_content(session_id: str, path: str = Query(..., description="Relative path of file")):
     """Returns the raw source code text of a specific artifact."""
-    ws_root = Path(settings.WORKSPACE_DIR).resolve()
-    ws_path = (ws_root / session_id).resolve()
-    if not ws_path.is_relative_to(ws_root) or not ws_path.exists():
+    ws_path = (Path(settings.WORKSPACE_DIR) / session_id).resolve()
+    if not ws_path.exists():
         raise HTTPException(status_code=404, detail="Session workspace not found")
 
-    raw_path = Path(path)
-    if raw_path.is_absolute():
-        raise HTTPException(status_code=400, detail="Invalid path traversal attempt")
-
     target_file = (ws_path / path).resolve()
-    # Prevent path traversal attacks (strictly relative to session workspace)
+    # Prevent path traversal attacks
     if not target_file.is_relative_to(ws_path):
         raise HTTPException(status_code=400, detail="Invalid path traversal attempt")
 
@@ -107,23 +102,18 @@ async def get_verification_metrics(session_id: str):
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if not sess:
             raise HTTPException(status_code=404, detail="Session not found")
-
-        # Feature 012 / H08: deserialize real persisted verification metrics if available
+        
         if sess.verification_metrics_json:
-            try:
-                import json
-                persisted = json.loads(sess.verification_metrics_json)
-                return VerificationMetrics(**persisted)
-            except Exception:
-                pass
-
-        # If not executed or missing, return honest 0 tests, never fake mock numbers
+            import json
+            return VerificationMetrics(**json.loads(sess.verification_metrics_json))
         return VerificationMetrics(
             totalTests=0,
             passedTests=0,
             failedTests=0,
             executionDurationMs=0,
             allPassed=False,
+            fallback_used=True,
+            fallback_reason="No persisted verification result is available for this session.",
         )
     finally:
         db.close()

@@ -33,7 +33,7 @@ def verify():
         print(error)
     if errors:
         raise SystemExit(1)
-    print('Ambos sistemas conservan sus fuentes originales (se permiten finales de línea del checkout).')
+    print('Spring conserva su copia autorizada y Quarkus coincide con la versión recuperada y corregida registrada.')
 
 
 if __name__ == '__main__':

@@ -72,6 +72,9 @@ RULE_DEPENDENCY_NOT_ALLOWED = "DEPENDENCY_NOT_ALLOWED"
 #: Rule identifier for the generated-artifact credential rule (FR-018).
 RULE_CREDENTIAL_IN_ARTIFACT = "CREDENTIAL_IN_ARTIFACT"
 
+#: Rule identifier enforcing 100% native Quarkus 3.x and zero Spring Boot contamination.
+RULE_SPRING_CONTAMINATION = "ZERO_SPRING_BOOT_CONTAMINATION"
+
 #: Rule identifier for the sample-credential placeholder used in tests.
 SEVERITY_OF_CREDENTIAL_RULE = SEVERITY_CRITICAL
 
@@ -269,6 +272,9 @@ def normalize_verdict(
     # --- the gate carries this rule itself. See check_artifact_credentials.  ---
     collected.extend(check_artifact_credentials(files, stage_scope))
 
+    # --- Strict 100% Quarkus rule: zero Spring Boot contamination -----------
+    collected.extend(check_spring_boot_contamination(files, stage_scope))
+
     collected.extend(extra_violations)
 
     # --- Deduplicate by (artifact_path, rule_id), keeping the strictest ------
@@ -377,6 +383,60 @@ def check_artifact_credentials(
     return violations
 
 
+_SPRING_IMPORT_PATTERN = re.compile(r"^\s*import\s+(org\.springframework\.|org\.springdoc\.)", re.MULTILINE)
+_SPRING_ANNOTATION_PATTERN = re.compile(
+    r"@("
+    r"SpringBootApplication|SpringBootTest|WebMvcTest|Autowired|MockBean|"
+    r"RestController|RestControllerAdvice|ControllerAdvice|Service|Repository|Component|"
+    r"GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping|"
+    r"RequestParam|PathVariable"
+    r")\b"
+)
+_SPRING_TYPE_PATTERN = re.compile(r"\b(JpaRepository|CrudRepository|PagingAndSortingRepository)\b")
+
+
+def check_spring_boot_contamination(
+    artifacts: Mapping[str, str],
+    stage_scope: Optional[Iterable[str]] = None,
+) -> List[ComplianceViolation]:
+    """Flag any Spring Boot, Spring MVC, or Spring Data JPA imports, annotations or types in candidate artifacts.
+    Enforces 100% native Quarkus 3.x and Jakarta EE.
+    """
+    violations: List[ComplianceViolation] = []
+    for path, content in artifacts.items():
+        if not isinstance(content, str):
+            continue
+        is_java = path.endswith('.java')
+        is_build = path.endswith(('pom.xml', 'build.gradle', 'build.gradle.kts'))
+        if not (is_java or is_build):
+            continue
+        if (
+            (is_build and ('org.springframework' in content or 'spring-boot' in content))
+            or _SPRING_IMPORT_PATTERN.search(content)
+            or _SPRING_ANNOTATION_PATTERN.search(content)
+            or _SPRING_TYPE_PATTERN.search(content)
+        ):
+            violations.append(
+                ComplianceViolation(
+                    artifact_path=path,
+                    rule_id=RULE_SPRING_CONTAMINATION,
+                    severity=SEVERITY_BLOCKING,
+                    message=(
+                        "artifact imports or declares Spring Boot elements. The platform requires 100% "
+                        "Quarkus 3.x and Jakarta EE (Constitution Principle I & Stack Rules)."
+                    ),
+                    suggested_fix=(
+                        "Replace Spring Boot elements with Quarkus 3.x equivalents: use Quarkus REST (@Path, "
+                        "@Produces, @Consumes), Jakarta CDI (@ApplicationScoped, @Inject, @Transactional), "
+                        "Panache (PanacheRepository<Entity>), and Quarkus Test (@QuarkusTest, @InjectMock)."
+                    ),
+                    attribution=resolve_attribution(path, stage_scope),
+                    contributing_sources=("compliance.check_spring_boot_contamination",),
+                )
+            )
+    return violations
+
+
 # ---------------------------------------------------------------------------
 # Dependency allowlist enforcement (T049, FR-017)
 # ---------------------------------------------------------------------------
@@ -404,11 +464,22 @@ def _split_coordinates(pom_xml: str):
     else:
         ns = ""
 
+    properties = { _local(item.tag): (item.text or '').strip()
+        for item in root.findall(f'{ns}properties/*') }
+
+    def resolve(value):
+        for _ in range(10):
+            expanded = re.sub(r'\$\{([^}]+)\}', lambda match: properties.get(match[1], match[0]), value)
+            if expanded == value:
+                break
+            value = expanded
+        return value
+
     def text_of(element, child_name):
         if element is None:
             return ""
         found = element.find(f"{ns}{child_name}")
-        return (found.text or "").strip() if found is not None and found.text else ""
+        return resolve((found.text or "").strip()) if found is not None and found.text else ""
 
     parent_el = root.find(f"{ns}parent")
     parent = (
@@ -464,6 +535,12 @@ def check_dependency_allowlist(
         for p in data.get("build_plugins", []) or []
     }
     allowed_parent = data.get("parent") or {}
+    allowed_parents_list = data.get("parents") or ([allowed_parent] if allowed_parent else [])
+    allowed_parent_pairs = {
+        (p.get("groupId"), p.get("artifactId"))
+        for p in allowed_parents_list
+        if p and p.get("groupId") and p.get("artifactId")
+    }
 
     violations: List[ComplianceViolation] = []
 
@@ -497,13 +574,12 @@ def check_dependency_allowlist(
         return violations
 
     if parent:
-        if (parent.get("groupId"), parent.get("artifactId")) != (
-            allowed_parent.get("groupId"), allowed_parent.get("artifactId"),
-        ):
+        parent_pair = (parent.get("groupId"), parent.get("artifactId"))
+        if parent_pair not in allowed_parent_pairs:
+            allowed_names = ", ".join(f"{g}:{a}" for g, a in allowed_parent_pairs)
             flag(
-                f"parent {parent.get('groupId')}:{parent.get('artifactId')} is not the allowed parent "
-                f"{allowed_parent.get('groupId')}:{allowed_parent.get('artifactId')}",
-                f"Use the {allowed_parent.get('groupId')}:{allowed_parent.get('artifactId')} parent.",
+                f"parent {parent.get('groupId')}:{parent.get('artifactId')} is not among allowed parents: {allowed_names}",
+                f"Use one of the allowed parents ({allowed_names}).",
             )
 
     for dep in dependencies:
@@ -520,7 +596,7 @@ def check_dependency_allowlist(
             if upper in ("LATEST", "RELEASE") or "SNAPSHOT" in upper or _VERSION_SELECTOR_RE.match(version):
                 flag(
                     f"dependency {coords[0]}:{coords[1]} declares non-deterministic version selector {version!r}",
-                    "Let the Spring Boot parent manage the version; never use ranges, SNAPSHOT, LATEST or RELEASE.",
+                    "Let the Quarkus BOM manage the version; never use ranges, SNAPSHOT, LATEST or RELEASE.",
                 )
 
     for plugin in plugins:

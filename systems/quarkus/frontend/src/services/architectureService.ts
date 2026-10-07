@@ -4,7 +4,6 @@ export interface ArchitectureDesignPayload {
   draft: any;
   apiKey?: string;
   provider?: string;
-  modelName?: string;
 }
 
 export interface ArchitectureRefinePayload {
@@ -13,7 +12,6 @@ export interface ArchitectureRefinePayload {
   targetComponent?: string;
   apiKey?: string;
   provider?: string;
-  modelName?: string;
 }
 
 export const architectureService = {
@@ -24,11 +22,6 @@ export const architectureService = {
 
   async refine(payload: ArchitectureRefinePayload) {
     const response = await apiClient.post('/architecture/refine', payload);
-    return response.data;
-  },
-
-  async saveDesign(sessionId: string, design: any) {
-    const response = await apiClient.post(`/architecture/sessions/${sessionId}/save`, design);
     return response.data;
   },
 };

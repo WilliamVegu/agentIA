@@ -23,7 +23,7 @@ STAGE = "SERVICE"
 
 #: Stage-specific emphasis appended to the authored instruction.
 STAGE_EMPHASIS = (
-    "Layering direction is controller -> service -> repository -> model. Service code MUST NOT reach past its layer nor produce HTTP responses."
+    "Layering direction is controller -> service -> repository -> model. Service code MUST NOT reach past its layer nor produce HTTP responses. STRICTLY 100% Quarkus CDI (@ApplicationScoped, @Inject, @Transactional) and PanacheRepository. NEVER use Spring Boot annotations (@Service, @Repository, @Autowired) or Spring Data JPA."
 )
 
 

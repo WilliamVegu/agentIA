@@ -1,12 +1,10 @@
-import { setActiveSessionForApi } from '../services/apiClient';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { SessionListItem, sessionService } from '../services/sessionService';
 import { orchestratorService, ProjectOverview } from '../services/orchestratorService';
-import type { TabKey } from '../config/workspaceTabs';
 
 interface StudioContextType {
-  activeTab: TabKey;
-  setActiveTab: (tab: TabKey) => void;
+  activeTab: number;
+  setActiveTab: (tab: number) => void;
   activeSessionId: string | null;
   activeSession: SessionListItem | null;
   sessions: SessionListItem[];
@@ -33,8 +31,7 @@ interface StudioContextType {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // A key, not an index: see config/workspaceTabs.ts for why the number was removed.
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [activeTab, setActiveTab] = useState<number>(0);
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [projectOverview, setProjectOverview] = useState<ProjectOverview | null>(null);
@@ -46,7 +43,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentSpecId, setCurrentSpecId] = useState<string | null>(null);
   const [parsedSpec, setParsedSpec] = useState<any | null>(null);
   const initialLoadDone = useRef(false);
-  useEffect(() => { setActiveSessionForApi(activeSessionId); }, [activeSessionId]);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -54,8 +50,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setSessions(list);
       if (!initialLoadDone.current) {
         initialLoadDone.current = true;
-        if (list.length > 0) {
-          setActiveSessionId(list[0].sessionId);
+        if (list.length > 0 && !activeSessionId) {
+          const first = list[0] as any;
+          setActiveSessionId(first.sessionId || first.id || null);
         }
       }
     } catch {
@@ -95,27 +92,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [activeSessionId, reloadCurrentOverview]);
 
   const selectSession = (sessionId: string | null) => {
-    if (sessionId !== activeSessionId) {
+    setActiveSessionId(sessionId);
+    if (!sessionId) {
+      setProjectOverview(null);
+      setLifecycle(null);
       setCurrentDraft(null);
       setArchitectureDesign(null);
       setDataModelDesign(null);
       setCurrentSpecId(null);
       setParsedSpec(null);
-      setProjectOverview(null);
-      setLifecycle(null);
     }
-    setActiveSessionId(sessionId);
   };
 
   const startNewService = () => {
     setActiveSessionId(null);
-    // Resumen, because that is where the new-service form is (name, description,
-    // database). This read `setActiveTab(0)` when 0 was Resumen, and the reorder turned
-    // that into "the first tab" -- which is now Blueprints -- so the button navigated away
-    // from the form it exists to open. Worse, the copy of this button *inside* Resumen
-    // took you off the page you were already on. A refactor has to preserve what a control
-    // does; pointing at the first tab preserved the number instead.
-    setActiveTab('overview');
+    setActiveTab(0);
     setProjectOverview(null);
     setLifecycle(null);
     setCurrentDraft(null);
@@ -126,14 +117,22 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const activeSession = sessions.find((s) => s.sessionId === activeSessionId) || null;
-  const isQueued = activeSession?.status === 'QUEUED';
+  const isAutoPilot =
+    activeSession?.lifecycleMode === 'AUTO_PILOT' ||
+    (activeSession as any)?.lifecycle_mode === 'AUTO_PILOT';
 
-  // Real-time reactive polling only when the active session or its pipeline is RUNNING or QUEUED
-  const isActiveRunning =
-    activeSession?.status === 'RUNNING' ||
-    activeSession?.status === 'QUEUED' ||
+  // Only consider queued if in autonomous pipeline mode and actually pending execution
+  const isQueued =
+    activeSession?.status === 'QUEUED' &&
+    isAutoPilot &&
+    lifecycle?.pipelineStatus === 'RUNNING';
+
+  // Real-time reactive polling ONLY when an automated background pipeline is actively RUNNING
+  const isPipelineActive =
     lifecycle?.pipelineStatus === 'RUNNING' ||
     lifecycle?.pipeline_status === 'RUNNING';
+  const isAutoPilotRunning = isAutoPilot && (activeSession?.status === 'RUNNING' || isQueued);
+  const isActiveRunning = isPipelineActive || isAutoPilotRunning;
   const shouldPoll = Boolean(isActiveRunning);
 
   useEffect(() => {

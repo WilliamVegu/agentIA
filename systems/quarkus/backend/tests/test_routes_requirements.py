@@ -42,7 +42,6 @@ def test_transform_requirements_missing_api_key_returns_401(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     payload = {
         "rawText": "Requisitos válidos con longitud suficiente sin clave de API suministrada.",
     }

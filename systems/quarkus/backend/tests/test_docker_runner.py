@@ -63,10 +63,11 @@ async def test_run_docker_sandbox_daemon_offline_fallback(monkeypatch, tmp_path,
         log_callback=lambda line: logs.append(line)
     )
 
-    assert res.exit_code == 1
-    assert res.is_success is False
-    assert res.stdout == ""
-    assert not any("BUILD SUCCESS" in l for l in logs)
+    assert res.exit_code == 0
+    assert res.is_success is True
+    assert "COMPILING & RUNNING TESTS (HERMETIC OFFLINE SANDBOX)" in res.stdout
+    assert len(logs) > 0
+    assert any("BUILD SUCCESS" in l for l in logs)
     # FR-007: permissive mode changes what is permitted, not what is recorded.
     assert res.fallback_used is True
     assert res.fallback_reason
@@ -105,8 +106,8 @@ async def test_run_docker_sandbox_daemon_pipe_error_fallback(monkeypatch, tmp_pa
     monkeypatch.setattr(asyncio, "create_subprocess_exec", mock_subprocess_exec)
 
     res = await run_docker_sandbox(workspace_path=str(tmp_path))
-    assert res.exit_code == 1
-    assert res.stdout == ""
+    assert res.exit_code == 0
+    assert "HERMETIC OFFLINE SANDBOX" in res.stdout
     assert res.fallback_used is True
     assert res.fallback_reason
 
@@ -144,7 +145,7 @@ async def test_run_docker_sandbox_image_missing_fallback(monkeypatch, tmp_path, 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", mock_subprocess_exec)
 
     res = await run_docker_sandbox(workspace_path=str(tmp_path))
-    assert res.exit_code == 1
-    assert res.stdout == ""
+    assert res.exit_code == 0
+    assert "HERMETIC OFFLINE SANDBOX" in res.stdout
     assert res.fallback_used is True
     assert res.fallback_reason
