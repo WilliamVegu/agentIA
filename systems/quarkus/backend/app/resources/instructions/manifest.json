@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "purpose": "Maps each generation stage to the instruction document that drives it. Consumed by the instruction loader to resolve, digest, and stamp the instruction-set revision.",
+  "digest_participation": "EXCLUDED",
+  "digest_note": "This manifest is deliberately NOT part of the instruction-set revision digest. Only the five stage documents participate, so that editing this file (for example adding a comment or reordering keys) does not change the revision recorded against generated artifacts. See specs/011-llm-generation-nodes/contracts/instruction-document.md section 2.",
+  "revision_scheme": "content-addressed",
+  "document_format": "Exactly four level-2 sections in this order: '## Technology contract', '## Rules', '## Output contract', '## Prohibitions'. The loader depends on this shape.",
+  "stages": {
+    "SCAFFOLDER": "scaffolder.md",
+    "DOMAIN": "domain.md",
+    "SERVICE": "service.md",
+    "CONTROLLER": "controller.md",
+    "TEST": "test.md"
+  },
+  "stage_order": [
+    "SCAFFOLDER",
+    "DOMAIN",
+    "SERVICE",
+    "CONTROLLER",
+    "TEST"
+  ]
+}

@@ -1,0 +1,292 @@
+[
+  {
+    "name": "Selector disponible",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Selector móvil sin desbordamiento horizontal",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Ambas opciones visibles en móvil",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: enlace abre su frontend",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: acceso local y estudio completo",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: salud http://127.0.0.1:3000",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: salud http://127.0.0.1:8000",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: diez pestañas disponibles",
+    "passed": true,
+    "detail": [
+      "Blueprints",
+      "Resumen",
+      "1. Requisitos",
+      "2. Arquitectura",
+      "3. Modelos & SQL",
+      "4. Código & Fix",
+      "5. Calidad SAST",
+      "6. DevOps & Demo",
+      "7. Entrega Git",
+      "Monitor Live"
+    ]
+  },
+  {
+    "name": "springboot: pestaña Blueprints",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña Resumen",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña 1. Requisitos",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña 2. Arquitectura",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña 3. Modelos & SQL",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña 4. Código & Fix",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña 5. Calidad SAST",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña 6. DevOps & Demo",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña 7. Entrega Git",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: pestaña Monitor Live",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: acceso persiste al recargar",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: enlace abre su frontend",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: acceso local y estudio completo",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: salud http://localhost:3001",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: salud http://127.0.0.1:8001",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: diez pestañas disponibles",
+    "passed": true,
+    "detail": [
+      "Blueprints",
+      "Resumen",
+      "1. Requisitos",
+      "2. Arquitectura",
+      "3. Modelos & SQL",
+      "4. Código & Fix",
+      "5. Calidad SAST",
+      "6. DevOps & Demo",
+      "7. Entrega Git",
+      "Monitor Live"
+    ]
+  },
+  {
+    "name": "quarkus: pestaña Blueprints",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña Resumen",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña 1. Requisitos",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña 2. Arquitectura",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña 3. Modelos & SQL",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña 4. Código & Fix",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña 5. Calidad SAST",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña 6. DevOps & Demo",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña 7. Entrega Git",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: pestaña Monitor Live",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: acceso persiste al recargar",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Cookies separadas en un mismo navegador",
+    "passed": true,
+    "detail": [
+      "127.0.0.1",
+      "localhost"
+    ]
+  },
+  {
+    "name": "Entrar en Quarkus conserva el acceso Spring",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: ingesta real de especificación",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: especificación persistida en su carpeta",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: ingesta real de especificación",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: especificación persistida en su carpeta",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: lee su propia especificación",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "springboot: no ve la especificación del otro estudio",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: lee su propia especificación",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "quarkus: no ve la especificación del otro estudio",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Cerrar sesión Spring",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Spring revoca su propia sesión",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Quarkus sigue autenticado tras salir de Spring",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Nuevo acceso Spring",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Cerrar sesión Quarkus",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Spring sigue autenticado tras salir de Quarkus",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Sin excepciones JavaScript",
+    "passed": true,
+    "detail": []
+  },
+  {
+    "name": "Sin HTTP 5xx",
+    "passed": true,
+    "detail": []
+  }
+]

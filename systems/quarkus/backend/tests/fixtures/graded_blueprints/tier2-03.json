@@ -1,0 +1,102 @@
+{
+  "blueprintId": "tier2-03",
+  "tier": 2,
+  "corpusRole": "graded-tier2-simple",
+  "difficultyAxis": "Top of tier 2: a text-shaped format rule (@Email) and a state-valued attribute, three stories and six scenarios, still create and read only. The child entity is created against a parent that may or may not exist.",
+  "rationale": "The last blueprint before CRUD appears. It adds no new structural concept over tier2-02 but fills the tier 2 scenario budget and introduces a business-meaningful rejection (opening a ticket for an unknown customer) that is not a bean-validation failure. Update and delete are still absent, which is the visible tier 2/tier 3 boundary.",
+
+  "serviceName": "helpdesk-service",
+  "packageName": "com.corp.helpdesk",
+  "basePort": 8306,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Customer",
+      "tableName": "customers",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "tier", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Ticket",
+      "tableName": "tickets",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "subject", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "priority", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "openedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "customerId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "support agent",
+      "intent": "register a customer with a contact email and a service tier",
+      "benefit": "requests can be attributed to a known account",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a well-formed email address and a service tier",
+          "when": "the agent registers the customer",
+          "then": "the customer is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed email address",
+          "when": "the agent attempts to register the customer",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "support agent",
+      "intent": "open a ticket for an existing customer",
+      "benefit": "the request enters the support queue",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing customer identifier and a priority within the permitted range",
+          "when": "the agent opens the ticket",
+          "then": "the ticket is persisted with its customer reference and opening time"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a customer identifier that does not exist",
+          "when": "the agent attempts to open the ticket",
+          "then": "the service reports the customer as not found"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "a priority above the permitted maximum",
+          "when": "the agent attempts to open the ticket",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "support agent",
+      "intent": "read the tickets opened for one customer",
+      "benefit": "the account history is visible before replying",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing customer with no open tickets",
+          "when": "the agent reads the tickets for that customer",
+          "then": "the service returns an empty collection rather than reporting an error"
+        }
+      ]
+    }
+  ]
+}

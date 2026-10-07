@@ -1,0 +1,67 @@
+digraph G {
+  rankdir=TB; fontname="Helvetica"; newrank=true; compound=true;
+  graph [nodesep=0.35, ranksep=0.5];
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=12, fillcolor="#ffffff", color="#5a6b7b", penwidth=1.2];
+  edge [fontname="Helvetica", fontsize=10, color="#5a6b7b"];
+
+  subgraph cluster_fe {
+    label="Frontend (React)"; style=filled; fillcolor="#EAF2FA"; fontsize=15; color="#0076CE"; penwidth=2;
+    spec [label="SpecIngestion\nblueprint + interfaz\n(volumen, datos, integraciones)"];
+    prev [label="ArchitecturePreview\nperfil + plan inferido"];
+    mon  [label="GenerationMonitor\nlogs en vivo (SSE)"];
+    sett [label="SettingsDrawer\nLLM + secretos externos"];
+  }
+
+  subgraph cluster_orch {
+    label="Orquestador — LangGraph (8 agentes)"; style=filled; fillcolor="#EAF2EA"; fontsize=15; color="#0F172A"; penwidth=2;
+    { rank=same;
+      val [label="validador"];
+      inf [label="InferenceEngine\nspec → ArchitecturePlan", fillcolor="#FFF3E0"];
+      scf [label="scaffolder\n(determinista,\ncero tokens)", fillcolor="#FFF3E0"];
+      dom [label="domain"];
+      svc [label="service"];
+      ctl [label="controller"];
+      tst [label="test"];
+      snd [label="sandbox\n(build hermético)"];
+      rpr [label="repair\n(≤3 intentos)"];
+    }
+    gate [label="ComplianceGate\nreglas · nombres ·\nsin secretos en código"];
+    val -> inf -> scf -> dom -> svc -> ctl -> tst -> snd;
+    snd -> rpr [label="falló", color="#c0392b"];
+    rpr -> snd [label="reintenta", color="#c0392b"];
+    tst -> gate [style=dashed];
+    gate -> snd [style=dashed];
+  }
+
+  subgraph cluster_cat {
+    label="Catálogo e Infraestructura"; style=filled; fillcolor="#F2F0F4"; fontsize=15; color="#E20074"; penwidth=2;
+    cat [label="ArchitectureCatalog\nperfiles: layered · hexagonal ·\nhexagonal-ddd + arquetipos"];
+    qcli[label="Quarkus CLI\n(quarkus create)"];
+    arch[label="Arquetipos Maven\n(por perfil)"];
+    dck [label="Docker sandbox\n+ caché .m2"];
+  }
+
+  subgraph cluster_dbs {
+    label="Bases de datos"; style=filled; fillcolor="#FDF6E3"; fontsize=15; color="#B8860B"; penwidth=2;
+    sdb [label="studio.db\nsesiones · specs"];
+    cdb [label="cost_tracking.db\n(sistema de registro)"];
+    mdb [label="mlflow.db\n(espejo de coste)"];
+    gdb [label="DB del servicio\ngenerado (h2 / postgres)", fillcolor="#E8F5E9"];
+  }
+
+  spec -> val [label="spec formal"];
+  prev -> inf [style=dashed, label="muestra plan"];
+  inf -> cat [label="elige perfil"];
+  cat -> scf [label="arquetipo / plantilla"];
+  qcli -> scf [label="genera carpetas"];
+  dck -> snd [label="compila offline"];
+  sett -> dom [label="clave / modelo"];
+  mon -> svc [style=dashed, label="observa"];
+  val -> sdb [style=dotted];
+  svc -> cdb [style=dotted, label="coste/tokens"];
+  cdb -> mdb [style=dashed, label="espejo"];
+  snd -> gdb [label="ejecuta contra"];
+  snd -> out;
+
+  out [label="Entrega\nZIP / Git", fillcolor="#E8F5E9"];
+}

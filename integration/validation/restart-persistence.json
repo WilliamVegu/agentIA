@@ -1,0 +1,12 @@
+[
+  {
+    "system": "springboot",
+    "own_specification_survives_restart": true,
+    "other_specification_is_absent": true
+  },
+  {
+    "system": "quarkus",
+    "own_specification_survives_restart": true,
+    "other_specification_is_absent": true
+  }
+]

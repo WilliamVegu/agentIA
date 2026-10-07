@@ -1,0 +1,7 @@
+{
+  "quarkus_form_is_rendered": true,
+  "starts_without_real_server_authentication": true,
+  "javascript_errors": [],
+  "http_5xx": [],
+  "seven_step_navigation_is_rendered": true
+}

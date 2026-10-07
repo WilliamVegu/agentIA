@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="4.777" timestamp="2026-10-07T14:42:28.945540-05:00" hostname="45HW011620"><testcase classname="backend.tests.test_dependency_inputs" name="test_python_and_powershell_select_exact_same_inputs" time="4.480" /></testsuite></testsuites>

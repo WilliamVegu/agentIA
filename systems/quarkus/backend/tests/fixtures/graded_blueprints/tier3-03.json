@@ -1,0 +1,187 @@
+{
+  "blueprintId": "tier3-03",
+  "tier": 3,
+  "corpusRole": "graded-tier3-moderate",
+  "difficultyAxis": "Ceiling of tier 3: four entities in two chains (Depot <- Parcel <- DeliveryAttempt and Recipient <- Parcel), eleven scenarios and the widest validation-heavy entity so far. Full CRUD plus a repeated-attempt child that carries its own sequence number.",
+  "rationale": "The last blueprint before tier 4 with two entities below six attributes. It combines two foreign keys on the same child with a child-of-child chain, so resolving references is no longer a single hop, and it spends the whole tier 3 scenario budget on mixed successful and refused operations.",
+
+  "serviceName": "parcel-service",
+  "packageName": "com.corp.parcel",
+  "basePort": 8309,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Depot",
+      "tableName": "depots",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "city", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "countryCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "capacityParcels", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] }
+      ]
+    },
+    {
+      "name": "Recipient",
+      "tableName": "recipients",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "email", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Email"] },
+        { "name": "phoneNumber", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "addressLine", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "postalCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "countryCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "verified", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Parcel",
+      "tableName": "parcels",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "trackingReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "recipientId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "originDepotId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "weightKg", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "declaredValue", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@Digits"] },
+        { "name": "serviceLevel", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "dispatchedAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "deliveredAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "DeliveryAttempt",
+      "tableName": "delivery_attempts",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "parcelId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "attemptNumber", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "attemptedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "outcomeCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "note", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "depot supervisor",
+      "intent": "register a depot with a country and a capacity",
+      "benefit": "parcels can be dispatched from a known facility",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique depot code, a country code and a positive capacity",
+          "when": "the supervisor registers the depot",
+          "then": "the depot is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a country code that is not two letters long",
+          "when": "the supervisor attempts to register the depot",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "depot supervisor",
+      "intent": "register a recipient with a delivery address",
+      "benefit": "the parcel has a deliverable destination",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a full name, an address line and a well-formed postal code",
+          "when": "the supervisor registers the recipient",
+          "then": "the recipient is persisted with its verification flag and its address intact"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "dispatcher",
+      "intent": "dispatch a parcel from a depot to an existing recipient",
+      "benefit": "the shipment enters the delivery network under a tracking reference",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing recipient, an existing depot and a positive weight",
+          "when": "the dispatcher dispatches the parcel",
+          "then": "the parcel is persisted with both references intact and a dispatched status"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a recipient identifier that does not exist",
+          "when": "the dispatcher attempts to dispatch the parcel",
+          "then": "the service reports the recipient as not found"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "a weight below the permitted minimum",
+          "when": "the dispatcher attempts to dispatch the parcel",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "courier",
+      "intent": "record each delivery attempt on a parcel",
+      "benefit": "the retry history is auditable",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing parcel and an attempt number within the permitted range",
+          "when": "the courier records the attempt",
+          "then": "the attempt is persisted against the parcel with its outcome code"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "an attempt number above the permitted maximum",
+          "when": "the courier attempts to record the attempt",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "a parcel with no recorded attempts",
+          "when": "the courier reads the attempts for that parcel",
+          "then": "the service returns an empty collection rather than reporting an error"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "dispatcher",
+      "intent": "amend a parcel and withdraw a delivery attempt",
+      "benefit": "the network reflects the current state of the shipment",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing parcel and a new service level",
+          "when": "the dispatcher updates the parcel",
+          "then": "the parcel is persisted with the new service level and the previous value is replaced"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a parcel identifier that does not exist",
+          "when": "the dispatcher attempts to update that parcel",
+          "then": "the service reports the resource as not found"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "an existing delivery attempt identifier",
+          "when": "the dispatcher deletes the attempt",
+          "then": "the attempt is removed and the read that follows reports it as not found"
+        }
+      ]
+    }
+  ]
+}

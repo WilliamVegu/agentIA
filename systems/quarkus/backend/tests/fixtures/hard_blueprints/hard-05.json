@@ -1,0 +1,228 @@
+{
+  "blueprintId": "hard-05",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Paged, filtered and sorted collection reads: endpoints whose contracts must describe paging metadata without letting a Spring Data page or sorting type escape into the controller or the API record.",
+  "rationale": "An audit service whose primary read is a filtered, sorted, paged query with a capped page size and a companion count. The natural shortcut is a controller method taking a Pageable and returning Page<AuditEventResponse>, plus a repository method whose name encodes the query. Both leak the persistence abstraction across the boundary: the contract must be a native record carrying the page metadata as ordinary fields, and the ordering and filtering must be resolved in the service.",
+
+  "serviceName": "audit-service",
+  "packageName": "com.corp.audit",
+  "basePort": 8185,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "AuditActor",
+      "tableName": "audit_actors",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "actorReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "displayName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "actorType", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "email", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Email"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "AuditTarget",
+      "tableName": "audit_targets",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "targetType", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "targetReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "tenantCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "sensitive", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "AuditEvent",
+      "tableName": "audit_events",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "eventCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "actorId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "targetId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "severity", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "occurredAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "sourceAddress", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] },
+        { "name": "detail", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] }
+      ]
+    },
+    {
+      "name": "AuditSubscription",
+      "tableName": "audit_subscriptions",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "tenantCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "subscriberEmail", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "minimumSeverity", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "security auditor",
+      "intent": "record an audit event attributed to an actor and a target",
+      "benefit": "every sensitive action leaves a durable trace",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "an existing actor, an existing target and an event code matching the permitted pattern",
+          "when": "the auditor records the event",
+          "then": "the event is persisted with both references and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "an actor identifier that does not exist",
+          "when": "the auditor attempts to record the event",
+          "then": "the service reports the actor as not found"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "an occurrence time in the future",
+          "when": "the auditor attempts to record the event",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "security auditor",
+      "intent": "list audit events for one actor filtered by severity, newest first, one page at a time",
+      "benefit": "an investigation can page through the relevant events without loading the whole history",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an actor with fifty events of mixed severity and a requested page size of ten",
+          "when": "the auditor requests the first page filtered to a single severity",
+          "then": "exactly the matching events are returned in descending occurrence order together with the page number, the page size and the total number of matching events"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a requested page number beyond the last page of matching events",
+          "when": "the auditor requests that page",
+          "then": "an empty page is returned with the correct total count rather than an error"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "a requested page size above the permitted maximum",
+          "when": "the auditor requests the page",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-2.4",
+          "given": "a requested page size of zero or less",
+          "when": "the auditor requests the page",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "security auditor",
+      "intent": "list audit events for a tenant across all actors, newest first and paged",
+      "benefit": "tenant-wide activity can be reviewed chronologically",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "events recorded by several actors against targets of one tenant",
+          "when": "the auditor requests the tenant page ordered by occurrence descending",
+          "then": "the events are returned strictly newest first and never interleave two tenants"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a tenant with no recorded events",
+          "when": "the auditor requests the tenant page",
+          "then": "an empty page is returned with a total count of zero"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "security auditor",
+      "intent": "count matching audit events without retrieving them",
+      "benefit": "a dashboard can show volume without paying for the page",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "at least one event matching the actor and severity filter",
+          "when": "the auditor requests the count",
+          "then": "the response carries the count alone and no event bodies"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "no event matching the filter",
+          "when": "the auditor requests the count",
+          "then": "the count is reported as zero rather than the resource being treated as missing"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "compliance officer",
+      "intent": "register an audit subscription for a tenant at a minimum severity",
+      "benefit": "the right people are notified when something serious happens",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "a tenant code matching the permitted pattern and a valid subscriber email",
+          "when": "the officer registers the subscription",
+          "then": "the subscription is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a malformed subscriber email",
+          "when": "the officer attempts to register the subscription",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P3",
+      "role": "security auditor",
+      "intent": "retrieve a single audit event by identifier",
+      "benefit": "one event can be quoted directly from a report",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an existing event identifier",
+          "when": "the auditor retrieves the event",
+          "then": "the event is returned with its actor and target references"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "no event exists with the requested identifier",
+          "when": "the auditor retrieves that event",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P3",
+      "role": "compliance officer",
+      "intent": "remove an audit subscription that is no longer wanted",
+      "benefit": "notification noise is reduced",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "an existing subscription identifier",
+          "when": "the officer deletes the subscription",
+          "then": "the subscription is no longer retrievable"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "a subscription identifier that does not exist",
+          "when": "the officer deletes the subscription",
+          "then": "the service reports the subscription as not found"
+        }
+      ]
+    }
+  ]
+}

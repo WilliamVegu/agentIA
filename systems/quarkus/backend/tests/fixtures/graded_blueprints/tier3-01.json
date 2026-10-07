@@ -1,0 +1,145 @@
+{
+  "blueprintId": "tier3-01",
+  "tier": 3,
+  "corpusRole": "graded-tier3-moderate",
+  "difficultyAxis": "First CRUD tier: three entities in a two-level chain (Instructor <- Course <- Enrollment), nine scenarios, and one validation-heavy entity whose eight attributes mostly carry declarative rules. Update and delete appear here for the first time.",
+  "rationale": "The visible step over tier 2 is the operation set: create, read, update and delete must all be emitted, and delete must distinguish an existing resource from a missing one. The chain Instructor <- Course <- Enrollment forces two foreign-key attributes to be carried through the model, repository and controller layers rather than one.",
+
+  "serviceName": "course-service",
+  "packageName": "com.corp.course",
+  "basePort": 8307,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Instructor",
+      "tableName": "instructors",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "department", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "officeHours", "type": "Integer", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Min", "@Max"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Course",
+      "tableName": "courses",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "title", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "credits", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "capacity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "instructorId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "published", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "createdAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "Enrollment",
+      "tableName": "enrollments",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "studentReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "courseId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "enrolledAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "grade", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "refunded", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": [] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "registrar",
+      "intent": "register an instructor with a departmental contact address",
+      "benefit": "courses can be assigned to a known teacher",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a non-empty instructor name and a well-formed email address",
+          "when": "the registrar registers the instructor",
+          "then": "the instructor is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed email address",
+          "when": "the registrar attempts to register the instructor",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "registrar",
+      "intent": "create a course for an existing instructor",
+      "benefit": "the curriculum reflects who teaches what",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing instructor identifier and a credits value within the permitted range",
+          "when": "the registrar creates the course",
+          "then": "the course is persisted with its instructor reference intact"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a capacity below the permitted minimum",
+          "when": "the registrar attempts to create the course",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "student administrator",
+      "intent": "enrol a student on an existing course",
+      "benefit": "the student is registered for the term",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing course identifier and a well-formed student reference",
+          "when": "the administrator enrols the student",
+          "then": "the enrolment is persisted with its course reference intact"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a course identifier that does not exist",
+          "when": "the administrator attempts to enrol the student",
+          "then": "the service reports the course as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P2",
+      "role": "student administrator",
+      "intent": "amend a course and remove an enrolment",
+      "benefit": "the curriculum and the roll stay accurate",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing course and a new title",
+          "when": "the administrator updates the course",
+          "then": "the course is persisted with the new title and the previous values are replaced"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "an existing enrolment identifier",
+          "when": "the administrator deletes the enrolment",
+          "then": "the enrolment is removed and the read that follows reports it as not found"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "an enrolment identifier that does not exist",
+          "when": "the administrator attempts to delete that enrolment",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    }
+  ]
+}

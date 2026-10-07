@@ -1,0 +1,440 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{warn}{RGB}{160,60,40}
+\definecolor{good}{RGB}{30,120,70}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true, linkcolor=accent, urlcolor=accent,
+  pdftitle={AgentIA --- First Measured Baseline}, pdfauthor={AgentIA Engineering}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}AgentIA --- First Measured Baseline}
+\fancyhead[R]{\small\color{accent}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{softgray}, breaklines=true,
+  columns=fullflexible, keepspaces=true, showstringspaces=false,
+  xleftmargin=0.5em, xrightmargin=0.5em,
+}
+
+\newtcolorbox{notebox}[1][]{colback=softgray,colframe=accent,boxrule=0.4pt,
+  arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,breakable,#1}
+
+\title{\vspace{-1.4cm}\textbf{AgentIA --- First Measured Baseline}\\[0.25cm]
+\large The first real generation run: what it cost, how it failed, and what it means
+for the optimization approach}
+\author{AgentIA Engineering}
+\date{2026-09-29}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{notebox}
+\textbf{What this document records.} On 2026-09-29 the platform executed its first
+genuine end-to-end generation session. Before it, no session had ever produced a
+measured outcome: the verification metrics, the cost store and the optimization
+records were all empty. This is the first data, and the first honest answer to
+\emph{how reliable is this agent}.
+
+It also corrects a category error about which gate is which, because that error
+would misdirect the optimization design.
+\end{notebox}
+
+\begin{notebox}[colframe=warn]
+\textbf{CORRECTION, 2026-09-29, after re-measurement. The central finding of this
+document is withdrawn.}
+
+It reported \emph{systematic procedural non-compliance}: every stage spending its
+entire correction budget, ``not one passed on the first attempt'', and concluded that
+this was precisely the signal a reflective skill optimiser needs. That observation
+was an artefact of a \textbf{response-parsing bug}, not of model behaviour.
+
+\begin{itemize}[leftmargin=1.4em]
+  \item The extractor accepted only a bare JSON object, or code fences carrying the
+  artifact path on the fence line. The request never stated a wire format. The shapes
+  a real model actually emits --- fenced JSON, prose-wrapped JSON, and code blocks
+  whose path sits in a heading --- failed to parse, so the attempt was consumed and
+  the stage exhausted \emph{without ever producing a candidate for the gate to judge}.
+  \item A second defect recorded \emph{no verdict at all} for a stage that passed on
+  its first attempt, so \texttt{passed = None} covered two opposite realities:
+  ``nothing was judged'' and ``judged and accepted''. That is why the record read as
+  though nothing had been wrong.
+\end{itemize}
+
+\textbf{Re-measured after fixing both} --- five blueprints, one session each:
+\textbf{25 of 25 stage runs succeeded on their FIRST request}, with zero corrections;
+83 artifacts persisted; \textbf{conformance 100 for every session, density 0.0, and
+zero findings in every final artifact set}.
+
+\textbf{Consequences.} (i)~There is no procedural non-compliance to correct: the
+agent produced compliant output first time, on every stage, for every blueprint.
+(ii)~The conformance measure does not vary, so the optimiser's own gate ---
+\emph{the measure must vary before anything is built to exploit it} ---
+\textbf{fails}, and the optimiser is for that reason not built.
+(iii)~The reading in \S\ref{sec:encouraging} and the critical path named in
+\S\ref{sec:lost} are withdrawn.
+
+\textbf{What survives, and it is why this document is kept rather than deleted.}
+The diagnostic channel did what it was built to do: running the real system found
+three defects that a suite of 500+ passing tests could not --- the parser above, a
+``verified'' session whose build never ran, and a diagnostic record silently
+overwritten by test data. \textbf{The instrument was worth building. The loop it was
+built to justify has nothing to optimise.}
+
+\textbf{The measurements that replace this document} --- two corpora, per-task tokens
+and cost, the MLflow confirmation, and the readiness assessment --- are in
+\texttt{agentia\_measurement\_and\_readiness.tex}. Read that one first.
+\end{notebox}
+
+\tableofcontents
+\vspace{0.5cm}
+
+\section{The result}
+
+One session, held-out blueprint \texttt{minimal}, provider \texttt{deepseek},
+model \texttt{deepseek-flash}.
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Measure} & \textbf{Value} \\
+\midrule
+Model calls & \textbf{15} \\
+Input tokens & 26{,}351 \\
+Output tokens & 139{,}679 \\
+\textbf{Cost} & \textbf{\$0.085295889} \\
+Calls priced & 15 of 15 \\
+Terminal state & \textbf{BLOCKED} \\
+Artifacts persisted & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{The cost figure is the first the project has ever produced.} Feature 013's
+cost tracing works: every call was recorded, priced against the published rate
+table, and reconciled. The telemetry, however, did \emph{not} reach MLflow --- see
+\S\ref{sec:mlflow}.
+
+\section{How it failed}
+
+Every stage is allowed one initial request plus two corrections. The observed
+distribution is the finding:
+
+\begin{center}
+\begin{tabular}{@{}lccc l@{}}
+\toprule
+\textbf{Stage} & \textbf{Calls} & \textbf{Corrections} & \textbf{Outcome} & \textbf{Note} \\
+\midrule
+SCAFFOLDER & 3 & 2 & passed & 43.4\,s and 11{,}045 output tokens on the rejected first attempt \\
+DOMAIN & 3 & 2 & passed & \\
+SERVICE & 3 & 2 & passed & \\
+CONTROLLER & 3 & 2 & passed & \\
+\textbf{TEST} & \textbf{3} & \textbf{2} & \textbf{EXHAUSTED} & \emph{never converged} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Every stage consumed its entire correction budget. Not one passed on the
+first attempt.} This is a systematic, procedural failure pattern, not random
+noise --- and it is the single most useful thing the run produced.
+
+\begin{notebox}[colframe=warn]
+\textbf{WITHDRAWN.} This claim is false. The stages exhausted because their responses
+could not be parsed, not because they were rejected for non-compliance. Re-measured
+after the parser was fixed: \textbf{25 of 25 stage runs across five blueprints
+succeeded on their first request}, with no corrections at all. There is no
+``systematic, procedural failure pattern''; there was a transport bug. See the
+correction notice at the front of this document.
+\end{notebox}
+
+The terminal error was:
+
+\begin{lstlisting}
+[TEST] correction budget exhausted after 2 correction attempts;
+human intervention required
+\end{lstlisting}
+
+That is constitution Principle V working as specified: bounded autonomy, then
+human intervention. The session did not silently succeed, and it did not loop.
+
+\section{The gates are not the same gate}
+\label{sec:gates}
+
+A correction that matters for the design. There are \textbf{two unrelated
+mechanisms}, both called ``the gate'':
+
+\begin{center}
+\begin{tabular}{@{}p{0.20\textwidth}p{0.20\textwidth}p{0.24\textwidth}p{0.24\textwidth}@{}}
+\toprule
+& \textbf{Compliance gate} & \textbf{Optimization gate} \\
+\midrule
+Origin & Feature 011 & Feature 014 (SkillOpt) \\
+Lives in & \texttt{stages/runner.py} & \texttt{scripts/skillopt/gate.py} \\
+Judges & one model \emph{response} & one \emph{skill document} \\
+On rejection & forces a retry, bounded at 3 & keeps the current skill \\
+Scope & within a session & across sessions \\
+Status & \textbf{active --- this is what fired} & deferred, never run \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{The gate that rejected fifteen responses is not a SkillOpt-style gate.} It
+is the generation-time compliance validator. The SkillOpt gate compares two skill
+documents by executing fresh sessions and accepting only a strict improvement; it
+has never run.
+
+The distinction is not pedantic. The compliance gate rejects \emph{within} a
+session and its verdicts are discarded once the session ends. The optimization
+gate rejects \emph{across} sessions and needs its evidence to persist. Confusing
+them leads to the belief that the platform already has an optimization loop ---
+it does not; it has a validator.
+
+\section{What this means for the reflective approach}
+
+The intended approach is CoEvoSkills-style: a reflective language model proposes
+skill edits, guided by structured failure diagnostics, admitted only on measured
+evidence. CoEvoSkills reported \textbf{+40.5 points} on SkillsBench with that
+shape, and its own ablation is the reason the shape matters:
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{CoEvoSkills variant} & \textbf{Score} \\
+\midrule
+Full (co-evolving diagnostic verifier) & 71.1 \\
+Opaque pass/fail oracle only & 41.1 \quad ($-30.0$) \\
+No evolution at all & 42.4 \quad ($-28.7$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A loop fed only a pass/fail verdict performs no better than no loop.
+
+\subsection{The result is encouraging for the approach}
+\label{sec:encouraging}
+
+\begin{notebox}[colframe=warn]
+\textbf{WITHDRAWN.} The reasoning below treats the observed failures as real
+compliance failures. They were parse failures: no candidate ever reached the gate.
+Measured after the fix, the final artifact sets carry \emph{zero} findings, so there
+is no recurring rule for a loop to target and no variance for it to move. The gate
+fails. This subsection is retained only so the error is not repeated.
+\end{notebox}
+
+The observed failure is \emph{exactly the signal such a loop needs}:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item The failure is \textbf{recurring} --- it happened on 5 of 5 stages.
+  \item It is \textbf{procedural}, not a capability gap: the model can clearly
+  produce this code, it simply does not satisfy the house rules on the first or
+  second attempt.
+  \item It is \textbf{rule-attributed} --- the compliance gate reports which rule
+  fired, on which artifact, at which severity.
+\end{itemize}
+
+\textbf{The mechanism that is currently rejecting the output is simultaneously the
+rich diagnostic channel the optimizer requires.} That is the central opportunity,
+and it is why the instrument was built before the optimizer.
+
+\subsection{But the evidence is currently lost}
+\label{sec:lost}
+
+\begin{notebox}[colframe=warn]
+\textbf{WITHDRAWN, and the diagnosis was wrong in an instructive way.} The artifacts
+were \emph{never} lost on the path described here; the records that suggested a loss
+were fabricated test output written under the production session key. The real reason
+the evidence was empty is that nothing was ever produced to record: the responses
+could not be parsed. Naming this the critical path was therefore incorrect, and it is
+why the parser bug survived another full baseline. See the correction notice at the
+front.
+\end{notebox}
+
+The diagnostic record for this session came back
+\texttt{artifact\_count = 0}, \texttt{evaluable = false} --- \emph{``nothing to
+evaluate''}.
+
+Four stages passed and persisted their artifacts. Their rule violations were
+detected, reported, and then \textbf{discarded when the session ended}. A blocked
+session therefore produces no evidence at all, which is precisely backwards: the
+blocked session is the one most worth diagnosing.
+
+\textbf{Until this is fixed the optimizer has nothing to learn from}, no matter
+how good the reflection step is. This is the critical path --- not the loop.
+
+\section{The proposed schema}
+
+\begin{lstlisting}
+  session runs
+      |
+      v
+  compliance gate evaluates each stage's candidate
+      |                       \
+      | (pass)                 \ (fail) -> rule_id, severity, artifact, stage
+      v                         v
+  artifacts persisted      DIAGNOSTIC CHANNEL          <-- exists (feature 015 US1)
+                                |
+                                v
+                     aggregate by rule across sessions
+                     (which rules recur, where, how often)
+                                |
+                                v
+                     reflective LLM proposes skill edits
+                     targeting the RECURRING rules
+                                |
+                                v
+                     candidate skill -> fresh sessions -> measure
+                                |
+                                v
+                     admit only on measured contribution;
+                     evict skills below the evidence floor
+\end{lstlisting}
+
+Mapping onto the existing code:
+
+\begin{center}
+\begin{tabular}{@{}p{0.30\textwidth}p{0.34\textwidth}p{0.28\textwidth}@{}}
+\toprule
+\textbf{Component} & \textbf{Where} & \textbf{State} \\
+\midrule
+Surrogate verifier (the 30-point component) & \texttt{services/conformance\_diagnostics.py} & \textbf{built} \\
+Per-stage attribution & same, reading the stage journal & \textbf{built} \\
+Evidence persistence & \texttt{models/diagnostics.py} & built, \textbf{broken on the blocked path} \\
+Corpus report & \texttt{services/corpus\_report.py} & built \\
+Skill generator (reflection) & \texttt{scripts/skillopt/reflect.py} & exists, \textbf{fed the wrong signal} \\
+Evidence gate (leave-one-out) & \texttt{services/skill\_contribution.py} & \textbf{not built} \\
+Eviction with a floor & \texttt{scripts/skillopt/currency.py} & \textbf{not built} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Next steps, in dependency order}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Capture artifacts on the blocked path.} Without it the diagnostic
+  channel is empty exactly when it matters most, and every step below is
+  unevaluable. \emph{This is the critical path.}
+  \item \textbf{Feed the reflections the diagnostics.} The reflector currently
+  receives a derived build exit code, a terminal status and artifact paths. It
+  should receive the rule histogram: which rules fired, how often, at which stage.
+  The channel exists; the wiring does not.
+  \item \textbf{Measure per-skill contribution} by leave-one-out, so an edit can be
+  attributed to a rule rather than to a document.
+  \item \textbf{Add eviction with an evidence floor.} A library that can only grow
+  degrades until injecting a skill is worse than injecting nothing.
+  \item \textbf{Grow the task corpus.} Five blueprints cannot support inference: one
+  task moves the pass rate 25 points, and the arithmetic floor for any paired
+  comparison at that size cannot reach $p<0.05$ under any outcome.
+  \item \textbf{Only then} run the optimization loop, scored on conformance rather
+  than on build success.
+\end{enumerate}
+
+\section{Telemetry: is this in MLflow?}
+\label{sec:mlflow}
+
+\textbf{No.} The mirror is wired --- \texttt{cost/mlflow\_sink.py} exposes
+\texttt{mirror\_call\_record}, and \texttt{cost/recording.py} calls it on every
+recorded call --- but MLflow is \textbf{not installed} in this environment, so the
+lazy \texttt{import mlflow} fails and each mirror attempt returns \texttt{False}.
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Destination} & \textbf{Status} & \textbf{Role} \\
+\midrule
+\texttt{backend/cost\_tracking.db} & \textbf{populated} & system of record \\
+\texttt{MLFLOW\_TRACKING\_URI} & \texttt{localhost:5000}, unreachable & best-effort mirror \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This is deliberate: feature 013 made the local store authoritative and the mirror
+a non-event when absent, so the cost report is deterministic and works offline. The
+figures in this document come from the local store. To see them in MLflow, install
+\texttt{mlflow} and run a tracking server; no code change is required.
+
+\section{Defects found by running}
+
+None of the following were reachable from the test suite. All six were found by
+executing the real thing, which is the argument for executing it.
+
+\begin{longtable}{@{}p{0.06\textwidth}p{0.50\textwidth}p{0.36\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Defect} & \textbf{Why the suite missed it} \\
+\midrule
+\endhead
+1 & \textbf{MODEL mode could not run through the graph at all.} LangGraph filters
+state to the declared schema, and \texttt{llm\_api\_key} was not declared, so it
+was silently stripped between entry and the first node & the 011 tests call
+\texttt{run\_stage} with a hand-built state and bypass the graph \\
+2 & A table created before a column existed crashed the report:
+\texttt{create\_all} creates missing \emph{tables}, never missing \emph{columns} &
+the test database is rebuilt fresh every run, so no test saw an older table \\
+3 & A crashed session was not recorded, so a batch of four reported three &
+tests used well-behaved runners \\
+4 & An empty artifact set rendered as \emph{verified clean} & caught by the FR-004
+test once written, not before \\
+5 & The sandbox volume mount was unreadable on this host (needs \texttt{:Z} under
+labelled rootless podman), so Maven found no pom and every session blocked & the
+suite mounts nothing real \\
+6 & Cost reported \emph{no data} while 15 priced calls sat in the store --- the
+session database engine was used to query the cost database & the suite's cost
+tests inject the aggregate directly \\
+\bottomrule
+\end{longtable}
+
+\section{Honest position}
+
+\textbf{What is now known.} The platform generates real code, records real costs,
+and refuses to claim success it did not verify. One session costs approximately
+\textbf{\$0.085} on the original (broken-parser) run, and \textbf{\$0.025} once the
+parser is fixed, because a stage that passes first time costs one request instead of
+three. \textbf{The agent does satisfy its own house standard on the first attempt at
+every stage} --- the opposite of the claim originally made here.
+
+\begin{notebox}[colframe=warn]
+\textbf{CORRECTED.} The sentence that stood here --- ``The agent does not satisfy its
+own house standard on the first attempt at any stage, and one stage in five did not
+converge'' --- described a parsing failure, not a compliance failure.
+\end{notebox}
+
+\textbf{What is not known.} Whether the generated artifacts were any good ---
+because they were discarded before they could be diagnosed. The conformance
+measure's real-world variance is therefore still unmeasured, and that measurement
+is the precondition for the optimization work.
+
+\textbf{What should not be concluded.} That the agent is unreliable in the sense of
+being incapable. Fifteen rejections are rejections of \emph{compliance}, not
+demonstrations of inability. The distinction is the whole reason procedural
+optimization is worth attempting here --- and the whole reason it must be measured
+rather than assumed.
+
+\end{document}

@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="149" time="103.179" timestamp="2026-10-07T14:44:30.054638-05:00" hostname="45HW011620"><testcase classname="backend.tests.test_architecture_service" name="test_architecture_synthesis_strict_layering_and_aggregates" time="0.729" /><testcase classname="backend.tests.test_architecture_service" name="test_endpoint_derivation_from_scenarios" time="0.015" /><testcase classname="backend.tests.test_architecture_service" name="test_openapi_yaml_serialization_validity" time="0.037" /><testcase classname="backend.tests.test_architecture_service" name="test_mermaid_flowchart_generation" time="0.016" /><testcase classname="backend.tests.test_architecture_service" name="test_refine_architecture_logic" time="0.016" /><testcase classname="backend.tests.test_code_generation_module" name="test_scaffolder_node_generates_maven_archetype" time="0.053" /><testcase classname="backend.tests.test_code_generation_module" name="test_domain_node_generates_jpa_entities_and_record_dtos" time="0.061" /><testcase classname="backend.tests.test_code_generation_module" name="test_service_node_generates_repositories_and_services" time="0.067" /><testcase classname="backend.tests.test_code_generation_module" name="test_controller_node_generates_controllers_and_advice" time="0.050" /><testcase classname="backend.tests.test_code_generation_module" name="test_test_node_generates_mockito_and_web_tests" time="0.044" /><testcase classname="backend.tests.test_code_generation_module" name="test_complete_langgraph_generation_graph" time="0.233" /><testcase classname="backend.tests.test_code_generation_module" name="test_validator_fails_gracefully_when_no_entities" time="0.020" /><testcase classname="backend.tests.test_code_generation_module" name="test_repair_node_stops_after_3_attempts" time="0.014" /><testcase classname="backend.tests.test_code_generation_module" name="test_api_artifact_listing_and_export_zip" time="0.476" /><testcase classname="backend.tests.test_devops_service" name="test_generate_dockerfile" time="0.002" /><testcase classname="backend.tests.test_devops_service" name="test_generate_dockerignore" time="0.003" /><testcase classname="backend.tests.test_devops_service" name="test_generate_docker_compose_postgresql" time="0.003" /><testcase classname="backend.tests.test_devops_service" name="test_generate_docker_compose_mysql" time="0.003" /><testcase classname="backend.tests.test_devops_service" name="test_generate_docker_compose_h2" time="0.002" /><testcase classname="backend.tests.test_devops_service" name="test_generate_github_actions" time="0.002" /><testcase classname="backend.tests.test_devops_service" name="test_generate_gitlab_ci" time="0.002" /><testcase classname="backend.tests.test_devops_service" name="test_generate_kubernetes_manifests" time="0.003" /><testcase classname="backend.tests.test_devops_service" name="test_generate_all_devops_assets" time="0.078" /><testcase classname="backend.tests.test_docker_runner" name="test_build_docker_cmd_structure" time="0.006" /><testcase classname="backend.tests.test_docker_runner" name="test_docker_execution_result_model" time="0.002" /><testcase classname="backend.tests.test_docker_runner" name="test_run_docker_sandbox_daemon_offline_fallback[asyncio]" time="0.013" /><testcase classname="backend.tests.test_docker_runner" name="test_run_docker_sandbox_daemon_pipe_error_fallback[asyncio]" time="0.018" /><testcase classname="backend.tests.test_docker_runner" name="test_run_docker_sandbox_image_missing_fallback[asyncio]" time="0.023" /><testcase classname="backend.tests.test_e2e_flow" name="test_system_healthz" time="0.011" /><testcase classname="backend.tests.test_e2e_flow" name="test_scenario_1_dual_ingestion" time="0.016" /><testcase classname="backend.tests.test_e2e_flow" name="test_scenario_2_autonomous_generation_and_export" time="1.867" /><testcase classname="backend.tests.test_e2e_flow" name="test_quickstart_feature_005_e2e" time="0.109" /><testcase classname="backend.tests.test_e2e_flow" name="test_full_unified_orchestration_e2e" time="12.935" /><testcase classname="backend.tests.test_export_service" name="test_create_project_zip" time="0.011" /><testcase classname="backend.tests.test_export_service" name="test_export_full_bundle" time="0.019" /><testcase classname="backend.tests.test_git_service" name="test_prepare_authenticated_url" time="0.001" /><testcase classname="backend.tests.test_git_service" name="test_sanitize_git_url_strips_token" time="0.001" /><testcase classname="backend.tests.test_lifecycle_service" name="test_initial_session_lifecycle" time="0.019" /><testcase classname="backend.tests.test_lifecycle_service" name="test_prerequisite_guards_prevent_premature_transition" time="0.020" /><testcase classname="backend.tests.test_lifecycle_service" name="test_sequential_transitions_with_artifacts" time="0.037" /><testcase classname="backend.tests.test_lifecycle_service" name="test_mark_downstream_outdated" time="0.039" /><testcase classname="backend.tests.test_lifecycle_service" name="test_project_overview_summary" time="1.649" /><testcase classname="backend.tests.test_lifecycle_service" name="test_lifecycle_security_audit_completed_and_100_percent" time="1.642" /><testcase classname="backend.tests.test_llm_factory" name="test_detect_provider_mock_keys" time="0.001" /><testcase classname="backend.tests.test_llm_factory" name="test_detect_provider_heuristics" time="0.001" /><testcase classname="backend.tests.test_llm_factory" name="test_detect_provider_explicit" time="0.001" /><testcase classname="backend.tests.test_llm_factory" name="test_get_chat_model_mock" time="0.001" /><testcase classname="backend.tests.test_llm_factory" name="test_get_chat_model_gemini" time="4.431"><failure message="AssertionError: assert 'gemini-3.5-flash-lite' == 'gemini-3.6-flash'&#10;  &#10;  - gemini-3.6-flash&#10;  ?          ^&#10;  + gemini-3.5-flash-lite&#10;  ?          ^      +++++">def test_get_chat_model_gemini():
+        model = LLMFactory.get_chat_model("AIzaSyDummyGeminiKey", provider="gemini")
+        assert isinstance(model, ChatGoogleGenerativeAI)
+        assert model.model in ("gemini-3.6-flash", "gemini-3.5-flash-lite")
+    
+        # Test AQ. prefix detection
+        model_aq = LLMFactory.get_chat_model("AQ.Ab8RN6DummyKey")
+        assert isinstance(model_aq, ChatGoogleGenerativeAI)
+&gt;       assert model_aq.model == "gemini-3.6-flash"
+E       AssertionError: assert 'gemini-3.5-flash-lite' == 'gemini-3.6-flash'
+E         
+E         - gemini-3.6-flash
+E         ?          ^
+E         + gemini-3.5-flash-lite
+E         ?          ^      +++++
+
+backend\tests\test_llm_factory.py:50: AssertionError</failure></testcase><testcase classname="backend.tests.test_llm_factory" name="test_get_chat_model_gemini_custom" time="2.293" /><testcase classname="backend.tests.test_llm_factory" name="test_get_chat_model_groq" time="2.191"><failure message="AssertionError: assert 'llama-3.3-70b-versatile' in ('qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b')&#10; +  where 'llama-3.3-70b-versatile' = ChatGroq(metadata={'lc_versions': {'langchain-core': '1.6.6', 'langchain': '1.3.14'}}, profile={'name': 'Llama 3.3 70B...lama-3.3-70b-versatile', temperature=0.2, model_kwargs={}, groq_api_key=SecretStr('**********'), request_timeout=120.0).model_name">def test_get_chat_model_groq():
+        model = LLMFactory.get_chat_model("gsk_dummyGroqKey")
+        assert isinstance(model, ChatGroq)
+&gt;       assert model.model_name in ("qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b")
+E       AssertionError: assert 'llama-3.3-70b-versatile' in ('qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b')
+E        +  where 'llama-3.3-70b-versatile' = ChatGroq(metadata={'lc_versions': {'langchain-core': '1.6.6', 'langchain': '1.3.14'}}, profile={'name': 'Llama 3.3 70B...lama-3.3-70b-versatile', temperature=0.2, model_kwargs={}, groq_api_key=SecretStr('**********'), request_timeout=120.0).model_name
+
+backend\tests\test_llm_factory.py:60: AssertionError</failure></testcase><testcase classname="backend.tests.test_llm_factory" name="test_get_chat_model_groq_custom" time="1.303" /><testcase classname="backend.tests.test_llm_factory" name="test_get_chat_model_openai" time="1.400" /><testcase classname="backend.tests.test_llm_factory" name="test_deprecated_model_fallbacks" time="0.002"><failure message="AssertionError: assert 'gemini-3.5-flash-lite' == 'gemini-3.6-flash'&#10;  &#10;  - gemini-3.6-flash&#10;  ?          ^&#10;  + gemini-3.5-flash-lite&#10;  ?          ^      +++++">def test_deprecated_model_fallbacks():
+        # Gemini decommissioned fallbacks
+&gt;       assert LLMFactory.resolve_model_name("gemini", "gemini-1.5-flash") == "gemini-3.6-flash"
+E       AssertionError: assert 'gemini-3.5-flash-lite' == 'gemini-3.6-flash'
+E         
+E         - gemini-3.6-flash
+E         ?          ^
+E         + gemini-3.5-flash-lite
+E         ?          ^      +++++
+
+backend\tests\test_llm_factory.py:74: AssertionError</failure></testcase><testcase classname="backend.tests.test_model_sql_service" name="test_synthesize_domain_models_primary_key_and_audit" time="0.002" /><testcase classname="backend.tests.test_model_sql_service" name="test_generate_schema_sql_syntax_and_constraints" time="0.001" /><testcase classname="backend.tests.test_model_sql_service" name="test_generate_seed_data_sql_inserts" time="0.001" /><testcase classname="backend.tests.test_model_sql_service" name="test_generate_mermaid_er_diagram" time="0.001" /><testcase classname="backend.tests.test_model_sql_service" name="test_generate_java_entity_source" time="0.001" /><testcase classname="backend.tests.test_model_sql_service" name="test_refine_domain_models_updates_schema" time="0.002" /><testcase classname="backend.tests.test_pipeline_runner" name="test_pipeline_runner_full_run" time="5.003" /><testcase classname="backend.tests.test_pipeline_runner" name="test_pipeline_runner_hot_pause" time="0.021" /><testcase classname="backend.tests.test_pipeline_runner" name="test_pipeline_runner_quality_gate_block" time="1.193" /><testcase classname="backend.tests.test_quarkus_factory" name="test_quarkus_factory_full_lifecycle" time="0.071"><failure message="assert 404 == 200&#10; +  where 404 = &lt;Response [404 Not Found]&gt;.status_code">def test_quarkus_factory_full_lifecycle():
+        # 1. PASO 1: Creación del pedido con requisitos de negocio y arquetipo
+        order_payload = {
+            "basic_data": {
+                "service_name": "orders-service",
+                "team": "Ventas",
+                "group_id": "com.empresa.orders",
+                "java_version": "21",
+                "build_tool": "maven"
+            },
+            "business": {
+                "description": "registrar pedidos con cliente e ítems, consultarlos por estado y cancelarlos si aún no fueron despachados."
+            },
+            "technical": {
+                "database": "SQLite (Demo local portable)",
+                "security": "JWT (SmallRye JWT)",
+                "enable_kafka": False,
+                "integraciones": []
+            },
+            "ai_mode": {
+                "mode": "Medio",
+                "estimated_tokens_min": 100000,
+                "estimated_tokens_max": 200000
+            },
+            "attachments": {
+                "existing_openapi": None,
+                "support_docs": []
+            }
+        }
+    
+        res_create = client.post("/api/v1/quarkus/orders", json=order_payload, headers={"X-LLM-Provider": "mock"})
+        assert res_create.status_code == 201
+        order_data = res_create.json()
+        order_id = order_data["id"]
+    
+        # El flujo ahora pasa DIRECTAMENTE a 'Contrato en revisión' (sin cuestionario de aclaración)
+        assert order_data["status"] == "Contrato en revisión"
+        assert order_data["basic_data"]["service_name"] == "orders-service"
+        assert order_data["clarifications_completed"] is True
+        assert order_data["openapi_contract"] is not None
+        assert "openapi: 3.1.0" in order_data["openapi_contract"]
+        assert len(order_data.get("user_stories", [])) &gt;= 2
+        assert order_data.get("database_model") is not None
+        assert order_data["tokens_audit"]["by_agent"]["analista"] &gt; 0
+        assert order_data["tokens_audit"]["by_agent"]["requirements"] &gt; 0
+        assert order_data["tokens_audit"]["by_agent"]["database"] &gt; 0
+        assert order_data["tokens_audit"]["by_agent"]["architecture"] &gt; 0
+        assert order_data["tokens_audit"]["total_consumed"] &gt; 0
+        assert len(order_data.get("specialized_agents", [])) == 8
+        assert order_data["specialized_agents"][0]["name"] == "🧠 Requirements Agent"
+        assert order_data["specialized_agents"][0]["status"] == "Completado"
+    
+        # 2. CONTROL HUMANO 1: Aprobación y congelación del contrato OpenAPI (y modelo relacional)
+        # Cualquier cambio que el usuario hace en el contrato es recibido aquí para conducir la API
+        approval_payload = {
+            "approved_by": "Lorena (Product Owner / Líder Técnico)",
+            "comments": "Contrato OpenAPI revisado, modificado y congelado para el sprint.",
+            "modified_openapi": order_data["openapi_contract"],
+            "approve_database_model": True
+        }
+    
+        res_approve = client.post(f"/api/v1/quarkus/orders/{order_id}/approve-contract", json=approval_payload)
+        assert res_approve.status_code == 200
+        order_after_approval = res_approve.json()
+        assert order_after_approval["status"] == "Aprobado"
+        assert order_after_approval["control_1_approved"] is True
+        assert order_after_approval["database_model_approved"] is True
+    
+        # El Agente Arquitecto propone opciones arquitectónicas y extensiones con versiones
+        arch_proposal = order_after_approval["architecture_proposal"]
+        assert arch_proposal is not None
+        assert len(arch_proposal["options"]) == 3
+        assert len(arch_proposal["quarkus_extensions"]) &gt;= 7
+        # Validar que cada extensión Quarkus tiene versión explícita (Quarkus 3.15 LTS)
+        for ext in arch_proposal["quarkus_extensions"]:
+            assert ext["version"] == "3.15.1"
+            assert ":" in ext["id"]
+    
+        assert arch_proposal["maven_preview"]["config_file_name"] == "pom.xml"
+        assert "quarkus-bom" in arch_proposal["maven_preview"]["config_file_content"]
+        assert arch_proposal["gradle_preview"]["config_file_name"] == "build.gradle"
+    
+        # 3. PASO 3: Selección de arquitectura y Aprobación/Reemplazo de extensiones Quarkus
+        select_arch_payload = {
+            "selected_pattern": "layered",
+            "chosen_build_tool": "maven",
+            "extensions": arch_proposal["recommended_extensions"],
+            "selected_extensions": arch_proposal["quarkus_extensions"]
+        }
+        res_select = client.post(f"/api/v1/quarkus/orders/{order_id}/select-architecture", json=select_arch_payload)
+        assert res_select.status_code == 200
+        order_after_select = res_select.json()
+        assert order_after_select["chosen_architecture"]["pattern"] == "layered"
+        assert order_after_select["chosen_architecture"]["build_tool"] == "maven"
+        assert len(order_after_select["quarkus_extensions"]) &gt;= 7
+    
+        # 4. PASO 4: Generación dinámica del Esqueleto y DTOs Records inmutables
+        res_skeleton = client.post(f"/api/v1/quarkus/orders/{order_id}/generate-skeleton")
+        assert res_skeleton.status_code == 200
+        order_after_skeleton = res_skeleton.json()
+        assert order_after_skeleton["status"] == "Generando"
+        assert order_after_skeleton["skeleton_generated"] is True
+        files = order_after_skeleton["generated_files"]
+        assert "pom.xml" in files
+        assert "src/main/resources/application.properties" in files
+        assert "src/main/resources/openapi/openapi.yaml" in files
+    
+        # Validar observabilidad y perfiles en application.properties
+        app_props = files["src/main/resources/application.properties"]
+        assert "quarkus.smallrye-health.root-path=/q/health" in app_props
+        assert "quarkus.micrometer.export.prometheus.path=/q/metrics" in app_props
+        assert "quarkus.opentelemetry.enabled=true" in app_props
+        assert "%dev.quarkus.datasource.db-kind=sqlite" in app_props
+    
+        # 5. PASO 5 y 6: Construcción de lógica, pruebas, auto-corrección (Self-Healing) y Code Review
+        res_build = client.post(f"/api/v1/quarkus/orders/{order_id}/build-and-test")
+        assert res_build.status_code == 200
+        order_after_build = res_build.json()
+        assert order_after_build["status"] == "En revisión"
+        assert order_after_build["code_generated"] is True
+        assert order_after_build["tests_executed"] is True
+        assert order_after_build["tests_summary"]["passed"] &gt; 0
+    
+        # Validar bucle Self-Healing y reporte de Code Review
+        assert len(order_after_build.get("self_healing_log", [])) &gt;= 3
+        assert order_after_build.get("code_review_report") is not None
+        assert order_after_build["code_review_report"]["verdict"] == "APROBADO"
+    
+        # Validar atribución de tokens a los 8 agentes especializados
+        by_agent = order_after_build["tokens_audit"]["by_agent"]
+        assert by_agent["requirements"] &gt; 0
+        assert by_agent["architecture"] &gt; 0
+        assert by_agent["coding"] &gt; 0
+        assert by_agent["database"] &gt; 0
+        assert by_agent["security"] &gt; 0
+        assert by_agent["testing_debug"] &gt; 0
+        assert by_agent["code_review"] &gt; 0
+        assert by_agent["devops"] &gt; 0
+    
+        # Validar que los 8 agentes están registrados y actualizados con estados correctos
+        agents_map = {a["id"]: a for a in order_after_build.get("specialized_agents", [])}
+        assert len(agents_map) == 8
+        assert agents_map["requirements"]["status"] == "Completado"
+        assert agents_map["architecture"]["status"] == "Completado"
+        assert agents_map["coding"]["status"] == "Completado"
+        assert agents_map["database"]["status"] == "Completado"
+        assert agents_map["security"]["status"] == "Completado"
+        assert agents_map["testing_debug"]["status"] == "Completado"
+        assert agents_map["code_review"]["status"] == "Completado"
+    
+        # Validar suite de documentación generada
+        docs = order_after_build["documentation"]
+        assert "README.md" in docs
+        assert "DOCUMENTACION_API.md" in docs
+        assert "ADR_001_DECISIONES_ARQUITECTURA.md" in docs
+        assert "GUIA_PRUEBAS_COBERTURA.md" in docs
+        assert "GUIA_OPERACION_SERVICIO.md" in docs
+    
+        # 6. CONTROL HUMANO 2: Aprobación de Entrega Final y DevOps
+        delivery_payload = {
+            "approved_by": "Lorena (Product Owner)",
+            "comments": "Código, pruebas y auditoría de calidad validadas. Aprobado para PR.",
+            "target_git_repo": "https://github.com/empresa/orders-service.git",
+            "branch_name": "feat/orders-microservice-quarkus"
+        }
+    
+        res_delivery = client.post(f"/api/v1/quarkus/orders/{order_id}/approve-delivery", json=delivery_payload)
+&gt;       assert res_delivery.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = &lt;Response [404 Not Found]&gt;.status_code
+
+backend\tests\test_quarkus_factory.py:188: AssertionError</failure></testcase><testcase classname="backend.tests.test_repair_parser" name="test_parse_compilation_error" time="0.001" /><testcase classname="backend.tests.test_repair_parser" name="test_parse_surefire_failure" time="0.001" /><testcase classname="backend.tests.test_repair_parser" name="test_retry_boundary_limit_at_3" time="0.001" /><testcase classname="backend.tests.test_requirements_service" name="test_transform_requirements_mock_mode" time="0.001" /><testcase classname="backend.tests.test_requirements_service" name="test_entity_extraction_types_and_primary_key" time="0.001" /><testcase classname="backend.tests.test_requirements_service" name="test_markdown_serialization_spec_kit_compatibility" time="0.001" /><testcase classname="backend.tests.test_requirements_service" name="test_refine_specification_mock_mode" time="0.001" /><testcase classname="backend.tests.test_routes_architecture" name="test_design_architecture_success" time="0.009" /><testcase classname="backend.tests.test_routes_architecture" name="test_design_architecture_missing_api_key_returns_401" time="0.005" /><testcase classname="backend.tests.test_routes_architecture" name="test_refine_architecture_success" time="0.014" /><testcase classname="backend.tests.test_routes_architecture" name="test_handoff_architecture_design_to_generator_pipeline" time="0.012" /><testcase classname="backend.tests.test_routes_artifact" name="test_list_artifacts" time="0.033" /><testcase classname="backend.tests.test_routes_artifact" name="test_get_artifact_content" time="0.010" /><testcase classname="backend.tests.test_routes_artifact" name="test_get_artifact_content_not_found" time="0.009" /><testcase classname="backend.tests.test_routes_devops" name="test_generate_devops_manifests_success" time="0.031" /><testcase classname="backend.tests.test_routes_devops" name="test_generate_devops_manifests_blocked_by_quality_gate" time="0.019" /><testcase classname="backend.tests.test_routes_devops" name="test_deploy_devops_blocked_by_quality_gate" time="0.010" /><testcase classname="backend.tests.test_routes_devops" name="test_deploy_devops_clean_session_behavior" time="0.016" /><testcase classname="backend.tests.test_routes_devops" name="test_devops_status_endpoint" time="1.638" /><testcase classname="backend.tests.test_routes_devops" name="test_devops_logs_stream_endpoint" time="15.289" /><testcase classname="backend.tests.test_routes_llm" name="test_verify_llm_mock_mode" time="0.021" /><testcase classname="backend.tests.test_routes_llm" name="test_verify_llm_empty_key" time="0.019" /><testcase classname="backend.tests.test_routes_llm" name="test_verify_llm_connected_mocked" time="0.023" /><testcase classname="backend.tests.test_routes_llm" name="test_verify_llm_error_handling" time="0.022" /><testcase classname="backend.tests.test_routes_models_sql" name="test_generate_models_missing_api_key_401" time="0.020" /><testcase classname="backend.tests.test_routes_models_sql" name="test_generate_models_endpoint_success" time="0.018" /><testcase classname="backend.tests.test_routes_models_sql" name="test_refine_models_endpoint_success" time="0.045" /><testcase classname="backend.tests.test_routes_models_sql" name="test_handoff_to_specifications_store" time="0.032" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_get_lifecycle_endpoint" time="0.088" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_transition_phase_endpoint" time="0.119" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_get_overview_endpoint" time="1.713" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_pipeline_run_and_pause_endpoints" time="0.125" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_export_bundle_endpoint" time="0.066" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_pipeline_run_with_new_session" time="0.066" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_invalidation_and_resync_flow" time="0.203" /><testcase classname="backend.tests.test_routes_orchestrator" name="test_pipeline_cancel_endpoints" time="0.110" /><testcase classname="backend.tests.test_routes_publish" name="test_export_zip" time="0.053" /><testcase classname="backend.tests.test_routes_publish" name="test_export_zip_not_found" time="0.019" /><testcase classname="backend.tests.test_routes_requirements" name="test_transform_requirements_success_with_payload_key" time="0.028" /><testcase classname="backend.tests.test_routes_requirements" name="test_transform_requirements_success_with_header_key" time="0.020" /><testcase classname="backend.tests.test_routes_requirements" name="test_transform_requirements_missing_api_key_returns_401" time="0.037" /><testcase classname="backend.tests.test_routes_requirements" name="test_transform_requirements_too_short_text_returns_400" time="0.020" /><testcase classname="backend.tests.test_routes_requirements" name="test_refine_requirements_global_feedback" time="0.034" /><testcase classname="backend.tests.test_routes_requirements" name="test_refine_requirements_target_story" time="0.017" /><testcase classname="backend.tests.test_routes_requirements" name="test_handoff_transformed_draft_to_specifications_pipeline" time="0.029" /><testcase classname="backend.tests.test_routes_requirements" name="test_transform_requirements_with_explicit_provider_gemini" time="7.191"><failure message="assert 500 == 200&#10; +  where 500 = &lt;Response [500 Internal Server Error]&gt;.status_code">def test_transform_requirements_with_explicit_provider_gemini():
+        payload = {
+            "rawText": "Gestión de pedidos con entrega a domicilio y seguimiento GPS.",
+            "apiKey": "mock-key",
+            "provider": "gemini",
+        }
+        response = client.post("/api/v1/requirements/transform", json=payload)
+&gt;       assert response.status_code == 200
+E       assert 500 == 200
+E        +  where 500 = &lt;Response [500 Internal Server Error]&gt;.status_code
+
+backend\tests\test_routes_requirements.py:202: AssertionError</failure></testcase><testcase classname="backend.tests.test_routes_requirements" name="test_transform_requirements_with_provider_header_groq" time="4.173"><failure message="assert 500 == 200&#10; +  where 500 = &lt;Response [500 Internal Server Error]&gt;.status_code">def test_transform_requirements_with_provider_header_groq():
+        payload = {
+            "rawText": "Gestión de inventario y compras con cálculo de impuestos.",
+            "apiKey": "mock-key",
+        }
+        headers = {
+            "X-LLM-Provider": "groq",
+            "X-LLM-API-Key": "mock-key",
+        }
+        response = client.post("/api/v1/requirements/transform", json=payload, headers=headers)
+&gt;       assert response.status_code == 200
+E       assert 500 == 200
+E        +  where 500 = &lt;Response [500 Internal Server Error]&gt;.status_code
+
+backend\tests\test_routes_requirements.py:216: AssertionError</failure></testcase><testcase classname="backend.tests.test_routes_security" name="test_audit_in_memory_clean" time="0.033" /><testcase classname="backend.tests.test_routes_security" name="test_audit_in_memory_blocked_by_secret_and_injection" time="0.025" /><testcase classname="backend.tests.test_routes_security" name="test_remediate_endpoint" time="0.020" /><testcase classname="backend.tests.test_routes_security" name="test_session_audit_and_export_blocking" time="0.288" /><testcase classname="backend.tests.test_routes_session" name="test_create_session_success" time="0.481" /><testcase classname="backend.tests.test_routes_session" name="test_create_session_not_found" time="0.033" /><testcase classname="backend.tests.test_routes_session" name="test_get_session_by_id" time="0.355" /><testcase classname="backend.tests.test_routes_session" name="test_broadcast_session_event_string_id" time="0.005" /><testcase classname="backend.tests.test_routes_spec" name="test_upload_spec_markdown" time="0.020" /><testcase classname="backend.tests.test_routes_spec" name="test_submit_spec_json_success" time="0.017" /><testcase classname="backend.tests.test_routes_spec" name="test_submit_spec_json_invalid_payload" time="0.017" /><testcase classname="backend.tests.test_routes_spec" name="test_submit_spec_json_frontend_transfer_payload" time="0.017" /><testcase classname="backend.tests.test_routes_tests" name="test_synthesize_endpoint_400_when_no_blueprint" time="0.023" /><testcase classname="backend.tests.test_routes_tests" name="test_synthesize_endpoint_success" time="0.021" /><testcase classname="backend.tests.test_routes_tests" name="test_analyze_endpoint_success" time="0.022" /><testcase classname="backend.tests.test_routes_tests" name="test_repair_endpoint_success_and_boundary" time="0.035" /><testcase classname="backend.tests.test_routes_tests" name="test_get_repairs_and_manual_override" time="0.053" /><testcase classname="backend.tests.test_security_service" name="test_offline_cve_database_loads" time="0.005" /><testcase classname="backend.tests.test_security_service" name="test_scan_secrets_detects_all_patterns" time="0.003" /><testcase classname="backend.tests.test_security_service" name="test_scan_sast_detects_sql_injection" time="0.002" /><testcase classname="backend.tests.test_security_service" name="test_scan_sast_detects_missing_valid_and_path_traversal" time="0.003" /><testcase classname="backend.tests.test_security_service" name="test_scan_dependencies_cve_detects_vulnerable_versions" time="0.005" /><testcase classname="backend.tests.test_security_service" name="test_scan_dependencies_cve_passes_safe_versions" time="0.004" /><testcase classname="backend.tests.test_security_service" name="test_scan_architecture_detects_violations" time="0.004" /><testcase classname="backend.tests.test_security_service" name="test_calculate_code_metrics" time="0.003" /><testcase classname="backend.tests.test_security_service" name="test_evaluate_quality_gate_blocking" time="0.003" /><testcase classname="backend.tests.test_security_service" name="test_evaluate_quality_gate_pass" time="0.004" /><testcase classname="backend.tests.test_security_service" name="test_apply_surgical_remediation" time="0.005" /><testcase classname="backend.tests.test_sessions_api" name="test_list_sessions_endpoint" time="0.236" /><testcase classname="backend.tests.test_sessions_api" name="test_quick_start_session_endpoint" time="0.063" /><testcase classname="backend.tests.test_sessions_api" name="test_quick_start_session_default_name" time="0.055" /><testcase classname="backend.tests.test_sessions_api" name="test_quick_start_session_with_auto_run" time="0.088" /><testcase classname="backend.tests.test_spec_service" name="test_parse_spec_markdown_success" time="0.005" /><testcase classname="backend.tests.test_spec_service" name="test_validate_blueprint_missing_scenarios_raises_error" time="0.005" /><testcase classname="backend.tests.test_spec_service" name="test_validate_blueprint_missing_primary_key_raises_error" time="0.004" /><testcase classname="backend.tests.test_test_analysis_service" name="test_synthesize_test_suites_hybrid" time="0.004" /><testcase classname="backend.tests.test_test_analysis_service" name="test_analyze_code_compliance_violations" time="0.003" /><testcase classname="backend.tests.test_test_analysis_service" name="test_plan_surgical_repair_and_apply" time="0.003" /><testcase classname="backend.tests.test_test_analysis_service" name="test_execute_repair_iteration_and_cap_at_5" time="0.012" /></testsuite></testsuites>

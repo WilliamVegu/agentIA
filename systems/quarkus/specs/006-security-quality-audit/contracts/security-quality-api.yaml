@@ -1,0 +1,340 @@
+openapi: 3.0.3
+info:
+  title: Microservice Code Studio - Security & Quality Audit API
+  version: 1.0.0
+  description: API endpoints for Static Application Security Testing (SAST), Software Composition Analysis (CVEs), Secret Leak Detection, and Architectural Quality Gate evaluation.
+
+paths:
+  /api/v1/security/audit:
+    post:
+      summary: Perform security vulnerability scan and code quality standards evaluation
+      operationId: auditSecurityAndQuality
+      tags:
+        - Security & Quality
+      parameters:
+        - in: header
+          name: X-LLM-API-Key
+          schema:
+            type: string
+          required: false
+          description: Ephemeral OpenAI API key processed strictly in memory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecurityAuditRequest'
+      responses:
+        '200':
+          description: Complete security and quality audit report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityQualityAuditReport'
+        '400':
+          description: Invalid request payload or missing sources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/security/remediate:
+    post:
+      summary: Apply 1-click surgical auto-fix for an identified security or standards violation
+      operationId: remediateFinding
+      tags:
+        - Security & Quality
+      parameters:
+        - in: header
+          name: X-LLM-API-Key
+          schema:
+            type: string
+          required: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecurityRemediationRequest'
+      responses:
+        '200':
+          description: Finding successfully remediated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityRemediationResponse'
+        '400':
+          description: Finding not auto-remediable or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sessions/{sessionId}/audit:
+    get:
+      summary: Retrieve the security and quality audit report for an active or completed session
+      operationId: getSessionAudit
+      tags:
+        - Security & Quality
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+          description: Generation session identifier
+      responses:
+        '200':
+          description: Stored audit report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityQualityAuditReport'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SecurityAuditRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          nullable: true
+          description: Target session ID if auditing an active workspace
+        sourceFiles:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of relative file paths to Java source content
+        pomXml:
+          type: string
+          nullable: true
+          description: Content of pom.xml for dependency CVE auditing
+        apiKey:
+          type: string
+          nullable: true
+          description: Optional in-memory ephemeral API key
+
+    SecurityQualityAuditReport:
+      type: object
+      required:
+        - qualityGate
+        - metrics
+        - vulnerabilities
+        - violations
+        - auditedAt
+      properties:
+        sessionId:
+          type: string
+        serviceName:
+          type: string
+          default: app-service
+        qualityGate:
+          $ref: '#/components/schemas/QualityGateVerdict'
+        metrics:
+          $ref: '#/components/schemas/CodeQualityMetrics'
+        vulnerabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityVulnerabilityFinding'
+        violations:
+          type: array
+          items:
+            $ref: '#/components/schemas/StandardsComplianceViolation'
+        auditedAt:
+          type: string
+          format: date-time
+
+    QualityGateVerdict:
+      type: object
+      required:
+        - status
+        - score
+        - criticalCount
+        - highCount
+        - mediumCount
+        - lowCount
+        - canExport
+        - summaryMessage
+      properties:
+        status:
+          type: string
+          enum: [PASS, WARNING, BLOCKED]
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        criticalCount:
+          type: integer
+        highCount:
+          type: integer
+        mediumCount:
+          type: integer
+        lowCount:
+          type: integer
+        canExport:
+          type: boolean
+        summaryMessage:
+          type: string
+
+    SecurityVulnerabilityFinding:
+      type: object
+      required:
+        - id
+        - title
+        - category
+        - severity
+        - filePath
+        - description
+        - remediationGuidance
+        - autoFixAvailable
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+          enum: [SAST_INJECTION, SAST_DESERIALIZATION, SAST_ACCESS_CONTROL, SAST_DATA_EXPOSURE, SECRET_LEAK, CVE_DEPENDENCY]
+        severity:
+          type: string
+          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+        cweId:
+          type: string
+          nullable: true
+        owaspCategory:
+          type: string
+          nullable: true
+        filePath:
+          type: string
+        lineNumber:
+          type: integer
+          nullable: true
+        codeSnippet:
+          type: string
+          nullable: true
+        description:
+          type: string
+        remediationGuidance:
+          type: string
+        autoFixAvailable:
+          type: boolean
+
+    StandardsComplianceViolation:
+      type: object
+      required:
+        - id
+        - principle
+        - severity
+        - filePath
+        - ruleDescription
+        - suggestedFix
+        - autoFixAvailable
+      properties:
+        id:
+          type: string
+        principle:
+          type: string
+          enum: [PRINCIPLE_I_LAYER_ISOLATION, PRINCIPLE_II_IMMUTABLE_DTOS, PRINCIPLE_III_CENTRALIZED_ERRORS, PRINCIPLE_IV_OFFLINE_DETERMINISM, PRINCIPLE_V_QUALITY_GATES, PRINCIPLE_VI_ZERO_SECRETS, STACK_LOMBOK_RESTRICTION]
+        severity:
+          type: string
+          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+        filePath:
+          type: string
+        offendingElement:
+          type: string
+          nullable: true
+        ruleDescription:
+          type: string
+        suggestedFix:
+          type: string
+        autoFixAvailable:
+          type: boolean
+
+    CodeQualityMetrics:
+      type: object
+      required:
+        - averageCyclomaticComplexity
+        - maxCyclomaticComplexity
+        - totalMethodsAudited
+        - methodsExceedingThreshold
+        - totalLinesOfCode
+        - duplicationPercentage
+        - testAssertionDensity
+        - totalCodeSmells
+      properties:
+        averageCyclomaticComplexity:
+          type: number
+        maxCyclomaticComplexity:
+          type: integer
+        totalMethodsAudited:
+          type: integer
+        methodsExceedingThreshold:
+          type: integer
+        totalLinesOfCode:
+          type: integer
+        duplicationPercentage:
+          type: number
+        testAssertionDensity:
+          type: number
+        totalCodeSmells:
+          type: integer
+
+    SecurityRemediationRequest:
+      type: object
+      required:
+        - findingId
+        - filePath
+      properties:
+        sessionId:
+          type: string
+          nullable: true
+        findingId:
+          type: string
+        filePath:
+          type: string
+        sourceFiles:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
+        apiKey:
+          type: string
+          nullable: true
+
+    SecurityRemediationResponse:
+      type: object
+      required:
+        - findingId
+        - filePath
+        - success
+        - diffSummary
+      properties:
+        findingId:
+          type: string
+        filePath:
+          type: string
+        success:
+          type: boolean
+        modifiedCode:
+          type: string
+          nullable: true
+        diffSummary:
+          type: string
+        updatedQualityGate:
+          $ref: '#/components/schemas/QualityGateVerdict'
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+

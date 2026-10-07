@@ -1,0 +1,225 @@
+{
+  "blueprintId": "tier4-02",
+  "tier": 4,
+  "corpusRole": "graded-tier4-hard",
+  "difficultyAxis": "Contract and mapping trap through attribute width: a fourteen-attribute contract entity spanning every Java type family the corpus uses, including a List<String> collection attribute and pairs of BigDecimal, Double, LocalDate and LocalDateTime fields that map differently. The tempting mistake is to treat the collection as a plain column, to collapse BigDecimal and Double onto one type, or to declare the validation rules on the transport object instead of the domain model.",
+  "rationale": "Five entities and fourteen scenarios, with the widest single entity in the graded set. The read and update scenarios require the collection attribute and the temporal attributes to survive a round trip unchanged, which a generator that only forwards scalar fields will fail while still passing every narrower tier.",
+
+  "serviceName": "warranty-service",
+  "packageName": "com.corp.warranty",
+  "basePort": 8311,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Customer",
+      "tableName": "customers",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "phoneNumber", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "postalCode", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern", "@Size"] },
+        { "name": "verified", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "ServiceCentre",
+      "tableName": "service_centres",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "code", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "city", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "countryCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "WarrantyContract",
+      "tableName": "warranty_contracts",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "contractNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "customerId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "productCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "coverageCodes", "type": "List<String>", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Size"] },
+        { "name": "coverageStart", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "coverageEnd", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "purchasePrice", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "deductible", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@Digits"] },
+        { "name": "claimLimit", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin"] },
+        { "name": "renewalCount", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "riskScore", "type": "Double", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@DecimalMax"] },
+        { "name": "registeredAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "Claim",
+      "tableName": "claims",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "claimReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "contractId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "serviceCentreId", "type": "Long", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "incidentOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "reportedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "claimedAmount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "approvedAmount", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@DecimalMin", "@Digits"] },
+        { "name": "settled", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "ClaimLine",
+      "tableName": "claim_lines",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "claimId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "partCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "quantity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "unitCost", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@DecimalMin", "@Digits"] },
+        { "name": "covered", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "warranty administrator",
+      "intent": "register a customer with a contact email",
+      "benefit": "contracts can be attributed to a known owner",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a full name and a well-formed email address",
+          "when": "the administrator registers the customer",
+          "then": "the customer is persisted with its verification flag"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed email address",
+          "when": "the administrator attempts to register the customer",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "warranty administrator",
+      "intent": "register a service centre",
+      "benefit": "claims can be routed to an authorised repairer",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a unique service centre code and a two-letter country code",
+          "when": "the administrator registers the service centre",
+          "then": "the service centre is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a country code that is not two letters long",
+          "when": "the administrator attempts to register the service centre",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "warranty administrator",
+      "intent": "register a warranty contract with a coverage list and a validity window",
+      "benefit": "the covered product and period are recorded",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing customer, a non-empty coverage list and an end date after the start date",
+          "when": "the administrator registers the contract",
+          "then": "the contract is persisted with its coverage codes and validity window intact"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a coverage end date earlier than the coverage start date",
+          "when": "the administrator attempts to register the contract",
+          "then": "the service rejects the contract as inconsistent"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "a customer identifier that does not exist",
+          "when": "the administrator attempts to register the contract",
+          "then": "the service reports the customer as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "claim handler",
+      "intent": "submit a claim against a warranty contract",
+      "benefit": "the repair cost is reimbursed under the correct contract",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing contract and a claimed amount above the permitted minimum",
+          "when": "the handler submits the claim",
+          "then": "the claim is persisted with its contract reference and an unsettled status"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "a contract identifier that does not exist",
+          "when": "the handler attempts to submit the claim",
+          "then": "the service reports the contract as not found"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "a claimed amount below the permitted minimum",
+          "when": "the handler attempts to submit the claim",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "claim handler",
+      "intent": "itemise a claim with the parts replaced",
+      "benefit": "the approved amount can be justified line by line",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing claim and a quantity within the permitted range",
+          "when": "the handler adds the claim line",
+          "then": "the line is persisted against the claim with its unit cost and coverage flag"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a claim identifier that does not exist",
+          "when": "the handler attempts to add a line to it",
+          "then": "the service reports the claim as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P2",
+      "role": "claim handler",
+      "intent": "settle a claim and remove a rejected line",
+      "benefit": "the contract balance reflects only approved repairs",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an existing unsettled claim and an approved amount within the claim limit",
+          "when": "the handler updates the claim to settled",
+          "then": "the claim is persisted with the approved amount and the settled flag set"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "an existing claim line identifier",
+          "when": "the handler deletes the claim line",
+          "then": "the line is removed and the read that follows reports it as not found"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,214 @@
+{
+  "blueprintId": "hard-04",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Layering temptation: scenarios that require data from more than one entity to be composed into a single response, inviting a controller to reach for two repositories.",
+  "rationale": "A billing service where the invoice summary endpoint must combine invoice fields, customer attributes and the total of allocated payments. The shortest working implementation wires InvoiceRepository and CustomerRepository straight into the controller, which violates the unidirectional layering rule. A correct implementation composes in the service layer and returns one record contract that is structurally decoupled from every persistence entity.",
+
+  "serviceName": "billing-service",
+  "packageName": "com.corp.billing",
+  "basePort": 8184,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Customer",
+      "tableName": "customers",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "accountCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "displayName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "billingEmail", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "creditLimit", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero", "@Digits"] },
+        { "name": "currencyCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size", "@Pattern"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Invoice",
+      "tableName": "invoices",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "invoiceNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "customerId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "issuedOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "dueOn", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "totalAmount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero", "@Digits"] }
+      ]
+    },
+    {
+      "name": "InvoiceLine",
+      "tableName": "invoice_lines",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "invoiceId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "lineNumber", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "description", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "lineAmount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Digits"] },
+        { "name": "taxAmount", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PositiveOrZero", "@Digits"] }
+      ]
+    },
+    {
+      "name": "PaymentAllocation",
+      "tableName": "payment_allocations",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "invoiceId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "paymentReference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "allocatedAmount", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "allocatedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "billing administrator",
+      "intent": "register a customer with a credit limit and a billing email",
+      "benefit": "invoices are addressed to a known payer",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "an account code matching the permitted pattern and a non-negative credit limit",
+          "when": "the administrator registers the customer",
+          "then": "the customer is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed billing email address",
+          "when": "the administrator attempts to register the customer",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "billing administrator",
+      "intent": "issue an invoice for an existing customer",
+      "benefit": "the amount owed is recorded against the right account",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing customer, an invoice number matching the permitted pattern and a due date after the issue date",
+          "when": "the administrator issues the invoice",
+          "then": "the invoice is persisted with its customer reference and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a customer identifier that does not exist",
+          "when": "the administrator attempts to issue the invoice",
+          "then": "the service reports the customer as not found"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "a negative total amount",
+          "when": "the administrator attempts to issue the invoice",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "billing administrator",
+      "intent": "add numbered lines to an existing invoice",
+      "benefit": "the invoice total is itemised",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "an existing invoice and a positive line number",
+          "when": "the administrator adds the line",
+          "then": "the line is persisted against the invoice"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a line number below the permitted minimum",
+          "when": "the administrator attempts to add the line",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "finance controller",
+      "intent": "retrieve one invoice together with its customer details and its payment position",
+      "benefit": "a single call answers whether the customer has paid and how much is outstanding",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing invoice with an existing customer and two allocations",
+          "when": "the controller retrieves the invoice summary",
+          "then": "one response carries the invoice fields, the customer display name and credit limit, the allocated total and the outstanding balance"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "an existing invoice with no allocations",
+          "when": "the controller retrieves the invoice summary",
+          "then": "the allocated total is zero and the outstanding balance equals the invoice total"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "an invoice identifier that does not exist",
+          "when": "the controller retrieves the invoice summary",
+          "then": "the service reports the invoice as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P2",
+      "role": "finance controller",
+      "intent": "retrieve every invoice belonging to one customer together with that customer's credit position",
+      "benefit": "exposure to a single account is visible at a glance",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing customer with two invoices",
+          "when": "the controller retrieves the customer's invoices",
+          "then": "the response carries the customer details once and the invoices with their outstanding balances"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "an existing customer with no invoices",
+          "when": "the controller retrieves the customer's invoices",
+          "then": "the service returns an empty collection of invoices rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "a customer identifier that does not exist",
+          "when": "the controller retrieves the customer's invoices",
+          "then": "the service reports the customer as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P2",
+      "role": "cashier",
+      "intent": "allocate a received payment to an invoice",
+      "benefit": "settlement is traced to a payment reference",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an existing invoice and a positive allocated amount",
+          "when": "the cashier records the allocation",
+          "then": "the allocation is persisted against the invoice"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "an allocated amount that is zero or negative",
+          "when": "the cashier attempts to record the allocation",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "allocations that together exceed the invoice total",
+          "when": "the cashier records the allocation",
+          "then": "the service rejects the allocation as inconsistent"
+        }
+      ]
+    }
+  ]
+}

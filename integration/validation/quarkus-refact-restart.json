@@ -1,0 +1,8 @@
+{
+  "previous_order_statuses_after_restart": {
+    "ORD-20261007-2F5489": 404,
+    "ORD-20261007-26E16A": 404
+  },
+  "orders_after_restart": 0,
+  "previous_orders_lost": true
+}

@@ -1,0 +1,499 @@
+openapi: 3.0.3
+info:
+  title: Microservice Code Studio REST API
+  description: >
+    API for ingesting formal microservice specifications, orchestrating autonomous
+    code generation sessions, monitoring real-time builds, exploring synthesized artifacts,
+    and publishing deliverables to version control.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Internal workspace API
+
+paths:
+  /specifications/upload:
+    post:
+      summary: Ingest specification via file upload
+      description: Ingests a standard Spec Kit Markdown file (`spec.md`) and returns parsed blueprint and stories.
+      operationId: uploadSpecificationFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The `spec.md` file to upload.
+      responses:
+        '201':
+          description: Specification successfully parsed and validated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecificationSummary'
+        '400':
+          description: Specification validation failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /specifications:
+    post:
+      summary: Ingest specification via structured JSON payload
+      description: Directly submits a structured architecture blueprint and user story collection.
+      operationId: submitSpecificationJson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecificationPayload'
+      responses:
+        '201':
+          description: Specification successfully validated and persisted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecificationSummary'
+        '400':
+          description: Malformed JSON or invalid schema.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /sessions:
+    post:
+      summary: Trigger autonomous code generation session
+      description: Enqueues a generation run for an ingested specification.
+      operationId: createGenerationSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - specId
+              properties:
+                specId:
+                  type: string
+                  format: uuid
+      responses:
+        '202':
+          description: Generation session accepted and enqueued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationSessionSummary'
+        '404':
+          description: Specification not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /sessions/{id}:
+    get:
+      summary: Get generation session details
+      description: Returns current status, lifecycle phase, queue position, and metrics.
+      operationId: getSessionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session details retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationSessionDetail'
+        '404':
+          description: Session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+    delete:
+      summary: Cancel active session
+      description: Aborts the active generation session and reclaims sandbox resources.
+      operationId: cancelSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Session cancelled.
+        '404':
+          description: Session not found.
+
+  /sessions/{id}/artifacts:
+    get:
+      summary: List synthesized artifacts
+      description: Returns the full hierarchical file tree of generated source code, configuration, and tests.
+      operationId: listArtifacts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File tree and artifact list retrieved.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ArtifactSummary'
+
+  /sessions/{id}/artifacts/content:
+    get:
+      summary: Fetch artifact source code content
+      description: Returns the raw text of a specific file for syntax-highlighted inspection.
+      operationId: getArtifactContent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Relative path of the artifact (e.g. `src/main/java/.../OrderController.java`).
+      responses:
+        '200':
+          description: File content retrieved.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Artifact not found.
+
+  /sessions/{id}/export:
+    get:
+      summary: Download complete project as ZIP archive
+      description: Bundles all generated artifacts into a clean, standalone ZIP package.
+      operationId: exportProjectZip
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ZIP archive stream.
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+
+  /sessions/{id}/publish:
+    post:
+      summary: Publish deliverable to Git feature branch
+      description: >
+        Pushes an atomic commit to a dedicated feature branch (`feature/[spec-name]`)
+        using an ephemeral in-memory Personal Access Token. Token is never persisted.
+      operationId: publishToGit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - repositoryUrl
+                - branchName
+              properties:
+                repositoryUrl:
+                  type: string
+                  format: uri
+                  example: https://github.com/organization/order-service.git
+                branchName:
+                  type: string
+                  example: feature/001-order-service
+                gitToken:
+                  type: string
+                  description: Ephemeral Personal Access Token (PAT). Held only in memory during push.
+                commitMessage:
+                  type: string
+                  example: feat(order-service): initial autonomous generation and verified test suite
+      responses:
+        '200':
+          description: Branch successfully created and pushed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  branchUrl:
+                    type: string
+                    format: uri
+                  commitHash:
+                    type: string
+                  pullRequestUrl:
+                    type: string
+                    format: uri
+        '400':
+          description: Git publication failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+components:
+  schemas:
+    SpecificationPayload:
+      type: object
+      required:
+        - serviceName
+        - packageName
+        - entities
+        - userStories
+      properties:
+        serviceName:
+          type: string
+          example: payment-service
+        packageName:
+          type: string
+          example: com.corp.payment
+        basePort:
+          type: integer
+          default: 8080
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityDefinition'
+        userStories:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserStoryItem'
+
+    EntityDefinition:
+      type: object
+      required:
+        - name
+        - tableName
+        - attributes
+      properties:
+        name:
+          type: string
+          example: Payment
+        tableName:
+          type: string
+          example: payments
+        attributes:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - type
+              - isPrimaryKey
+            properties:
+              name:
+                type: string
+                example: id
+              type:
+                type: string
+                example: UUID
+              nullable:
+                type: boolean
+                default: false
+              isPrimaryKey:
+                type: boolean
+                default: false
+              validationRules:
+                type: array
+                items:
+                  type: string
+                example: ["@NotNull"]
+
+    UserStoryItem:
+      type: object
+      required:
+        - id
+        - priority
+        - role
+        - intent
+        - benefit
+        - scenarios
+      properties:
+        id:
+          type: string
+          example: US-1
+        priority:
+          type: string
+          enum: [P1, P2, P3]
+          example: P1
+        role:
+          type: string
+          example: Customer
+        intent:
+          type: string
+          example: submit credit card payment
+        benefit:
+          type: string
+          example: complete purchase successfully
+        scenarios:
+          type: array
+          items:
+            type: object
+            required:
+              - scenarioId
+              - given
+              - when
+              - then
+            properties:
+              scenarioId:
+                type: string
+                example: AC-1.1
+              given:
+                type: string
+                example: valid card details and positive amount
+              when:
+                type: string
+                example: POST /payments is invoked
+              then:
+                type: string
+                example: payment record is saved and 201 Created returned
+
+    SpecificationSummary:
+      type: object
+      properties:
+        specId:
+          type: string
+          format: uuid
+        serviceName:
+          type: string
+        entityCount:
+          type: integer
+        storyCount:
+          type: integer
+        isValid:
+          type: boolean
+        validationWarnings:
+          type: array
+          items:
+            type: string
+
+    GenerationSessionSummary:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED, RUNNING]
+        queuePosition:
+          type: integer
+        streamUrl:
+          type: string
+          example: /api/v1/sessions/f81d4fae-7dec-11d0-a765-00a0c91e6bf6/stream
+
+    GenerationSessionDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED, RUNNING, COMPLETED, BLOCKED, CANCELLED]
+        phase:
+          type: string
+        repairAttempts:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        metrics:
+          $ref: '#/components/schemas/VerificationMetrics'
+        errorMessage:
+          type: string
+
+    ArtifactSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        relativePath:
+          type: string
+          example: src/main/java/com/corp/payment/controller/PaymentController.java
+        fileType:
+          type: string
+          enum: [JAVA_SOURCE, JAVA_RECORD, POM_XML, YAML_CONFIG, TEST_SOURCE]
+        sizeBytes:
+          type: integer
+
+    VerificationMetrics:
+      type: object
+      properties:
+        totalTests:
+          type: integer
+        passedTests:
+          type: integer
+        failedTests:
+          type: integer
+        executionDurationMs:
+          type: integer
+        allPassed:
+          type: boolean
+
+    ApiErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - message
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Validation error in specification payload
+        details:
+          type: array
+          items:
+            type: string
+

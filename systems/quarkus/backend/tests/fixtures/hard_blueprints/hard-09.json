@@ -1,0 +1,353 @@
+{
+  "blueprintId": "hard-09",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Invariant-heavy unhappy paths: most acceptance scenarios assert a refused operation, so the business rules and their rejection outcomes must be implemented in the service and surfaced through the centralized handler rather than caught in a controller.",
+  "rationale": "A venue booking service built around double-booking, capacity, cancellation windows and legal state transitions. Twenty of the twenty-six scenarios expect a rejection, a conflict or a not-found. The tempting shortcuts are catching the exception inside the controller to build an error body, returning null instead of raising, or letting a controller compare states before delegating; all three violate the centralized-error and business-logic-home rules and are visible only on a blueprint where refusals dominate.",
+
+  "serviceName": "booking-service",
+  "packageName": "com.corp.booking",
+  "basePort": 8189,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Venue",
+      "tableName": "venues",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "venueCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "name", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "city", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank"] },
+        { "name": "totalCapacity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Room",
+      "tableName": "rooms",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "venueId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "roomCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "capacity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min"] },
+        { "name": "hourlyRate", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Positive", "@Digits"] },
+        { "name": "bookable", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "RatePlan",
+      "tableName": "rate_plans",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "venueId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "planCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "minimumHours", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "discountPercent", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero", "@Digits"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Guest",
+      "tableName": "guests",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "phoneNumber", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "trusted", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "CancellationPolicy",
+      "tableName": "cancellation_policies",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "venueId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "policyCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "freeCancellationHours", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "penaltyPercent", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero", "@Digits"] }
+      ]
+    },
+    {
+      "name": "Reservation",
+      "tableName": "reservations",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "reference", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "roomId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "guestId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "ratePlanId", "type": "Long", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "startsAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "endsAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "attendeeCount", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "totalAmount", "type": "BigDecimal", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PositiveOrZero", "@Digits"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "venue manager",
+      "intent": "register a venue and its bookable rooms",
+      "benefit": "the bookable inventory is known to the service",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a unique venue code and a total capacity within the permitted range",
+          "when": "the manager registers the venue",
+          "then": "the venue is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a total capacity above the permitted maximum",
+          "when": "the manager attempts to register the venue",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "venue manager",
+      "intent": "add a room to a venue with a capacity and an hourly rate",
+      "benefit": "guests can book a specific space",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an existing venue, a unique room code and a positive hourly rate",
+          "when": "the manager adds the room",
+          "then": "the room is persisted against the venue"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a room capacity greater than the venue total capacity",
+          "when": "the manager attempts to add the room",
+          "then": "the service rejects the room as inconsistent with its venue"
+        },
+        {
+          "scenarioId": "AC-2.3",
+          "given": "a venue identifier that does not exist",
+          "when": "the manager attempts to add the room",
+          "then": "the service reports the venue as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P1",
+      "role": "guest services agent",
+      "intent": "register a guest by email",
+      "benefit": "bookings are attached to a known person",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "a well-formed email address not already registered",
+          "when": "the agent registers the guest",
+          "then": "the guest is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "an email address already held by another guest",
+          "when": "the agent attempts to register the guest",
+          "then": "the service rejects the registration as conflicting"
+        },
+        {
+          "scenarioId": "AC-3.3",
+          "given": "a malformed email address",
+          "when": "the agent attempts to register the guest",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "guest services agent",
+      "intent": "book a reservation for a guest in a room for a time window",
+      "benefit": "the guest has exclusive use of the space for that window",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing bookable room, an existing guest, a start before the end and an attendee count within the room capacity",
+          "when": "the agent books the reservation",
+          "then": "the reservation is persisted in a held state and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "an overlapping reservation already held for the same room",
+          "when": "the agent attempts to book the reservation",
+          "then": "the service rejects the booking as conflicting"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "an attendee count greater than the room capacity",
+          "when": "the agent attempts to book the reservation",
+          "then": "the service rejects the booking as exceeding capacity"
+        },
+        {
+          "scenarioId": "AC-4.4",
+          "given": "a room that is not bookable",
+          "when": "the agent attempts to book the reservation",
+          "then": "the service rejects the booking as inconsistent with the room state"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P1",
+      "role": "guest services agent",
+      "intent": "apply a rate plan to a reservation and price it",
+      "benefit": "the guest receives the discount the plan promises",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "a held reservation whose duration meets the plan minimum hours",
+          "when": "the agent applies the rate plan",
+          "then": "the reservation stores the plan reference and a discounted total amount"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "a held reservation shorter than the plan minimum hours",
+          "when": "the agent attempts to apply the rate plan",
+          "then": "the service rejects the plan as not applicable to that reservation"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "a rate plan belonging to a different venue than the reserved room",
+          "when": "the agent attempts to apply the rate plan",
+          "then": "the service rejects the plan as not applicable"
+        },
+        {
+          "scenarioId": "AC-5.4",
+          "given": "an inactive rate plan",
+          "when": "the agent attempts to apply it",
+          "then": "the service rejects the plan as not applicable"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P1",
+      "role": "guest services agent",
+      "intent": "confirm a held reservation so the space is committed",
+      "benefit": "the booking becomes binding and the slot stops being offered",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "a held reservation with a start time in the future",
+          "when": "the agent confirms it",
+          "then": "the reservation enters a confirmed state and retains its reference"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "a reservation that has already been confirmed",
+          "when": "the agent attempts to confirm it again",
+          "then": "the service rejects the transition as conflicting with the current state"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "a reservation that has been cancelled",
+          "when": "the agent attempts to confirm it",
+          "then": "the service rejects the transition as conflicting with the current state"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P1",
+      "role": "guest services agent",
+      "intent": "cancel a reservation under the venue's cancellation policy",
+      "benefit": "the guest can withdraw and the penalty is applied consistently",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "a confirmed reservation starting later than the policy free-cancellation window",
+          "when": "the agent cancels the reservation",
+          "then": "the reservation enters a cancelled state with no penalty recorded"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "a confirmed reservation starting inside the policy penalty window",
+          "when": "the agent cancels the reservation",
+          "then": "the reservation enters a cancelled state with the policy penalty percent recorded"
+        },
+        {
+          "scenarioId": "AC-7.3",
+          "given": "a reservation that has already been cancelled",
+          "when": "the agent attempts to cancel it again",
+          "then": "the service rejects the cancellation as conflicting with the current state"
+        },
+        {
+          "scenarioId": "AC-7.4",
+          "given": "a reservation whose window has already started",
+          "when": "the agent attempts to cancel it",
+          "then": "the service rejects the cancellation as no longer permitted"
+        }
+      ]
+    },
+    {
+      "id": "US-8",
+      "priority": "P2",
+      "role": "venue manager",
+      "intent": "take a room out of service so it cannot be booked",
+      "benefit": "maintenance does not silently accept bookings",
+      "scenarios": [
+        {
+          "scenarioId": "AC-8.1",
+          "given": "a bookable room with no confirmed reservation starting in the future",
+          "when": "the manager marks the room unbookable",
+          "then": "the room is stored as not bookable"
+        },
+        {
+          "scenarioId": "AC-8.2",
+          "given": "a bookable room with a confirmed reservation starting in the future",
+          "when": "the manager attempts to mark the room unbookable",
+          "then": "the service rejects the change as conflicting with an existing reservation"
+        }
+      ]
+    },
+    {
+      "id": "US-9",
+      "priority": "P2",
+      "role": "guest services agent",
+      "intent": "read the reservations made by one guest",
+      "benefit": "the guest's booking history can be reviewed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-9.1",
+          "given": "a guest with no reservations",
+          "when": "the agent reads the guest's reservations",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-9.2",
+          "given": "a guest identifier that does not exist",
+          "when": "the agent reads the guest's reservations",
+          "then": "the service reports the guest as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-10",
+      "priority": "P3",
+      "role": "guest services agent",
+      "intent": "retrieve a reservation by identifier",
+      "benefit": "the booking can be quoted from its reference",
+      "scenarios": [
+        {
+          "scenarioId": "AC-10.1",
+          "given": "an existing reservation identifier",
+          "when": "the agent retrieves the reservation",
+          "then": "the reservation is returned with its room, guest and rate plan references"
+        },
+        {
+          "scenarioId": "AC-10.2",
+          "given": "no reservation exists with the requested identifier",
+          "when": "the agent retrieves that reservation",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    }
+  ]
+}

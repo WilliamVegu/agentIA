@@ -1,0 +1,88 @@
+Microservice Code StudioEnterprise Architecture
++ Nuevo Pedido Quarkus
+Fábrica Quarkus (5)
+audit-inventory-maven
+Aprobado·6,000 tok
+audit-inventory-maven
+En revisión·33,250 tok
+audit-inventory-gradle
+En revisión·33,250 tok
+audit-no-auth
+Aprobado·6,000 tok
+microservice
+Contrato en revisión·10,800 tok
+Sprint 1 · v1.0.0TCS Global
+TCS Microservice Code Studio/LangGraph Enterprise Orchestrator
+FastAPI
+mock(offline-mock)
+Rodrigo MendozaArchitect · @tcs.com
+Q
+Fábrica Quarkus · Nuevo Pedido
+
+Contract-First · Java 21 · SQLite/SQL Server
+
+Pedido
+ContratoControl Humano
+Arquitectura
+Construcción
+Docs
+Control 2Control Humano
+DevOps
+Paso 1: Entrada del Pedido de MicroservicioGeneración 100% Dinámica por IA
+
+Ingresa los datos y requerimientos de tu microservicio desde cero. La IA analizará la información para interrogarte en el Paso 2 a través de las 12 dimensiones de negocio y generar el contrato OpenAPI, historias de usuario BDD y el modelo relacional de base de datos.
+
+Limpiar Formulario
+Motor LLM: mockoffline-mock
+
+Modo offline (Mock Engine) activo. Generación sintética local sin consumo de red.
+
+Configurar mi API Key
+1
+Bloque 1: Datos Básicos del Microservicio
+Identificación técnica Java Quarkus
+Nombre del Microservicio *kebab-case
+Equipo / Área Propietaria *
+GroupId Maven / Gradle *
+Versión de Java
+Java 21 LTS (Recomendado - Records, Virtual Threads, Pattern Matching)
+Java 17 LTS
+Java 11
+Herramienta de Construcción (Build Tool)
+Maven (pom.xml)Gradle (build.gradle)
+2
+Bloque 2: Qué debe hacer (Lógica y Reglas de Negocio) *
+0 / 30 caracteres mín.
+
+Describe con tus propias palabras qué problema resuelve el servicio, qué entidades maneja, sus operaciones principales y reglas de negocio.
+
+Ideas para incluir:+ Detalle / Items+ Ciclo de Estados+ Validaciones de Negocio
+3
+Bloque 3: Requisitos Técnicos, Base de Datos & Seguridad
+Pila tecnológica del contenedor
+Base de Datos y Persistencia Panache *
+SQLite (Demo local portable - Zero setup en cualquier máquina)
+PostgreSQL (Recomendado para producción)
+SQL Server (Estándar corporativo)
+Azure SQL Database
+H2 Database (En memoria)
+MySQL / MariaDB
+Seguridad y Autenticación *
+JWT (Quarkus SmallRye JWT + MicroProfile)
+OAuth2 / OpenID Connect (Quarkus OIDC)
+Sin autenticación (Endpoints públicos)
+Habilitar Mensajería asíncrona con Apache Kafka (SmallRye Reactive Messaging)
+4
+Bloque 4: Adjuntos Opcionales (OpenAPI Preexistente)
+Opcional
+Ya dispongo de un contrato OpenAPI 3.1 previo (adoptar directamente para revisión en el Paso 2)
+Validador de Criterios del Pedido para la IA
+Faltan criterios obligatorios
+Nombre técnico kebab-case
+Equipo propietario
+GroupId Java válido
+Descripción (≥ 30 caracteres)
+
+Al enviar, el Agente Analista sintetizará directamente el contrato OpenAPI 3.1, Historias de Usuario BDD y Modelo Relacional sin cuestionarios.
+
+Generar y Revisar Contrato OpenAPI (Paso 2)

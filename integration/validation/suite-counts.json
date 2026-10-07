@@ -1,0 +1,44 @@
+{
+  "quarkus-refact-backend.xml": {
+    "tests": 149,
+    "passed": 143,
+    "failed": 6,
+    "errors": 0,
+    "skipped": 0
+  },
+  "quarkus-refact-frontend.xml": {
+    "tests": 64,
+    "passed": 61,
+    "failed": 3,
+    "errors": 0,
+    "skipped": 0
+  },
+  "quarkus-backend.xml": {
+    "tests": 1092,
+    "passed": 927,
+    "failed": 162,
+    "errors": 0,
+    "skipped": 3
+  },
+  "quarkus-frontend.xml": {
+    "tests": 68,
+    "passed": 59,
+    "failed": 9,
+    "errors": 0,
+    "skipped": 0
+  },
+  "springboot-backend.xml": {
+    "tests": 1509,
+    "passed": 1409,
+    "failed": 58,
+    "errors": 0,
+    "skipped": 42
+  },
+  "springboot-frontend.xml": {
+    "tests": 105,
+    "passed": 105,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

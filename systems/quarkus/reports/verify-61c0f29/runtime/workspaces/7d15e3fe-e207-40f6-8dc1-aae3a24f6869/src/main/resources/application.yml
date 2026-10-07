@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: audit-library
+  datasource:
+    url: 'jdbc:h2:mem:auditlibrary;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE'
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+server:
+  port: 8080

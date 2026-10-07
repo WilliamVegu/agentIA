@@ -1,0 +1,291 @@
+openapi: 3.0.3
+info:
+  title: Architecture & Component Design API
+  description: >
+    API for transforming User Stories, BDD Acceptance Criteria, and Domain Entities
+    into formal Spring Boot 3 / Java 21 Layered Architecture, Component Catalogs,
+    Mermaid diagrams, and OpenAPI 3.0 contracts.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Microservice Code Studio Internal API
+
+paths:
+  /architecture/design:
+    post:
+      summary: Synthesize layered architecture and components from specification draft
+      description: Decomposes stories and criteria into 4-layer architecture, component catalog, endpoints, and Mermaid diagrams.
+      operationId: designArchitecture
+      parameters:
+        - name: X-LLM-API-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Ephemeral LLM API key passed in memory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchitectureDesignRequest'
+      responses:
+        '200':
+          description: Architecture design successfully synthesized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchitectureDesignResponse'
+        '400':
+          description: Invalid input draft.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '401':
+          description: Missing required LLM API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /architecture/refine:
+    post:
+      summary: Refine architecture design with feedback prompt
+      description: Applies user architectural feedback or delta adjustments to update components, layers, or endpoints.
+      operationId: refineArchitecture
+      parameters:
+        - name: X-LLM-API-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Ephemeral LLM API key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchitectureRefinementRequest'
+      responses:
+        '200':
+          description: Architecture design successfully refined.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchitectureDesignResponse'
+        '400':
+          description: Invalid refinement payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+components:
+  schemas:
+    ArchitectureDesignRequest:
+      type: object
+      required:
+        - draft
+      properties:
+        draft:
+          $ref: '#/components/schemas/SpecificationDraft'
+        apiKey:
+          type: string
+          description: Optional payload field for ephemeral API key.
+
+    ArchitectureRefinementRequest:
+      type: object
+      required:
+        - currentDesign
+        - feedbackPrompt
+      properties:
+        currentDesign:
+          $ref: '#/components/schemas/ArchitectureDesignResponse'
+        feedbackPrompt:
+          type: string
+          example: "Separar la lógica de cálculo de impuestos en un servicio independiente"
+        targetComponent:
+          type: string
+          example: "OrderService"
+        apiKey:
+          type: string
+
+    ArchitectureDesignResponse:
+      type: object
+      required:
+        - serviceName
+        - packageName
+        - basePort
+        - components
+        - endpoints
+        - interactions
+        - mermaidDiagram
+        - architectureMarkdown
+        - openapiYaml
+      properties:
+        serviceName:
+          type: string
+          example: "order-service"
+        packageName:
+          type: string
+          example: "com.corp.order"
+        basePort:
+          type: integer
+          default: 8080
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentDefinition'
+        endpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiEndpointDefinition'
+        interactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentInteraction'
+        mermaidDiagram:
+          type: string
+          description: Valid Mermaid.js flowchart code representing layers and flows.
+        architectureMarkdown:
+          type: string
+          description: Full architecture document in Markdown.
+        openapiYaml:
+          type: string
+          description: Generated OpenAPI 3.0 specification in YAML.
+
+    ComponentDefinition:
+      type: object
+      required:
+        - name
+        - layer
+        - stereotype
+        - packageName
+        - responsibilities
+        - dependencies
+      properties:
+        name:
+          type: string
+          example: "OrderController"
+        layer:
+          type: string
+          enum: [controller, service, repository, model, infrastructure]
+        stereotype:
+          type: string
+          example: "@RestController"
+        packageName:
+          type: string
+          example: "com.corp.order.controller"
+        responsibilities:
+          type: array
+          items:
+            type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+        mappedStories:
+          type: array
+          items:
+            type: string
+
+    ApiEndpointDefinition:
+      type: object
+      required:
+        - method
+        - path
+        - summary
+        - successStatus
+        - errorStatuses
+      properties:
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE, PATCH]
+        path:
+          type: string
+          example: "/api/v1/orders"
+        summary:
+          type: string
+        requestDto:
+          type: string
+          example: "CreateOrderRequest"
+        responseDto:
+          type: string
+          example: "OrderResponse"
+        successStatus:
+          type: integer
+          example: 201
+        errorStatuses:
+          type: array
+          items:
+            type: integer
+          example: [400, 404, 500]
+        mappedScenarioId:
+          type: string
+          example: "AC-1.1"
+
+    ComponentInteraction:
+      type: object
+      required:
+        - sourceComponent
+        - targetComponent
+        - interactionType
+      properties:
+        sourceComponent:
+          type: string
+          example: "OrderController"
+        targetComponent:
+          type: string
+          example: "OrderService"
+        interactionType:
+          type: string
+          enum: [calls, persists, maps, intercepts]
+
+    SpecificationDraft:
+      type: object
+      required:
+        - serviceName
+        - packageName
+        - basePort
+        - entities
+        - userStories
+      properties:
+        serviceName:
+          type: string
+        packageName:
+          type: string
+        basePort:
+          type: integer
+        entities:
+          type: array
+          items:
+            type: object
+        userStories:
+          type: array
+          items:
+            type: object
+        assumptions:
+          type: array
+          items:
+            type: string
+
+    ApiErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - message
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: string
+

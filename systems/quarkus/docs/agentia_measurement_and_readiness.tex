@@ -1,0 +1,408 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{RGB}{30,80,150}
+\definecolor{softgray}{RGB}{245,246,248}
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{warn}{RGB}{160,60,40}
+\definecolor{good}{RGB}{30,120,70}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true, linkcolor=accent, urlcolor=accent,
+  pdftitle={AgentIA --- Measured Reliability, Cost and Readiness},
+  pdfauthor={AgentIA Engineering}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{accent}AgentIA --- Measurement and Readiness}
+\fancyhead[R]{\small\color{accent}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{softgray}, breaklines=true,
+  columns=fullflexible, keepspaces=true, showstringspaces=false,
+  xleftmargin=0.5em, xrightmargin=0.5em,
+}
+
+\newtcolorbox{notebox}[1][]{colback=softgray,colframe=accent,boxrule=0.4pt,
+  arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,breakable,#1}
+
+\title{\vspace{-1.4cm}\textbf{Measured Reliability, Cost and Readiness}\\[0.25cm]
+\large What the platform actually does on two corpora, what it costs per task, and
+what stands between it and production}
+\author{AgentIA Engineering}
+\date{2026-09-29}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{notebox}
+\textbf{What this document is.} The measured state, replacing the estimates in
+\texttt{agentia\_first\_baseline.tex} (whose central claim has been retracted
+in-document) and the stale figures in \texttt{agentia\_current\_state.tex}.
+
+Every number here comes from a real run against a real provider with real container
+verification attempted. Costs are read from the platform's own store
+(\texttt{backend/cost\_tracking.db}) and independently confirmed in MLflow. Where a
+figure could not be measured, this document says so rather than estimating it.
+
+\textbf{The headline is a null result.} A task corpus made ten times harder changed
+nothing: across 15 sessions and \textbf{75 stage runs the generator violated no
+encoded rule at all} --- not one local rejection, not one accumulated finding. That is
+a measurement about \emph{this model against this rule set}, and this document is
+explicit about how far it generalises: the surviving signal channel is narrow, and
+widening it is the experiment that would actually decide the optimization question.
+\end{notebox}
+
+\tableofcontents
+\vspace{0.5cm}
+
+\section{What was measured}
+
+Two corpora, run end to end on 2026-09-29, provider \texttt{deepseek}, model
+\texttt{deepseek-flash}:
+
+\begin{center}
+\begin{tabular}{@{}p{0.22\textwidth}p{0.16\textwidth}p{0.54\textwidth}@{}}
+\toprule
+\textbf{Corpus} & \textbf{Size} & \textbf{Character} \\
+\midrule
+frozen five & 5 blueprints & the held-out set frozen by feature 011; deliberately
+easy \\
+hard ten & 10 blueprints & 53 entities, 356 attributes, 80 stories, 207 scenarios;
+each stresses a different difficulty axis (referential depth, constraint variety,
+naming collisions, layering temptation, paging, mutation lifecycle, batch
+scheduling, breadth, invariant-heavy unhappy paths, heterogeneous identifiers) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Result: the corpus was not the problem}
+
+\begin{center}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Measure} & \textbf{frozen five} & \textbf{hard ten} \\
+\midrule
+Sessions recorded & 5 & 10 \\
+Sessions that generated & \textbf{5 / 5} & \textbf{10 / 10} \\
+Stage runs succeeding on the FIRST request & 25 / 25 & \textbf{50 / 50} \\
+Correction attempts consumed & 0 & \textbf{0} \\
+Artifacts per session & 15--23 & \textbf{39--63} \\
+Conformance score & 100 $\times$ 5 & \textbf{100 $\times$ 10} \\
+Conformance density & 0.0 $\times$ 5 & \textbf{0.0 $\times$ 10} \\
+Findings in the final artifact sets & none & \textbf{none} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A corpus with ten times the structural complexity produced \emph{identical}
+conformance. The hypothesis ``the tasks are too easy'' is falsified.
+
+\subsection{Why the surviving signal is narrow --- and what that does not mean}
+\label{sec:structural}
+
+This is structural, not statistical, and it is the finding that closes the
+optimization line.
+
+The compliance gate **blocks stage-local violations before persistence**. An artifact
+set that reaches the workspace has therefore already passed every local rule by
+construction. The only findings that can survive into a saved set are
+\emph{accumulated} whole-project ones --- and exactly one exists
+(\texttt{PRINCIPLE\_III\_CENTRALIZED\_ERRORS}, the requirement for a
+\texttt{@RestControllerAdvice}), which the generator satisfies by emitting
+\texttt{GlobalExceptionHandler} in the controller stage.
+
+That channel is real, and it can vary. Removing the advice class from an otherwise
+compliant set:
+
+\begin{center}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+& \textbf{score} & \textbf{density} & \textbf{findings} \\
+\midrule
+advice present & 100 & 0.0 & none \\
+advice absent & \textbf{85} & \textbf{250.0} & \texttt{PRINCIPLE\_III\_CENTRALIZED\_ERRORS} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+So the final-set measure is \emph{not} structurally pinned. What the runs show is that
+this model never omitted the advice class --- and never triggered a local rule either:
+zero rejections and zero accumulated findings across 75 stage runs.
+
+\textbf{The correct reading is narrower than ``the objective is degenerate'', and it has
+two parts.} \emph{Observed:} variance is zero on 15 real sessions across two corpora.
+\emph{Mechanism:} only the accumulated channel can carry variance, and that channel
+currently holds a single, easily satisfied rule. A null result from one rule is a
+\textbf{weak test of the hypothesis, not a refutation of it} --- and an earlier draft of
+this section claimed the stronger, wrong thing.
+
+\textbf{The experiment that would settle it:} widen the accumulated rule set with real
+whole-project invariants, then sweep task difficulty until the model begins to violate
+something. Only then is the variance question answered, and only then could an
+optimiser be evaluated. Note carefully where that change lives: in the \emph{harness}
+--- the counting rules --- which a round must never be able to reach (FR-014).
+
+\section{Result: cost and tokens per task}
+
+Generation now costs one request per stage --- five per session --- because nothing
+fails validation and needs a second attempt. Cost scales with \emph{blueprint
+complexity} (payload and output tokens), never with retries.
+
+\subsection{Hard ten --- per task}
+
+\begin{center}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Task} & \textbf{Calls} & \textbf{Input tok} & \textbf{Output tok} & \textbf{Cost USD} \\
+\midrule
+hard-01 & 5 & 74{,}649 & 107{,}044 & \$0.0745 \\
+hard-02 & 5 & 55{,}457 & 77{,}352 & \$0.0538 \\
+hard-03 & 5 & 61{,}780 & 91{,}533 & \$0.0633 \\
+hard-04 & 5 & 49{,}470 & 75{,}466 & \$0.0518 \\
+hard-05 & 5 & 49{,}827 & 88{,}788 & \$0.0598 \\
+hard-06 & 5 & 57{,}412 & 83{,}082 & \$0.0575 \\
+hard-07 & 5 & 65{,}163 & 98{,}729 & \$0.0681 \\
+hard-08 & 5 & 78{,}794 & 110{,}118 & \$0.0770 \\
+hard-09 & 5 & 73{,}428 & 84{,}419 & \$0.0607 \\
+hard-10 & 5 & 61{,}887 & 101{,}287 & \$0.0691 \\
+\midrule
+\textbf{Total} & \textbf{50} & \textbf{627{,}867} & \textbf{917{,}818} & \textbf{\$0.6357} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Per-stage breakdown (one simple service)}
+
+Every stage is one request; the test stage is the most expensive because its output
+is the largest.
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Stage} & \textbf{Input tok} & \textbf{Output tok} & \textbf{Cost USD} \\
+\midrule
+SCAFFOLDER & 2{,}200 & 6{,}620 & \$0.0040 \\
+DOMAIN & 2{,}669 & 1{,}759 & \$0.0012 \\
+SERVICE & 3{,}250 & 5{,}166 & \$0.0034 \\
+CONTROLLER & 3{,}925 & 4{,}210 & \$0.0029 \\
+TEST & 5{,}711 & 9{,}108 & \$0.0061 \\
+\midrule
+\textbf{Total} & \textbf{17{,}755} & \textbf{26{,}863} & \textbf{\$0.0176} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Pricing summary}
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Service size} & \textbf{Artifacts} & \textbf{Tokens (in / out)} & \textbf{Cost} \\
+\midrule
+simple (\texttt{minimal}) & 15 & 17{,}755 / 26{,}863 & \textbf{\$0.0176} \\
+medium (frozen five range) & 15--23 & $\approx$25k / $\approx$60k & \$0.018--0.025 \\
+hard (hard ten range) & 39--63 & 49k--79k / 75k--110k & \textbf{\$0.052--0.077} \\
+\midrule
+per model call (all runs) & --- & --- & $\approx$ \textbf{\$0.005} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Telemetry: the mirror works, and it agrees}
+
+Cost records are written to the local SQLite store (the system of record) and
+mirrored per call \emph{and} per session to MLflow. Reading the hard ten back from
+the tracking server independently reproduced the local totals exactly --- 50 runs,
+\$0.6357 --- which is what makes the local figure trustworthy rather than merely
+self-consistent.
+
+\begin{lstlisting}
+# authoritative, offline, deterministic
+.venv/bin/python backend/scripts/report_task_costs.py --prefix hard-r1
+# the mirror, for a UI
+.venv/bin/mlflow server --backend-store-uri sqlite:///mlflow.db \
+    --default-artifact-root ./mlruns --host 127.0.0.1 --port 5000
+\end{lstlisting}
+
+\begin{notebox}[colframe=warn]
+\textbf{Two defects had to be fixed before these numbers meant anything.} Records and
+cost rows were keyed differently (a fresh session prefix disambiguated the record but
+not the cost, so a run that spent \$0.1235 reported ``cost: no data''), and session
+aggregates were never mirrored at all --- only per-call records. Both are fixed, and
+the record/cost identity is now pinned by a contract test. Cost telemetry that
+disagrees with itself is worse than none.
+\end{notebox}
+
+\section{How this differs from a developer using generative AI}
+
+The honest answer first: \textbf{the model is the same commodity model a developer
+would call.} There is no fine-tuning, no custom weights, and no claim to better code.
+The difference is not the generator; it is the governed pipeline around it.
+
+\begin{center}
+\begin{tabular}{@{}p{0.20\textwidth}p{0.34\textwidth}p{0.38\textwidth}@{}}
+\toprule
+& \textbf{Developer + generic AI} & \textbf{AgentIA} \\
+\midrule
+Input & a prompt, refined by conversation & a formal blueprint: entities,
+attributes, validation rules, BDD acceptance scenarios, frozen before generation \\
+Verification & the developer's own, by hand, at their discretion & a
+\textbf{deterministic rule gate} plus a \textbf{hermetic offline build}
+(\texttt{mvn test -o}, no network) --- executable, repeatable, not a judgement call \\
+Failure record & chat history, discarded & a durable per-session record: stage,
+outcome, requests spent, rule, artifact, severity, and which stage introduced it \\
+Honesty about verification & unknown whether the code was ever run & \textbf{refuses
+to substitute a synthetic success}; a session that could not be verified is marked
+and excluded from every figure \\
+Reproducibility & not reproducible & a deterministic mode that is byte-identical for
+identical input; model runs carry provider, model, instruction revision and content
+digests \\
+Cost & a seat licence or an untracked token bill & priced per call, per stage, per
+session, mirrored, and reportable per task \\
+Self-correction & manual re-prompting, unbounded & bounded at three attempts per
+stage, recorded, and it stops rather than looping \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{And the honest counterpoints}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{The gate never had to fire in these runs.} The model passed every
+  rule first time. The gate's value is insurance, and insurance looks worthless
+  right up until it does not. Nothing measured here demonstrates that the gate
+  catches errors, because there were none to catch.
+  \item \textbf{Conformance is not correctness.} The instrument is a fixed,
+  hand-written rule set. A well-layered but broken service scores full marks.
+  \item \textbf{The build and test step is unmeasured.} 0 of 15 sessions were
+  verified: the container runtime was unreachable from the measurement shell. Every
+  session terminated at the sandbox with an honest ``could not verify''. Whether the
+  generated code compiles and passes its tests is therefore \emph{unknown}, and it is
+  the single most important unknown in this document.
+  \item \textbf{One product entry point does not use the model.}
+  \texttt{POST /sessions} runs deterministic templates while quick-start and the
+  orchestrator routes run the model (\S\ref{sec:blocker}). The measurements above
+  describe the model path.
+\end{itemize}
+
+\section{Readiness: what stands between this and production}
+\label{sec:blocker}
+
+\begin{notebox}[colframe=warn]
+\textbf{One of the two generation entry points silently does not use the model.}
+The platform has two ways to start a session, and they disagree:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Sequential path.} \texttt{POST /sessions/quick-start} with
+  \texttt{autoRun: true}, and \texttt{/orchestrator/pipeline/run}, thread the caller's
+  credentials into \texttt{pipeline\_runner}, which calls
+  \texttt{select\_generation\_mode(api\_key, provider, model\_name)} and selects
+  \textbf{MODEL}. \textbf{These routes can use the model}, and they are the ones a
+  client should use today.
+  \item \textbf{Graph path.} \texttt{POST /sessions} builds its state by calling
+  \texttt{select\_generation\_mode()} \emph{with no arguments} and passes no
+  \texttt{llm\_api\_key}. With no key and no provider that returns
+  \textbf{DETERMINISTIC}, so this route emits offline templates and never calls the
+  model --- although the graph itself supports MODEL mode, as the batch driver proves
+  by invoking the same graph with credentials in the state.
+\end{itemize}
+
+The consequence is a product surface that behaves differently depending on which
+endpoint a client picks: one returns model-generated code, the other templates, and
+nothing in the response distinguishes them. It is a one-line wiring fix, not a
+blocker --- and it is a correction to an earlier draft of this document, which claimed
+the application could not reach the model at all. That was wrong: the quick-start and
+orchestrator routes do.
+\end{notebox}
+
+Ranked by what unblocks the most:
+
+\begin{center}
+\begin{tabular}{@{}p{0.07\textwidth}p{0.30\textwidth}p{0.55\textwidth}@{}}
+\toprule
+\textbf{Priority} & \textbf{Item} & \textbf{Why it is where it is} \\
+\midrule
+P0 & Entry-point consistency & \texttt{POST /sessions} silently runs offline
+templates while quick-start runs the model; a client cannot tell which it received \\
+P1 & \textbf{Build pass rate} & the only remaining measurement. Run the corpus where
+the container works. Until then ``reliable'' is unfalsifiable \\
+P2 & \textbf{Widen the accumulated rule set} & the only channel that can carry
+variance holds one easily satisfied rule. More whole-project invariants give the
+measure a range --- and the same sweep of task difficulty locates where the model
+starts to violate anything. This is the decisive experiment for the optimizer \\
+P2b & Fix build failures in \emph{code} & if builds fail, the diagnostic channel names
+the classes; systematic fixes belong in the harness, the instruction set or the
+dependency allowlist --- deterministic, reviewable, testable --- not in prose skills
+edited by a model \\
+P3 & Verification-guided selection (best-of-$k$) & the evidence-ranked lever. The
+verifier already exists and is free; generation is \$0.064/task, so $k{=}4$ is
+$\approx$\$0.26 and converts unreliable generation into reliable output \emph{without
+trusting the model} \\
+P4 & Operational hardening & container runtime reachable where it is deployed;
+per-session cost attribution; the repair cap (the constitution says 3,
+\texttt{config.py} says 5); the stale README; the two empty skill placeholders ---
+author or delete them \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Recommendation}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Do not close the optimization line, and do not run it yet.} The null
+  result came from a channel holding one easily satisfied rule, which is a weak test,
+  not a refutation (\S\ref{sec:structural}). Running the optimizer now would be
+  optimising a two-point distribution. The decisive experiment is cheap and is
+  described in P2 below.
+  \item \textbf{Make the two entry points agree} (P0). Quick-start reaches the
+  model; \texttt{POST /sessions} silently does not. A client should not have to know
+  which endpoint yields model output. It is a small wiring fix.
+  \item \textbf{Measure the build pass rate} (P1). One run in a shell where the
+  container runtime initialises. No further reliability work is defensible before it:
+  everything else is optimising a pipeline whose output has never been proven to
+  compile.
+  \item \textbf{If builds fail, fix them in code} (P2). The lesson of this whole
+  exercise is that the reliable place to encode a rule is a deterministic check and a
+  test --- three real defects were found this way and none by the language model.
+  \item \textbf{Then, and only then, spend on best-of-$k$} (P3). It is measurable at
+  this corpus size because it moves a binary per-task outcome, where a conformance
+  nudge of a few points would be buried in noise.
+  \item \textbf{Do not} present conformance as a reliability metric, and do not
+  resurrect the optimizer without first exhibiting a measure that varies.
+\end{enumerate}
+
+\subsection*{The one-sentence position}
+
+The generator is reliable on the axis that was measured --- first-attempt
+rule-compliance, at \$0.064 per hard service --- but the axis that matters for
+production, whether the output builds and passes its tests, has not been measured
+once; one of the application's two generation entry points never invokes the model;
+and the optimizer's null result came from a one-rule channel, which is too weak a test
+to close the question.
+
+\end{document}

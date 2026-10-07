@@ -1,0 +1,292 @@
+[
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_python_and_powershell_select_exact_same_inputs",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_python_and_powershell_sel0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[.mvn/maven.config]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[.mvn/extensions.xml]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[gradle/libs.versions.toml]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in2\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[gradle/wrapper/gradle-wrapper.properties]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in3\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[gradle.lockfile]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in4\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[gradlew.bat]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in5\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[buildSrc/src/main/kotlin/Dependencies.kt]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in6\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_rejects_new_input_before_any_docker_call[config/testing.gradle.kts]",
+    "message": "AssertionError: assert 'dependencias' in ''\n +  where '' = <built-in method lower of str object at 0x00007FF9CB403CA0>()\n +    where <built-in method lower of str object at 0x00007FF9CB403CA0> = ''.lower\n +      where '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_rejects_new_in7\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_preparation_guards_inputs_and_source_choice[sources]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_preparation_gu0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_preparation_guards_inputs_and_source_choice[changed]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_preparation_gu1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_dependency_inputs",
+    "name": "test_standalone_preparation_guards_inputs_and_source_choice[during]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_standalone_preparation_gu2\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_gradle_compatibility",
+    "name": "test_generated_scripts_reject_version_before_docker_but_allow_sources[False-start-local.ps1]",
+    "message": "AssertionError: assert (3221225794 != 0 and 'Gradle incompatible' in '')\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_generated_scripts_reject_0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode\n +  and   '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_generated_scripts_reject_0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_gradle_compatibility",
+    "name": "test_generated_scripts_reject_version_before_docker_but_allow_sources[False-prepare-local.ps1]",
+    "message": "AssertionError: assert (3221225794 != 0 and 'Gradle incompatible' in '')\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_generated_scripts_reject_1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode\n +  and   '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_generated_scripts_reject_1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_gradle_compatibility",
+    "name": "test_generated_scripts_reject_version_before_docker_but_allow_sources[True-start-local.ps1]",
+    "message": "AssertionError: assert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_generated_scripts_reject_2\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_gradle_compatibility",
+    "name": "test_generated_scripts_reject_version_before_docker_but_allow_sources[True-prepare-local.ps1]",
+    "message": "AssertionError: assert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_generated_scripts_reject_3\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_gradle_compatibility",
+    "name": "test_supported_version_reaches_explicit_docker_boundary[start-local.ps1]",
+    "message": "AssertionError: assert (3221225794 != 0 and 'DOCKER_BOUNDARY_REACHED' in '')\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_supported_version_reaches0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode\n +  and   '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_supported_version_reaches0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_gradle_compatibility",
+    "name": "test_supported_version_reaches_explicit_docker_boundary[prepare-local.ps1]",
+    "message": "AssertionError: assert (3221225794 != 0 and 'DOCKER_BOUNDARY_REACHED' in '')\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_supported_version_reaches1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode\n +  and   '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_supported_version_reaches1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_lifecycle_scripts",
+    "name": "test_windows_owned_resource_arrays_and_foreign_rejection[False]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_windows_owned_resource_ar0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_lifecycle_scripts",
+    "name": "test_windows_owned_resource_arrays_and_foreign_rejection[True]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_windows_owned_resource_ar1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_local_kubernetes_ci",
+    "name": "test_source_audit_runs_without_docker_and_fails_on_real_findings",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\Users\\\\GenAIAUGPERUSR2\\\\Documents\\\\agentIA-dual-systems\\\\.venv\\\\Scripts\\\\python.exe', 'C:\\...enAIAUGPERUSR2\\\\pytest-29\\\\test_source_audit_runs_without0\\\\local-ci.py'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_local_operation_controls",
+    "name": "test_real_owned_process_is_reaped_on_cancel",
+    "message": "RuntimeError: Docker exit code 3221225794:"
+  },
+  {
+    "module": "backend.tests.test_native_source_guard",
+    "name": "test_prohibited_operation_is_recorded_and_rejected[import shutil; shutil.which(\"docker\")-docker-discovery]",
+    "message": "FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\GenAIAUGPERUSR2\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-GenAIAUGPERUSR2\\\\pytest-29\\\\test_prohibited_operation_is_r0\\\\ready.json'"
+  },
+  {
+    "module": "backend.tests.test_native_source_guard",
+    "name": "test_prohibited_operation_is_recorded_and_rejected[import docker; docker.DockerClient()-docker-sdk]",
+    "message": "FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\GenAIAUGPERUSR2\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-GenAIAUGPERUSR2\\\\pytest-29\\\\test_prohibited_operation_is_r1\\\\ready.json'"
+  },
+  {
+    "module": "backend.tests.test_native_source_guard",
+    "name": "test_prohibited_operation_is_recorded_and_rejected[import socket; socket.getaddrinfo(\"example.invalid\",443)-external-network]",
+    "message": "FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\Users\\\\GenAIAUGPERUSR2\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-GenAIAUGPERUSR2\\\\pytest-29\\\\test_prohibited_operation_is_r2\\\\ready.json'"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[valid]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo0\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[corrupt]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo1\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[hash]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo2\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[fingerprint]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo3\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[modified-build]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo4\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[added-build]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo5\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[cache-manifest]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo6\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[existing-image]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo7\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[architecture]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo8\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[archive-tags]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...UGPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo9\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[archive-id]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...GPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo10\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[archive-duplicate]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...GPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo11\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[archive-format]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...GPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo12\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[added-gradle-catalog]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...GPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo13\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_kit_checks_integrity_before_loading_images[modified-maven-config]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...GPERUSR2\\\\pytest-29\\\\test_kit_checks_integrity_befo14\\\\validate-kit.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_oci_index_links_image_identity_and_rejects_undeclared_tags[valid-oci]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_oci_index_links_image_ide0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_oci_index_links_image_identity_and_rejects_undeclared_tags[foreign-oci]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_oci_index_links_image_ide1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_oci_index_links_image_identity_and_rejects_undeclared_tags[forged-index]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_oci_index_links_image_ide2\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_offline_kit_scripts",
+    "name": "test_oci_index_links_image_identity_and_rejects_undeclared_tags[wrong-link]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_oci_index_links_image_ide3\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_routes_devops",
+    "name": "test_deploy_devops_clean_session_behavior",
+    "message": "AssertionError: {\"detail\":\"Project is not verified: execute and pass a nonempty test suite without fallback before exporting or publishing.\"}\nassert 403 == 200\n +  where 403 = <Response [403 Forbidden]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_runtime_log_capture",
+    "name": "test_build_output_is_delivered_before_command_exit",
+    "message": "assert False\n +  where False = wait(3)\n +    where wait = <threading.Event at 0x1f110374380: unset>.wait"
+  },
+  {
+    "module": "backend.tests.test_runtime_log_capture",
+    "name": "test_logged_command_timeout_and_failure_are_bounded_and_secret_free",
+    "message": "RuntimeError: Docker exit code 3221225794:"
+  },
+  {
+    "module": "backend.tests.test_runtime_log_capture",
+    "name": "test_long_line_is_one_bounded_record_without_leaking_tail",
+    "message": "RuntimeError: Docker exit code 3221225794:"
+  },
+  {
+    "module": "backend.tests.test_session_operation_lock",
+    "name": "test_lock_excludes_other_process_and_releases_after_crash",
+    "message": "AssertionError: assert '' == 'ACQUIRED'\n  \n  - ACQUIRED"
+  },
+  {
+    "module": "backend.tests.test_session_operation_lock",
+    "name": "test_cancel_request_reaches_other_process_without_false_recovery",
+    "message": "AssertionError: assert '' == 'ACTIVE'\n  \n  - ACTIVE"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_sources_only_start_returns_without_docker",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_sources_only_start_return0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_dependency_change_rejected_before_docker",
+    "message": "AssertionError: assert (3221225794 != 0 and 'Dependencias cambiadas' in '')\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_dependency_change_rejecte0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode\n +  and   '' = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_dependency_change_rejecte0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').stderr"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_saved_port_is_used_when_omitted_and_explicit_port_wins",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_saved_port_is_used_when_o0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_start_checks_config_and_does_not_report_success_after_failure[foreign]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_start_checks_config_and_d0\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_start_checks_config_and_does_not_report_success_after_failure[build]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_start_checks_config_and_d1\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_start_checks_config_and_does_not_report_success_after_failure[readiness]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_start_checks_config_and_d2\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_start_checks_config_and_does_not_report_success_after_failure[missing-image]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_start_checks_config_and_d3\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  },
+  {
+    "module": "backend.tests.test_standalone_delivery",
+    "name": "test_start_checks_config_and_does_not_report_success_after_failure[success]",
+    "message": "AssertionError: \nassert 3221225794 == 0\n +  where 3221225794 = CompletedProcess(args=['C:\\\\windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe', '-NoProfile', '-NonInteractiv...-GenAIAUGPERUSR2\\\\pytest-29\\\\test_start_checks_config_and_d4\\\\probe.ps1'], returncode=3221225794, stdout='', stderr='').returncode"
+  }
+]

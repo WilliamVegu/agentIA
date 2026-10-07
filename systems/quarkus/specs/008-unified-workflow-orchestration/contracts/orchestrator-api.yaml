@@ -1,0 +1,340 @@
+openapi: 3.0.3
+info:
+  title: Microservice Code Studio - Unified Workflow Orchestrator API
+  description: Central lifecycle coordination, autonomous auto-pilot execution, hot-pausing, and complete bundle export.
+  version: 1.0.0
+servers:
+  - url: /api/v1/orchestrator
+    description: Orchestration Service Endpoint Base
+
+paths:
+  /sessions/{session_id}/overview:
+    get:
+      summary: Retrieves high-level project summary and milestone metrics for the Home View.
+      operationId: getProjectOverview
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project overview successfully retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOverviewSummary'
+        '404':
+          description: Session not found.
+
+  /sessions/{session_id}/lifecycle:
+    get:
+      summary: Returns the full lifecycle state, phase progress, and next recommended action.
+      operationId: getLifecycleState
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lifecycle state retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LifecycleState'
+        '404':
+          description: Session not found.
+
+  /sessions/{session_id}/transition:
+    post:
+      summary: Validates prerequisites and transitions the session to a target lifecycle phase.
+      operationId: transitionPhase
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhaseTransitionRequest'
+      responses:
+        '200':
+          description: Transition successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LifecycleState'
+        '400':
+          description: Prerequisite violation preventing transition.
+        '404':
+          description: Session not found.
+
+  /pipeline/run:
+    post:
+      summary: Initiates autonomous background Auto-Pilot pipeline execution.
+      operationId: runAutoPilotPipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineRunRequest'
+      responses:
+        '202':
+          description: Pipeline run initiated in background.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  status:
+                    type: string
+                    example: RUNNING
+                  streamUrl:
+                    type: string
+                    example: /api/v1/orchestrator/pipeline/sess-123/events
+        '400':
+          description: Session cannot be run.
+
+  /pipeline/{session_id}/pause:
+    post:
+      summary: Pauses an active Auto-Pilot run and transitions to Guided Step-by-Step mode.
+      operationId: pauseAutoPilotPipeline
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pipeline successfully paused.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  status:
+                    type: string
+                    example: PAUSED
+
+  /pipeline/{session_id}/resume:
+    post:
+      summary: Resumes a paused Auto-Pilot run.
+      operationId: resumeAutoPilotPipeline
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pipeline successfully resumed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  status:
+                    type: string
+                    example: RUNNING
+
+  /pipeline/{session_id}/events:
+    get:
+      summary: Streams real-time progress events for an active pipeline via Server-Sent Events (SSE).
+      operationId: streamPipelineEvents
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Real-time event stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /sessions/{session_id}/export-bundle:
+    get:
+      summary: Downloads all workspace artifacts in a unified ZIP archive.
+      operationId: exportFullBundle
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Complete bundle ZIP file.
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+
+components:
+  schemas:
+    LifecyclePhase:
+      type: string
+      enum:
+        - INITIAL
+        - REQUIREMENTS
+        - STORIES
+        - ARCHITECTURE
+        - DATA_MODEL
+        - CODE_TESTS
+        - SECURITY_AUDIT
+        - DEVOPS_DEPLOY
+        - COMPLETED
+
+    PhaseStatus:
+      type: string
+      enum:
+        - NOT_STARTED
+        - IN_PROGRESS
+        - COMPLETED
+        - OUTDATED
+        - BLOCKED
+        - SKIPPED
+
+    PhaseState:
+      type: object
+      required:
+        - phase
+        - status
+        - title
+        - description
+        - canEnter
+      properties:
+        phase:
+          $ref: '#/components/schemas/LifecyclePhase'
+        status:
+          $ref: '#/components/schemas/PhaseStatus'
+        title:
+          type: string
+        description:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        canEnter:
+          type: boolean
+        blockingReason:
+          type: string
+          nullable: true
+
+    LifecycleState:
+      type: object
+      required:
+        - sessionId
+        - currentPhase
+        - completionPercentage
+        - phases
+        - nextRecommendedAction
+        - canAdvance
+        - activeMode
+      properties:
+        sessionId:
+          type: string
+        currentPhase:
+          $ref: '#/components/schemas/LifecyclePhase'
+        completionPercentage:
+          type: number
+          format: float
+        phases:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhaseState'
+        nextRecommendedAction:
+          type: string
+        nextTargetPhase:
+          $ref: '#/components/schemas/LifecyclePhase'
+          nullable: true
+        canAdvance:
+          type: boolean
+        activeMode:
+          type: string
+          enum: [AUTO_PILOT, GUIDED_STEP]
+        isOutdated:
+          type: boolean
+
+    PhaseTransitionRequest:
+      type: object
+      required:
+        - targetPhase
+      properties:
+        targetPhase:
+          $ref: '#/components/schemas/LifecyclePhase'
+        force:
+          type: boolean
+          default: false
+
+    PipelineRunRequest:
+      type: object
+      required:
+        - sessionId
+      properties:
+        sessionId:
+          type: string
+        targetPhase:
+          $ref: '#/components/schemas/LifecyclePhase'
+          default: DEVOPS_DEPLOY
+        stopOnGate:
+          type: boolean
+          default: true
+        autoDeploy:
+          type: boolean
+          default: false
+
+    ProjectOverviewSummary:
+      type: object
+      required:
+        - sessionId
+        - specName
+        - lifecycle
+        - framework
+        - databaseEngine
+      properties:
+        sessionId:
+          type: string
+        specName:
+          type: string
+        lifecycle:
+          $ref: '#/components/schemas/LifecycleState'
+        framework:
+          type: string
+        databaseEngine:
+          type: string
+        userStoriesCount:
+          type: integer
+        entitiesCount:
+          type: integer
+        testsPassed:
+          type: boolean
+        securityAuditVerdict:
+          type: string
+        deploymentStatus:
+          type: string
+        deploymentUrl:
+          type: string
+          nullable: true
+

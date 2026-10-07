@@ -1,0 +1,363 @@
+{
+  "blueprintId": "hard-08",
+  "corpusRole": "held-out-hard",
+  "difficultyAxis": "Sheer breadth under one budget: eight interrelated entities, ten user stories and twenty-six acceptance scenarios, so an implementation must sustain consistency across the whole specification rather than the first half of it.",
+  "rationale": "A clinic service that combines entity count, attribute width and story count in a single task. Stories share entities (an appointment references a patient, a practitioner and a room; an encounter references an appointment; a prescription references an encounter and carries items; a diagnosis references an encounter). A generator that truncates its work, drops the tail entities or the last stories, or loses cross-story consistency is visibly wrong here while the smaller fixtures still pass.",
+
+  "serviceName": "clinic-service",
+  "packageName": "com.corp.clinic",
+  "basePort": 8188,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Patient",
+      "tableName": "patients",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "medicalRecordNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "email", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Email"] },
+        { "name": "phoneNumber", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "dateOfBirth", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Past"] },
+        { "name": "bloodGroup", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Pattern"] },
+        { "name": "allergiesNoted", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Practitioner",
+      "tableName": "practitioners",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "registrationNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "fullName", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "speciality", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "email", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Email"] },
+        { "name": "consultationFee", "type": "BigDecimal", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PositiveOrZero", "@Digits"] },
+        { "name": "active", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Room",
+      "tableName": "rooms",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "roomCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "floorNumber", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "capacity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "equippedForSurgery", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Appointment",
+      "tableName": "appointments",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "patientId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "practitionerId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "roomId", "type": "Long", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "scheduledStart", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "scheduledEnd", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "status", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "reason", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] }
+      ]
+    },
+    {
+      "name": "Encounter",
+      "tableName": "encounters",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "appointmentId", "type": "Long", "nullable": true, "isPrimaryKey": false, "validationRules": [] },
+        { "name": "patientId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "practitionerId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "startedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "endedAt", "type": "LocalDateTime", "nullable": true, "isPrimaryKey": false, "validationRules": ["@PastOrPresent"] },
+        { "name": "notes", "type": "String", "nullable": true, "isPrimaryKey": false, "validationRules": ["@Size"] },
+        { "name": "followUpRequired", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "Diagnosis",
+      "tableName": "diagnoses",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "encounterId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "diagnosisCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "description", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "primaryDiagnosis", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "recordedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] }
+      ]
+    },
+    {
+      "name": "Prescription",
+      "tableName": "prescriptions",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "encounterId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "prescriptionNumber", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "issuedAt", "type": "LocalDateTime", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@PastOrPresent"] },
+        { "name": "validUntil", "type": "LocalDate", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Future"] },
+        { "name": "controlled", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    },
+    {
+      "name": "PrescriptionItem",
+      "tableName": "prescription_items",
+      "attributes": [
+        { "name": "id", "type": "Long", "nullable": false, "isPrimaryKey": true, "validationRules": [] },
+        { "name": "prescriptionId", "type": "Long", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] },
+        { "name": "medicationCode", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Pattern"] },
+        { "name": "dosage", "type": "String", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotBlank", "@Size"] },
+        { "name": "quantity", "type": "Integer", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull", "@Min", "@Max"] },
+        { "name": "repeatAllowed", "type": "Boolean", "nullable": false, "isPrimaryKey": false, "validationRules": ["@NotNull"] }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "registration clerk",
+      "intent": "register a patient with a medical record number and demographic details",
+      "benefit": "the patient can be booked and treated under one identity",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a medical record number matching the permitted pattern and a date of birth in the past",
+          "when": "the clerk registers the patient",
+          "then": "the patient is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed email address",
+          "when": "the clerk attempts to register the patient",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "a date of birth in the future",
+          "when": "the clerk attempts to register the patient",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P1",
+      "role": "practice manager",
+      "intent": "register a practitioner with a speciality and a consultation fee",
+      "benefit": "appointments can be assigned to a qualified clinician",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "a registration number matching the permitted pattern and a non-negative fee",
+          "when": "the manager registers the practitioner",
+          "then": "the practitioner is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a negative consultation fee",
+          "when": "the manager attempts to register the practitioner",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P2",
+      "role": "practice manager",
+      "intent": "register a room with a floor, a capacity and its surgical equipment flag",
+      "benefit": "appointments can be placed in a suitable room",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "a unique room code and a capacity within the permitted range",
+          "when": "the manager registers the room",
+          "then": "the room is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-3.2",
+          "given": "a capacity below the permitted minimum",
+          "when": "the manager attempts to register the room",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-4",
+      "priority": "P1",
+      "role": "scheduling clerk",
+      "intent": "book an appointment for a patient with a practitioner in a room",
+      "benefit": "the patient has a confirmed slot with a clinician",
+      "scenarios": [
+        {
+          "scenarioId": "AC-4.1",
+          "given": "an existing patient, an existing active practitioner, an existing room and a start time before the end time",
+          "when": "the clerk books the appointment",
+          "then": "the appointment is persisted with all three references and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-4.2",
+          "given": "a practitioner who already holds an overlapping appointment",
+          "when": "the clerk attempts to book the appointment",
+          "then": "the service rejects the booking as conflicting"
+        },
+        {
+          "scenarioId": "AC-4.3",
+          "given": "an end time earlier than the start time",
+          "when": "the clerk attempts to book the appointment",
+          "then": "the service rejects the appointment as inconsistent"
+        },
+        {
+          "scenarioId": "AC-4.4",
+          "given": "a patient identifier that does not exist",
+          "when": "the clerk attempts to book the appointment",
+          "then": "the service reports the patient as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-5",
+      "priority": "P1",
+      "role": "clinician",
+      "intent": "record the encounter that took place for a patient",
+      "benefit": "the clinical record reflects what happened during the visit",
+      "scenarios": [
+        {
+          "scenarioId": "AC-5.1",
+          "given": "an existing patient, an existing practitioner and a start time not in the future",
+          "when": "the clinician records the encounter",
+          "then": "the encounter is persisted and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-5.2",
+          "given": "an end time earlier than the start time",
+          "when": "the clinician attempts to record the encounter",
+          "then": "the service rejects the encounter as inconsistent"
+        },
+        {
+          "scenarioId": "AC-5.3",
+          "given": "an appointment identifier that does not exist",
+          "when": "the clinician records the encounter against that appointment",
+          "then": "the service reports the appointment as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-6",
+      "priority": "P1",
+      "role": "clinician",
+      "intent": "record one or more diagnoses against an encounter, marking one as primary",
+      "benefit": "the reason for treatment is coded and unambiguous",
+      "scenarios": [
+        {
+          "scenarioId": "AC-6.1",
+          "given": "an existing encounter and a diagnosis code matching the permitted pattern",
+          "when": "the clinician records the diagnosis",
+          "then": "the diagnosis is persisted against the encounter and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-6.2",
+          "given": "an encounter that already carries a primary diagnosis",
+          "when": "the clinician records a second diagnosis marked primary",
+          "then": "the service rejects the second primary diagnosis as conflicting"
+        },
+        {
+          "scenarioId": "AC-6.3",
+          "given": "an encounter identifier that does not exist",
+          "when": "the clinician records a diagnosis against it",
+          "then": "the service reports the encounter as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-7",
+      "priority": "P1",
+      "role": "clinician",
+      "intent": "issue a prescription for an encounter with a validity date",
+      "benefit": "the patient can obtain the medication after the visit",
+      "scenarios": [
+        {
+          "scenarioId": "AC-7.1",
+          "given": "an existing encounter and a validity date in the future",
+          "when": "the clinician issues the prescription",
+          "then": "the prescription is persisted against the encounter and returned with its identifier"
+        },
+        {
+          "scenarioId": "AC-7.2",
+          "given": "a validity date in the past",
+          "when": "the clinician attempts to issue the prescription",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-8",
+      "priority": "P2",
+      "role": "clinician",
+      "intent": "add medication items to an existing prescription",
+      "benefit": "the dispensed medication and dosage are explicit",
+      "scenarios": [
+        {
+          "scenarioId": "AC-8.1",
+          "given": "an existing prescription and a quantity within the permitted range",
+          "when": "the clinician adds the item",
+          "then": "the item is persisted against the prescription"
+        },
+        {
+          "scenarioId": "AC-8.2",
+          "given": "a quantity above the permitted maximum",
+          "when": "the clinician attempts to add the item",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-8.3",
+          "given": "a prescription identifier that does not exist",
+          "when": "the clinician attempts to add an item to it",
+          "then": "the service reports the prescription as not found"
+        }
+      ]
+    },
+    {
+      "id": "US-9",
+      "priority": "P2",
+      "role": "scheduling clerk",
+      "intent": "reschedule an existing appointment to a new slot",
+      "benefit": "a cancellation can be absorbed without losing the booking",
+      "scenarios": [
+        {
+          "scenarioId": "AC-9.1",
+          "given": "an existing booked appointment and a free future slot",
+          "when": "the clerk reschedules the appointment",
+          "then": "the appointment stores the new start and end times and remains booked"
+        },
+        {
+          "scenarioId": "AC-9.2",
+          "given": "an appointment that has already been attended",
+          "when": "the clerk attempts to reschedule it",
+          "then": "the service rejects the reschedule as conflicting with the current state"
+        }
+      ]
+    },
+    {
+      "id": "US-10",
+      "priority": "P3",
+      "role": "practice manager",
+      "intent": "read the appointments booked for an existing patient",
+      "benefit": "the patient's schedule can be reviewed",
+      "scenarios": [
+        {
+          "scenarioId": "AC-10.1",
+          "given": "a patient with no appointments",
+          "when": "the manager reads the patient's appointments",
+          "then": "the service returns an empty collection rather than reporting an error"
+        },
+        {
+          "scenarioId": "AC-10.2",
+          "given": "a patient identifier that does not exist",
+          "when": "the manager reads the patient's appointments",
+          "then": "the service reports the patient as not found"
+        }
+      ]
+    }
+  ]
+}

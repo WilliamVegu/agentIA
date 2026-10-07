@@ -1,0 +1,52 @@
+digraph architecture {
+  rankdir=TB; fontname="Helvetica"; newrank=true;
+  graph [nodesep=0.5, ranksep=0.7, margin=0.1];
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=14];
+  edge [fontname="Helvetica", fontsize=11, color="#5a6b7b"];
+
+  subgraph cluster_front {
+    label="Presentación — React / Vite"; style=filled; fillcolor="#f4f7fa"; fontsize=15;
+    "Web Studio\n(10 pestañas)";
+    "Monitor en vivo\n(SSE)";
+  }
+  subgraph cluster_api {
+    label="API — FastAPI (:8000)"; style=filled; fillcolor="#eef3f8"; fontsize=15;
+    sessions [label="POST /sessions\nPOST /sessions/quick-start"];
+    orchestrator [label="/orchestrator\npipeline · pausa · resume"];
+    services_api [label="/requirements · /architecture\n/models-sql · /security · /devops"];
+  }
+  subgraph cluster_engine {
+    label="Motor agéntico — LangGraph"; style=filled; fillcolor="#eaf2ea"; fontsize=15;
+    pipeline [label="Pipeline secuencial\n(pipeline_runner)"];
+    gengraph [label="Grafo: validador → scaffolder → dominio\n→ servicio → controlador → test\n→ sandbox ⇄ reparación"];
+    stages [label="Etapas de generación\n(determinista | modelo)\n+ compuerta de cumplimiento\n+ conjunto de instrucciones"];
+  }
+  subgraph cluster_verify {
+    label="Verificación — sandbox hermético"; style=filled; fillcolor="#fdf0e6"; fontsize=15;
+    sandbox [label="Docker  mvn test -o\n--network none\ncaché .m2 de solo lectura"];
+    platform [label="Test de contrato de la plataforma\n(@DataJpaTest, ddl=validate)\n+ strip .git + parseo surefire"];
+  }
+  subgraph cluster_stores {
+    label="Estado y registros"; style=filled; fillcolor="#f2f0f4"; fontsize=15;
+    db [label="studio.db\nsesiones · diagnósticos"];
+    cost [label="cost_tracking.db\n(sistema de registro)"];
+    mlflow [label="Espejo MLflow"];
+    work [label="workspaces/"];
+  }
+
+  "Web Studio" -> sessions;
+  "Monitor en vivo" -> orchestrator [style=dashed];
+  sessions -> pipeline;
+  sessions -> gengraph [style=dashed];
+  orchestrator -> pipeline;
+  pipeline -> stages;
+  gengraph -> stages;
+  stages -> sandbox;
+  sandbox -> platform [style=dashed];
+  sandbox -> work;
+  stages -> db [style=dotted];
+  pipeline -> cost [style=dotted];
+  gengraph -> cost [style=dotted];
+  cost -> mlflow [style=dashed, label="espejo"];
+  services_api -> db [style=dotted];
+}

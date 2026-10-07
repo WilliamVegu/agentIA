@@ -1,0 +1,29 @@
+\contentsline {section}{\numberline {1}Optimization in text space}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Why it is not obvious}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}The deep-learning analogy}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Why the gate is inside the update}{2}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}The three failure modes of naive text editing}{3}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}Why ``text space'' is the right phrase}{3}{subsection.1.5}%
+\contentsline {subsection}{\numberline {1.6}How to say it at different depths}{3}{subsection.1.6}%
+\contentsline {section}{\numberline {2}Skill document format}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Field semantics}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Authoring rules}{4}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Reference skill examples}{5}{section.3}%
+\contentsline {section}{\numberline {4}SkillOpt prompt templates}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Failure analysis --- \texttt {analyst\_error.md}}{6}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Success analysis --- \texttt {analyst\_success.md}}{6}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Failure merge --- \texttt {merge\_failure.md}}{7}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Success merge --- \texttt {merge\_success.md}}{7}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Cross-priority merge --- \texttt {merge\_priority.md}}{7}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}Ranking and selection --- \texttt {ranking.md}}{7}{subsection.4.6}%
+\contentsline {subsection}{\numberline {4.7}Epoch-wise slow update --- \texttt {slow\_update.md}}{8}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}Optimizer meta skill --- \texttt {meta\_skill.md}}{8}{subsection.4.8}%
+\contentsline {section}{\numberline {5}CODESKILL supplementary templates}{8}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Task-level extraction --- Figure 6}{9}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Event-driven extraction --- Figure 7}{9}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Evolution --- Figure 8}{9}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Bank maintenance --- Figure 9}{10}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Hyperparameters}{10}{section.6}%
+\contentsline {subsection}{\numberline {6.1}AgentIA adaptations}{10}{subsection.6.1}%
+\contentsline {section}{\numberline {7}Implementation checklist}{10}{section.7}%
+\contentsline {section}{\numberline {8}Sources}{11}{section.8}%

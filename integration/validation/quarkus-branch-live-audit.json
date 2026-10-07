@@ -1,0 +1,117 @@
+{
+  "Quarkus_refact": {
+    "health_status": 200,
+    "quarkus_api_paths": [
+      "/api/v1/quarkus/orders",
+      "/api/v1/quarkus/orders/{order_id}",
+      "/api/v1/quarkus/orders/{order_id}/answers",
+      "/api/v1/quarkus/orders/{order_id}/approve-contract",
+      "/api/v1/quarkus/orders/{order_id}/architecture-proposal",
+      "/api/v1/quarkus/orders/{order_id}/select-architecture",
+      "/api/v1/quarkus/orders/{order_id}/generate-archetype",
+      "/api/v1/quarkus/orders/{order_id}/suggest-extension",
+      "/api/v1/quarkus/orders/{order_id}/generate-skeleton",
+      "/api/v1/quarkus/orders/{order_id}/build-and-test",
+      "/api/v1/quarkus/orders/{order_id}/approve-delivery",
+      "/api/v1/quarkus/orders/{order_id}/export-zip"
+    ],
+    "maven": {
+      "create_status": 201,
+      "order_id": "ORD-20261007-2F5489",
+      "contract_approval_status": 200,
+      "architecture_status": 200,
+      "skeleton_status": 200,
+      "framework_is_quarkus": true,
+      "postgresql_selected": true,
+      "production_uses_mssql": true,
+      "development_uses_sqlite": true,
+      "build_and_test_status": 200,
+      "reported_tests_executed": true,
+      "reported_tests_summary": {
+        "total_tests": 7,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "coverage_percentage": 94.4,
+        "execution_time_ms": 1625,
+        "verdict": "BUILD SUCCESS",
+        "tested_entities": [
+          "Client",
+          "AuditInventoryMaven",
+          "ItemsAuditInventoryMaven"
+        ]
+      },
+      "reported_review_score": 98,
+      "concrete_resources_implement_custom_contract_path": false,
+      "concrete_resources_expose_persistence_entities": true,
+      "generated_concrete_paths": [
+        "@Path(\"/api/v1/clientes\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/api/v1/audit inventory mavens\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/api/v1/items-audit inventory maven\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/{id}\")"
+      ],
+      "delivery_status": 404,
+      "delivery_error": "{\"detail\":\"too many values to unpack (expected 2)\"}",
+      "export_status": 200
+    },
+    "gradle": {
+      "create_status": 201,
+      "order_id": "ORD-20261007-26E16A",
+      "contract_approval_status": 200,
+      "architecture_status": 200,
+      "skeleton_status": 200,
+      "framework_is_quarkus": true,
+      "postgresql_selected": true,
+      "production_uses_mssql": true,
+      "development_uses_sqlite": true,
+      "build_and_test_status": 200,
+      "reported_tests_executed": true,
+      "reported_tests_summary": {
+        "total_tests": 7,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "coverage_percentage": 94.4,
+        "execution_time_ms": 1625,
+        "verdict": "BUILD SUCCESS",
+        "tested_entities": [
+          "Client",
+          "AuditInventoryGradl",
+          "ItemsAuditInventoryGradle"
+        ]
+      },
+      "reported_review_score": 98,
+      "concrete_resources_implement_custom_contract_path": false,
+      "concrete_resources_expose_persistence_entities": true,
+      "generated_concrete_paths": [
+        "@Path(\"/api/v1/clientes\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/api/v1/audit inventory gradles\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/api/v1/items-audit inventory gradle\")",
+        "@Path(\"/{id}\")",
+        "@Path(\"/{id}\")"
+      ],
+      "delivery_status": 404,
+      "delivery_error": "{\"detail\":\"too many values to unpack (expected 2)\"}",
+      "export_status": 200
+    },
+    "no_security_approval_status": 400,
+    "no_security_approval_body": "{\"detail\":\"type object 'SecurityEnum' has no attribute 'OIDC'\"}",
+    "empty_order_status": 201,
+    "empty_order_default_service": "microservice"
+  },
+  "Quarkus_refact_2": {
+    "health_status": 200,
+    "quarkus_api_paths": [],
+    "local_login_status": 200,
+    "authenticated_quarkus_orders_status": 404
+  }
+}

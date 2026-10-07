@@ -1,0 +1,53 @@
+{
+  "parsed": 127,
+  "syntax_errors": [],
+  "function_count": 591,
+  "inference": {
+    "optional_absent": {
+      "profile": "layered",
+      "buildTool": "maven",
+      "databaseType": "postgresql",
+      "modules": [
+        "controller",
+        "service",
+        "repository",
+        "model"
+      ],
+      "libraries": [
+        "spring-boot-starter-web",
+        "spring-boot-starter-validation",
+        "spring-boot-starter-data-jpa",
+        "postgresql",
+        "spring-boot-starter-test"
+      ],
+      "reasons": [
+        "se infiere layered: caso CRUD sin integraciones",
+        "sin interfaz de entrada; se mantiene postgresql del blueprint"
+      ]
+    },
+    "explicit_hexagonal_gradle": {
+      "profile": "hexagonal",
+      "buildTool": "gradle",
+      "databaseType": "postgresql",
+      "modules": [
+        "domain",
+        "application",
+        "infrastructure",
+        "adapter-in/rest",
+        "adapter-out/db"
+      ],
+      "libraries": [
+        "spring-boot-starter-web",
+        "spring-boot-starter-validation",
+        "spring-boot-starter-data-jpa",
+        "postgresql",
+        "spring-boot-starter-test"
+      ],
+      "reasons": [
+        "arquitectura elegida explícitamente: hexagonal",
+        "build tool elegido explícitamente: gradle",
+        "volumen alto -> base relacional duradera (postgresql)"
+      ]
+    }
+  }
+}

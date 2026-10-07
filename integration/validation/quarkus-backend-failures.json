@@ -1,0 +1,812 @@
+[
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_quick_start_creates_session_and_spec",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_quick_start_defaults_are_applied",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_upload_spec_markdown",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_submit_blueprint_json",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_invalid_blueprint_uses_error_envelope",
+    "message": "assert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_unknown_specification_returns_404",
+    "message": "assert 401 == 404\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_llm_verify_mock_provider",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_missing_api_key_is_rejected",
+    "message": "assert 'LLM API key is required' in '{\"detail\":\"Authentication required\"}'\n +  where '{\"detail\":\"Authentication required\"}' = <Response [401 Unauthorized]>.text"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_security_audit_passes_clean_code",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_security_audit_blocks_secret_and_injection",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_surgical_remediation_returns_a_diff",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_lifecycle_and_phase_transition",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_publish_to_git_with_mocked_boundary",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_parametrized_service_names[order-service-order-service]",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_parametrized_service_names[inventory-service-inventory-service]",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_parametrized_service_names[-app-service]",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_export_blocked_when_quality_gate_fails",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_export_returns_a_zip_when_gate_passes",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_pipeline_stops_at_blocked_quality_gate",
+    "message": "AssertionError: assert not True\n +  where True = exists()\n +    where exists = ((WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-30/test_example_pipeline_stops_at0') / 'example-runner-session') / 'docker-compose.yml').exists"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_unknown_session_stream_returns_404",
+    "message": "assert 401 == 404\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_session_detail_is_json_serializable",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_delete_cancels_the_session",
+    "message": "assert 401 == 204\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_app_examples",
+    "name": "test_example_list_sessions_returns_array",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_artifact_retrieval",
+    "name": "test_architecture_design_save_and_retrieve",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_artifact_retrieval",
+    "name": "test_models_design_save_and_retrieve",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_code_generation_module",
+    "name": "test_complete_langgraph_generation_graph",
+    "message": "AssertionError: assert 'COMPLETED' == 'BLOCKED'\n  \n  - BLOCKED\n  + COMPLETED"
+  },
+  {
+    "module": "backend.tests.test_code_generation_module",
+    "name": "test_api_artifact_listing_and_export_zip",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_diagnostic_record",
+    "name": "test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion",
+    "message": "AssertionError: assert <SessionPhase...ITIALIZATION'> == <SessionPhase...LED: 'FAILED'>\n  \n  - FAILED\n  + INITIALIZATION"
+  },
+  {
+    "module": "backend.tests.test_e2e_flow",
+    "name": "test_scenario_1_dual_ingestion",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_e2e_flow",
+    "name": "test_scenario_2_autonomous_generation_and_export",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_e2e_flow",
+    "name": "test_quickstart_feature_005_e2e",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_e2e_flow",
+    "name": "test_full_unified_orchestration_e2e",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_entry_point_parity",
+    "name": "test_the_worker_decides_the_mode_with_the_credentials_and_states_the_key",
+    "message": "KeyError: 'api_key'"
+  },
+  {
+    "module": "backend.tests.test_lifecycle_service",
+    "name": "test_lifecycle_security_audit_completed_and_100_percent",
+    "message": "AssertionError: assert <PhaseStatus....'NOT_STARTED'> == <PhaseStatus....: 'COMPLETED'>\n  \n  - COMPLETED\n  + NOT_STARTED"
+  },
+  {
+    "module": "backend.tests.test_pipeline_runner",
+    "name": "test_pipeline_runner_full_run",
+    "message": "AssertionError: assert <PipelineRunS...INTERVENTION'> == <PipelineRunS...: 'COMPLETED'>\n  \n  - COMPLETED\n  + AWAITING_INTERVENTION"
+  },
+  {
+    "module": "backend.tests.test_pipeline_runner",
+    "name": "test_pipeline_runner_quality_gate_block",
+    "message": "AssertionError: assert not True\n +  where True = exists()\n +    where exists = (WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-30/test_pipeline_runner_quality_g0/test-runner-sess') / 'docker-compose.yml').exists"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_an_invalid_request_body_gets_the_400_envelope_from_the_live_app",
+    "message": "assert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_reading_requirements_for_an_unknown_session_is_a_404",
+    "message": "assert 401 == 404\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_reading_requirements_without_files_reports_no_draft",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_reading_requirements_returns_the_prompt_and_the_stored_stories",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_reading_requirements_tolerates_a_corrupt_stories_file",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_saving_requirements_persists_the_draft_and_reports_the_count",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_saving_requirements_without_a_markdown_spec_leaves_the_file_absent",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_api_surface",
+    "name": "test_a_scenario_shorter_than_the_contract_allows_is_rejected",
+    "message": "assert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_the_daemon_is_reported_available_when_docker_info_exits_zero",
+    "message": "assert False is True\n +  where False = <function check_docker_daemon at 0x000002CAF6B025C0>()\n +    where <function check_docker_daemon at 0x000002CAF6B025C0> = ds.check_docker_daemon"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_deploy_without_a_daemon_enters_export_only_mode_without_starting_anything",
+    "message": "AssertionError: assert 'Export-Only' in 'Despliegue no ejecutado: entorno sin virtualizaci\u00f3n.'\n +  where 'Despliegue no ejecutado: entorno sin virtualizaci\u00f3n.' = LocalDeploymentSession(sessionId='qe-deploy-session', containerId=None, databaseContainerId=None, status=<DeploymentSt...one, errorMessage='Despliegue no ejecutado: entorno sin virtualizaci\u00f3n.', startedAt='2026-10-07T19:34:28.290910+00:00').errorMessage"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_a_successful_deploy_is_only_called_healthy_after_actuator_says_up",
+    "message": "AssertionError: no rebuild was requested\nassert ['docker', 'c...-format', ...] == ['docker', 'c...', 'up', '-d']\n  \n  At index 2 diff: '-p' != 'up'\n  Left contains 3 more items, first extra item: 'ps'\n  Use -v to get more diff"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_rebuild_is_forwarded_to_compose",
+    "message": "AssertionError: assert ['docker', 'c...-format', ...] == ['docker', 'c...d', '--build']\n  \n  At index 2 diff: '-p' != 'up'\n  Left contains 2 more items, first extra item: '--format'\n  Use -v to get more diff"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_a_container_that_never_becomes_healthy_is_failed_not_healthy",
+    "message": "assert 'Smoke test failed' in \"'_FakeProcess' object does not support the context manager protocol\"\n +  where \"'_FakeProcess' object does not support the context manager protocol\" = LocalDeploymentSession(sessionId='qe-deploy-session', containerId=None, databaseContainerId=None, status=<DeploymentSt...ge=\"'_FakeProcess' object does not support the context manager protocol\", startedAt='2026-10-07T19:34:28.721539+00:00').errorMessage"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_a_building_session_is_returned_without_touching_the_network",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt...G: 'BUILDING'>\n  \n  - BUILDING\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_a_container_started_outside_this_process_is_discovered",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt...HY: 'HEALTHY'>\n  \n  - HEALTHY\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_an_existing_failed_session_is_cleared_when_the_endpoint_recovers",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt...HY: 'HEALTHY'>\n  \n  - HEALTHY\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_an_unknown_session_with_no_endpoint_is_idle",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt....IDLE: 'IDLE'>\n  \n  - IDLE\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_a_known_session_survives_an_unreachable_endpoint",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt...NG: 'RUNNING'>\n  \n  - RUNNING\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_deploy_docker",
+    "name": "test_stopping_runs_compose_down_and_records_the_stop",
+    "message": "AssertionError: volumes must go too\nassert ['docker', 'c...sion', 'down'] == ['docker', 'c... 'down', '-v']\n  \n  At index 2 diff: '-p' != 'down'\n  Left contains one more item: 'down'\n  Use -v to get more diff"
+  },
+  {
+    "module": "backend.tests.test_qe_deployment_identity",
+    "name": "test_a_session_with_no_container_is_not_reported_healthy",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt....IDLE: 'IDLE'>\n  \n  - IDLE\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_deployment_identity",
+    "name": "test_an_existing_record_is_probed_on_its_own_port",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt...HY: 'HEALTHY'>\n  \n  - HEALTHY\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_deployment_identity",
+    "name": "test_state_is_recovered_from_the_compose_project_label",
+    "message": "AssertionError: the app container, not the database\nassert None == 'app111'\n +  where None = LocalDeploymentSession(sessionId='session-x', containerId=None, databaseContainerId=None, status=<DeploymentStatus.DOC...Message='Despliegue no ejecutado: entorno sin virtualizaci\u00f3n. Puede continuar y entregar las fuentes.', startedAt=None).containerId"
+  },
+  {
+    "module": "backend.tests.test_qe_deployment_identity",
+    "name": "test_the_database_container_is_never_mistaken_for_the_service",
+    "message": "AssertionError: assert <DeploymentSt..._UNAVAILABLE'> == <DeploymentSt....IDLE: 'IDLE'>\n  \n  - IDLE\n  + DOCKER_UNAVAILABLE"
+  },
+  {
+    "module": "backend.tests.test_qe_injection_guard",
+    "name": "test_the_transform_endpoint_refuses_an_injected_narrative",
+    "message": "assert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_injection_guard",
+    "name": "test_the_specification_ingestion_path_is_guarded",
+    "message": "AssertionError: an instruction-shaped validation rule was accepted into a blueprint; it reaches the same models the requirements guard already protects\nassert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_lifecycle_rules",
+    "name": "test_two_failed_repairs_do_not_block_phase_five",
+    "message": "AssertionError: assert <PhaseStatus....'IN_PROGRESS'> == <PhaseStatus....: 'COMPLETED'>\n  \n  - COMPLETED\n  + IN_PROGRESS"
+  },
+  {
+    "module": "backend.tests.test_qe_lifecycle_rules",
+    "name": "test_a_blocked_quality_gate_blocks_phase_six_and_reports_why",
+    "message": "AssertionError: assert <PhaseStatus....'NOT_STARTED'> == <PhaseStatus....ED: 'BLOCKED'>\n  \n  - BLOCKED\n  + NOT_STARTED"
+  },
+  {
+    "module": "backend.tests.test_qe_lifecycle_rules",
+    "name": "test_the_quality_gate_verdict_and_finding_count_reach_the_summary",
+    "message": "KeyError: 'qualityGate'"
+  },
+  {
+    "module": "backend.tests.test_qe_lifecycle_rules",
+    "name": "test_a_compose_file_completes_phase_seven_and_surfaces_the_deploy_status",
+    "message": "AssertionError: assert <PhaseStatus....'IN_PROGRESS'> == <PhaseStatus....: 'COMPLETED'>\n  \n  - COMPLETED\n  + IN_PROGRESS"
+  },
+  {
+    "module": "backend.tests.test_qe_lifecycle_rules",
+    "name": "test_a_fully_complete_session_reports_completion",
+    "message": "AssertionError: assert 57.1 == 100.0\n +  where 57.1 = LifecycleState(session_id='qe-lifecycle-session', current_phase=<LifecyclePhase.INITIAL: 'INITIAL'>, completion_percen...PipelineExecutionMode.GUIDED_STEP: 'GUIDED_STEP'>, is_outdated=False, pipeline_status=<PipelineRunStatus.IDLE: 'IDLE'>).completion_percentage"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_pausing_after_a_step_stops_before_the_next_one[SECURITY_AUDIT]",
+    "message": "AssertionError: the step after SECURITY_AUDIT ran despite the pause\nassert not True\n +  where True = exists()\n +    where exists = (WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-30/test_pausing_after_a_step_stop5/qe-autopilot-session') / 'docker-compose.yml').exists"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_pause_switches_the_session_to_guided_step",
+    "message": "AssertionError: assert False is True\n +  where False = <function pause_pipeline at 0x000002CAF6B93100>('qe-autopilot-session')\n +    where <function pause_pipeline at 0x000002CAF6B93100> = pr.pause_pipeline"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_pausing_a_session_that_was_never_started_reports_whether_it_is_paused",
+    "message": "AssertionError: assert False is True\n +  where False = <function pause_pipeline at 0x000002CAF6B93100>('qe-orphan')\n +    where <function pause_pipeline at 0x000002CAF6B93100> = pr.pause_pipeline"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_resume_replays_the_session_credentials_and_waits_for_the_old_thread",
+    "message": "AssertionError: assert False is True\n +  where False = <function resume_pipeline at 0x000002CAF6B931A0>('qe-autopilot-session')\n +    where <function resume_pipeline at 0x000002CAF6B931A0> = pr.resume_pipeline"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_force_starts_a_run_even_while_another_is_alive",
+    "message": "AssertionError: assert False is True\n +  where False = <function run_pipeline at 0x000002CAF6B936A0>('qe-autopilot-session', force=True)\n +    where <function run_pipeline at 0x000002CAF6B936A0> = pr.run_pipeline"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_a_failed_schema_synthesis_falls_back_to_this_blueprints_own_ddl",
+    "message": "AssertionError: the run died in the fallback instead of falling back\nassert <PipelineRunS...LED: 'FAILED'> == <PipelineRunS...: 'COMPLETED'>\n  \n  - COMPLETED\n  + FAILED"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_auto_deploy_asks_for_the_local_deployment",
+    "message": "AssertionError: assert [] == [('qe-autopil...lot-session')]\n  \n  Right contains one more item: ('qe-autopilot-session', 'C:\\\\Users\\\\GenAIAUGPERUSR2\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-GenAIAUGPERUSR2\\\\pytest-30\\\\test_auto_deploy_asks_for_the_0\\\\qe-autopilot-session')\n  Use -v to get more diff"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy",
+    "message": "AssertionError: assert not True\n +  where True = exists()\n +    where exists = (WindowsPath('C:/Users/GenAIAUGPERUSR2/AppData/Local/Temp/pytest-of-GenAIAUGPERUSR2/pytest-30/test_a_blocking_quality_gate_s0/qe-autopilot-session') / 'docker-compose.yml').exists"
+  },
+  {
+    "module": "backend.tests.test_qe_pipeline_autopilot",
+    "name": "test_an_entity_without_a_primary_key_gets_one",
+    "message": "app.services.specification_guard.UnlikelySpecificationError: spec does not look like a specification: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long"
+  },
+  {
+    "module": "backend.tests.test_qe_playground_targeting",
+    "name": "test_the_route_reports_a_refusal_as_400_not_500",
+    "message": "AssertionError: a refused forward must not surface as a 500\nassert 401 in (400, 404)\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_qe_publish_git",
+    "name": "test_a_successful_publish_returns_the_branch_urls_and_a_commit",
+    "message": "RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)\n  cmdline: git push origin feature/001-order-service:feature/001-order-service\n  stderr: 'fatal: 'origin' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.'"
+  },
+  {
+    "module": "backend.tests.test_qe_publish_git",
+    "name": "test_the_token_reaches_the_remote_during_the_push",
+    "message": "RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)\n  cmdline: git push origin feature/001-order-service:feature/001-order-service\n  stderr: 'fatal: 'origin' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.'"
+  },
+  {
+    "module": "backend.tests.test_qe_publish_git",
+    "name": "test_the_token_is_scrubbed_from_the_remote_after_a_successful_publish",
+    "message": "RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)\n  cmdline: git push origin feature/001-order-service:feature/001-order-service\n  stderr: 'fatal: 'origin' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.'"
+  },
+  {
+    "module": "backend.tests.test_qe_publish_git",
+    "name": "test_a_new_remote_is_created_with_the_authenticated_url",
+    "message": "RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)\n  cmdline: git push origin feature/001:feature/001\n  stderr: 'fatal: 'origin' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.'"
+  },
+  {
+    "module": "backend.tests.test_qe_publish_git",
+    "name": "test_the_committer_identity_is_recorded",
+    "message": "RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)\n  cmdline: git push origin feature/001-order-service:feature/001-order-service\n  stderr: 'fatal: 'origin' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.'"
+  },
+  {
+    "module": "backend.tests.test_qe_publish_git",
+    "name": "test_publishing_to_an_existing_repository_does_not_reinitialize",
+    "message": "RuntimeError: Git push failed to https://github.com/corp/orders.git: Cmd('git') failed due to: exit code(128)\n  cmdline: git push origin feature/001-order-service:feature/001-order-service\n  stderr: 'fatal: 'origin' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.'"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_a_completed_session_is_listed_at_one_hundred_percent",
+    "message": "AssertionError: assert 0.0 == 100.0\n +  where 0.0 = GenerationSessionListItem(session_id='qe-session-surface', spec_id='spec-qe', spec_name='OrderService', status=<Sessio...lifecycle_mode='GUIDED_STEP', completion_percentage=0.0, created_at=datetime.datetime(2026, 10, 7, 19, 35, 46, 296386)).completion_percentage"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_a_session_whose_lifecycle_is_complete_is_promoted_to_completed",
+    "message": "AssertionError: assert 57.1 == 100.0\n +  where 57.1 = GenerationSessionListItem(session_id='qe-session-surface', spec_id='spec-qe', spec_name='OrderService', status=<Sessio...ifecycle_mode='GUIDED_STEP', completion_percentage=57.1, created_at=datetime.datetime(2026, 10, 7, 19, 35, 46, 396524)).completion_percentage"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_quick_start_without_a_name_uses_a_stable_default",
+    "message": "fastapi.exceptions.HTTPException: 400: {'error': 'UNLIKELY_SPECIFICATION', 'field': 'prompt', 'message': 'La solicitud no describe un requerimiento de microservicio o arquitectura de software v\u00e1lido. Por favor, describa un objetivo de negocio o funcionalidad backend (ej. gesti\u00f3n de pedidos, clientes, inventario, procesamiento de pagos o cat\u00e1logo de productos). Motivo detectado: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long.', 'detailMessage': 'prompt does not look like a specification: it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then); it is 1 word(s) long', 'plausible': False, 'reasons': ['it names no entities, operations or fields, and has no structure (headings, lists, Given/When/Then)', 'it is 1 word(s) long'], 'signals': {'words': 1, 'domainTerms': 0, 'structureMarkers': 0, 'readsAsQuestion': 0, 'outOfScopeMatches': 0}}"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot",
+    "message": "AssertionError: a cancelled session must not hold a worker slot\nassert [] == ['qe-session-surface']\n  \n  Right contains one more item: 'qe-session-surface'\n  Use -v to get more diff"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_a_completed_run_records_verified_and_reports_the_substituted_verification",
+    "message": "AssertionError: assert <SessionStatu...UED: 'QUEUED'> == <SessionStatu...: 'COMPLETED'>\n  \n  - COMPLETED\n  + QUEUED"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_a_completed_run_with_a_real_verification_reports_no_fallback",
+    "message": "AssertionError: no session_completed event was broadcast"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_the_pipeline_streams_phase_transitions_logs_and_verification",
+    "message": "AssertionError: assert 0 >= 4\n +  where 0 = <built-in method count of list object at 0x000002CAFA22BC00>('phase_transition')\n +    where <built-in method count of list object at 0x000002CAFA22BC00> = [].count"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_the_test_node_announces_test_synthesis",
+    "message": "KeyError: 'qe-session-surface'"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_a_repair_beyond_the_limit_is_reported_as_blocked",
+    "message": "AssertionError: no repair_iteration event was broadcast"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_a_blocked_run_is_persisted_and_diagnosed",
+    "message": "AssertionError: assert <SessionStatu...UED: 'QUEUED'> == <SessionStatu...ED: 'BLOCKED'>\n  \n  - BLOCKED\n  + QUEUED"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_a_crash_inside_the_graph_still_terminates_the_session",
+    "message": "AssertionError: assert <SessionStatu...UED: 'QUEUED'> == <SessionStatu...ED: 'BLOCKED'>\n  \n  - BLOCKED\n  + QUEUED"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_the_instruction_revision_is_recorded_when_the_set_loads",
+    "message": "KeyError: 'qe-session-surface'"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_an_unloadable_instruction_set_does_not_break_the_offline_path",
+    "message": "KeyError: 'qe-session-surface'"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_the_worker_slot_is_released_even_when_the_run_crashes",
+    "message": "AssertionError: assert [] == ['qe-session-surface']\n  \n  Right contains one more item: 'qe-session-surface'\n  Use -v to get more diff"
+  },
+  {
+    "module": "backend.tests.test_qe_session_surface",
+    "name": "test_the_generation_state_is_kept_for_inspection",
+    "message": "KeyError: 'qe-session-surface'"
+  },
+  {
+    "module": "backend.tests.test_qe_specification_persistence",
+    "name": "test_the_uploaded_document_survives_and_keeps_its_content",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_architecture",
+    "name": "test_design_architecture_mock_key_refused",
+    "message": "assert 401 == 500\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_architecture",
+    "name": "test_design_architecture_missing_api_key_returns_401",
+    "message": "assert 'LLM API key is required' in '{\"detail\":\"Authentication required\"}'\n +  where '{\"detail\":\"Authentication required\"}' = <Response [401 Unauthorized]>.text"
+  },
+  {
+    "module": "backend.tests.test_routes_architecture",
+    "name": "test_refine_architecture_mock_key_refused",
+    "message": "assert 401 == 500\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_architecture",
+    "name": "test_handoff_architecture_design_mock_key_refused",
+    "message": "assert 401 == 500\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_artifact",
+    "name": "test_list_artifacts",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_artifact",
+    "name": "test_get_artifact_content",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_artifact",
+    "name": "test_get_artifact_content_not_found",
+    "message": "assert 401 == 404\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_devops",
+    "name": "test_generate_devops_manifests_success",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_devops",
+    "name": "test_generate_devops_manifests_blocked_by_quality_gate",
+    "message": "assert 401 == 403\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_devops",
+    "name": "test_deploy_devops_blocked_by_quality_gate",
+    "message": "assert 401 == 403\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_devops",
+    "name": "test_deploy_devops_clean_session_behavior",
+    "message": "AssertionError: {\"detail\":\"Authentication required\"}\nassert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_devops",
+    "name": "test_devops_status_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_devops",
+    "name": "test_devops_logs_stream_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_llm",
+    "name": "test_verify_llm_mock_mode",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_llm",
+    "name": "test_verify_llm_empty_key",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_llm",
+    "name": "test_verify_llm_connected_mocked",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_llm",
+    "name": "test_verify_llm_error_handling",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_models_sql",
+    "name": "test_generate_models_missing_api_key_401",
+    "message": "AssertionError: assert 'API key' in 'Authentication required'"
+  },
+  {
+    "module": "backend.tests.test_routes_models_sql",
+    "name": "test_generate_models_endpoint_success",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_models_sql",
+    "name": "test_refine_models_endpoint_success",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_models_sql",
+    "name": "test_handoff_to_specifications_store",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_get_lifecycle_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_transition_phase_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_get_overview_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_pipeline_run_and_pause_endpoints",
+    "message": "assert 401 == 202\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_export_bundle_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_pipeline_run_with_new_session",
+    "message": "assert 401 == 202\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_invalidation_and_resync_flow",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_orchestrator",
+    "name": "test_pipeline_cancel_endpoints",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_publish",
+    "name": "test_export_zip",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_publish",
+    "name": "test_export_zip_not_found",
+    "message": "assert 401 == 404\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_transform_requirements_success_with_payload_key",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_transform_requirements_success_with_header_key",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_transform_requirements_missing_api_key_returns_401",
+    "message": "assert 'LLM API key is required' in '{\"detail\":\"Authentication required\"}'\n +  where '{\"detail\":\"Authentication required\"}' = <Response [401 Unauthorized]>.text"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_transform_requirements_too_short_text_returns_400",
+    "message": "assert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_refine_requirements_global_feedback",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_refine_requirements_target_story",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_handoff_transformed_draft_to_specifications_pipeline",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_transform_requirements_with_explicit_provider_gemini",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_requirements",
+    "name": "test_transform_requirements_with_provider_header_groq",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_security",
+    "name": "test_audit_in_memory_clean",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_security",
+    "name": "test_audit_in_memory_blocked_by_secret_and_injection",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_security",
+    "name": "test_remediate_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_security",
+    "name": "test_session_audit_and_export_blocking",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_session",
+    "name": "test_create_session_success",
+    "message": "assert 401 == 202\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_session",
+    "name": "test_create_session_not_found",
+    "message": "assert 401 == 404\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_session",
+    "name": "test_get_session_by_id",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_spec",
+    "name": "test_upload_spec_markdown",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_spec",
+    "name": "test_submit_spec_json_success",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_spec",
+    "name": "test_submit_spec_json_invalid_payload",
+    "message": "assert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_spec",
+    "name": "test_submit_spec_json_frontend_transfer_payload",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_tests",
+    "name": "test_synthesize_endpoint_400_when_no_blueprint",
+    "message": "assert 401 == 400\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_tests",
+    "name": "test_synthesize_endpoint_success",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_tests",
+    "name": "test_analyze_endpoint_success",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_tests",
+    "name": "test_repair_endpoint_success_and_boundary",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_routes_tests",
+    "name": "test_get_repairs_and_manual_override",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_sandbox_verifier_honesty",
+    "name": "test_sandbox_node_blocks_instead_of_verifying",
+    "message": "AssertionError: assert 'COMPLETED' == 'BLOCKED'\n  \n  - BLOCKED\n  + COMPLETED"
+  },
+  {
+    "module": "backend.tests.test_sandbox_verifier_honesty",
+    "name": "test_permissive_session_reaches_verified_while_marked",
+    "message": "AssertionError: assert 'COMPLETED' == 'BLOCKED'\n  \n  - BLOCKED\n  + COMPLETED"
+  },
+  {
+    "module": "backend.tests.test_sandbox_verifier_honesty",
+    "name": "test_default_and_permissive_disagree_only_about_permission",
+    "message": "AssertionError: assert 'COMPLETED' == 'BLOCKED'\n  \n  - BLOCKED\n  + COMPLETED"
+  },
+  {
+    "module": "backend.tests.test_sessions_api",
+    "name": "test_list_sessions_endpoint",
+    "message": "assert 401 == 200\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_sessions_api",
+    "name": "test_quick_start_session_endpoint",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_sessions_api",
+    "name": "test_quick_start_session_default_name",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_sessions_api",
+    "name": "test_quick_start_session_with_auto_run",
+    "message": "assert 401 == 201\n +  where 401 = <Response [401 Unauthorized]>.status_code"
+  },
+  {
+    "module": "backend.tests.test_test_analysis_service",
+    "name": "test_execute_repair_iteration_and_cap_at_5",
+    "message": "AssertionError: assert <RepairOutcom...LED_CONTINUE'> == <RepairOutcom...SS: 'SUCCESS'>\n  \n  - SUCCESS\n  + FAILED_CONTINUE"
+  }
+]
