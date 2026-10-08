@@ -95,7 +95,7 @@ def test_scaffolder_node_generates_maven_archetype(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = scaffolder_node(state)
 
@@ -142,7 +142,7 @@ def test_domain_node_generates_jpa_entities_and_record_dtos(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = domain_node(state)
 
@@ -230,7 +230,7 @@ def test_service_node_generates_repositories_and_services(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = service_node(state)
 
@@ -314,7 +314,7 @@ def test_controller_node_generates_controllers_and_advice(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = controller_node(state)
 
@@ -371,7 +371,7 @@ def test_test_node_generates_mockito_and_web_tests(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = execute_test_node(state)
 
@@ -457,13 +457,16 @@ def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     final_state = generation_graph.invoke(initial_state)
 
-    assert final_state["build_success"] is True
+    assert final_state["build_success"] is False
     assert final_state["status"] == SessionStatus.COMPLETED.value
-    assert final_state["current_phase"] == SessionPhase.VERIFIED.value
+    assert final_state["current_phase"] == SessionPhase.CODE_GENERATION.value
+
+    assert final_state["test_metrics"]["verificationSkipped"] is True
+    assert final_state["test_metrics"]["allPassed"] is False
 
     # Verify that all 4 layers and tests are generated in the file system
     all_java_files = list(session_ws.glob("**/*.java"))
@@ -493,7 +496,7 @@ def test_validator_fails_gracefully_when_no_entities(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     final_state = generation_graph.invoke(initial_state)
     assert final_state.get("status") == "FAILED"
@@ -519,8 +522,14 @@ def test_repair_node_stops_after_3_attempts(clean_workspace):
             "line_number": 20,
         },
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
+    from app.models.reliability import RepairAttempt
+    with SessionLocal() as db:
+        db.merge(GenerationSessionDB(id="sess_repair", spec_id="budget-test", spec_name="repair-service"))
+        for iteration in range(1, 4):
+            db.add(RepairAttempt(session_id="sess_repair", relative_path="src/Invoice.java", automatic=1, iteration=iteration, outcome="FAILED_BLOCKED"))
+        db.commit()
     result = repair_node(state)
     assert result["status"] == SessionStatus.BLOCKED.value
     assert "Maximum repair attempts (3) exhausted" in result["error"]
@@ -551,15 +560,16 @@ def test_api_artifact_listing_and_export_zip(clean_workspace):
     db.close()
 
     try:
-        # Run generation graph to populate workspace
+        # Generate actual audited source-only fixtures; no build is claimed.
         state = {
             "session_id": session_id,
             "blueprint": SAMPLE_BLUEPRINT,
             "workspace_path": str(session_ws),
             "generated_files": {},
             "logs": [],
-        }
-        generation_graph.invoke(state)
+         'generation_mode':'DETERMINISTIC'}
+        from reliability_helpers import prepare_source_delivery
+        prepare_source_delivery(session_id, session_ws, service_name="order-billing-service")
 
         # 1. Test listing artifacts via API
         resp = client.get(f"/api/v1/sessions/{session_id}/artifacts")
@@ -593,9 +603,9 @@ def test_api_artifact_listing_and_export_zip(clean_workspace):
         with zipfile.ZipFile(zip_buf, "r") as zf:
             namelist = zf.namelist()
             assert any(f.endswith("pom.xml") for f in namelist), "ZIP must contain pom.xml"
-            assert any(f.endswith("Invoice.java") for f in namelist), "ZIP must contain JPA Entity"
-            assert any(f.endswith("InvoiceController.java") for f in namelist), "ZIP must contain RestController"
-            assert any(f.endswith("InvoiceServiceTest.java") for f in namelist), "ZIP must contain Mockito test"
+            assert any(f.endswith("LedgerEntry.java") for f in namelist), "ZIP must contain JPA Entity"
+            assert any(f.endswith("LedgerEntryController.java") for f in namelist), "ZIP must contain RestController"
+            assert any(f.endswith("LedgerEntryServiceTest.java") for f in namelist), "ZIP must contain Mockito test"
 
     finally:
         db = SessionLocal()

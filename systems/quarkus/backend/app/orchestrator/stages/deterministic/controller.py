@@ -1,12 +1,15 @@
 """Native Quarkus offline generator, restored and wired into the Studio stage boundary."""
 
 from app.orchestrator.stages.deterministic.schema import identifier
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     service_name = blueprint.get("serviceName") or blueprint.get("service_name", "sample-service")
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
@@ -66,9 +69,20 @@ public class GlobalExceptionHandler implements ExceptionMapper<Exception> {{
                     .build();
         }}
 
+        Throwable cause = ex;
+        java.util.Set<Throwable> visited = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        while (cause != null && visited.add(cause)) {{
+            if (cause instanceof org.hibernate.exception.ConstraintViolationException) {{
+                body.put("status", 409);
+                body.put("error", "Conflict");
+                body.put("message", "The request conflicts with a database constraint");
+                return Response.status(Response.Status.CONFLICT).type(MediaType.APPLICATION_JSON).entity(body).build();
+            }}
+            cause = cause.getCause();
+        }}
         body.put("status", Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
         body.put("error", "Internal Server Error");
-        body.put("message", ex.getMessage());
+        body.put("message", "An unexpected error occurred");
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .type(MediaType.APPLICATION_JSON)
                 .entity(body)
@@ -79,8 +93,8 @@ public class GlobalExceptionHandler implements ExceptionMapper<Exception> {{
     handler_path = f"src/main/java/{pkg_path}/controller/GlobalExceptionHandler.java"
     generated_files[handler_path] = handler_src
     h_fp = base_dir / handler_path
-    h_fp.parent.mkdir(parents=True, exist_ok=True)
-    h_fp.write_text(handler_src, encoding="utf-8")
+    io_path(h_fp.parent).mkdir(parents=True, exist_ok=True)
+    io_path(h_fp).write_text(handler_src, encoding="utf-8")
 
     # 2. HomeController (@GetMapping("/") - Welcome & API Catalog)
     endpoints_java = []
@@ -178,7 +192,7 @@ public class HomeController {{
     home_path = f"src/main/java/{pkg_path}/controller/HomeController.java"
     generated_files[home_path] = home_src
     home_fp = base_dir / home_path
-    home_fp.write_text(home_src, encoding="utf-8")
+    io_path(home_fp).write_text(home_src, encoding="utf-8")
     logs.append(f"[CONTROLLER] Generated HomeController for root path / with API catalog")
 
     # 3. Controllers for each entity
@@ -247,8 +261,8 @@ public class {ent_name}Controller {{
         ctrl_path = f"src/main/java/{pkg_path}/controller/{ent_name}Controller.java"
         generated_files[ctrl_path] = ctrl_src
         c_fp = base_dir / ctrl_path
-        c_fp.parent.mkdir(parents=True, exist_ok=True)
-        c_fp.write_text(ctrl_src, encoding="utf-8")
+        io_path(c_fp.parent).mkdir(parents=True, exist_ok=True)
+        io_path(c_fp).write_text(ctrl_src, encoding="utf-8")
 
         logs.append(f"[CONTROLLER] Generated {ent_name}Controller with REST endpoints")
 

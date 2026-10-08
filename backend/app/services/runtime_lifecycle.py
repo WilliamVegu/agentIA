@@ -27,12 +27,22 @@ def owned_resources(session_id, kind='container'):
     resources = json.loads(result.stdout)
     if len(resources) != len(ids) or any(((r.get('Config', {}).get('Labels') or {}) if kind == 'container' else (r.get('Labels') or {})).get('com.docker.compose.project') != session_id for r in resources):
         raise RuntimeError('Identidad ajena o incompleta; operación rechazada.')
+    for resource in resources:
+        labels=(resource.get('Config',{}).get('Labels') or {}) if kind=='container' else (resource.get('Labels') or {})
+        if labels.get('io.agentia.owner')!=session_id or labels.get('io.agentia.studio')!='springboot':
+            raise RuntimeError('Identidad ajena o legacy sin propiedad; operación rechazada.')
     return resources
 
 
 def _command(command, **kwargs):
     from app.services.deployment_logs import redact
-    result = subprocess.run(command, capture_output=True, text=True, timeout=kwargs.pop('timeout', 60), check=False, **kwargs)
+    control=kwargs.pop('cancel_event',None)
+    timeout=kwargs.pop('timeout',60)
+    if control is not None:
+        from app.services import docker_service
+        docker_service.run_logged(command,lambda _:None,timeout=timeout,cancel_event=control,**kwargs)
+        return subprocess.CompletedProcess(command,0,stdout='',stderr='')
+    result = subprocess.run(command,capture_output=True,text=True,timeout=timeout,check=False,**kwargs)
     if result.returncode: raise RuntimeError(redact(result.stderr or result.stdout or 'Docker falló.'))
     return result
 
@@ -49,10 +59,21 @@ def stop_interrupted_runtime(session_id):
         raise RuntimeError('Quedan contenedores propios activos.')
 
 
-def cleanup_local(session_id, delete_data=False):
+def cleanup_preview(session_id):
+    import hashlib
+    records = {kind: owned_resources(session_id, kind) for kind in ('container', 'volume', 'network')}
+    identities = {kind: sorted(item['Name'] if kind == 'volume' else item['Id'] for item in items) for kind, items in records.items()}
+    digest = hashlib.sha256(json.dumps([session_id, identities], sort_keys=True).encode()).hexdigest()
+    return {'sessionId': session_id, 'resources': identities, 'confirmationToken': digest}
+
+
+def cleanup_local(session_id, delete_data=False, confirmation=None):
     from app.services import docker_service as service
     if execution_mode(session_id).value == 'SOURCE_ONLY': return service.get_deployment_status(session_id)
     if not delete_data: raise ValueError('Confirme explícitamente deleteData para borrar datos de esta sesión.')
+    preview = cleanup_preview(session_id)
+    if not confirmation or confirmation != preview['confirmationToken']:
+        raise ValueError('Resource preview changed or explicit confirmation is missing')
     with service._operations_lock:
         lock = service._operation_locks.setdefault(session_id, SessionOperationLock(session_id))
     if not lock.acquire(blocking=False):
@@ -61,6 +82,8 @@ def cleanup_local(session_id, delete_data=False):
     try:
         # All resource ownership must be known before the first mutation.
         containers, volumes, networks = (owned_resources(session_id, kind) for kind in ('container', 'volume', 'network'))
+        if cleanup_preview(session_id)['confirmationToken'] != confirmation:
+            raise ValueError('Resources changed after preview; cleanup rejected')
         from app.services.runtime_log_capture import stop_capture
         stop_capture(session_id)
         if containers: _command(['docker', 'rm', '-f', *[r['Id'] for r in containers]])
@@ -125,7 +148,7 @@ def restart_local(session_id, workspace):
                 try:
                     phase(row, 'START', control)
                     start_attempted = True
-                    _command(prefix + ['up', '-d', '--force-recreate', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '180'], cwd=workspace, env=env, timeout=service.settings.LOCAL_START_TIMEOUT)
+                    _command(prefix + ['up', '-d', '--force-recreate', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '180'], cwd=workspace, env=env, timeout=service.settings.LOCAL_START_TIMEOUT,cancel_event=control)
                     break
                 except RuntimeError as exc:
                     if attempt == 2 or not any(value in str(exc).lower() for value in ('port is already allocated', 'address already in use', 'ports are not available')): raise

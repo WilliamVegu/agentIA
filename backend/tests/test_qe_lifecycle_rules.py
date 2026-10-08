@@ -53,7 +53,7 @@ from app.models.session import (  # noqa: E402
 
 
 class _QualityGate:
-    def __init__(self, status="APPROVED", can_export=True, message="ok"):
+    def __init__(self, status="PASS", can_export=True, message="ok"):
         self.status = status
         self.canExport = can_export
         self.summaryMessage = message
@@ -235,7 +235,7 @@ def test_a_dict_shaped_stories_file_is_counted_by_its_stories_key(session):
     assert state.phases[1].artifact_summary["storiesCount"] == 3
 
 
-def test_a_corrupt_stories_file_still_counts_as_one_story(session):
+def test_a_corrupt_stories_file_blocks_without_inventing_a_story(session):
     """The phase *is* complete -- the file exists. Reporting zero would tell the operator
     the opposite of what the filesystem says, so the count degrades, not the status."""
     session_id, ws = session
@@ -245,8 +245,9 @@ def test_a_corrupt_stories_file_still_counts_as_one_story(session):
 
     state = lifecycle.get_session_lifecycle(session_id)
 
-    assert state.phases[1].status == PhaseStatus.COMPLETED
-    assert state.phases[1].artifact_summary["storiesCount"] == 1
+    assert state.phases[1].status == PhaseStatus.BLOCKED
+    assert state.phases[1].artifact_summary["storiesCount"] == 0
+    assert state.phases[1].blocking_reason
 
 
 def test_phase_two_is_enterable_once_phase_one_is_complete(session):
@@ -364,14 +365,14 @@ def test_the_quality_gate_verdict_and_finding_count_reach_the_summary(session):
     _complete_through_phase_4(ws)
     _complete_phase_5(ws)
     lifecycle.audit_workspace = lambda *a, **k: _Audit(
-        gate=_QualityGate(status="APPROVED"),
+        gate=_QualityGate(status="PASS"),
         vulnerabilities=[1, 2],
         violations=[3],
     )
 
     state = lifecycle.get_session_lifecycle(session_id)
 
-    assert state.phases[5].artifact_summary["qualityGate"] == "APPROVED"
+    assert state.phases[5].artifact_summary["qualityGate"] == "PASS"
     assert state.phases[5].artifact_summary["findingsCount"] == 3
 
 
@@ -661,7 +662,7 @@ def test_a_fully_complete_session_reports_completion(session):
 
     assert state.completion_percentage == 100.0
     assert state.next_target_phase == LifecyclePhase.COMPLETED
-    assert "completamente sintetizado" in state.next_recommended_action
+    assert "Flujo completado" in state.next_recommended_action
 
 
 # ---------------------------------------------------------------------------

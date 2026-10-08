@@ -129,8 +129,12 @@ export const devopsService = {
     return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/cancel`, { operationId })).data;
   },
 
-  async cleanupLocal(sessionId: string, deleteData: boolean): Promise<LocalDeploymentSession> {
-    return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/cleanup`, { deleteData })).data;
+  async cleanupPreview(sessionId: string): Promise<{ resources: Record<string, string[]>; confirmationToken: string }> {
+    return (await apiClient.get('/devops/' + sessionId + '/cleanup/preview')).data;
+  },
+
+  async cleanupLocal(sessionId: string, deleteData: boolean, confirmationToken?: string): Promise<LocalDeploymentSession> {
+    return (await apiClient.post<LocalDeploymentSession>(`/devops/${sessionId}/cleanup`, { deleteData, confirmationToken })).data;
   },
 
   /**

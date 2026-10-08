@@ -50,3 +50,14 @@ python integration/api_smoke.py
 `source-snapshots.json` conserva las huellas de los 1446 archivos Spring autorizados y registra la base recuperada, los cambios y las huellas finales de Quarkus. No añade datos de ejecución. Se permiten diferencias de finales de línea propias de Git en Windows.
 
 Ejecuta las pruebas backend en procesos separados, desde cada raíz, con `PYTHONPATH=backend`. En cada frontend ejecuta `npm test` y `npm run build`. Los resultados, fallos heredados de Spring y límites están en [RESULTADOS.md](validation/RESULTADOS.md). Para generar/verificar servicios Java se necesita Java 21 y Maven; Docker y credenciales IA se requieren según la operación elegida.
+
+
+## Fiabilidad y validación actual
+
+Los cambios de fiabilidad conservan `source-snapshots.json` como baseline histórico. `source-revisions.json` registra las modificaciones autorizadas por archivo, hashes, tareas y evidencia; `python integration/verify_sources.py` rechaza cambios posteriores no registrados. Ninguno de esos archivos contiene datos de ejecución o credenciales.
+
+Consulte [modos y comportamiento](../docs/dual-studio-reliability.md), [migración y recuperación](../docs/dual-studio-reliability-migration.md), [quickstart reproducible](../specs/017-dual-studio-reliability/quickstart.md) y [evidencia actual](validation/reliability/RESULTADOS.md). Los informes anteriores se conservan como historia y no acreditan esta revisión.
+
+Las pruebas usan dos venv de fiabilidad independientes, SQLite/temporales propios y cero llamadas IA. Desde la raíz: `python -m integration.reliability_smoke --suite journeys --test-root .runtime/reliability/journeys --evidence-dir integration/validation/reliability/journeys`. Use `--suite migration` para ensayar bases legacy. `runtime` y `java-matrix` requieren `--docker`; ejecútelas secuencialmente y siga la preparación del quickstart.
+
+SOURCE_ONLY exporta fuentes auditadas con estado UNVERIFIED cuando no se ejecutaron tests. DOCKER exige reportes y huellas vigentes para certificar verificación. Stop/restart conservan datos; cleanup necesita confirmación explícita. Una revisión guardada debe aprobarse por separado y los conflictos devuelven 409. La reparación automática tiene tres intentos persistidos por ciclo.

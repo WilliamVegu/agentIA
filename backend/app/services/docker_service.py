@@ -179,6 +179,7 @@ def _deployment_log_snapshot(session_id):
 
 
 def _log_message(session_id: str, message: str, source='system', timestamp=None):
+    if not message.strip(): return
     from app.services.deployment_logs import append
     with _operations_lock:
         history = _deployment_log_snapshot(session_id)
@@ -202,24 +203,35 @@ def deploy_local(session_id: str, workspace_dir: str, host_port: Optional[int] =
         return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.DOCKER_UNAVAILABLE, errorMessage="Docker no disponible. Reintentar o continuar sin Docker.")
     with _operations_lock:
         lock = _operation_locks.setdefault(session_id, SessionOperationLock(session_id))
-    if not lock.acquire(blocking=False):
+    from app.services.local_operations import has_borrowed_lock
+    borrowed=has_borrowed_lock(session_id)
+    if borrowed and not lock.locked(): raise RuntimeError("Auto-Pilot no conserva su escritor")
+    if not borrowed and not lock.acquire(blocking=False):
         return _active_deployments.get(session_id) or get_deployment_status(session_id)
     session = LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.BUILDING, hostPort=host_port, operationId=str(uuid.uuid4()), startedAt=datetime.now(timezone.utc).isoformat())
     from app.services.local_operations import register, phase, finish
     from app.services.logged_process import CommandCancelled
     cancel_event = register(session, 'DEPLOY')
+    if borrowed:
+        from app.services import pipeline_runner
+        cancel_event.parent_controls=tuple(event for event in (pipeline_runner._stop_events.get(session_id),pipeline_runner._pause_events.get(session_id)) if event is not None)
     _active_deployments[session_id] = session
     try:
         persist(session)
     except Exception as exc:
         session.status, session.errorMessage = DeploymentStatus.FAILED, str(exc)
         finish(session)
-        lock.release()
+        lock.release() if not borrowed else None
         raise
 
     def execute(command, environment, timeout):
         phase(session, session.operationPhase or 'PREFLIGHT', cancel_event)
         _log_message(session_id, '[EXEC] ' + ' '.join(command))
+        if 'up' in command:
+            run_logged(command,lambda line:_log_message(session_id,line),cwd=execution_workspace,
+                       env=environment,timeout=timeout,cancel_event=cancel_event)
+            phase(session,session.operationPhase,cancel_event)
+            return subprocess.CompletedProcess(command,0,stdout='',stderr='')
         proc = subprocess.run(command, cwd=execution_workspace, env=environment, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, check=False)
         for line in (proc.stdout + '\n' + proc.stderr).splitlines()[-1000:]:
             if line.strip():
@@ -375,16 +387,19 @@ ENTRYPOINT ["java", "-jar", "/app/application.jar"]
             try:
                 persist(session)
             finally:
-                lock.release()
+                lock.release() if not borrowed else None
     try:
-        threading.Thread(target=worker, daemon=True).start()
+        if borrowed:
+            worker()
+        else:
+            threading.Thread(target=worker, daemon=True).start()
     except Exception as exc:
         session.status, session.errorMessage = DeploymentStatus.FAILED, str(exc)
         finish(session)
         try:
             persist(session)
         finally:
-            lock.release()
+            lock.release() if not borrowed else None
         raise
     return session
 
@@ -454,7 +469,7 @@ def run_smoke_test(
         raise CommandCancelled('Readiness interrumpido; no se confirma cancelación del daemon.')
     deployment = get_deployment_status(session_id)
     if not deployment.containerId or deployment.status not in (DeploymentStatus.RUNNING, DeploymentStatus.HEALTHY, DeploymentStatus.DEGRADED):
-        return SmokeTestResult(passed=False, statusCode=409, testUrl="", details="No hay un contenedor activo de esta sesión; prueba no ejecutada.")
+        return SmokeTestResult(passed=False, statusCode=409, testUrl="", details="No hay un contenedor activo de esta sesión; prueba no ejecutada. Estado observado: "+deployment.status.value+". "+(deployment.errorMessage or ""))
     host_port = deployment.hostPort
     deployment = deployment.model_copy(deep=True)
     test_url = f"http://localhost:{host_port}/actuator/health"

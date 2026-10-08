@@ -1,0 +1,55 @@
+{
+  "outcome": "PASSED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "ba50de56fce02a7195df69838e32a0036e4b1278f62e93049a50b62df5394b78",
+  "framework": "springboot",
+  "buildTool": "gradle",
+  "databaseEngine": "MYSQL",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql",
+  "checks": [
+    {
+      "check": "relational-invalid-accountKey",
+      "status": 409
+    },
+    {
+      "check": "relational-invalid-effectiveDate",
+      "status": 400
+    },
+    {
+      "check": "relational-invalid-recordedAt",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-invalid",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance-0",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance--1",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-None",
+      "status": 400
+    },
+    {
+      "check": "parent-delete-does-not-cascade",
+      "status": "PASSED"
+    },
+    {
+      "check": "unique-email",
+      "status": 409
+    },
+    {
+      "check": "stop-restart-data-preserved",
+      "status": "PASSED"
+    },
+    {
+      "check": "CRUD-UUID-date-decimal",
+      "status": "PASSED"
+    }
+  ]
+}

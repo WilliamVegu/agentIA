@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="20" time="1.567" timestamp="2026-10-08T11:39:11.809861-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_draft_domain_projection" name="test_domain_projection_preserves_explicit_columns_and_non_unique_email" time="0.132" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_related_names_do_not_invent_foreign_keys_or_relationships" time="0.011" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_explicit_foreign_key_preserves_custom_columns_and_primary_key" time="0.046" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_invalid_foreign_key_is_rejected_before_generation[change0]" time="0.011" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_invalid_foreign_key_is_rejected_before_generation[change1]" time="0.012" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_invalid_foreign_key_is_rejected_before_generation[change2]" time="0.010" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_invalid_foreign_key_is_rejected_before_generation[change3]" time="0.011" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_initial_migration_enforces_the_same_foreign_key_as_model_projection[H2]" time="0.033" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_initial_migration_enforces_the_same_foreign_key_as_model_projection[POSTGRESQL]" time="0.024" /><testcase classname="backend.tests.test_draft_domain_projection" name="test_initial_migration_enforces_the_same_foreign_key_as_model_projection[MYSQL]" time="0.029" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_uuid_owning_relations_seed_types_default_column_and_one_to_one[H2]" time="0.011" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_uuid_owning_relations_seed_types_default_column_and_one_to_one[POSTGRESQL]" time="0.011" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_uuid_owning_relations_seed_types_default_column_and_one_to_one[MYSQL]" time="0.013" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_many_to_many_sql_java_and_seed_agree_on_custom_tables[H2]" time="0.014" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_many_to_many_sql_java_and_seed_agree_on_custom_tables[POSTGRESQL]" time="0.014" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_many_to_many_sql_java_and_seed_agree_on_custom_tables[MYSQL]" time="0.012" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_incompatible_fk_and_mandatory_cycle_fail_before_publishing_sql" time="0.010" /><testcase classname="backend.tests.test_model_sql_relationships" name="test_inferred_uuid_fk_and_audit_lifecycle_are_coherent[H2]" time="0.022"><failure message="RuntimeError: generator raised StopIteration">backend\tests\test_model_sql_relationships.py:62: in test_inferred_uuid_fk_and_audit_lifecycle_are_coherent
+    assert next(a for a in child.attributes if a.columnName == 'order_id').sqlType == SQL.UUID
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   StopIteration
+
+The above exception was the direct cause of the following exception:
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:361: in from_call
+    result: TResult | None = func()
+                             ^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:250: in &lt;lambda&gt;
+    lambda: runtest_hook(item=item, **kwds),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\logging.py:865: in pytest_runtest_call
+    yield
+.venv-reliability-spring\Lib\site-packages\_pytest\capture.py:900: in pytest_runtest_call
+    return (yield)
+            ^^^^^
+E   RuntimeError: generator raised StopIteration</failure></testcase><testcase classname="backend.tests.test_model_sql_relationships" name="test_inferred_uuid_fk_and_audit_lifecycle_are_coherent[POSTGRESQL]" time="0.015"><failure message="RuntimeError: generator raised StopIteration">backend\tests\test_model_sql_relationships.py:62: in test_inferred_uuid_fk_and_audit_lifecycle_are_coherent
+    assert next(a for a in child.attributes if a.columnName == 'order_id').sqlType == SQL.UUID
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   StopIteration
+
+The above exception was the direct cause of the following exception:
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:361: in from_call
+    result: TResult | None = func()
+                             ^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:250: in &lt;lambda&gt;
+    lambda: runtest_hook(item=item, **kwds),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\logging.py:865: in pytest_runtest_call
+    yield
+.venv-reliability-spring\Lib\site-packages\_pytest\capture.py:900: in pytest_runtest_call
+    return (yield)
+            ^^^^^
+E   RuntimeError: generator raised StopIteration</failure></testcase><testcase classname="backend.tests.test_model_sql_relationships" name="test_inferred_uuid_fk_and_audit_lifecycle_are_coherent[MYSQL]" time="0.014"><failure message="RuntimeError: generator raised StopIteration">backend\tests\test_model_sql_relationships.py:62: in test_inferred_uuid_fk_and_audit_lifecycle_are_coherent
+    assert next(a for a in child.attributes if a.columnName == 'order_id').sqlType == SQL.UUID
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   StopIteration
+
+The above exception was the direct cause of the following exception:
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:361: in from_call
+    result: TResult | None = func()
+                             ^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:250: in &lt;lambda&gt;
+    lambda: runtest_hook(item=item, **kwds),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\logging.py:865: in pytest_runtest_call
+    yield
+.venv-reliability-spring\Lib\site-packages\_pytest\capture.py:900: in pytest_runtest_call
+    return (yield)
+            ^^^^^
+E   RuntimeError: generator raised StopIteration</failure></testcase></testsuite></testsuites>

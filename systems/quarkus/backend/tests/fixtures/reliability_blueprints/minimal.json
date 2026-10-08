@@ -1,0 +1,48 @@
+{
+  "blueprintId": "minimal",
+  "corpusRole": "minimal-single-entity",
+  "rationale": "The smallest viable blueprint: one entity, two attributes, one story, one scenario. Catches stages that assume multiplicity, that index into a second entity, or that require more than one acceptance scenario to produce output. A minimal blueprint that generates nothing, or that throws, indicates a structural assumption in the generation stages.",
+  "serviceName": "notes-service",
+  "packageName": "com.corp.notes",
+  "basePort": 8081,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Note",
+      "tableName": "notes",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Long",
+          "nullable": false,
+          "isPrimaryKey": true,
+          "validationRules": []
+        },
+        {
+          "name": "body",
+          "type": "String",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": []
+        }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P3",
+      "role": "end user",
+      "intent": "record a short note",
+      "benefit": "the thought is not lost",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a non-empty note body",
+          "when": "the user saves the note",
+          "then": "the note is persisted and returned with its generated identifier"
+        }
+      ]
+    }
+  ]
+}

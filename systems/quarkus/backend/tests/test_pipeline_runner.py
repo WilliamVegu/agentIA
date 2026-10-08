@@ -55,7 +55,7 @@ def test_pipeline_runner_full_run(runner_session):
     _stop_events[session_id] = threading.Event()
 
     # Execute all steps
-    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
+    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert (ws_path / "spec.md").exists()
     assert (ws_path / "user_stories.json").exists()
@@ -80,11 +80,12 @@ def test_pipeline_runner_hot_pause(runner_session):
     # Signal pause immediately before start
     _pause_events[session_id].set()
 
-    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
+    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert _pipeline_statuses.get(session_id) == PipelineRunStatus.PAUSED
     # Step 3 and later should not be created
-    assert not (ws_path / "docker-compose.yml").exists()
+    from app.models.reliability import DeploymentOperation
+    with SessionLocal() as db: assert db.query(DeploymentOperation).filter_by(session_id=session_id).count()==0
 
 
 def test_pipeline_runner_quality_gate_block(runner_session, monkeypatch):
@@ -101,9 +102,12 @@ def test_pipeline_runner_quality_gate_block(runner_session, monkeypatch):
     import app.services.pipeline_runner as pr
     monkeypatch.setattr(pr, "audit_workspace", lambda *args, **kwargs: mock_audit)
 
-    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
+    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert _pipeline_statuses.get(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
     # DevOps assets should NOT be created due to block
-    assert not (ws_path / "docker-compose.yml").exists()
+    from app.models.reliability import DeploymentOperation
+    with SessionLocal() as db:
+        assert db.get(GenerationSessionDB,session_id).status==SessionStatus.BLOCKED
+        assert db.query(DeploymentOperation).filter_by(session_id=session_id).count()==0
 

@@ -15,19 +15,14 @@ from app.services.devops_service import (
 
 
 def test_generate_dockerfile():
-    dockerfile = generate_dockerfile("order-service")
-    # Verify multi-stage quarkus fast-jar
-    assert "FROM maven:3.9-eclipse-temurin-21-alpine AS builder" in dockerfile
-    assert "FROM eclipse-temurin:21-jre-alpine AS runner" in dockerfile
-    assert "quarkus-run.jar" in dockerfile
-    # Verify non-root user
-    assert "USER appuser:appgroup" in dockerfile
-    assert "10001" in dockerfile
-    # Verify JVM flags
-    assert "-XX:MaxRAMPercentage=75.0" in dockerfile
-    # Verify healthcheck
-    assert "HEALTHCHECK" in dockerfile
-    assert "/q/health" in dockerfile
+    dockerfile=generate_dockerfile('ledger-service','maven','prepared-native:exact-manifest')
+    assert 'FROM prepared-native:exact-manifest AS build' in dockerfile
+    assert 'FROM agentia-runtime:21-v1' in dockerfile
+    assert 'quarkus-app' in dockerfile and 'quarkus-run.jar' in dockerfile
+    assert 'USER 10001:10001' in dockerfile
+    assert 'mvn' in dockerfile and 'verify' in dockerfile and ' -o ' in dockerfile
+    assert 'RUN --network=none' in dockerfile
+    assert 'DskipTests' not in dockerfile and 'BOOT-INF' not in dockerfile
 
 
 def test_generate_dockerignore():
@@ -39,10 +34,11 @@ def test_generate_dockerignore():
 
 def test_generate_docker_compose_postgresql():
     compose = generate_docker_compose("order-service", "POSTGRESQL", 8080)
-    assert "version: '3.8'" in compose
-    assert "image: postgres:16-alpine" in compose
-    assert "5432:5432" in compose
-    assert "schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro" in compose
+    assert "version:" not in compose
+    assert "image: postgres:16.4-alpine" in compose
+    assert "5432:5432" not in compose
+    assert "docker-entrypoint-initdb.d" not in compose
+    assert "io.agentia.owner" in compose and "io.agentia.studio" in compose
     assert "pgdata:/var/lib/postgresql/data" in compose
     assert "condition: service_healthy" in compose
     assert "QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/order-service_db" in compose
@@ -50,8 +46,8 @@ def test_generate_docker_compose_postgresql():
 
 def test_generate_docker_compose_mysql():
     compose = generate_docker_compose("inventory-service", "MYSQL", 8081)
-    assert "image: mysql:8.0-debian" in compose
-    assert "3306:3306" in compose
+    assert "image: mysql:8.0.40" in compose
+    assert "3306:3306" not in compose
     assert "mysqldata:/var/lib/mysql" in compose
     assert "QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://db:3306/inventory-service_db" in compose
 
@@ -66,20 +62,21 @@ def test_generate_docker_compose_h2():
 
 
 def test_generate_github_actions():
-    gh = generate_github_actions("payment-service")
-    assert "name: \"CI/CD Pipeline - payment-service\"" in gh
-    assert "mvn clean test" in gh
-    assert "aquasecurity/trivy-action" in gh
-    assert "payment-service:latest" in gh
+    workflow=generate_github_actions('payment-service')
+    assert 'Local verification - payment-service' in workflow
+    assert 'runs-on: [self-hosted, Windows]' in workflow
+    assert 'python local-ci.py --docker' in workflow
+    assert 'if: inputs.docker' in workflow
+    assert 'echo' not in workflow and 'trivy-action' not in workflow
 
 
 def test_generate_gitlab_ci():
-    gl = generate_gitlab_ci("payment-service")
-    assert "stages:" in gl
-    assert "build-test" in gl
-    assert "security-audit" in gl
-    assert "container-scan" in gl
-    assert "trivy image" in gl
+    workflow=generate_gitlab_ci('payment-service')
+    assert 'stages: [verify]' in workflow
+    assert 'python local-ci.py' in workflow
+    assert 'when: manual' in workflow
+    assert '.agentia-runtime/local-ci-result.json' in workflow
+    assert 'echo' not in workflow
 
 
 def test_generate_kubernetes_manifests():

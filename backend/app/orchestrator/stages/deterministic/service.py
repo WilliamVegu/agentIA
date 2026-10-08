@@ -9,13 +9,16 @@ The node module of the same name now delegates to the stage execution
 boundary, which dispatches here for DETERMINISTIC sessions.
 """
 
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
 from app.orchestrator.stages.deterministic import module_layout
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
@@ -38,11 +41,13 @@ public class ResourceNotFoundException extends RuntimeException {{
     ex_path = f"{prefix}src/main/java/{pkg_path}/exception/ResourceNotFoundException.java"
     generated_files[ex_path] = not_found_ex
     fp = base_dir / ex_path
-    fp.parent.mkdir(parents=True, exist_ok=True)
-    fp.write_text(not_found_ex, encoding="utf-8")
+    io_path(fp.parent).mkdir(parents=True, exist_ok=True)
+    io_path(fp).write_text(not_found_ex, encoding="utf-8")
 
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        from app.services.domain_descriptor import identifier
+        id_name, id_type = identifier(ent)
         attrs = ent.get("attributes", [])
         non_id_attrs = [a for a in attrs if not (a.get("isPrimaryKey") or a.get("is_identifier") or a.get("name") == "id")]
 
@@ -54,7 +59,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface {ent_name}Repository extends JpaRepository<{ent_name}, Long> {{
+public interface {ent_name}Repository extends JpaRepository<{ent_name}, {id_type}> {{
 }}
 """
         repo_path = f"{prefix}src/main/java/{pkg_path}/repository/{ent_name}Repository.java"
@@ -69,9 +74,9 @@ import java.util.List;
 
 public interface {ent_name}Service {{
     {ent_name}Response create(Create{ent_name}Request request);
-    {ent_name}Response findById(Long id);
+    {ent_name}Response findById({id_type} id);
     List<{ent_name}Response> findAll();
-    void delete(Long id);
+    void delete({id_type} id);
 }}
 """
         service_path = f"{prefix}src/main/java/{pkg_path}/service/{ent_name}Service.java"
@@ -121,7 +126,7 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
 
     @Override
     @Transactional(readOnly = true)
-    public {ent_name}Response findById(Long id) {{
+    public {ent_name}Response findById({id_type} id) {{
         {ent_name} entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("{ent_name} not found with id: " + id));
         return {ent_name}Response.fromEntity(entity);
@@ -136,7 +141,7 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
     }}
 
     @Override
-    public void delete(Long id) {{
+    public void delete({id_type} id) {{
         if (!repository.existsById(id)) {{
             throw new ResourceNotFoundException("{ent_name} not found with id: " + id);
         }}
@@ -150,8 +155,8 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
         # Write files to disk
         for p, code in [(repo_path, repo_src), (service_path, service_iface), (impl_path, service_impl)]:
             f_p = base_dir / p
-            f_p.parent.mkdir(parents=True, exist_ok=True)
-            f_p.write_text(code, encoding="utf-8")
+            io_path(f_p.parent).mkdir(parents=True, exist_ok=True)
+            io_path(f_p).write_text(code, encoding="utf-8")
 
         logs.append(f"[SERVICE] Generated {ent_name}Repository, {ent_name}Service, and {ent_name}ServiceImpl")
 

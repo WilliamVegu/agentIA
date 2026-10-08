@@ -328,6 +328,8 @@ over-budget session fails this measurement even when the others pass.
 # T048 — SC-011 intervention rate
 # ---------------------------------------------------------------------------
 def test_measure_sc011_intervention_rate(monkeypatch, tmp_path):
+    # Test measurements belong to disposable output, never the historical report.
+    monkeypatch.setitem(globals(), "OUTPUT_DIR", tmp_path / "measurements")
     """SC-011 over a SYNTHETIC mix of >= 30 model-mode sessions.
 
     The mix is a parameter of this file (see the module docstring). It exercises

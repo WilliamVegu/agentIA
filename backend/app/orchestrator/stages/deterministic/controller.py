@@ -9,13 +9,16 @@ The node module of the same name now delegates to the stage execution
 boundary, which dispatches here for DETERMINISTIC sessions.
 """
 
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
 from app.orchestrator.stages.deterministic import module_layout
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     service_name = blueprint.get("serviceName") or blueprint.get("service_name", "sample-service")
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
@@ -90,6 +93,17 @@ public class GlobalExceptionHandler {{
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }}
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConflict(org.springframework.dao.DataIntegrityViolationException ex) {{
+        logger.warn("Database constraint rejected request", ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("status", 409, "error", "Conflict", "message", "The request conflicts with a database constraint"));
+    }}
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleMalformedRequest(org.springframework.http.converter.HttpMessageNotReadableException ex) {{
+        return ResponseEntity.badRequest().body(Map.of("status", 400, "error", "Bad Request", "message", "Malformed request body"));
+    }}
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {{
         logger.error("Unhandled exception", ex);
@@ -105,14 +119,16 @@ public class GlobalExceptionHandler {{
     handler_path = f"{prefix}src/main/java/{pkg_path}/controller/GlobalExceptionHandler.java"
     generated_files[handler_path] = handler_src
     h_fp = base_dir / handler_path
-    h_fp.parent.mkdir(parents=True, exist_ok=True)
-    h_fp.write_text(handler_src, encoding="utf-8")
+    io_path(h_fp.parent).mkdir(parents=True, exist_ok=True)
+    io_path(h_fp).write_text(handler_src, encoding="utf-8")
 
     # 2. HomeController (@GetMapping("/") - Welcome & API Catalog)
     endpoints_java = []
     endpoints_html = []
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        from app.services.domain_descriptor import identifier
+        id_name, id_type = identifier(ent)
         plural = ent_name.lower() + "s"
         endpoints_java.append(f'            "/api/v1/{plural}",')
         endpoints_html.append(f"""                  <a class="link-item" href="/api/v1/{plural}" target="_blank">
@@ -206,12 +222,14 @@ public class HomeController {{
     home_path = f"{prefix}src/main/java/{pkg_path}/controller/HomeController.java"
     generated_files[home_path] = home_src
     home_fp = base_dir / home_path
-    home_fp.write_text(home_src, encoding="utf-8")
+    io_path(home_fp).write_text(home_src, encoding="utf-8")
     logs.append(f"[CONTROLLER] Generated HomeController for root path / with API catalog")
 
     # 3. Controllers for each entity
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        from app.services.domain_descriptor import identifier
+        id_name, id_type = identifier(ent)
         plural = ent_name.lower() + "s"
 
         ctrl_src = f"""package {package_name}.controller;
@@ -246,7 +264,7 @@ public class {ent_name}Controller {{
     }}
 
     @GetMapping("/{{id}}")
-    public ResponseEntity<{ent_name}Response> getById(@PathVariable Long id) {{
+    public ResponseEntity<{ent_name}Response> getById(@PathVariable {id_type} id) {{
         return ResponseEntity.ok(service.findById(id));
     }}
 
@@ -256,7 +274,7 @@ public class {ent_name}Controller {{
     }}
 
     @DeleteMapping("/{{id}}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {{
+    public ResponseEntity<Void> delete(@PathVariable {id_type} id) {{
         service.delete(id);
         return ResponseEntity.noContent().build();
     }}
@@ -265,8 +283,8 @@ public class {ent_name}Controller {{
         ctrl_path = f"{prefix}src/main/java/{pkg_path}/controller/{ent_name}Controller.java"
         generated_files[ctrl_path] = ctrl_src
         c_fp = base_dir / ctrl_path
-        c_fp.parent.mkdir(parents=True, exist_ok=True)
-        c_fp.write_text(ctrl_src, encoding="utf-8")
+        io_path(c_fp.parent).mkdir(parents=True, exist_ok=True)
+        io_path(c_fp).write_text(ctrl_src, encoding="utf-8")
 
         logs.append(f"[CONTROLLER] Generated {ent_name}Controller with REST endpoints")
 

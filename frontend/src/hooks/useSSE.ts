@@ -53,12 +53,23 @@ export function useSSE(streamUrl: string | null) {
       });
     };
 
+    const seen = new Set<string>();
     const handleEvent = (event: MessageEvent) => {
       if (!active) return;
+      if (event.type !== "resync_required" && event.lastEventId && seen.has(event.lastEventId)) return;
+      if (event.lastEventId) {
+        seen.add(event.lastEventId);
+        if (seen.size > 1000) seen.delete(seen.values().next().value!);
+      }
       try {
         const parsed = typeof event.data === 'string' && event.data.startsWith('{')
           ? JSON.parse(event.data)
           : event.data;
+        if (event.type === 'resync_required') {
+          seen.clear();
+          setLogs([]);
+          window.dispatchEvent(new CustomEvent('agentia:session-resync', { detail: { sessionId: parsed?.sessionId } }));
+        }
         setLastEvent(parsed);
         const msg =
           (typeof parsed === 'object' && parsed !== null)
@@ -90,9 +101,13 @@ export function useSSE(streamUrl: string | null) {
       'pipeline_progress',
       'progress',
       'build_log',
+      'runtime_log',
       'repair_iteration',
       'queue_status',
       'connect',
+      'operation_state',
+      'operation_checkpoint',
+      'resync_required',
     ];
     customEvents.forEach((evtName) => {
       es.addEventListener(evtName, handleEvent as EventListener);

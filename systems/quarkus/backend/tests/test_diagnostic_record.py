@@ -507,18 +507,12 @@ def test_the_graph_accumulator_preserves_artifacts_when_a_stage_exhausts(
     workspace.mkdir()
     model = _script_responses(monkeypatch, _real_baseline_pattern(blueprint))
 
-    class _Unverifiable:
-        fallback_used = True
-        is_success = False
-        fallback_reason = "test: the container runtime is not consulted"
-        duration_ms = 0
-
-    async def _fake_sandbox(*args, **kwargs):
-        return _Unverifiable()
-
-    monkeypatch.setattr(
-        "app.orchestrator.nodes.sandbox_node.run_docker_sandbox", _fake_sandbox
-    )
+    from app.services.workspace_verification import WorkspaceVerification
+    from app.sandbox.docker_runner import DockerExecutionResult
+    def unavailable(*args,**kwargs):
+        return WorkspaceVerification(DockerExecutionResult(exit_code=1,fallback_used=True,
+            fallback_reason="test: the container runtime is not consulted"))
+    monkeypatch.setattr("app.orchestrator.nodes.sandbox_node.run_workspace_verification",unavailable)
 
     initial = _model_state(blueprint, workspace, "t015-c")
     initial["repair_attempts"] = 0
@@ -578,6 +572,16 @@ def test_the_sequential_pipeline_terminates_and_records_a_stage_exhaustion(
         db.commit()
     finally:
         db.close()
+
+    workspace=tmp_path/session_id
+    workspace.mkdir()
+    from app.services.model_sql_service import schema_sql_from_draft
+    (workspace/"schema.sql").write_text(schema_sql_from_draft(pipeline_runner.SpecificationDraft.model_validate(blueprint),"H2"),encoding="utf-8")
+    # Keep the generation-model script isolated from requirements/architecture providers.
+    from app.services.draft_revision_service import save_revision
+    save_revision(session_id,blueprint,source='MANUAL')
+    (workspace/'architecture.json').write_text(json.dumps(pipeline_runner._derive_architecture_from_draft(
+        pipeline_runner.SpecificationDraft.model_validate(blueprint))),encoding='utf-8')
 
     pipeline_runner._pause_events[session_id] = threading.Event()
     pipeline_runner._stop_events[session_id] = threading.Event()

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="36.249" timestamp="2026-10-08T00:10:43.266049-05:00" hostname="VeguFam"><testcase classname="integration.test_generated_domain" name="test_native_http_h2[springboot]" time="15.898"><failure message="AssertionError: (500, {'error': 'Internal Server Error', 'message': 'could not execute statement [Unique index or primary key violatio...booked_at,email,entry_id) values (?,?,?,?) [23505-224]]', 'timestamp': '2026-10-08T05:10:58.404912455', 'status': 500})&#10;assert 500 == 409">integration\test_generated_domain.py:69: in test_native_http_h2
+    http_contract(framework,ROOT/'.runtime/reliability/java'/(framework+'-maven-h2'))
+integration\test_generated_domain.py:56: in http_contract
+    assert status==409,(status,duplicate)
+E   AssertionError: (500, {'error': 'Internal Server Error', 'message': 'could not execute statement [Unique index or primary key violatio...booked_at,email,entry_id) values (?,?,?,?) [23505-224]]', 'timestamp': '2026-10-08T05:10:58.404912455', 'status': 500})
+E   assert 500 == 409</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_http_h2[quarkus]" time="20.018"><failure message="AssertionError: (500, {'error': 'Internal Server Error', 'message': 'Error invoking subclass method', 'timestamp': '2026-10-08T05:11:18.769219612', 'status': 500})&#10;assert 500 == 409">integration\test_generated_domain.py:69: in test_native_http_h2
+    http_contract(framework,ROOT/'.runtime/reliability/java'/(framework+'-maven-h2'))
+integration\test_generated_domain.py:56: in http_contract
+    assert status==409,(status,duplicate)
+E   AssertionError: (500, {'error': 'Internal Server Error', 'message': 'Error invoking subclass method', 'timestamp': '2026-10-08T05:11:18.769219612', 'status': 500})
+E   assert 500 == 409</failure></testcase></testsuite></testsuites>

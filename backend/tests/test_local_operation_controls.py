@@ -54,6 +54,9 @@ def test_autopilot_cancel_signals_exact_active_deployment(runtime, monkeypatch):
     monkeypatch.setattr(pipeline_runner, '_record_pipeline_cost', lambda *a, **k: None)
     monkeypatch.setattr(pipeline_runner, '_stop_events', {runtime.id: threading.Event()})
     row = service.deploy_local(runtime.id, str(runtime.ws))
+    from app.services.operation_repository import begin_operation, transition_operation
+    operation = begin_operation(runtime.id, "DEVOPS_DEPLOY")
+    transition_operation(operation["operationId"], operation["version"], "RUNNING")
     pipeline_runner.cancel_pipeline(runtime.id)
     assert row.cancelRequested and pipeline_runner._stop_events[runtime.id].is_set()
     runtime.workers[0]()
@@ -61,13 +64,13 @@ def test_autopilot_cancel_signals_exact_active_deployment(runtime, monkeypatch):
 
 
 def test_start_timeout_stops_only_owned_runtime_preserving_data(runtime, monkeypatch):
-    original = service.subprocess.run
-    def timeout(command, **kwargs):
+    original = service.run_logged
+    def timeout(command, on_line, **kwargs):
         if 'up' in command:
             runtime.started = True
             raise subprocess.TimeoutExpired(command, 0.01)
-        return original(command, **kwargs)
-    monkeypatch.setattr(service.subprocess, 'run', timeout)
+        return original(command, on_line, **kwargs)
+    monkeypatch.setattr(service, 'run_logged', timeout)
     row = service.deploy_local(runtime.id, str(runtime.ws))
     runtime.workers[0]()
     assert row.status == Status.FAILED and row.operationPhase == 'INTERRUPTED'
@@ -185,3 +188,17 @@ def test_status_probe_cannot_reopen_completed_operation(runtime):
     persist(retry)
     saved = json.loads((runtime.ws / '.agentia-runtime' / 'deployment.json').read_text())
     assert saved['finishedAt'] is None and saved['operationId'] == 'new-deploy'
+
+
+def test_autopilot_borrowed_deploy_waits_for_worker_and_preserves_parent_lock(runtime):
+    from app.services.local_operations import borrowed_lock
+    from app.services.session_operation_lock import SessionOperationLock
+    lock=SessionOperationLock(runtime.id)
+    assert lock.acquire(False)
+    try:
+        with borrowed_lock(runtime.id):
+            row=service.deploy_local(runtime.id,str(runtime.ws))
+        assert row.status==Status.HEALTHY and row.finishedAt
+        assert not runtime.workers, 'Borrowed writer returned while a child still ran'
+        assert lock.locked(), 'Deploy released the parent pipeline writer'
+    finally: lock.release()

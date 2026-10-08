@@ -34,6 +34,8 @@ def clean_devops_session():
     finally:
         db.close()
 
+    from reliability_helpers import prepare_source_delivery
+    prepare_source_delivery(session_id,ws_path,database="POSTGRESQL",port=8080)
     yield session_id
 
 
@@ -62,6 +64,9 @@ def blocked_devops_session():
     finally:
         db.close()
 
+    from app.services.draft_revision_service import save_revision
+    from integration.reliability_fixtures import ledger_draft
+    save_revision(session_id,ledger_draft())
     yield session_id
 
 
@@ -73,8 +78,8 @@ def test_generate_devops_manifests_success(clean_devops_session):
     assert data["sessionId"] == sess_id
     assert data["serviceName"] == "order-service"
     assert data["databaseEngine"] == "POSTGRESQL"
-    assert "eclipse-temurin:21-jre-alpine" in data["dockerfileContent"]
-    assert "postgres:16-alpine" in data["dockerComposeContent"]
+    assert "agentia-runtime:21-v1" in data["dockerfileContent"]
+    assert "postgres:16.4-alpine" in data["dockerComposeContent"]
     assert "deployment.yaml" in data["kubernetesManifests"]
 
     # Verify physical file existence
@@ -94,19 +99,20 @@ def test_generate_devops_manifests_blocked_by_quality_gate(blocked_devops_sessio
 
 def test_deploy_devops_blocked_by_quality_gate(blocked_devops_session):
     sess_id = blocked_devops_session
+    with SessionLocal() as db:
+        db.get(GenerationSessionDB,sess_id).execution_mode="DOCKER"
+        db.commit()
     response = client.post(f"/api/v1/devops/{sess_id}/deploy")
     assert response.status_code == 403
     assert "Quality Gate is BLOCKED" in response.json()["detail"]
 
 
-def test_deploy_devops_clean_session_behavior(clean_devops_session):
-    sess_id = clean_devops_session
-    # Deploy will either start building (if Docker is present) or return DOCKER_UNAVAILABLE (if Docker is absent)
-    response = client.post(f"/api/v1/devops/{sess_id}/deploy", json={"hostPort": 8080})
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["sessionId"] == sess_id
-    assert data["status"] in ["BUILDING", "RUNNING", "HEALTHY", "DOCKER_UNAVAILABLE"]
+def test_deploy_devops_clean_session_requires_docker_choice(clean_devops_session,monkeypatch):
+    from app.services import docker_service
+    monkeypatch.setattr(docker_service,'check_docker_daemon',lambda:pytest.fail('SOURCE_ONLY must not probe Docker'))
+    response=client.post(f"/api/v1/devops/{clean_devops_session}/deploy",json={"hostPort":8080})
+    assert response.status_code==403,response.text
+    assert 'SOURCE_ONLY' in response.json()['detail']
 
 
 def test_devops_status_endpoint(clean_devops_session):

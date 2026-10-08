@@ -1,12 +1,15 @@
 """Native Quarkus offline generator, restored and wired into the Studio stage boundary."""
 
 from app.orchestrator.stages.deterministic.schema import identifier
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
@@ -28,8 +31,8 @@ public class ResourceNotFoundException extends RuntimeException {{
     ex_path = f"src/main/java/{pkg_path}/exception/ResourceNotFoundException.java"
     generated_files[ex_path] = not_found_ex
     fp = base_dir / ex_path
-    fp.parent.mkdir(parents=True, exist_ok=True)
-    fp.write_text(not_found_ex, encoding="utf-8")
+    io_path(fp.parent).mkdir(parents=True, exist_ok=True)
+    io_path(fp).write_text(not_found_ex, encoding="utf-8")
 
     for ent in entities:
         ent_name = ent.get("name", "Entity")
@@ -182,8 +185,8 @@ public class {ent_name}ServiceImpl implements {ent_name}Service {{
         # Write files to disk
         for p, code in [(repo_path, repo_src), (service_path, service_iface), (impl_path, service_impl)]:
             f_p = base_dir / p
-            f_p.parent.mkdir(parents=True, exist_ok=True)
-            f_p.write_text(code, encoding="utf-8")
+            io_path(f_p.parent).mkdir(parents=True, exist_ok=True)
+            io_path(f_p).write_text(code, encoding="utf-8")
 
         logs.append(f"[SERVICE] Generated {ent_name}Repository, {ent_name}Service, and {ent_name}ServiceImpl")
 

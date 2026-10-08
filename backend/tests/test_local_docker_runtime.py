@@ -47,7 +47,7 @@ def runtime(tmp_path, monkeypatch):
         if cmd[:2] == ['docker', 'ps']:
             output = 'container-id' if data.started else ''
         elif cmd[:2] == ['docker', 'inspect']:
-            output = json.dumps([{'Id': 'container-id', 'Config': {'Labels': {'com.docker.compose.project': 'foreign-session' if data.foreign else identity, 'io.agentia.role': 'application'}}, 'HostConfig': {'PortBindings': {'8080/tcp': [{'HostIp': '127.0.0.1', 'HostPort': str(data.port)}]}}, 'State': {'Running': data.started}}])
+            output = json.dumps([{'Id': 'container-id', 'Config': {'Labels': {'com.docker.compose.project': 'foreign-session' if data.foreign else identity, 'io.agentia.owner': identity, 'io.agentia.studio': 'springboot', 'io.agentia.role': 'application'}}, 'HostConfig': {'PortBindings': {'8080/tcp': [{'HostIp': '127.0.0.1', 'HostPort': str(data.port)}]}}, 'State': {'Running': data.started}}])
         elif 'build' in cmd and data.build_failure:
             rc, error = 1, 'BUILD FAILURE: actual failing test'
         elif 'up' in cmd:
@@ -142,7 +142,7 @@ def test_database_engine_is_inspected_not_inferred_from_project(runtime, monkeyp
     def run(command, **kwargs):
         if command[1] == 'ps': return SimpleNamespace(returncode=0, stdout='container-id')
         return SimpleNamespace(returncode=0, stdout=json.dumps([{'Id': 'container-id',
-            'Config': {'Labels': {'com.docker.compose.project': runtime.id, 'io.agentia.role': 'application'},
+            'Config': {'Labels': {'com.docker.compose.project': runtime.id, 'io.agentia.owner': runtime.id, 'io.agentia.studio': 'springboot', 'io.agentia.role': 'application'},
                        'Env': [f'SPRING_DATASOURCE_DRIVER_CLASS_NAME={driver}', 'DB_PASSWORD=not-for-response']},
             'HostConfig': {'PortBindings': {'8080/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '19001'}]}},
             'State': {'Running': True}}]))

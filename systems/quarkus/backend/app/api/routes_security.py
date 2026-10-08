@@ -60,7 +60,8 @@ async def audit_session_workspace(session_id: str):
     finally:
         db.close()
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -73,48 +74,39 @@ async def audit_session_workspace(session_id: str):
 
 @router.post("/security/remediate", response_model=RemediationResponse)
 async def remediate_finding(payload: RemediationRequest):
-    """Applies a 1-click surgical auto-repair patch to remediate a supported security or compliance violation."""
+    """Preview in memory; persistence is scoped to one existing session."""
+    from app.services.workspace_guard import resolve_workspace_file, atomic_write_workspace_file, validate_relative_file, io_path
     source_code = payload.sourceCode
-
-    # If sourceCode not provided, attempt to locate file in workspace
+    persist = payload.persist if payload.persist is not None else source_code is None
     target_path = None
+    if persist or source_code is None:
+        if not payload.sessionId:
+            raise HTTPException(422, "sessionId is required to read or persist workspace code; preview requires sourceCode")
+        target_path = resolve_workspace_file(payload.sessionId, payload.filePath, require_exists=True)
+        current = io_path(target_path).read_text(encoding="utf-8")
+        import hashlib
+        if payload.expectedFingerprint and hashlib.sha256(current.encode()).hexdigest() != payload.expectedFingerprint:
+            raise HTTPException(409, "Source changed; reload before remediating")
+        if source_code is not None and source_code != current:
+            raise HTTPException(409, "Provided source is outdated; reload before remediating")
+        source_code = current
+    else:
+        validate_relative_file(payload.filePath)
     if not source_code:
-        # Check if filePath exists as is or inside workspace
-        potential_path = Path(payload.filePath)
-        if potential_path.exists() and potential_path.is_file():
-            target_path = potential_path
-            source_code = potential_path.read_text(encoding="utf-8", errors="ignore")
-        else:
-            # Look in workspace directories
-            ws_root = Path(settings.WORKSPACE_DIR)
-            matches = list(ws_root.glob(f"**/{payload.filePath}"))
-            if matches:
-                target_path = matches[0]
-                source_code = target_path.read_text(encoding="utf-8", errors="ignore")
-
-    if not source_code:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Source code not provided and could not be resolved from workspace.",
-        )
-
-    original, remediated, diff = apply_surgical_remediation(
-        payload.findingId, payload.filePath, source_code
-    )
-
-    # Persist back to file if target_path was found
-    if target_path and target_path.exists() and original != remediated:
+        raise HTTPException(422, "Provide nonempty sourceCode for preview")
+    original, remediated, diff = apply_surgical_remediation(payload.findingId, payload.filePath, source_code)
+    if persist and original != remediated:
+        from app.services.session_operation_lock import SessionOperationLock
+        lock = SessionOperationLock(payload.sessionId)
+        if not lock.acquire(False):
+            raise HTTPException(409, "Session has an active operation")
         try:
-            target_path.write_text(remediated, encoding="utf-8")
-        except Exception:
-            pass
-
-    return RemediationResponse(
-        findingId=payload.findingId,
-        filePath=payload.filePath,
-        originalCode=original,
-        remediatedCode=remediated,
-        diff=diff,
-        applied=original != remediated,
-    )
-
+            if io_path(target_path).read_text(encoding="utf-8") != original:
+                raise HTTPException(409, "Source changed during remediation")
+            from app.services.verification_evidence import invalidate_evidence
+            invalidate_evidence(payload.sessionId)
+            atomic_write_workspace_file(payload.sessionId, payload.filePath, remediated)
+        finally:
+            lock.release()
+    return RemediationResponse(findingId=payload.findingId, filePath=payload.filePath,
+                               originalCode=original, remediatedCode=remediated, diff=diff, applied=original != remediated)

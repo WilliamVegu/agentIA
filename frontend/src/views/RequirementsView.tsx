@@ -148,6 +148,9 @@ export const RequirementsView: React.FC = () => {
   } = useStudio();
   const { provider, apiKey, model } = useLlm();
 
+  const [revisionId, setRevisionId] = useState<string | null>(null);
+  const [configurationVersion, setConfigurationVersion] = useState<number | undefined>();
+  const [backupConfirmed, setBackupConfirmed] = useState(false);
   const [promptText, setPromptText] = useState('');
   const [stories, setStories] = useState<BddStory[]>([]);
   const [entities, setEntities] = useState<(string | EntityItem)[]>([]);
@@ -158,6 +161,9 @@ export const RequirementsView: React.FC = () => {
 
   useEffect(() => {
     if (!activeSessionId) {
+      setRevisionId(null);
+      setConfigurationVersion(undefined);
+      setBackupConfirmed(false);
       setPromptText('');
       setStories([]);
       setEntities([]);
@@ -169,6 +175,9 @@ export const RequirementsView: React.FC = () => {
       .getSessionRequirements(activeSessionId)
       .then((data) => {
         if (!isMounted || !data) return;
+        setRevisionId(data.revisionId ?? null);
+        setConfigurationVersion(data.configurationVersion);
+        setBackupConfirmed(false);
         if (data.rawPrompt && data.rawPrompt.trim()) {
           setPromptText(data.rawPrompt);
         } else {
@@ -472,9 +481,13 @@ export const RequirementsView: React.FC = () => {
 
     if (activeSessionId) {
       try {
-        await requirementsService.saveSessionRequirements(activeSessionId, draftObj);
+        const saved = await requirementsService.saveSessionRequirements(activeSessionId, draftObj, revisionId, configurationVersion);
+        setRevisionId(saved.revisionId);
+        setConfigurationVersion(saved.configurationVersion);
+        await requirementsService.approveSessionRequirements(activeSessionId, saved.revisionId, saved.configurationVersion);
       } catch (err) {
-        console.warn('Could not save session requirements:', err);
+        setFeedbackMsg('No se pudo aprobar: la revisión cambió o la operación está bloqueada. Recargue y revise el borrador.');
+        return;
       }
       await orchestratorService.invalidateDownstream(activeSessionId, 'STORIES');
       await reloadCurrentOverview();
@@ -482,8 +495,36 @@ export const RequirementsView: React.FC = () => {
     setActiveTab('architecture'); // Move to tab 2 Architecture
   };
 
+  const handlePrepareRegeneration = async () => {
+    if (!activeSessionId || !revisionId || !backupConfirmed) return;
+    setIsProcessing(true);
+    try {
+      const result = await requirementsService.prepareRegeneration(activeSessionId, revisionId);
+      setFeedbackMsg(`Respaldo creado: ${result.backup}. Ya puede ejecutar la generación para esta revisión.`);
+      setBackupConfirmed(false);
+      await reloadCurrentOverview();
+    } catch {
+      setFeedbackMsg('No se pudo preparar la regeneración. Recargue la revisión y espere a que termine la operación activa.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {activeSessionId && revisionId && (
+        <div className="rounded-lg border border-amber-300 p-4 space-y-3">
+          <p className="text-sm">Si cambió el borrador, prepare las fuentes generadas antes de volver a ejecutar el flujo. Se respaldan los archivos generados obsoletos; las ediciones manuales requieren revisión.</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={backupConfirmed} onChange={(event) => setBackupConfirmed(event.target.checked)} />
+            Confirmo la regeneración de archivos obsoletos con respaldo previo.
+          </label>
+          <button type="button" disabled={isProcessing || !backupConfirmed} onClick={handlePrepareRegeneration}
+            className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50">
+            Preparar regeneración con respaldo
+          </button>
+        </div>
+      )}
       {/* Top Banner / Ingestion */}
       <SingleRowCard
         title="Fase 1: Transformación de Requerimientos a Historias BDD"

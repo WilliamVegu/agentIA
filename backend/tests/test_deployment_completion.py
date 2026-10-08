@@ -116,15 +116,15 @@ def test_playground_discards_response_after_runtime_change(monkeypatch, change):
 
 
 def test_port_bind_race_retries_with_override_and_informs(runtime, monkeypatch):
-    execute = service.subprocess.run
+    execute = service.run_logged
     starts = []
-    def race(command, **kwargs):
+    def race(command, on_line, **kwargs):
         if 'up' in command:
             starts.append(kwargs['env']['HOST_PORT'])
             if len(starts) == 1:
-                return SimpleNamespace(returncode=1, stdout='', stderr='port is already allocated')
-        return execute(command, **kwargs)
-    monkeypatch.setattr(service.subprocess, 'run', race)
+                raise RuntimeError('port is already allocated')
+        return execute(command,on_line,**kwargs)
+    monkeypatch.setattr(service,'run_logged',race)
     monkeypatch.setattr(local_runtime, 'available_port', lambda preferred: preferred)
     row = service.deploy_local(runtime.id, str(runtime.ws), host_port=18080)
     runtime.workers[0]()
@@ -133,14 +133,14 @@ def test_port_bind_race_retries_with_override_and_informs(runtime, monkeypatch):
 
 
 def test_port_conflicts_are_bounded_and_do_not_start_unrelated_service(runtime, monkeypatch):
-    execute = service.subprocess.run
+    execute = service.run_logged
     starts = []
-    def occupied(command, **kwargs):
+    def occupied(command, on_line, **kwargs):
         if 'up' in command:
             starts.append(kwargs['env']['HOST_PORT'])
-            return SimpleNamespace(returncode=1, stdout='', stderr='ports are not available')
-        return execute(command, **kwargs)
-    monkeypatch.setattr(service.subprocess, 'run', occupied)
+            raise RuntimeError('ports are not available')
+        return execute(command,on_line,**kwargs)
+    monkeypatch.setattr(service,'run_logged',occupied)
     monkeypatch.setattr(local_runtime, 'available_port', lambda preferred: preferred)
     row = service.deploy_local(runtime.id, str(runtime.ws), host_port=18080)
     runtime.workers[0]()

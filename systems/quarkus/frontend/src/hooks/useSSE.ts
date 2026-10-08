@@ -13,6 +13,7 @@ export function useSSE(streamUrl: string | null) {
   const [logs, setLogs] = useState<SSELogEvent[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [lastEvent, setLastEvent] = useState<any>(null);
+  const [eventUrl, setEventUrl] = useState(streamUrl);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const clearLogs = useCallback(() => {
@@ -24,6 +25,11 @@ export function useSSE(streamUrl: string | null) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    setEventUrl(streamUrl);
+    setLogs([]);
+    setLastEvent(null);
+    setIsConnected(false);
     if (!streamUrl) {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -37,6 +43,7 @@ export function useSSE(streamUrl: string | null) {
     eventSourceRef.current = es;
 
     es.onopen = () => {
+      if (!active) return;
       setIsConnected(true);
       addLog({
         id: Date.now(),
@@ -46,11 +53,23 @@ export function useSSE(streamUrl: string | null) {
       });
     };
 
+    const seen = new Set<string>();
     const handleEvent = (event: MessageEvent) => {
+      if (!active) return;
+      if (event.type !== "resync_required" && event.lastEventId && seen.has(event.lastEventId)) return;
+      if (event.lastEventId) {
+        seen.add(event.lastEventId);
+        if (seen.size > 1000) seen.delete(seen.values().next().value!);
+      }
       try {
         const parsed = typeof event.data === 'string' && event.data.startsWith('{')
           ? JSON.parse(event.data)
           : event.data;
+        if (event.type === 'resync_required') {
+          seen.clear();
+          setLogs([]);
+          window.dispatchEvent(new CustomEvent('agentia:session-resync', { detail: { sessionId: parsed?.sessionId } }));
+        }
         setLastEvent(parsed);
         const msg =
           (typeof parsed === 'object' && parsed !== null)
@@ -82,19 +101,25 @@ export function useSSE(streamUrl: string | null) {
       'pipeline_progress',
       'progress',
       'build_log',
+      'runtime_log',
       'repair_iteration',
       'queue_status',
       'connect',
+      'operation_state',
+      'operation_checkpoint',
+      'resync_required',
     ];
     customEvents.forEach((evtName) => {
       es.addEventListener(evtName, handleEvent as EventListener);
     });
 
     es.onerror = () => {
+      if (!active) return;
       setIsConnected(false);
     };
 
     return () => {
+      active = false;
       customEvents.forEach((evtName) => {
         es.removeEventListener(evtName, handleEvent as EventListener);
       });
@@ -104,5 +129,6 @@ export function useSSE(streamUrl: string | null) {
     };
   }, [streamUrl, addLog]);
 
-  return { logs, isConnected, lastEvent, clearLogs, addLog };
+  return { logs: eventUrl === streamUrl ? logs : [], isConnected: eventUrl === streamUrl && isConnected,
+    lastEvent: eventUrl === streamUrl ? lastEvent : null, clearLogs, addLog };
 }

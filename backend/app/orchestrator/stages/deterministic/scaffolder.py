@@ -10,6 +10,7 @@ boundary, which dispatches here for DETERMINISTIC sessions.
 """
 
 import os
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any, Optional
 from app.orchestrator.state import GenerationAgentState
@@ -40,7 +41,9 @@ def _architecture_plan(state: GenerationAgentState) -> Optional[Dict[str, Any]]:
         return None
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     service_name = blueprint.get("serviceName") or blueprint.get("service_name", "sample-service")
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
@@ -188,12 +191,60 @@ public class {pascal_name}Application {{
     generated_files[f"{prefix}src/main/resources/application.yml"] = app_yml
     generated_files[f"{prefix}src/main/java/{pkg_path}/{pascal_name}Application.java"] = app_java
 
+    # One versioned schema owner; Hibernate validates and never mutates production tables.
+    from app.services.model_sql_service import schema_sql_from_draft
+    from app.models.requirements import SpecificationDraft
+    schema_draft=SpecificationDraft.model_validate(blueprint)
+    selected_database=blueprint.get('databaseMode','H2').upper()
+    if selected_database not in {'H2','POSTGRESQL','MYSQL'}:
+        raise ValueError('Motor de base de datos no soportado')
+    for engine in ('H2','POSTGRESQL','MYSQL'):
+        location=f'{prefix}src/main/resources/db/migration/{engine.lower()}/V1__initial.sql'
+        generated_files[location]=schema_sql_from_draft(schema_draft,engine)
+        generated_files[f'{prefix}src/main/resources/db/changelog/{engine.lower()}.xml']=f"""<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+    <changeSet id="initial-domain-v1" author="agentia"><sqlFile path="db/migration/{engine.lower()}/V1__initial.sql"/></changeSet>
+</databaseChangeLog>
+"""
+    configuration=generated_files[f'{prefix}src/main/resources/application.yml'].replace('ddl-auto: update','ddl-auto: validate').replace('  port: 8080',f"  port: {blueprint.get('basePort',8080)}")
+    configuration=configuration.replace('  jpa:', '  liquibase:\n    change-log: classpath:db/changelog/h2.xml\n  jpa:',1)
+    generated_files[f'{prefix}src/main/resources/application.yml']=configuration
+    drivers={'POSTGRESQL':('org.postgresql','postgresql','org.postgresql.Driver','postgresql',5432), 'MYSQL':('com.mysql','mysql-connector-j','com.mysql.cj.jdbc.Driver','mysql',3306)}
+    libraries=[('org.liquibase','liquibase-core','')]
+    if selected_database in drivers:
+        group,artifact,driver,protocol,db_port=drivers[selected_database]
+        libraries.append((group,artifact,'runtime'))
+        generated_files[f'{prefix}src/main/resources/application-prod.yml']=f"""spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${{DB_URL:jdbc:{protocol}://localhost:{db_port}/{service_name.replace('-', '_')}}}
+    driverClassName: {driver}
+    username: ${{DB_USER}}
+    password: ${{DB_PASSWORD}}
+  liquibase:
+    change-log: classpath:db/changelog/{selected_database.lower()}.xml
+  jpa:
+    database-platform: org.hibernate.dialect.{ 'PostgreSQLDialect' if selected_database=='POSTGRESQL' else 'MySQLDialect' }
+    hibernate:
+      ddl-auto: validate
+"""
+    build_manifest=f'{prefix}pom.xml' if multi else 'pom.xml'
+    if build_manifest in generated_files:
+        xml=generated_files[build_manifest]
+        dependencies=''.join(f'<dependency><groupId>{group}</groupId><artifactId>{artifact}</artifactId>'+ (f'<scope>{scope}</scope>' if scope else '')+'</dependency>' for group,artifact,scope in libraries)
+        end=xml.rindex('</dependencies>');generated_files[build_manifest]=xml[:end]+dependencies+xml[end:]
+    gradle_manifest=f'{prefix}build.gradle' if multi else 'build.gradle'
+    if gradle_manifest in generated_files:
+        generated_files[gradle_manifest]+='\ndependencies {\n'+''.join("    "+('runtimeOnly' if scope=='runtime' else 'implementation')+" '"+group+':'+artifact+"'\n" for group,artifact,scope in libraries)+'}\n'
+
     # Write files to disk
     base_dir = Path(workspace_path)
     for rel_path, content in generated_files.items():
         file_path = base_dir / rel_path
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(content, encoding="utf-8")
+        io_path(file_path.parent).mkdir(parents=True, exist_ok=True)
+        io_path(file_path).write_text(content, encoding="utf-8")
 
     logs.append(f"[SCAFFOLDER] Created pom.xml, application.yml, and {pascal_name}Application.java")
 

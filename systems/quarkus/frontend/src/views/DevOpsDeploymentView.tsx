@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Server,
   Play,
@@ -23,225 +23,20 @@ import {
 import { SingleRowCard } from '../components/common/SingleRowCard';
 import { CodeViewer } from '../components/common/CodeViewer';
 import { useStudio } from '../context/StudioContext';
-import { devopsService, LocalDeploymentSession, SmokeTestResult } from '../services/devopsService';
-
-const SAMPLE_DOCKERFILE = `# Multi-stage Build for Quarkus 3 / Java 21 LTS (Fast-jar)
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder
-WORKDIR /workspace
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
-
-FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup -u 10001
-USER 10001
-WORKDIR /app
-COPY --from=builder /workspace/target/quarkus-app/lib/ /app/lib/
-COPY --from=builder /workspace/target/quarkus-app/*.jar /app/
-COPY --from=builder /workspace/target/quarkus-app/app/ /app/app/
-COPY --from=builder /workspace/target/quarkus-app/quarkus/ /app/quarkus/
-EXPOSE 8080
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
-ENTRYPOINT ["java", "-jar", "/app/quarkus-run.jar"]
-`;
-
-const SAMPLE_DOCKERIGNORE = `.git
-.gitignore
-.idea
-target/
-*.class
-*.jar
-*.war
-.mvn
-`;
-
-const SAMPLE_COMPOSE = `version: '3.8'
-
-services:
-  app:
-    build: .
-    container_name: \${SERVICE_NAME:-microservicio}
-    ports:
-      - "8080:8080"
-    environment:
-      - QUARKUS_PROFILE=prod
-      - QUARKUS_HTTP_PORT=8080
-      - QUARKUS_DATASOURCE_DB_KIND=postgresql
-      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/studio_db
-      - QUARKUS_DATASOURCE_USERNAME=postgres
-      - QUARKUS_DATASOURCE_PASSWORD=\${DB_PASSWORD:-postgres}
-      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - app-network
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: studio-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=studio_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  pgdata:
-`;
-
-const SAMPLE_GITHUB_CI = `name: Autonomous CI/CD Pipeline
-
-on:
-  push:
-    branches: [ main, feature/* ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-      - name: Run Hermetic Verification Suite
-        run: ./mvnw clean verify -B
-      - name: Build Docker Image
-        run: docker build -t \${{ github.repository }}:\${{ github.sha }} .
-`;
-
-const SAMPLE_GITLAB_CI = `image: maven:3.9.6-eclipse-temurin-21-alpine
-
-stages:
-  - test
-  - build
-
-verify_job:
-  stage: test
-  script:
-    - mvn clean verify -B
-  artifacts:
-    reports:
-      junit: target/surefire-reports/*.xml
-
-build_job:
-  stage: build
-  script:
-    - mvn clean package -DskipTests
-`;
-
-const SAMPLE_K8S_DEPLOYMENT = `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: order-service
-  labels:
-    app: order-service
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: order-service
-  template:
-    metadata:
-      labels:
-        app: order-service
-    spec:
-      containers:
-        - name: order-service
-          image: order-service:latest
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8080
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8080
-            initialDelaySeconds: 15
-            periodSeconds: 5
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-`;
-
-const SAMPLE_K8S_SERVICE = `apiVersion: v1
-kind: Service
-metadata:
-  name: order-service
-spec:
-  selector:
-    app: order-service
-  ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
-  type: ClusterIP
-`;
-
-const SAMPLE_K8S_CONFIGMAP = `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: order-service-config
-data:
-  QUARKUS_PROFILE: "prod"
-  QUARKUS_HTTP_PORT: "8080"
-  QUARKUS_SMALLRYE_HEALTH_ROOT_PATH: "/q/health"
-`;
-
-const SAMPLE_K8S_INGRESS = `apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: order-service-ingress
-  annotations:
-    kubernetes.io/ingress.class: nginx
-spec:
-  rules:
-    - host: api.enterprise.corp
-      http:
-        paths:
-          - path: /api/v1/orders
-            pathType: Prefix
-            backend:
-              service:
-                name: order-service
-                port:
-                  number: 8080
-`;
+import { sessionService,ExecutionMode } from '../services/sessionService';
+import { ExecutionModeSelector } from '../components/common/ExecutionModeSelector';
+import { devopsService, LocalDeploymentSession, SmokeTestResult, ManifestBundle } from '../services/devopsService';
 
 export const DevOpsDeploymentView: React.FC = () => {
-  const { activeSessionId, reloadCurrentOverview } = useStudio();
+  const { activeSessionId, activeSession, refreshSessions, reloadCurrentOverview, projectOverview } = useStudio();
+  const mode = activeSession?.executionMode || projectOverview?.executionMode;
+  const runtimeAllowed = mode === 'DOCKER';
+  const [isVerifying,setIsVerifying]=useState(false);
 
+  const [manifests, setManifests] = useState<ManifestBundle | null>(null);
   const [deployment, setDeployment] = useState<LocalDeploymentSession | null>(null);
 
-  const [hostPort, setHostPort] = useState<number>(8080);
+  const [hostPort, setHostPort] = useState<number>(0);
   const [activeManifestTab, setActiveManifestTab] = useState<'docker' | 'compose' | 'cicd' | 'k8s'>('docker');
   const [activeCicdSubtab, setActiveCicdSubtab] = useState<'github' | 'gitlab'>('github');
   const [activeK8sSubtab, setActiveK8sSubtab] = useState<'deployment' | 'service' | 'configmap' | 'ingress'>('deployment');
@@ -254,20 +49,18 @@ export const DevOpsDeploymentView: React.FC = () => {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
 
-  // Live Playground State: Dynamic CRUD
-  const [orders, setOrders] = useState<any[]>([]);
-  const [newCustomerEmail, setNewCustomerEmail] = useState('');
-  const [newTotalAmount, setNewTotalAmount] = useState('');
-
   // REST Console State
   const [reqMethod, setReqMethod] = useState<'GET' | 'POST' | 'DELETE'>('GET');
-  const [reqEndpoint, setReqEndpoint] = useState('/actuator/health');
+  const [reqEndpoint, setReqEndpoint] = useState('/q/health');
   const [reqBody, setReqBody] = useState('{}');
   const [restResponse, setRestResponse] = useState<string | null>(null);
   const [restLatency, setRestLatency] = useState<number | null>(null);
   const [restStatusCode, setRestStatusCode] = useState<number | null>(null);
 
+  const currentSession = useRef(activeSessionId);
+  currentSession.current = activeSessionId;
   const fetchStatus = async () => {
+    const requestedSession = activeSessionId;
     if (!activeSessionId) {
       setDeployment(null);
       setTerminalLogs([]);
@@ -275,6 +68,7 @@ export const DevOpsDeploymentView: React.FC = () => {
     }
     try {
       const s = await devopsService.getDeploymentStatus(activeSessionId);
+      if (currentSession.current !== requestedSession) return;
       if (s) {
         setDeployment(s);
         if (s.hostPort) setHostPort(s.hostPort);
@@ -282,26 +76,59 @@ export const DevOpsDeploymentView: React.FC = () => {
         setDeployment(null);
       }
       const logs = await devopsService.getLogs(activeSessionId);
+      if (currentSession.current !== requestedSession) return;
       if (logs && logs.length > 0) {
         setTerminalLogs(logs);
       }
     } catch {
-      setDeployment(null);
+      if (currentSession.current === requestedSession) setDeployment(null);
     }
   };
 
   useEffect(() => {
+    let cancelled = false;
+    setHostPort(0); setManifests(null); setSmokeResult(null); setRestResponse(null); setDeployment(null); setTerminalLogs([]);
     if (activeSessionId) {
       fetchStatus();
+      devopsService.getConfiguration(activeSessionId).then(config => { if (!cancelled && config.hostPort) setHostPort(config.hostPort); }).catch(() => {});
+      devopsService.getManifests(activeSessionId).then(result => { if (!cancelled) setManifests(result); }).catch(() => {});
     }
+    return () => { cancelled = true; };
   }, [activeSessionId]);
+
+  useEffect(() => {
+    if (!activeSessionId || !['BUILDING','STARTING'].includes(deployment?.status || '')) return;
+    const timer = window.setInterval(() => { void fetchStatus(); }, 2000);
+    return () => window.clearInterval(timer);
+  }, [activeSessionId, deployment?.status]);
+
+  const handleModeChange = async (next: ExecutionMode) => {
+    if (!activeSessionId) return;
+    try {
+      await sessionService.changeExecutionMode(activeSessionId,next);
+      await Promise.all([refreshSessions(),reloadCurrentOverview()]);
+      setFeedback('Modo de ejecución guardado.');
+    } catch (error:any) { setFeedback(error.response?.data?.detail || error.message); }
+  };
+
+  const handleVerifyExisting = async () => {
+    if (!activeSessionId) return;
+    setIsVerifying(true);
+    try {
+      const result=await sessionService.verifySession(activeSessionId);
+      setFeedback(result.metrics?.verificationSkipped ? 'Fuentes auditadas; pruebas de ejecución no realizadas por elección.' : 'Verificación: '+result.status);
+      await Promise.all([refreshSessions(),reloadCurrentOverview(),fetchStatus()]);
+    } catch (error:any) { setFeedback(error.response?.data?.detail || error.message); }
+    finally { setIsVerifying(false); }
+  };
 
   const handleGenerateManifests = async () => {
     if (!activeSessionId) return;
     setIsGenerating(true);
     setFeedback(null);
     try {
-      await devopsService.generateManifests(activeSessionId, 'POSTGRESQL', hostPort);
+      const generated = await devopsService.generateManifests(activeSessionId);
+      setManifests(generated);
       setFeedback('✅ Manifiestos DevOps (Dockerfile, Compose, CI/CD y Kubernetes) generados exitosamente.');
       await fetchStatus();
     } catch (err: any) {
@@ -312,16 +139,16 @@ export const DevOpsDeploymentView: React.FC = () => {
   };
 
   const handleDeployLocal = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || !hostPort) return;
     setIsDeploying(true);
     setFeedback(null);
     try {
       const res = await devopsService.deployLocal(activeSessionId, hostPort, true);
       setDeployment(res);
-      setFeedback(res.message || '🚀 Contenedor levantado localmente en http://localhost:' + hostPort);
+      setFeedback(res.message || 'Despliegue iniciado; esperando la salud del runtime propio.');
       await reloadCurrentOverview();
     } catch (err: any) {
-      setFeedback(err.response?.data?.detail || 'Modo degradado: Docker local no disponible. Manifiestos exportables listos.');
+      setFeedback(err.response?.data?.detail || err.message || 'No se pudo iniciar el despliegue.');
     } finally {
       setIsDeploying(false);
     }
@@ -333,13 +160,28 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       const res = await devopsService.stopContainers(activeSessionId);
       setDeployment(res);
-      setFeedback('Contenedores y redes detenidos correctamente.');
+      setFeedback(res.errorMessage || (res.status === 'STOPPED' ? 'Contenedores detenidos; datos conservados.' : 'Estado: ' + res.status));
       await reloadCurrentOverview();
     } catch (err: any) {
-      setFeedback('Contenedores detenidos.');
+      setFeedback(err.response?.data?.detail || err.message || 'No se pudo confirmar la parada.');
     } finally {
       setIsStopping(false);
     }
+  };
+
+  const handleCleanup = async () => {
+    if (!activeSessionId || isStopping || isDeploying) return;
+    setIsStopping(true);
+    try {
+      const preview = await devopsService.cleanupPreview(activeSessionId);
+      if (!window.confirm('Eliminar definitivamente los recursos y datos de esta sesión: ' + JSON.stringify(preview.resources))) return;
+      const result = await devopsService.cleanupLocal(activeSessionId, true, preview.confirmationToken);
+      setDeployment(result);
+      setFeedback(result.errorMessage || 'Limpieza explícita terminada; fuentes e historial conservados.');
+      await reloadCurrentOverview();
+    } catch (err: any) {
+      setFeedback(err.response?.data?.detail || err.message || 'La limpieza no se pudo confirmar.');
+    } finally { setIsStopping(false); }
   };
 
   const handleSmokeTest = async () => {
@@ -348,120 +190,36 @@ export const DevOpsDeploymentView: React.FC = () => {
     try {
       const res = await devopsService.runSmokeTest(activeSessionId, hostPort);
       setSmokeResult(res);
-    } catch {
-      setSmokeResult({
-        sessionId: activeSessionId,
-        endpointTested: `http://localhost:${hostPort}/actuator/health`,
-        status: 'SUCCESS',
-        httpStatusCode: 200,
-        latencyMs: 14,
-        message: 'Endpoint de salud verificado: Status UP en 14ms',
-      });
+    } catch (error: any) {
+      setSmokeResult({sessionId: activeSessionId, endpointTested: '', status: 'FAILURE', message: error.response?.data?.detail || 'No se pudo comprobar la salud del runtime.'});
     } finally {
       setIsTesting(false);
     }
   };
 
-  const handleCreateOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCustomerEmail) return;
-
-    let createdId = orders.length + 101;
-    let actualStatus = 'CONFIRMED';
-    const payload = {
-      customerEmail: newCustomerEmail,
-      totalAmount: parseFloat(newTotalAmount) || 99.99,
-      status: 'CONFIRMED',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      const resp = await fetch(`http://localhost:${hostPort}/api/v1/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data?.id) createdId = data.id;
-        if (data?.status) actualStatus = data.status;
-      }
-    } catch {
-      // Local fallback if container not reachable
-    }
-
-    const newOrd = {
-      id: createdId,
-      customerEmail: newCustomerEmail,
-      totalAmount: parseFloat(newTotalAmount) || 99.99,
-      status: actualStatus,
-      createdAt: new Date().toLocaleTimeString(),
-    };
-    setOrders([newOrd, ...orders]);
-    setTerminalLogs((prev) => [
-      ...prev,
-      `[http] POST /api/v1/orders 201 CREATED {"id":${newOrd.id},"customerEmail":"${newOrd.customerEmail}"}`,
-    ]);
-  };
-
   const handleSendCustomRest = async () => {
-    const t0 = performance.now();
-    const cleanEndpoint = reqEndpoint.startsWith('/') ? reqEndpoint : `/${reqEndpoint}`;
-    const url = `http://localhost:${hostPort}${cleanEndpoint}`;
-
+    if (!activeSessionId) return;
+    setRestResponse(null); setRestStatusCode(null); setRestLatency(null);
     try {
-      const options: RequestInit = {
-        method: reqMethod,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-        },
-      };
-      if (reqMethod === 'POST' && reqBody.trim()) {
-        options.body = reqBody;
-      }
-
-      const resp = await fetch(url, options);
-      const t1 = performance.now();
-      setRestLatency(Math.round(t1 - t0));
-      setRestStatusCode(resp.status);
-
-      const text = await resp.text();
-      try {
-        const json = JSON.parse(text);
-        setRestResponse(JSON.stringify(json, null, 2));
-      } catch {
-        setRestResponse(text || '// Respuesta recibida (HTTP ' + resp.status + ')');
-      }
-    } catch {
-      // Local simulated response fallback
-      const t1 = performance.now();
-      setRestLatency(Math.round(t1 - t0) + 8);
-      if (reqMethod === 'GET') {
-        setRestStatusCode(200);
-        setRestResponse(JSON.stringify(orders, null, 2));
-      } else if (reqMethod === 'POST') {
-        setRestStatusCode(201);
-        try {
-          const parsed = JSON.parse(reqBody);
-          setRestResponse(JSON.stringify({ id: 105, ...parsed, status: 'CONFIRMED' }, null, 2));
-        } catch {
-          setRestResponse(JSON.stringify({ id: 105, status: 'CONFIRMED' }, null, 2));
-        }
-      } else {
-        setRestStatusCode(204);
-        setRestResponse('{}');
-      }
+      const body = reqMethod === 'POST' && reqBody.trim() ? JSON.parse(reqBody) : undefined;
+      const observed = await devopsService.proxyRequest(activeSessionId, reqMethod, reqEndpoint, body);
+      setRestStatusCode(observed.statusCode); setRestLatency(observed.latencyMs);
+      setRestResponse(observed.error || JSON.stringify(observed.body, null, 2));
+    } catch (error: any) {
+      setRestResponse(error.response?.data?.detail || error.message || 'Petición no completada.');
     }
   };
 
-  const currentStatus = deployment?.status || 'STOPPED';
+  const currentStatus = deployment?.status || 'UNKNOWN';
   const isRunning = currentStatus === 'RUNNING' || currentStatus === 'HEALTHY';
   const isDockerUnavailable = currentStatus === 'DOCKER_UNAVAILABLE';
 
   return (
     <div className="space-y-6">
+      {activeSessionId && <div className="rounded-xl border p-4 space-y-3">
+        {mode ? <ExecutionModeSelector value={mode} onChange={handleModeChange}/> : <span>Modo de ejecución sin declarar.</span>}
+        <button onClick={handleVerifyExisting} disabled={isVerifying} className="rounded border px-3 py-2 text-xs">{isVerifying ? 'Comprobando fuentes…' : 'Comprobar fuentes existentes'}</button>
+      </div>}
       {/* 1. Status Banner & Metrics */}
       <SingleRowCard
         title="Fase 8: DevOps, Contenerización & Despliegue Multi-Stage"
@@ -490,7 +248,7 @@ export const DevOpsDeploymentView: React.FC = () => {
             </button>
             <button
               onClick={handleDeployLocal}
-              disabled={isDeploying || isDockerUnavailable}
+              disabled={!runtimeAllowed || isVerifying || isDeploying || isDockerUnavailable || !hostPort || currentStatus === 'BUILDING' || currentStatus === 'STARTING'}
               className="py-2 px-4 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -498,32 +256,35 @@ export const DevOpsDeploymentView: React.FC = () => {
             </button>
             <button
               onClick={handleSmokeTest}
-              disabled={isTesting || !isRunning}
+              disabled={!runtimeAllowed || isTesting || !isRunning}
               className="py-2 px-3.5 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
             >
               🧪 Ejecutar Smoke Test
             </button>
             <button
               onClick={handleStopContainers}
-              disabled={isStopping || !isRunning}
+              disabled={!runtimeAllowed || isStopping || !isRunning}
               className="py-2 px-3.5 rounded-lg text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 hover:bg-rose-100 transition-colors"
             >
               🛑 Detener
+            </button>
+            <button onClick={handleCleanup} disabled={!runtimeAllowed || isStopping || isDeploying} className="py-2 px-3.5 rounded-lg text-xs font-semibold text-rose-700 border border-rose-300">
+              Eliminar recursos y datos…
             </button>
           </div>
         }
       >
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
           <span>
-            Puerto Mapeado: <strong className="text-slate-900 dark:text-white">{deployment ? `${hostPort}:8080` : '—'}</strong>
+            Puerto Mapeado: <strong className="text-slate-900 dark:text-white">{deployment?.hostPort ? `${deployment.hostPort}:8080` : '—'}</strong>
           </span>
           <span>•</span>
           <span>
-            Estado Actuator: <strong className={`font-mono ${isRunning ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>{deployment?.healthStatus || 'NO INICIADO'}</strong>
+            Salud Quarkus: <strong className={`font-mono ${isRunning ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>{deployment?.healthStatus || 'NO INICIADO'}</strong>
           </span>
           <span>•</span>
           <span>
-            Base de Datos: <strong className="text-slate-900 dark:text-white">{deployment?.dbEngine || 'POSTGRESQL'}</strong>
+            Base de Datos: <strong className="text-slate-900 dark:text-white">{deployment?.dbEngine || projectOverview?.databaseEngine || 'Sin configuración'}</strong>
           </span>
         </div>
 
@@ -545,12 +306,12 @@ export const DevOpsDeploymentView: React.FC = () => {
         )}
 
         {smokeResult && (
-          <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+          <div className={`mt-2.5 p-2.5 rounded-lg border text-xs flex items-center justify-between ${smokeResult.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              {smokeResult.status === 'SUCCESS' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />}
               <span>{smokeResult.message}</span>
             </div>
-            <span className="font-mono font-bold">{smokeResult.latencyMs}ms</span>
+            <span className="font-mono font-bold">{smokeResult.latencyMs == null ? '—' : `${smokeResult.latencyMs}ms`}</span>
           </div>
         )}
       </SingleRowCard>
@@ -576,81 +337,12 @@ export const DevOpsDeploymentView: React.FC = () => {
               </a>
             )}
             <span className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-              PostgreSQL + Quarkus 3 Conectados
+              {isRunning ? 'Runtime propio disponible' : 'Runtime no confirmado'}
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Gestor Visual de Órdenes */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              📋 Gestor Visual de Órdenes (CRUD en PostgreSQL)
-            </h4>
-
-            <form onSubmit={handleCreateOrderSubmit} className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Email del Cliente
-                  </label>
-                  <input
-                    type="email"
-                    value={newCustomerEmail}
-                    onChange={(e) => setNewCustomerEmail(e.target.value)}
-                    required
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                    Monto Total ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newTotalAmount}
-                    onChange={(e) => setNewTotalAmount(e.target.value)}
-                    required
-                    className="w-full px-2.5 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors"
-              >
-                💾 Guardar en PostgreSQL
-              </button>
-            </form>
-
-            <div className="space-y-1.5 max-h-56 overflow-y-auto">
-              <div className="text-[11px] text-slate-400 font-semibold px-1">
-                Registros en Base de Datos ({orders.length}):
-              </div>
-              {orders.map((ord) => (
-                <div
-                  key={ord.id}
-                  className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-xs flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-semibold text-slate-900 dark:text-white font-mono">
-                      #{ord.id} · {ord.customerEmail}
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Monto: ${ord.totalAmount.toFixed(2)} · {ord.createdAt}
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    {ord.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Consola de Peticiones REST */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
@@ -676,6 +368,7 @@ export const DevOpsDeploymentView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSendCustomRest}
+                disabled={!runtimeAllowed || !isRunning}
                 className="px-4 py-1.5 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-colors flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -789,13 +482,13 @@ export const DevOpsDeploymentView: React.FC = () => {
         {activeManifestTab === 'docker' && (
           <div className="space-y-3">
             <CodeViewer
-              code={SAMPLE_DOCKERFILE}
+              code={manifests?.dockerfileContent || 'Manifiesto todavía no generado.'}
               language="dockerfile"
               filename="Dockerfile (Multi-Stage Fast-Jar Quarkus 3 / Java 21)"
               maxHeight="max-h-72"
             />
             <CodeViewer
-              code={SAMPLE_DOCKERIGNORE}
+              code={manifests?.dockerignoreContent || 'Manifiesto todavía no generado.'}
               language="text"
               filename=".dockerignore"
               maxHeight="max-h-40"
@@ -805,7 +498,7 @@ export const DevOpsDeploymentView: React.FC = () => {
 
         {activeManifestTab === 'compose' && (
           <CodeViewer
-            code={SAMPLE_COMPOSE}
+            code={manifests?.dockerComposeContent || 'Manifiesto todavía no generado.'}
             language="yaml"
             filename="docker-compose.yml (Quarkus + PostgreSQL)"
             maxHeight="max-h-80"
@@ -839,14 +532,14 @@ export const DevOpsDeploymentView: React.FC = () => {
 
             {activeCicdSubtab === 'github' ? (
               <CodeViewer
-                code={SAMPLE_GITHUB_CI}
+                code={manifests?.githubActionsWorkflow || 'Manifiesto todavía no generado.'}
                 language="yaml"
                 filename=".github/workflows/ci-cd.yml"
                 maxHeight="max-h-72"
               />
             ) : (
               <CodeViewer
-                code={SAMPLE_GITLAB_CI}
+                code={manifests?.gitlabCiWorkflow || 'Manifiesto todavía no generado.'}
                 language="yaml"
                 filename=".gitlab-ci.yml"
                 maxHeight="max-h-72"
@@ -902,7 +595,7 @@ export const DevOpsDeploymentView: React.FC = () => {
 
             {activeK8sSubtab === 'deployment' && (
               <CodeViewer
-                code={SAMPLE_K8S_DEPLOYMENT}
+                code={manifests?.kubernetesManifests?.['deployment.yaml'] || 'Manifiesto todavía no generado.'}
                 language="yaml"
                 filename="k8s/deployment.yaml"
                 maxHeight="max-h-72"
@@ -910,7 +603,7 @@ export const DevOpsDeploymentView: React.FC = () => {
             )}
             {activeK8sSubtab === 'service' && (
               <CodeViewer
-                code={SAMPLE_K8S_SERVICE}
+                code={manifests?.kubernetesManifests?.['service.yaml'] || 'Manifiesto todavía no generado.'}
                 language="yaml"
                 filename="k8s/service.yaml"
                 maxHeight="max-h-72"
@@ -918,7 +611,7 @@ export const DevOpsDeploymentView: React.FC = () => {
             )}
             {activeK8sSubtab === 'configmap' && (
               <CodeViewer
-                code={SAMPLE_K8S_CONFIGMAP}
+                code={manifests?.kubernetesManifests?.['configmap.yaml'] || 'Manifiesto todavía no generado.'}
                 language="yaml"
                 filename="k8s/configmap.yaml"
                 maxHeight="max-h-72"
@@ -926,7 +619,7 @@ export const DevOpsDeploymentView: React.FC = () => {
             )}
             {activeK8sSubtab === 'ingress' && (
               <CodeViewer
-                code={SAMPLE_K8S_INGRESS}
+                code={manifests?.kubernetesManifests?.['ingress.yaml'] || 'Manifiesto todavía no generado.'}
                 language="yaml"
                 filename="k8s/ingress.yaml"
                 maxHeight="max-h-72"

@@ -1,0 +1,139 @@
+{
+  "blueprintId": "constrained",
+  "corpusRole": "constrained-non-nullable-and-format",
+  "rationale": "The SC-001 primary case. Declares both non-nullable attributes and format-shaped validation constraints, together with a richer acceptance-scenario set. The migrated implementation is required to make the declared constraints and scenarios observable in the generated source; the pre-migration implementation does not.",
+  "preMigrationExpectation": {
+    "whatThePreMigrationStagesHonour": [
+      "An attribute declared nullable:false causes a not-blank annotation on text attributes and a not-null annotation on non-text attributes. This IS honoured before migration and must not be reported as a missing trace."
+    ],
+    "whatThePreMigrationStagesIgnore": [
+      "@Email on the email attribute",
+      "@Min and @Max on the age attribute",
+      "@Pattern and @Size on the membershipCode attribute",
+      "the declared acceptance scenarios, which have no effect on the generated test class"
+    ],
+    "therefore": "For this blueprint the pre-migration signature is: the non-nullable constraint IS observable as a required-attribute annotation, while every format constraint and every scenario is absent. The verification block recorded by the capture script distinguishes these two cases explicitly rather than claiming that no declared constraint leaves any trace.",
+    "scenarioCount": 6,
+    "expectedTestMethodsPreMigration": 5
+  },
+  "serviceName": "member-service",
+  "packageName": "com.corp.member",
+  "basePort": 8083,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Member",
+      "tableName": "members",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Long",
+          "nullable": false,
+          "isPrimaryKey": true,
+          "validationRules": []
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": [
+            "@Email"
+          ]
+        },
+        {
+          "name": "displayName",
+          "type": "String",
+          "nullable": false,
+          "isPrimaryKey": false,
+          "validationRules": []
+        },
+        {
+          "name": "age",
+          "type": "Integer",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": [
+            "@Min(0)",
+            "@Max(150)"
+          ]
+        },
+        {
+          "name": "membershipCode",
+          "type": "String",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": [
+            "@Pattern(regexp=\"^[A-Z0-9-]+$\")",
+            "@Size(min=3, max=20)"
+          ]
+        }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "membership administrator",
+      "intent": "register a new member with a contact email and display name",
+      "benefit": "the member can be reached and identified",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a well-formed email address and a non-empty display name",
+          "when": "the administrator registers the member",
+          "then": "the member is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed email address",
+          "when": "the administrator attempts to register the member",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "an empty or whitespace-only display name",
+          "when": "the administrator attempts to register the member",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        }
+      ]
+    },
+    {
+      "id": "US-2",
+      "priority": "P2",
+      "role": "membership administrator",
+      "intent": "record an age and a membership code subject to format rules",
+      "benefit": "membership tiers are consistently categorised",
+      "scenarios": [
+        {
+          "scenarioId": "AC-2.1",
+          "given": "an age below the permitted minimum",
+          "when": "the administrator records the age",
+          "then": "the request is rejected as invalid"
+        },
+        {
+          "scenarioId": "AC-2.2",
+          "given": "a membership code that does not match the permitted pattern",
+          "when": "the administrator records the code",
+          "then": "the request is rejected as invalid"
+        }
+      ]
+    },
+    {
+      "id": "US-3",
+      "priority": "P3",
+      "role": "membership administrator",
+      "intent": "retrieve a member that does not exist",
+      "benefit": "the caller receives an unambiguous not-found signal",
+      "scenarios": [
+        {
+          "scenarioId": "AC-3.1",
+          "given": "no member exists with the requested identifier",
+          "when": "the administrator retrieves that member",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import socket
 import unittest
+import tempfile
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('dual_launcher', Path(__file__).with_name('launch.py'))
@@ -53,6 +54,32 @@ class LauncherTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'startup failed'):
                 launcher.launch(open_browser=False)
         stop.assert_called_once_with(child)
+
+
+    def test_python_preflight_rejects_store_alias_and_unsupported_versions(self):
+        with self.assertRaisesRegex(RuntimeError, 'WindowsApps'):
+            launcher.validate_python('C:/Users/fixture/AppData/Local/Microsoft/WindowsApps/python.exe')
+        for version in ['[3, 9, 0]', '[3, 14, 0]']:
+            with patch.object(launcher.subprocess, 'run', return_value=unittest.mock.Mock(returncode=0, stdout=version)):
+                with self.assertRaisesRegex(RuntimeError, '3.11'):
+                    launcher.validate_python('fixture-python')
+
+    def test_missing_pip_bootstraps_only_selected_environment(self):
+        probe = unittest.mock.Mock(returncode=1, stderr='No module named pip')
+        with patch.object(launcher.subprocess, 'run', side_effect=[probe, unittest.mock.Mock(returncode=0)]) as run:
+            launcher.ensure_pip('fixture-venv-python')
+        self.assertEqual(run.call_args_list[1].args[0], ['fixture-venv-python', '-m', 'ensurepip', '--upgrade'])
+
+    def test_npm_resolution_never_passes_windows_wrapper_to_node(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            node = root / 'node.exe'; node.touch()
+            wrapper = root / 'npm.cmd'; wrapper.touch()
+            with self.assertRaisesRegex(RuntimeError, 'npm-cli'):
+                launcher.npm_command(str(node), str(wrapper))
+            cli = root / 'node_modules/npm/bin/npm-cli.js'
+            cli.parent.mkdir(parents=True); cli.touch()
+            self.assertEqual(launcher.npm_command(str(node), str(wrapper)), [str(node), str(cli)])
 
 
 if __name__ == '__main__':

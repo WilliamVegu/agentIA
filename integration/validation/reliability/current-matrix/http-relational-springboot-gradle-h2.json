@@ -1,0 +1,51 @@
+{
+  "outcome": "PASSED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "7d0c6a34e8d66248abc8de6799539f39ce61408a672662318a318afac51e27a2",
+  "framework": "springboot",
+  "buildTool": "gradle",
+  "databaseEngine": "H2",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2",
+  "checks": [
+    {
+      "check": "relational-invalid-accountKey",
+      "status": 409
+    },
+    {
+      "check": "relational-invalid-effectiveDate",
+      "status": 400
+    },
+    {
+      "check": "relational-invalid-recordedAt",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-invalid",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance-0",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance--1",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-None",
+      "status": 400
+    },
+    {
+      "check": "parent-delete-does-not-cascade",
+      "status": "PASSED"
+    },
+    {
+      "check": "unique-email",
+      "status": 409
+    },
+    {
+      "check": "CRUD-UUID-date-decimal",
+      "status": "PASSED"
+    }
+  ]
+}

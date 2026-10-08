@@ -1,0 +1,79 @@
+{
+  "blueprintId": "pair-b",
+  "corpusRole": "paired-set-treatment-member",
+  "pairNote": "Identical to pair-a.json in serviceName, packageName, entity names, attribute names, attribute types, and nullability. Differs ONLY in declared validationRules (four format/required constraints added) and in declared acceptance scenarios (three additional scenarios added). The pre-migration stages ignore both, so output must equal pair-a byte for byte. Any difference the migrated implementation introduces here is exactly the SC-002 signal.",
+  "serviceName": "invoice-service",
+  "packageName": "com.corp.invoice",
+  "basePort": 8080,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Invoice",
+      "tableName": "invoices",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Long",
+          "nullable": false,
+          "isPrimaryKey": true,
+          "validationRules": []
+        },
+        {
+          "name": "customerEmail",
+          "type": "String",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": [
+            "@Email",
+            "@NotBlank"
+          ]
+        },
+        {
+          "name": "amount",
+          "type": "BigDecimal",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": [
+            "@Positive",
+            "@DecimalMin(value=\"0.01\")"
+          ]
+        }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "billing operator",
+      "intent": "create an invoice for a customer",
+      "benefit": "the charge is recorded against the correct account",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a valid customer email and a positive amount",
+          "when": "the operator creates an invoice",
+          "then": "the invoice is persisted and returned with its generated identifier"
+        },
+        {
+          "scenarioId": "AC-1.2",
+          "given": "a malformed customer email",
+          "when": "the operator attempts to create an invoice",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        },
+        {
+          "scenarioId": "AC-1.3",
+          "given": "a non-positive amount",
+          "when": "the operator attempts to create an invoice",
+          "then": "the request is rejected as invalid before reaching the service layer"
+        },
+        {
+          "scenarioId": "AC-1.4",
+          "given": "no invoice exists with the requested identifier",
+          "when": "the operator retrieves that invoice",
+          "then": "the service reports the resource as not found"
+        }
+      ]
+    }
+  ]
+}

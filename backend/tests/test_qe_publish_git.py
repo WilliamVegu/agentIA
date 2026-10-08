@@ -56,7 +56,7 @@ def test_no_token_leaves_the_url_untouched():
 
 
 def test_a_token_is_embedded_for_https():
-    assert prepare_authenticated_url(CLEAN_URL, TOKEN) == AUTH_URL
+    assert prepare_authenticated_url(CLEAN_URL, TOKEN) == CLEAN_URL
 
 
 def test_a_token_is_not_embedded_for_ssh_or_http():
@@ -67,7 +67,7 @@ def test_a_token_is_not_embedded_for_ssh_or_http():
 
 def test_an_already_authenticated_url_is_not_double_embedded():
     already = "https://oauth2:old@github.com/corp/x.git"
-    assert prepare_authenticated_url(already, TOKEN) == f"https://oauth2:{TOKEN}@github.com/corp/x.git"
+    assert prepare_authenticated_url(already, TOKEN) == CLEAN_URL.replace("orders.git", "x.git")
 
 
 # ---------------------------------------------------------------------------
@@ -162,12 +162,9 @@ def test_the_token_is_scrubbed_from_the_remote_after_a_successful_publish(monkey
 
     _publish(monkeypatch, workspace, remote, existing_remote=True)
 
-    assert remote.urls[-1] == CLEAN_URL, (
-        "the authenticated URL was left on the remote; the token persisted in the "
-        "repository config, which is exactly what Principle VI forbids"
-    )
-    assert TOKEN not in remote.urls[-1]
-    assert remote.urls[0] == CLEAN_URL  # credentials are passed only in the subprocess environment
+    assert remote.urls == [], "Existing origin must not be rewritten for an ephemeral push"
+    assert TOKEN not in (workspace / ".git/config").read_text()
+    assert remote.environments[0]["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraHeader"
 
 
 def test_new_remote_uses_a_clean_url(monkeypatch, workspace):
@@ -206,7 +203,8 @@ def test_a_failed_push_raises_with_a_sanitized_message_and_still_scrubs(monkeypa
     assert "Git push failed" in message
     assert CLEAN_URL in message
     assert TOKEN not in message, "the token leaked into an error message"
-    assert remote.urls[-1] == CLEAN_URL, "the token persisted after a FAILED push"
+    assert remote.urls == [], "Existing origin must be preserved even after a failed push"
+    assert TOKEN not in (workspace / '.git/config').read_text()
 
 
 def test_the_committer_identity_is_recorded(monkeypatch, workspace):

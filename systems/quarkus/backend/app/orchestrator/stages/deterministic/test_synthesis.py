@@ -1,6 +1,7 @@
 """Native Quarkus offline generator, restored and wired into the Studio stage boundary."""
 
 from app.orchestrator.stages.deterministic.schema import identifier
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
@@ -13,7 +14,9 @@ def _to_pascal_case(text: str) -> str:
     return "".join(word.capitalize() for word in cleaned.split())
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     service_name = blueprint.get("serviceName") or blueprint.get("service_name", "sample-service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
@@ -47,8 +50,8 @@ class {pascal_name}ApplicationTests {{
     app_test_path = f"src/test/java/{pkg_path}/{pascal_name}ApplicationTests.java"
     generated_files[app_test_path] = app_test
     at_fp = base_dir / app_test_path
-    at_fp.parent.mkdir(parents=True, exist_ok=True)
-    at_fp.write_text(app_test, encoding="utf-8")
+    io_path(at_fp.parent).mkdir(parents=True, exist_ok=True)
+    io_path(at_fp).write_text(app_test, encoding="utf-8")
 
     # 2. Service Unit Tests with Mockito
     for ent in entities:
@@ -61,28 +64,8 @@ class {pascal_name}ApplicationTests {{
         valid_id = "java.util.UUID.fromString(\"00000000-0000-0000-0000-000000000001\")" if id_type == "java.util.UUID" else '"key-1"' if id_type == "String" else "1" if id_type == "Integer" else "1L"
         missing_id = "java.util.UUID.fromString(\"00000000-0000-0000-0000-000000000099\")" if id_type == "java.util.UUID" else '"key-99"' if id_type == "String" else "99" if id_type == "Integer" else "99L"
 
-        # Prepare dummy request arguments
-        dummy_args = []
-        for a in non_id_attrs:
-            t = a.get("type", "String").lower()
-            if t in ("string", "str", "text"):
-                dummy_args.append('"test"')
-            elif t in ("int", "integer"):
-                dummy_args.append("10")
-            elif t in ("long", "id"):
-                dummy_args.append("10L")
-            elif t in ("double", "float"):
-                dummy_args.append("10.5")
-            elif t in ("decimal", "bigdecimal"):
-                dummy_args.append("new java.math.BigDecimal(\"99.99\")")
-            elif t in ("boolean", "bool"):
-                dummy_args.append("true")
-            elif t in ("date", "datetime", "timestamp"):
-                dummy_args.append("java.time.LocalDateTime.now()")
-            elif t == "uuid":
-                dummy_args.append("java.util.UUID.randomUUID()")
-            else:
-                dummy_args.append("null")
+        from app.services.domain_descriptor import sample_expression
+        dummy_args = [sample_expression(attribute) for attribute in non_id_attrs]
 
         args_str = ", ".join(dummy_args)
 
@@ -180,8 +163,8 @@ class {ent_name}ServiceTest {{
         test_path = f"src/test/java/{pkg_path}/service/{ent_name}ServiceTest.java"
         generated_files[test_path] = test_src
         t_fp = base_dir / test_path
-        t_fp.parent.mkdir(parents=True, exist_ok=True)
-        t_fp.write_text(test_src, encoding="utf-8")
+        io_path(t_fp.parent).mkdir(parents=True, exist_ok=True)
+        io_path(t_fp).write_text(test_src, encoding="utf-8")
 
         logs.append(f"[TEST] Generated Mockito unit tests for {ent_name}Service")
 

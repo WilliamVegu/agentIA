@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="328.452" timestamp="2026-10-08T16:31:50.852880-05:00" hostname="VeguFam"><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[H2-maven-springboot]" time="27.322" /><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[H2-gradle-springboot]" time="18.103" /><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[POSTGRESQL-maven-springboot]" time="33.843" /><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[POSTGRESQL-gradle-springboot]" time="50.022" /><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[MYSQL-maven-springboot]" time="87.662"><failure message="TimeoutError: timed out">integration\test_generated_domain.py:166: in test_native_relational_http_matrix
+    http_contract(framework,MATRIX_WORK/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:130: in http_contract
+    status,_=request(base,resource+'/'+entry,'DELETE');assert status==204
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:25: in request
+    with urllib.request.urlopen(req,timeout=3) as response: return response.status,json.loads(response.read() or b'null')
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\urllib\request.py:215: in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\urllib\request.py:515: in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\urllib\request.py:532: in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\urllib\request.py:492: in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\urllib\request.py:1373: in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\urllib\request.py:1348: in do_open
+    r = h.getresponse()
+        ^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\http\client.py:1478: in getresponse
+    response.begin()
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\http\client.py:343: in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\http\client.py:304: in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\socket.py:720: in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+E   TimeoutError: timed out</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[MYSQL-gradle-springboot]" time="109.775" /></testsuite></testsuites>

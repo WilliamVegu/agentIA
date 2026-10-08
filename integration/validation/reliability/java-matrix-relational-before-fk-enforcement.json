@@ -1,0 +1,266 @@
+[
+  {
+    "framework": "springboot",
+    "buildTool": "maven",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-maven-h2",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "maven",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-maven-postgresql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "maven",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-maven-mysql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-gradle-h2",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-gradle-postgresql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-gradle-mysql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "maven",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-quarkus-maven-h2",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "maven",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-quarkus-maven-postgresql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "maven",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-quarkus-maven-mysql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "gradle",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-quarkus-gradle-h2",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "gradle",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-quarkus-gradle-postgresql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "gradle",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-quarkus-gradle-mysql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  }
+]

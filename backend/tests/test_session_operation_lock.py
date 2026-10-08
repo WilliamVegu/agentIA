@@ -6,6 +6,15 @@ from app.services.session_operation_lock import SessionOperationLock
 from scripts.verify_native_source_flow import stop_process_tree
 
 
+def worker_line(process):
+    import queue,threading
+    output=queue.Queue()
+    reader=threading.Thread(target=lambda:output.put(process.stdout.readline().strip()),daemon=True)
+    reader.start()
+    return output.get(timeout=15)
+
+
+
 def test_lock_excludes_other_process_and_releases_after_crash(tmp_path, monkeypatch):
     from app.config import settings
     monkeypatch.setattr(settings, 'WORKSPACE_DIR', str(tmp_path))
@@ -29,7 +38,7 @@ sys.stdin.read()
     process = subprocess.Popen([sys.executable, '-c', code, str(tmp_path)],
         env=environment, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
-        assert process.stdout.readline().strip() == 'ACQUIRED'
+        assert worker_line(process) == 'ACQUIRED'
         assert not other.acquire(False)
         different = SessionOperationLock('different')
         assert different.acquire(False)
@@ -54,6 +63,11 @@ def test_cancel_request_reaches_other_process_without_false_recovery(tmp_path, m
     monkeypatch.setattr(settings, 'WORKSPACE_DIR', str(tmp_path))
     monkeypatch.setattr('app.services.execution_policy.execution_mode', lambda _: ExecutionMode.DOCKER)
     monkeypatch.setattr(docker_service, '_active_deployments', {})
+    from app.models.session import SessionLocal,GenerationSessionDB
+    with SessionLocal() as db:
+        database_url=str(db.get_bind().url)
+        db.add(GenerationSessionDB(id='external-worker',spec_id='owned-worker',spec_name='Worker',execution_mode='DOCKER'))
+        db.commit()
     code = '''
 import sys,time
 from app.config import settings
@@ -76,21 +90,26 @@ row.status=DeploymentStatus.FAILED
 finish(row);persist(row);lock.release()
 print('CANCELLED',flush=True)
 '''
-    environment = dict(os.environ, PYTHONPATH=str(Path('backend').resolve()))
-    process = subprocess.Popen([sys.executable, '-c', code, str(tmp_path)], env=environment,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    environment = dict(os.environ,PYTHONPATH=str(Path('backend').resolve()),DATABASE_URL=database_url)
+    error_log=(tmp_path/'worker.stderr.log').open('w',encoding='utf-8')
+    process = subprocess.Popen([sys.executable,'-c',code,str(tmp_path)],env=environment,
+        stdout=subprocess.PIPE,stderr=error_log,text=True)
     try:
-        assert process.stdout.readline().strip() == 'ACTIVE'
+        assert worker_line(process) == 'ACTIVE'
         existing = restore('external-worker')
         assert existing.status.value == 'BUILDING' and existing.finishedAt is None
         requested = request_cancel('external-worker', 'external-operation')
         assert requested.cancelRequested
-        assert process.stdout.readline().strip() == 'CANCELLED'
+        assert worker_line(process) == 'CANCELLED'
         process.wait(timeout=10)
-        assert process.returncode == 0, process.stderr.read()
+        assert process.returncode == 0, (tmp_path/'worker.stderr.log').read_text(encoding='utf-8')
         completed = restore('external-worker')
         assert completed.finishedAt and completed.cancelRequested and completed.operationPhase == 'INTERRUPTED'
     finally:
         if process.poll() is None: stop_process_tree(process)
         process.wait(timeout=10)
-        process.stdout.close(); process.stderr.close()
+        process.stdout.close();error_log.close()
+        from app.models.reliability import DeploymentOperation
+        with SessionLocal() as db:
+            db.query(DeploymentOperation).filter_by(session_id='external-worker').delete()
+            db.query(GenerationSessionDB).filter_by(id='external-worker').delete();db.commit()

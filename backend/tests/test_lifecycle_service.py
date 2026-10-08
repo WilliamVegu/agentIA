@@ -169,4 +169,4 @@ def test_lifecycle_security_audit_completed_and_100_percent(mock_session, monkey
     assert lifecycle.phases[5].status == PhaseStatus.COMPLETED
     assert lifecycle.phases[6].status == PhaseStatus.COMPLETED
     assert lifecycle.completion_percentage == 100.0
-    assert "completamente sintetizado" in lifecycle.next_recommended_action
+    assert "Flujo completado" in lifecycle.next_recommended_action

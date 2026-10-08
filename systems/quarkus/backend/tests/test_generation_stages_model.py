@@ -1135,23 +1135,34 @@ def test_generation_exhaustion_does_not_touch_the_sandbox_repair_budget(monkeypa
     # would block immediately instead of proceeding to its first attempt.
     from app.orchestrator.nodes.repair_node import repair_node
 
+    from app.config import settings
+    from app.models.session import SessionLocal, GenerationSessionDB
+    from app.models.reliability import RepairAttempt
+    monkeypatch.setattr(settings, 'WORKSPACE_DIR', str(tmp_path))
+    owned = tmp_path / 'fr009-independence'
+    owned.mkdir()
+    (owned / 'src').mkdir()
+    (owned / 'src/X.java').write_text('class X {}', encoding='utf-8')
+    with SessionLocal() as db:
+        db.add(GenerationSessionDB(id='fr009-independence', spec_id='budget-test', spec_name='budget-service'))
+        db.commit()
+    from types import SimpleNamespace
+    from app.sandbox.docker_runner import DockerExecutionResult
+    from app.services import workspace_verification
+    monkeypatch.setattr(workspace_verification, 'run_workspace_verification', lambda *a, **k: SimpleNamespace(
+        result=DockerExecutionResult(exit_code=1, verification_skipped=True, fallback_used=True),
+        workspace_fingerprint='fixture',snapshot_id=None,source_changed=False))
     repair_after = repair_node({
-        "session_id": "fr009-independence",
-        "workspace_path": str(workspace),
-        "generated_files": dict(result.get("generated_files") or {}),
-        "logs": [],
-        "repair_attempts": result.get("repair_attempts", 0),
-        "max_repair_attempts": result.get("max_repair_attempts", 3),
-        "last_diagnostic": {"failed_file": "X.java", "summary": "boom", "line_number": 1},
+        'session_id':'fr009-independence','workspace_path':str(owned),
+        'generated_files':{'src/X.java':'class X {}'},'logs':[],
+        'repair_attempts':result.get('repair_attempts',0),'max_repair_attempts':3,
+        'last_diagnostic':{'failed_file':'src/X.java','summary':'boom','line_number':1},
     })
-    assert repair_after.get("status") != SessionStatus.BLOCKED.value, (
-        "the generation loop consumed the sandbox repair budget: the repair loop "
-        "blocked on its first attempt"
-    )
-    assert result.get("repair_attempts") == 0, "the generation loop wrote the repair counter"
-    assert repair_after["repair_attempts"] == 1, (
-        "the repair loop should have taken its first of three attempts on a full budget"
-    )
+    assert result.get('repair_attempts') == 0
+    assert repair_after['repair_attempts'] == 1
+    with SessionLocal() as db:
+        assert db.query(RepairAttempt).filter_by(session_id='fr009-independence',automatic=1).count() == 1
+
 
 
 def test_session_never_exceeds_the_request_budget(monkeypatch, tmp_path):

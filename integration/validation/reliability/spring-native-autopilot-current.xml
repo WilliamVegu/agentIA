@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="158.423" timestamp="2026-10-08T16:33:47.920229-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_native_runtime_integration" name="test_native_two_sessions_collision_restart_and_controls" time="157.363"><failure message="RuntimeError: Identidad ajena o legacy sin propiedad; operación rechazada.">integration\native_runtime_cases.py:102: in run_native_case
+    assert launched.status.value=='HEALTHY',launched
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: sessionId='reliability-native-b88f320be2a4482492bf6190801a2be2' dbEngine=&lt;DatabaseEngine.H2: 'H2'&gt; containerId='f1ace017b8f0c694905ebe1cb7bd281a7489e6a0774575c0f219b55531eab925' databaseContainerId=None sourceSnapshotId='166fae2c8afb48ffa1967004ed49299d' workspaceFingerprint='420a0a76445508d7956166e03cf9a192a65774d920451b42a080313ff4f5232a' imageId='sha256:01bd95dac00cdbdbf5017d6359e02d9b1feda6f16761e18f59dd85ed7155bab7' executableJarSha256='1577c857e703bcc1bf1faf8a839b8c06292f1178094c878be6badf02c5e0f5d3' status=&lt;DeploymentStatus.FAILED: 'FAILED'&gt; hostPort=53484 containerPort=8080 testUrl=None healthStatus='UNKNOWN' errorMessage='Smoke test failed: No hay un contenedor activo de esta sesión; prueba no ejecutada.' startedAt='2026-10-08T21:35:13.963120+00:00' operationId='b1cf0924-aaaf-4123-961f-dbed32c0d171' operationKind='DEPLOY' operationPhase='READINESS' finishedAt='2026-10-08T21:36:23.652570+00:00' cancelRequested=False message=None
+
+During handling of the above exception, another exception occurred:
+backend\tests\test_native_runtime_integration.py:8: in test_native_two_sessions_collision_restart_and_controls
+    run_native_case('springboot',tmp_path,monkeypatch)
+integration\native_runtime_cases.py:155: in run_native_case
+    preview=lifecycle.cleanup_preview(identity)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\runtime_lifecycle.py:64: in cleanup_preview
+    records = {kind: owned_resources(session_id, kind) for kind in ('container', 'volume', 'network')}
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\services\runtime_lifecycle.py:33: in owned_resources
+    raise RuntimeError('Identidad ajena o legacy sin propiedad; operación rechazada.')
+E   RuntimeError: Identidad ajena o legacy sin propiedad; operación rechazada.</failure></testcase></testsuite></testsuites>

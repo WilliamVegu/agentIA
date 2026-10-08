@@ -53,10 +53,10 @@ def test_incompatible_fk_and_mandatory_cycle_fail_before_publishing_sql():
 
 
 @pytest.mark.parametrize('engine', ['H2', 'POSTGRESQL', 'MYSQL'])
-def test_inferred_uuid_fk_and_audit_lifecycle_are_coherent(engine):
+def test_explicit_uuid_fk_and_audit_lifecycle_are_coherent(engine):
     draft = SpecificationDraft(serviceName='orders', packageName='com.example', entities=[
         DomainEntity(name='Order', tableName='orders', attributes=[EntityAttribute(name='id', type='UUID', isPrimaryKey=True)]),
-        DomainEntity(name='OrderItem', tableName='order_items', attributes=[EntityAttribute(name='id', type='Long', isPrimaryKey=True)])], userStories=[])
+        DomainEntity(name='OrderItem', tableName='order_items', attributes=[EntityAttribute(name='id', type='Long', isPrimaryKey=True),EntityAttribute(name='orderId',type='UUID',referencesEntity='Order'),EntityAttribute(name='createdAt',type='Instant'),EntityAttribute(name='updatedAt',type='Instant')])], userStories=[])
     result = model_sql_service.synthesize_domain_models_and_sql(draft, provider='mock', db_engine=engine)
     child = next(e for e in result.entities if e.name == 'OrderItem')
     assert next(a for a in child.attributes if a.columnName == 'order_id').sqlType == SQL.UUID

@@ -1,0 +1,55 @@
+{
+  "blueprintId": "pair-a",
+  "corpusRole": "paired-set-baseline-member",
+  "pairNote": "Identical to pair-b.json in serviceName, packageName, entity names, attribute names, attribute types, and nullability. Differs ONLY in declared validationRules and in declared acceptance scenarios. The deterministic generation stages read neither, so pre-migration output for this blueprint and pair-b must be byte-identical. That identity is the pre-migration signature for SC-002.",
+  "serviceName": "invoice-service",
+  "packageName": "com.corp.invoice",
+  "basePort": 8080,
+  "databaseMode": "PostgreSQL",
+  "entities": [
+    {
+      "name": "Invoice",
+      "tableName": "invoices",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Long",
+          "nullable": false,
+          "isPrimaryKey": true,
+          "validationRules": []
+        },
+        {
+          "name": "customerEmail",
+          "type": "String",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": []
+        },
+        {
+          "name": "amount",
+          "type": "BigDecimal",
+          "nullable": true,
+          "isPrimaryKey": false,
+          "validationRules": []
+        }
+      ]
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "priority": "P1",
+      "role": "billing operator",
+      "intent": "create an invoice for a customer",
+      "benefit": "the charge is recorded against the correct account",
+      "scenarios": [
+        {
+          "scenarioId": "AC-1.1",
+          "given": "a valid customer email and a positive amount",
+          "when": "the operator creates an invoice",
+          "then": "the invoice is persisted and returned with its generated identifier"
+        }
+      ]
+    }
+  ]
+}

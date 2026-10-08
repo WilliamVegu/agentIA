@@ -20,6 +20,49 @@ def record_directory(session_id):
     return directory
 
 
+def _stored_runtime(session_id):
+    from app.models.session import SessionLocal,GenerationSessionDB
+    from app.models.reliability import DeploymentOperation
+    with SessionLocal() as db:
+        if not db.get(GenerationSessionDB,session_id): return None
+        operation=db.query(DeploymentOperation).filter_by(session_id=session_id).order_by(DeploymentOperation.created_at.desc()).first()
+        if not operation: return None
+        payload=json.loads(operation.bindings_json).get('projection')
+        if payload is None: return None
+        row=LocalDeploymentSession.model_validate(payload)
+        if row.sessionId!=session_id: raise ValueError('Runtime projection belongs to another session')
+        return row
+
+
+def _persist_runtime(row):
+    from app.models.session import SessionLocal,GenerationSessionDB
+    from app.models.reliability import DeploymentOperation
+    from app.services.operation_repository import transaction
+    from app.services.secret_redaction import redact
+    with SessionLocal() as db:
+        transaction(db)
+        if not db.get(GenerationSessionDB,row.sessionId): return True  # Legacy file; never creates a session.
+        latest=db.query(DeploymentOperation).filter_by(session_id=row.sessionId).order_by(DeploymentOperation.created_at.desc()).first()
+        operation_id=row.operationId or (latest.operation_id if latest else str(uuid.uuid4()))
+        operation=db.get(DeploymentOperation,operation_id)
+        if operation and (operation.session_id!=row.sessionId or latest and latest.operation_id!=operation_id): return False
+        if not operation:
+            operation=DeploymentOperation(operation_id=operation_id,session_id=row.sessionId,framework='springboot',state=row.status.value)
+            db.add(operation)
+        operation.state=row.status.value
+        operation.source_snapshot_id=row.sourceSnapshotId
+        operation.fingerprint=row.workspaceFingerprint
+        operation.compose_project=row.sessionId
+        operation.container_ids_json=json.dumps([value for value in (row.containerId,row.databaseContainerId) if value])
+        operation.image_id=row.imageId
+        operation.labels_json=json.dumps({'com.docker.compose.project':row.sessionId})
+        operation.bindings_json=json.dumps({'hostPort':row.hostPort,'projection':redact(row.model_dump(mode='json'))})
+        operation.error_code=redact(row.errorMessage)[:100] if row.errorMessage else None
+        operation.updated_at=datetime.now(timezone.utc)
+        db.commit()
+        return True
+
+
 def persist(row):
     with _record_lock:
         directory = record_directory(row.sessionId)
@@ -28,8 +71,10 @@ def persist(row):
         # Preserve terminal operation metadata when that probe carries an older
         # copy, while still saving the newly observed container health.
         try:
-            stored = LocalDeploymentSession.model_validate_json(
-                (directory / 'deployment.json').read_text(encoding='utf-8'))
+            stored = _stored_runtime(row.sessionId)
+            if stored is None:
+                stored = LocalDeploymentSession.model_validate_json(
+                    (directory / 'deployment.json').read_text(encoding='utf-8'))
         except (OSError, ValueError):
             stored = None
         if (stored is not None and stored.sessionId == row.sessionId
@@ -39,6 +84,7 @@ def persist(row):
             row.operationPhase = stored.operationPhase
             row.cancelRequested = row.cancelRequested or stored.cancelRequested
             row.message = stored.message
+        if not _persist_runtime(row): return False
         temporary = directory / ("deployment-" + uuid.uuid4().hex + ".tmp")
         temporary.write_text(row.model_dump_json(), encoding="utf-8")
         temporary.replace(directory / "deployment.json")
@@ -46,7 +92,9 @@ def persist(row):
 
 def restore(session_id):
     try:
-        row = LocalDeploymentSession.model_validate_json((record_directory(session_id) / "deployment.json").read_text(encoding="utf-8"))
+        row = _stored_runtime(session_id)
+        if row is None:
+            row = LocalDeploymentSession.model_validate_json((record_directory(session_id) / "deployment.json").read_text(encoding="utf-8"))
         if row.sessionId != session_id:
             return None
         from app.services.session_operation_lock import SessionOperationLock
@@ -88,6 +136,8 @@ def inspect_session(session_id):
     if inspection.returncode:
         raise RuntimeError("No se pudo identificar el contenedor de esta sesión.")
     containers = [c for c in json.loads(inspection.stdout) if c.get("Config", {}).get("Labels", {}).get("com.docker.compose.project") == session_id]
+    if any(c.get('Config',{}).get('Labels',{}).get('io.agentia.owner')!=session_id or c.get('Config',{}).get('Labels',{}).get('io.agentia.studio')!='springboot' for c in containers):
+        raise RuntimeError('Runtime legacy/unowned: identidad no confirmada')
     def role(c):
         return c.get("Config", {}).get("Labels", {}).get("io.agentia.role")
     applications = [c for c in containers if role(c) == 'application']

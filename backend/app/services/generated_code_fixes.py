@@ -37,6 +37,7 @@ on a service whose only write path was completely broken.
 from __future__ import annotations
 
 import re
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -57,7 +58,7 @@ _OFFENDING = "@NotNull"
 
 
 def _is_annotation(line: str) -> bool:
-    return line.strip().startswith("@")
+    return bool(re.fullmatch(r"@[\w.]+(?:\([^)]*\))?(?:\s+@[\w.]+(?:\([^)]*\))?)*(?:\s*//.*)?", line.strip()))
 
 
 def _is_field(line: str) -> bool:
@@ -199,7 +200,7 @@ def normalise_generated_entities(workspace: str | Path) -> Dict[str, List[str]]:
 
     for java_file in sorted(ws.glob(_MODEL_GLOB)):
         try:
-            original = java_file.read_text(encoding="utf-8")
+            original = io_path(java_file).read_text(encoding="utf-8")
         except OSError:
             continue
         current = original
@@ -213,7 +214,7 @@ def normalise_generated_entities(workspace: str | Path) -> Dict[str, List[str]]:
         all_changed.extend(type_changed)
 
         if all_changed and current != original:
-            java_file.write_text(current, encoding="utf-8")
+            io_path(java_file).write_text(current, encoding="utf-8")
             fixed[java_file.relative_to(ws).as_posix()] = all_changed
 
     return fixed
@@ -262,12 +263,12 @@ def normalise_generated_tests(workspace: str | Path) -> Dict[str, List[str]]:
 
     for java_file in sorted(ws.glob(_TEST_GLOB)):
         try:
-            original = java_file.read_text(encoding="utf-8")
+            original = io_path(java_file).read_text(encoding="utf-8")
         except OSError:
             continue
         corrected, changed = fix_spring_test_annotations(original)
         if changed and corrected != original:
-            java_file.write_text(corrected, encoding="utf-8")
+            io_path(java_file).write_text(corrected, encoding="utf-8")
             fixed[java_file.relative_to(ws).as_posix()] = changed
 
     return fixed
@@ -330,7 +331,7 @@ def ensure_not_found_handler(workspace: str | Path) -> Dict[str, str]:
 
     for java_file in sorted(ws.glob("src/main/java/**/*.java")):
         try:
-            source = java_file.read_text(encoding="utf-8")
+            source = io_path(java_file).read_text(encoding="utf-8")
         except OSError:
             continue
         if "@RestControllerAdvice" not in source:
@@ -343,7 +344,7 @@ def ensure_not_found_handler(workspace: str | Path) -> Dict[str, str]:
             continue
 
         patched = source[:closing] + _NOT_FOUND_HANDLER + source[closing:]
-        java_file.write_text(patched, encoding="utf-8")
+        io_path(java_file).write_text(patched, encoding="utf-8")
         inserted[java_file.relative_to(ws).as_posix()] = "NoResourceFoundException -> 404"
 
     return inserted

@@ -289,5 +289,5 @@ public class Order {
 def test_empty_audit_cannot_export():
     verdict = evaluate_quality_gate([], [], CodeQualityMetrics())
     assert verdict.status == QualityGateStatus.BLOCKED
-    assert verdict.score == 0
+    assert verdict.score is None
     assert verdict.canExport is False

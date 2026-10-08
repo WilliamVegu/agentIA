@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="130.922" timestamp="2026-10-08T10:45:49.100777-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_native_runtime_integration" name="test_sealed_quarkus_runtime_roundtrip" time="130.669"><failure message="AssertionError: {'statusCode': 404, 'url': 'http://127.0.0.1:57268/api/v1/ledgerentries', 'latencyMs': 15, 'contentType': 'application/json', ...}&#10;assert 404 == 200">systems\quarkus\backend\tests\test_native_runtime_integration.py:58: in test_sealed_quarkus_runtime_roundtrip
+    assert result['statusCode']==200,result
+E   AssertionError: {'statusCode': 404, 'url': 'http://127.0.0.1:57268/api/v1/ledgerentries', 'latencyMs': 15, 'contentType': 'application/json', ...}
+E   assert 404 == 200</failure></testcase></testsuite></testsuites>

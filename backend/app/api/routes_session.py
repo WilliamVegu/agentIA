@@ -69,17 +69,21 @@ async def change_execution_mode(session_id: str, payload: ExecutionModeRequest):
 
 def _change_execution_mode(session_id: str, payload: ExecutionModeRequest):
     from app.services.docker_service import get_deployment_status
+    from app.services.operation_repository import transaction, ACTIVE
+    from app.models.reliability import PipelineOperation
     with SessionLocal() as db:
+        transaction(db)
         row = db.get(GenerationSessionDB, session_id)
         if not row:
             raise HTTPException(404, "Session not found")
-        if row.status in (SessionStatus.RUNNING, SessionStatus.QUEUED):
+        if db.query(PipelineOperation).filter_by(session_id=session_id).filter(PipelineOperation.state.in_(ACTIVE)).first():
             raise HTTPException(409, "No se puede cambiar el modo durante una ejecución.")
         if row.execution_mode == ExecutionMode.DOCKER and payload.executionMode == ExecutionMode.SOURCE_ONLY:
             deployment = get_deployment_status(session_id)
             if deployment.status.value in ("BUILDING", "RUNNING", "HEALTHY", "DEGRADED"):
                 raise HTTPException(409, "Detenga el despliegue antes de cambiar a sin Docker.")
-        row.execution_mode = payload.executionMode.value
+        from app.services.draft_revision_service import update_execution_configuration
+        update_execution_configuration(db,row,payload.executionMode.value)
         db.commit()
     return {"sessionId": session_id, "executionMode": payload.executionMode.value}
 
@@ -118,10 +122,10 @@ def _persist_verification_metrics(db_sess, final_state: dict) -> None:
     metrics = final_state.get("test_metrics")
     if not metrics:
         return
-    try:
-        db_sess.verification_metrics_json = json.dumps(metrics)
-    except Exception:
-        pass
+    from app.services.graph_completion_policy import previous_failed
+    if metrics.get('verificationSkipped') and previous_failed(db_sess):
+        metrics={**json.loads(db_sess.verification_metrics_json),'verificationOutdated':True,'sourceDeliveryReady':False}
+    db_sess.verification_metrics_json = json.dumps(metrics)
 
 
 def _persist_diagnostics(session_id: str, final_state: dict) -> bool:
@@ -169,39 +173,69 @@ def _record_session_cost(
 
 
 def broadcast_session_event(session_id: str, event_type: str, data: dict):
-    """Stores event in history and broadcasts to all active SSE subscribers."""
-    data_with_meta = dict(data)
-    if "event" not in data_with_meta:
-        data_with_meta["event"] = event_type
-    if "type" not in data_with_meta:
-        data_with_meta["type"] = event_type
+    from app.services.session_event_service import publish_event
+    return publish_event(session_id, event_type, data)
 
-    event = {
-        "id": str(len(SESSION_EVENT_HISTORY.get(session_id, [])) + 1),
-        "event": event_type,
-        "data": json.dumps(data_with_meta)
-    }
-    if session_id not in SESSION_EVENT_HISTORY:
-        SESSION_EVENT_HISTORY[session_id] = []
-    SESSION_EVENT_HISTORY[session_id].append(event)
-
-    subscribers = SESSION_EVENT_SUBSCRIBERS.get(session_id, [])
-    for q in list(subscribers):
-        try:
-            loop = getattr(q, "_loop", None)
-            if loop and loop.is_running():
-                loop.call_soon_threadsafe(q.put_nowait, event)
-            else:
-                q.put_nowait(event)
-        except Exception:
-            try:
-                q.put_nowait(event)
-            except Exception:
-                pass
 
 GRAPH_CANCEL_EVENTS: Dict[str, threading.Event] = {}
 
-async def execute_generation_pipeline(
+async def execute_generation_pipeline(session_id, spec_id, spec_name, blueprint_dict, *args, **kwargs):
+    """The graph shares the durable single-writer contract with Auto-Pilot."""
+    import threading
+    from app.services.workspace_guard import get_validated_workspace_path
+    from app.services.session_operation_lock import SessionOperationLock
+    from app.services.operation_repository import begin_operation, get_operation, transition_operation
+    from app.services.draft_revision_service import get_revision, save_revision, record_artifact
+    from app.models.requirements import SpecificationDraft
+    from app.services import pipeline_runner
+    ws=get_validated_workspace_path(session_id,require_exists=False)
+    ws.mkdir(parents=True,exist_ok=True)
+    lock=SessionOperationLock(session_id)
+    if not lock.acquire(False): raise HTTPException(409,'Otra operación escribe esta sesión')
+    operation=None
+    try:
+        operation=begin_operation(session_id,'CODE_TESTS',{'entryPoint':'GRAPH'})
+        operation=transition_operation(operation['operationId'],operation['version'],'RUNNING')
+        revision=get_revision(session_id)
+        if revision.get('revisionId'):
+            if revision['source'] in {'MANUAL','LEGACY'} and revision['approvalStatus']!='APPROVED':
+                raise HTTPException(409,'La revisión humana requiere aprobación exacta')
+            blueprint_dict=revision['draft']
+        else:
+            payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            revision=save_revision(session_id,payload,source='GENERATED',_operation_id=operation['operationId'])
+            blueprint_dict=revision['draft']
+        cancel_event=threading.Event()
+        pipeline_runner._stop_events[session_id]=cancel_event
+        pipeline_runner._pause_events[session_id]=threading.Event()
+        GRAPH_CANCEL_EVENTS[session_id]=cancel_event
+        await _execute_generation_pipeline_steps(session_id,spec_id,spec_name,blueprint_dict,*args,**kwargs)
+        state=SESSION_GENERATION_STATE.get(session_id,{})
+        for relative in state.get('generated_files',{}):
+            if (ws/relative).is_file(): record_artifact(session_id,relative,'CODE_TESTS',revision['revisionId'])
+    except asyncio.CancelledError:
+        if operation:
+            from app.services.operation_repository import finish_operation
+            finish_operation(session_id,operation['operationId'],'INTERRUPTED',error_code='WORKER_CANCELLED')
+        raise
+    except Exception as error:
+        if operation:
+            from app.services.operation_repository import finish_operation
+            finish_operation(session_id,operation['operationId'],'BLOCKED',error_code=type(error).__name__)
+        raise
+    finally:
+        try:
+            if operation:
+                from app.services.operation_repository import finish_operation
+                with SessionLocal() as db: row=db.get(GenerationSessionDB,session_id)
+                finish_operation(session_id,operation['operationId'],
+                    'COMPLETED' if row and row.status==SessionStatus.COMPLETED else 'BLOCKED')
+        finally:
+            GRAPH_CANCEL_EVENTS.pop(session_id,None)
+            lock.release()
+
+
+async def _execute_generation_pipeline_steps(
     session_id: str,
     spec_id: str,
     spec_name: str,
@@ -211,7 +245,7 @@ async def execute_generation_pipeline(
     model_name: Optional[str] = None,
 ):
     """Background worker executing the LangGraph pipeline with concurrency controls."""
-    GRAPH_CANCEL_EVENTS[session_id] = threading.Event()
+    GRAPH_CANCEL_EVENTS.setdefault(session_id, threading.Event())
     slot_acquired = False
     db = SessionLocal()
     try:
@@ -265,7 +299,10 @@ async def execute_generation_pipeline(
             # set must not break the offline path.
             instruction_revision = ""
 
+        from app.services.operation_repository import get_operation
+        repair_operation=get_operation(session_id)
         initial_state = {
+            "repair_operation_id":repair_operation["operationId"] if repair_operation else None,
             "session_id": session_id,
             "execution_mode": execution_mode(session_id).value,
             "blueprint": blueprint_dict,
@@ -305,7 +342,7 @@ async def execute_generation_pipeline(
         except Exception as exc:  # noqa: BLE001
             # Never let artifact persistence stop a generation run; it is a fix for a
             # reporting gap, not a precondition for producing code.
-            print(f"[WARN] could not persist lifecycle artifacts: {type(exc).__name__}: {exc}")
+            raise RuntimeError("No se pudieron persistir los artefactos de la revisión") from exc
 
         def run_graph_with_streaming():
             accumulated_state = dict(initial_state)
@@ -317,6 +354,14 @@ async def execute_generation_pipeline(
                     accumulated_state["status"] = "CANCELLED"
                     break
 
+                from app.services import pipeline_runner
+                if pipeline_runner._pause_events.get(session_id) and pipeline_runner._pause_events[session_id].is_set():
+                    accumulated_state['status']='PAUSED'
+                    break
+                from app.services.operation_repository import get_operation,checkpoint_operation
+                operation=get_operation(session_id)
+                if operation and operation['state'] in {'RUNNING','PAUSE_REQUESTED','CANCEL_REQUESTED'}:
+                    checkpoint_operation(operation['operationId'],operation['version'],'CODE_TESTS',{'node':next(iter(step))})
                 node_name = list(step.keys())[0]
                 node_output = step[node_name]
                 accumulated_state.update(node_output)
@@ -431,9 +476,23 @@ async def execute_generation_pipeline(
 
         # Run streaming LangGraph execution in threadpool
         loop = asyncio.get_event_loop()
-        final_state = await loop.run_in_executor(None, run_graph_with_streaming)
+        def run_owned_graph():
+            from app.services.local_operations import borrowed_lock
+            with borrowed_lock(session_id):
+                return run_graph_with_streaming()
+        graph_future = loop.run_in_executor(None, run_owned_graph)
+        try:
+            final_state = await asyncio.shield(graph_future)
+        except asyncio.CancelledError:
+            # Keep the workspace lock until the actual writer has unwound.
+            control = GRAPH_CANCEL_EVENTS.get(session_id)
+            if control:
+                control.set()
+            await asyncio.shield(graph_future)
+            raise
 
-        SESSION_GENERATION_STATE[session_id] = final_state
+        from app.services.secret_redaction import without_credentials
+        SESSION_GENERATION_STATE[session_id] = without_credentials(final_state)
 
         final_status = final_state.get("status", "COMPLETED")
         db_sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
@@ -447,6 +506,21 @@ async def execute_generation_pipeline(
             _persist_diagnostics(session_id, final_state)
             await queue_manager.release_slot(session_id)
             return
+
+        if final_status in {'PAUSED','CANCELLED'}:
+            if db_sess:
+                db_sess.status=SessionStatus.PAUSED if final_status=='PAUSED' else SessionStatus.CANCELLED
+                db.commit()
+            broadcast_session_event(session_id,'session_control_ack',{'status':final_status})
+            return
+
+        if final_status == "COMPLETED":
+            from app.services.graph_completion_policy import qualify_completion
+            if not db_sess or not qualify_completion(db_sess,ws_path,final_state):
+                final_status='BLOCKED'
+                final_state['status']='BLOCKED'
+                final_state['error']='La generación terminó sin evidencia vigente de verificación o entrega de fuentes auditadas'
+            SESSION_GENERATION_STATE[session_id]=without_credentials(final_state)
 
         if final_status == "COMPLETED":
             metrics = final_state.get("test_metrics", {})
@@ -480,7 +554,7 @@ async def execute_generation_pipeline(
                 "totalTests": metrics.get("totalTests", 0),
                 "passedTests": metrics.get("passedTests", 0),
                 "failedTests": metrics.get("failedTests", 0),
-                "durationMs": metrics.get("executionDurationMs", 2100),
+                "durationMs": metrics.get("executionDurationMs", 0),
                 "artifactCount": len(final_state.get("generated_files", {})),
                 "downloadUrl": f"/api/v1/sessions/{session_id}/export"
             })
@@ -793,29 +867,15 @@ async def get_session_by_id(session_id: str):
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def cancel_session(session_id: str):
-    """Cancels active or queued session."""
-    db = SessionLocal()
-    try:
-        db_sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if not db_sess:
-            raise HTTPException(status_code=404, detail="Session not found")
-        db_sess.status = SessionStatus.CANCELLED
-        _record_session_cost(session_id, "CANCELLED", db_sess=db_sess, db=db)
-        db.commit()
-    finally:
-        db.close()
-
-    if session_id in GRAPH_CANCEL_EVENTS:
-        GRAPH_CANCEL_EVENTS[session_id].set()
-
-    try:
-        from app.services.pipeline_runner import cancel_pipeline
-        cancel_pipeline(session_id)
-    except Exception:
-        pass
-
-    queue_manager.cancel_waiting(session_id)
-    return
+    """Request cancellation; only the owning worker acknowledges its terminal state."""
+    from app.services.pipeline_runner import cancel_pipeline
+    from app.services.operation_repository import get_operation
+    with SessionLocal() as db:
+        row=db.get(GenerationSessionDB,session_id)
+        if not row: raise HTTPException(404,'Session not found')
+    if not cancel_pipeline(session_id): raise HTTPException(409,'No existe operación activa que cancelar')
+    if session_id in GRAPH_CANCEL_EVENTS: GRAPH_CANCEL_EVENTS[session_id].set()
+    return get_operation(session_id)
 
 @router.get("/{session_id}/stream")
 async def stream_session_events(session_id: str, request: Request):
@@ -828,31 +888,11 @@ async def stream_session_events(session_id: str, request: Request):
     finally:
         db.close()
 
-    client_queue = asyncio.Queue()
-    if session_id not in SESSION_EVENT_SUBSCRIBERS:
-        SESSION_EVENT_SUBSCRIBERS[session_id] = []
-    SESSION_EVENT_SUBSCRIBERS[session_id].append(client_queue)
-
-    async def event_publisher():
-        try:
-            # Replay historical events
-            history = SESSION_EVENT_HISTORY.get(session_id, [])
-            for past_event in history:
-                yield past_event
-
-            # Listen for new events (cancellation handled by sse_starlette when client disconnects)
-            while True:
-                try:
-                    event = await asyncio.wait_for(client_queue.get(), timeout=1.0)
-                    yield event
-                except asyncio.TimeoutError:
-                    # Keepalive comment
-                    yield {"comment": "keepalive"}
-        except asyncio.CancelledError:
-            pass
-        finally:
-            if session_id in SESSION_EVENT_SUBSCRIBERS and client_queue in SESSION_EVENT_SUBSCRIBERS[session_id]:
-                SESSION_EVENT_SUBSCRIBERS[session_id].remove(client_queue)
-
-    return EventSourceResponse(event_publisher())
+    from app.services.session_event_service import async_events, read_events
+    try:
+        after = int(request.headers.get('Last-Event-ID') or request.query_params.get('after') or '0')
+    except ValueError:
+        raise HTTPException(400, 'Cursor SSE inválido')
+    read_events(session_id, after)  # Validate before response headers are sent.
+    return EventSourceResponse(async_events(session_id, request, after))
 

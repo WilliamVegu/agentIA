@@ -1,0 +1,65 @@
+[
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\springboot-gradle-h2",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\springboot-gradle-postgresql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\springboot-gradle-mysql",
+    "liveProviderCalls": 0,
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\java\\springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\java\\springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "outcome": "PASSED"
+  }
+]

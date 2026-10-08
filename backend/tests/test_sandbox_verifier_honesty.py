@@ -562,6 +562,9 @@ def test_stream_event_carries_the_marking_as_a_structured_field():
     from app.api.routes_session import SESSION_EVENT_HISTORY, broadcast_session_event
 
     session_id = f"t018-{uuid.uuid4().hex[:10]}"
+    with SessionLocal() as db:
+        db.add(GenerationSessionDB(id=session_id,spec_id="sse-test",spec_name="events"))
+        db.commit()
     broadcast_session_event(session_id, "verification_result", {
         "sessionId": session_id,
         "verificationFallbackUsed": True,
@@ -569,7 +572,8 @@ def test_stream_event_carries_the_marking_as_a_structured_field():
         "buildSuccess": False,
     })
 
-    events = SESSION_EVENT_HISTORY[session_id]
+    from app.services.session_event_service import read_events
+    events = read_events(session_id)
     payload = json.loads(events[0]["data"])
     assert payload["event"] == "verification_result"
     assert payload["verificationFallbackUsed"] is True

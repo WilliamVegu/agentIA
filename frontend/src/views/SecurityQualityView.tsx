@@ -66,6 +66,8 @@ export const SecurityQualityView: React.FC = () => {
     setRemediatingId(findingId);
     try {
       const res = await securityService.applySurgicalRemediation({
+        sessionId: activeSessionId || undefined,
+        persist: true,
         findingId,
         filePath,
       });
@@ -108,9 +110,9 @@ export const SecurityQualityView: React.FC = () => {
   const vulns = report?.vulnerabilities || [];
   const viols = report?.violations || [];
 
-  const score = qg.score ?? 0;
-  const qgStatus = qg.status || (score >= 80 ? 'PASS' : score >= 60 ? 'WARNING' : 'BLOCKED');
-  const rating = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : 'F';
+  const score = qg.score ?? null;
+  const qgStatus = qg.status || 'BLOCKED';
+  const rating = score === null ? '—' : (score ?? 0) >= 90 ? 'A' : (score ?? 0) >= 75 ? 'B' : (score ?? 0) >= 60 ? 'C' : 'F';
   // The fallback asserted the quality gate had PASSED, and it rendered even when the
   // status was BLOCKED -- a claim about a verdict that had not been made.
   const summaryMsg =
@@ -181,7 +183,7 @@ export const SecurityQualityView: React.FC = () => {
                   Quality Gate: {qgStatus === 'PASS' ? 'APROBADO' : qgStatus === 'WARNING' ? 'ADVERTENCIA' : 'BLOQUEADO'}
                 </h2>
                 <span className="text-xs px-2 py-0.5 rounded font-mono font-bold bg-white/80 dark:bg-slate-900/80">
-                  {score}/100 Puntos
+                  {score ?? "Sin evaluar"}/100 Puntos
                 </span>
               </div>
               <p className="text-xs mt-1 opacity-90">{summaryMsg}</p>
@@ -219,7 +221,7 @@ export const SecurityQualityView: React.FC = () => {
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
             Nivel {rating}
           </div>
-          <span className="text-[11px] text-slate-500">{score}/100 pts</span>
+          <span className="text-[11px] text-slate-500">{score ?? "Sin evaluar"}/100 pts</span>
         </div>
 
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
@@ -243,10 +245,10 @@ export const SecurityQualityView: React.FC = () => {
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 dark:text-slate-400 font-medium">Complejidad Ciclomática</span>
           <div className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
-            CC {metrics.averageCyclomaticComplexity || 1.0}
+            CC {metrics.totalMethodsAudited > 0 ? (metrics.averageCyclomaticComplexity ?? 0) : 'Sin evaluar'}
           </div>
           <span className="text-[11px] text-slate-500">
-            Máx: {metrics.maxCyclomaticComplexity || 1}
+            Máx: {metrics.totalMethodsAudited > 0 ? (metrics.maxCyclomaticComplexity ?? 0) : 'Sin evaluar'}
           </span>
         </div>
       </div>
@@ -479,10 +481,10 @@ export const SecurityQualityView: React.FC = () => {
           <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1">
             <div className="text-slate-500">Líneas de Código (LOC)</div>
             <div className="text-lg font-bold font-mono text-slate-900 dark:text-white">
-              {metrics.totalLinesOfCode || 284}
+              {metrics.totalLinesOfCode ?? 0}
             </div>
             <div className="text-slate-500">
-              Total Métodos Evaluados: <strong>{metrics.totalMethodsAudited || 12}</strong>
+              Total Métodos Evaluados: <strong>{metrics.totalMethodsAudited ?? 0}</strong>
             </div>
           </div>
 
@@ -499,7 +501,7 @@ export const SecurityQualityView: React.FC = () => {
           <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1">
             <div className="text-slate-500">Densidad de Aserciones</div>
             <div className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
-              {metrics.testAssertionDensity || 2.2} / test
+              {metrics.testAssertionDensity ?? 0} / test
             </div>
             <div className="text-slate-500">
               Code Smells Totales: <strong>{metrics.totalCodeSmells || 0}</strong>

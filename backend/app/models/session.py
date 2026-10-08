@@ -64,64 +64,13 @@ class GenerationSessionDB(Base):
     # session detail surface can report what a session cost without reading the
     # cost store. The cost store remains the system of record; this is a copy.
     cost_record_json = Column(Text, nullable=True)
+    revision_id = Column(String(36), nullable=True)
+    configuration_version = Column(Integer, nullable=False, default=0)
+    operation_version = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
-
-Base.metadata.create_all(bind=engine)
-
-from sqlalchemy import text
-def _ensure_sqlite_lifecycle_columns():
-    try:
-        with engine.connect() as conn:
-            res = conn.execute(text("PRAGMA table_info(generation_sessions)")).fetchall()
-            existing_cols = [r[1] for r in res]
-            if existing_cols:
-                if "execution_mode" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN execution_mode VARCHAR(20) NOT NULL DEFAULT 'SOURCE_ONLY'"))
-                if "database_engine" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN database_engine VARCHAR(20) NOT NULL DEFAULT 'POSTGRESQL'"))
-                if "current_lifecycle_phase" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN current_lifecycle_phase VARCHAR(50) DEFAULT 'INITIAL'"))
-                if "lifecycle_mode" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN lifecycle_mode VARCHAR(50) DEFAULT 'GUIDED_STEP'"))
-                if "phase_progress_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN phase_progress_json TEXT"))
-                conn.commit()
-    except Exception:
-        pass
-
-_ensure_sqlite_lifecycle_columns()
-
-
-def _ensure_generation_columns():
-    """Additive SQLite migration for the feature-011 generation journal and
-    provenance columns (T013). Mirrors the lifecycle shim above so an existing
-    studio.db picks up the new columns without a migration tool.
-
-    Purely additive: no existing column is dropped, retyped, or repurposed, and
-    phase_progress_json keeps its existing meaning.
-    """
-    try:
-        with engine.connect() as conn:
-            res = conn.execute(text("PRAGMA table_info(generation_sessions)")).fetchall()
-            existing_cols = [r[1] for r in res]
-            if existing_cols:
-                if "generation_journal_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN generation_journal_json TEXT"))
-                if "artifact_provenance_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN artifact_provenance_json TEXT"))
-                if "verification_metrics_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN verification_metrics_json TEXT"))
-                if "cost_record_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN cost_record_json TEXT"))
-                conn.commit()
-    except Exception:
-        pass
-
-
-_ensure_generation_columns()
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -151,8 +100,10 @@ class GenerationSessionListItem(BaseModel):
     completion_percentage: float = Field(0.0, alias="completionPercentage")
     created_at: datetime = Field(..., alias="createdAt")
 
-class QuickStartSessionRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+from app.models.contract_aliases import AliasContract
+
+class QuickStartSessionRequest(AliasContract, BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
     execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
     auto_deploy: bool = Field(False, alias="autoDeploy")
 
@@ -204,3 +155,6 @@ class GenerationSessionDetail(BaseModel):
     # "no known fallback" rather than raising.
     verification_fallback_used: bool = Field(False, alias="verificationFallbackUsed")
 
+
+# Register additive tables without modifying a database at import time.
+from app.models import reliability as _reliability_models  # noqa: E402,F401

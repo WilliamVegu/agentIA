@@ -20,6 +20,7 @@ vi.mock('../services/sessionService', () => ({
         sessionId: 'sess-ops-001',
         specId: 'spec-ops-1',
         specName: 'notification-service',
+        executionMode: 'DOCKER',
         status: 'COMPLETED',
         currentLifecyclePhase: 'DEVOPS_DEPLOY',
         lifecycleMode: 'AUTONOMOUS',
@@ -67,11 +68,14 @@ vi.mock('../services/securityService', () => ({
 
 vi.mock('../services/devopsService', () => ({
   devopsService: {
+    getConfiguration: vi.fn().mockResolvedValue({databaseEngine:'POSTGRESQL',hostPort:18088}),
+    getManifests: vi.fn().mockRejectedValue(new Error('No manifests generated')),
+    proxyRequest: vi.fn(),
     getDeploymentStatus: vi.fn().mockResolvedValue({
       sessionId: 'sess-ops-001',
       serviceName: 'notification-service',
       status: 'STOPPED',
-      hostPort: 8080,
+      hostPort: 18088,
       dbEngine: 'POSTGRESQL',
       healthStatus: 'UNKNOWN',
       message: 'Contenedor detenido',
@@ -129,7 +133,7 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
         sessionId: 'sess-ops-001',
         serviceName: 'notification-service',
         qualityGate: {
-          verdict: 'PASS',
+          status: 'WARNING',
           canExport: true,
           canDeploy: true,
           score: 96,
@@ -140,20 +144,29 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
           lowCount: 2,
         },
         metrics: {
-          linesOfCode: 850,
-          testCoverageEstimate: 92,
-          cyclomaticComplexityAverage: 2.1,
-          maintainabilityIndex: 88,
+          totalLinesOfCode: 850,
+          totalMethodsAudited: 20,
+          averageCyclomaticComplexity: 2.1,
+          maxCyclomaticComplexity: 4,
+          methodsExceedingThreshold: 0,
+          duplicationPercentage: 0,
+          testAssertionDensity: 2,
+          totalCodeSmells: 0,
         },
         vulnerabilities: [
           {
             id: 'VULN-001',
-            rule_id: 'CWE-89',
+            title: 'SQL Injection Guard',
+            cweId: 'CWE-89',
+            owaspCategory: 'A03:2021-Injection',
+            codeSnippet: 'fixture source',
+            remediationGuidance: 'Use parameters',
+            autoFixAvailable: false,
             severity: 'MEDIUM',
-            category: 'SQL Injection Guard',
-            file: 'NotificationRepository.java',
-            line: 42,
-            message: 'Parámetro validado por JPA Criteria',
+            category: 'SAST_INJECTION',
+            filePath: 'NotificationRepository.java',
+            lineNumber: 42,
+            description: 'Parámetro validado por JPA Criteria',
           },
         ],
         violations: [],
@@ -184,11 +197,11 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
         sessionId: 'sess-ops-001',
         serviceName: 'notification-service',
         status: 'RUNNING',
-        hostPort: 8080,
+        hostPort: 18088,
         containerId: 'docker-container-abc123',
         dbEngine: 'POSTGRESQL',
         healthStatus: 'UP',
-        message: 'Contenedor Spring Boot 3 desplegado y saludable en el puerto 8080',
+        message: 'Runtime Quarkus observado en el puerto 18088',
       });
 
       renderWithProviders(<DevOpsDeploymentView />);
@@ -198,11 +211,40 @@ describe('Views: SecurityQuality, DevOpsDeployment, ExportPublish', () => {
       });
 
       const deployBtn = screen.getByRole('button', { name: /Desplegar Localmente/i });
+      await waitFor(() => expect(deployBtn).not.toBeDisabled());
       fireEvent.click(deployBtn);
 
       await waitFor(() => {
-        expect(devopsService.deployLocal).toHaveBeenCalledWith('sess-ops-001', 8080, true);
+        expect(devopsService.deployLocal).toHaveBeenCalledWith('sess-ops-001', 18088, true);
       });
+    });
+  });
+
+  describe('DevOps observed failures', () => {
+    it('shows an unsuccessful health check without a success indicator or invented latency', async () => {
+      vi.mocked(devopsService.getDeploymentStatus).mockResolvedValueOnce({sessionId:'sess-ops-001',status:'RUNNING',hostPort:18088,healthStatus:'UNKNOWN'});
+      vi.mocked(devopsService.runSmokeTest).mockRejectedValueOnce(new Error('Connection refused'));
+      const rendered=renderWithProviders(<DevOpsDeploymentView />);
+      const button=await screen.findByRole('button',{name:/Ejecutar Smoke Test/i});
+      await waitFor(()=>expect(button).not.toBeDisabled());
+      fireEvent.click(button);
+      await screen.findByText('No se pudo comprobar la salud del runtime.');
+      expect(rendered.container.querySelector('.lucide-circle-check')).toBeNull();
+      expect(screen.queryByText('14ms')).not.toBeInTheDocument();
+      expect(screen.queryByText('undefinedms')).not.toBeInTheDocument();
+    });
+
+    it('does not invent an HTTP response when the platform proxy fails', async () => {
+      vi.mocked(devopsService.getDeploymentStatus).mockResolvedValueOnce({sessionId:'sess-ops-001',status:'RUNNING',hostPort:18088,healthStatus:'UNKNOWN'});
+      vi.mocked(devopsService.proxyRequest).mockRejectedValueOnce(new Error('Runtime identity changed'));
+      renderWithProviders(<DevOpsDeploymentView />);
+      const button=await screen.findByRole('button',{name:/^Enviar$/i});
+      await waitFor(()=>expect(button).not.toBeDisabled());
+      fireEvent.click(button);
+      await screen.findByText('Runtime identity changed');
+      expect(devopsService.proxyRequest).toHaveBeenCalledWith('sess-ops-001','GET','/q/health',undefined);
+      expect(screen.getByText(/HTTP Status:/i)).not.toHaveTextContent('200');
+      expect(screen.getByText(/HTTP Status:/i)).not.toHaveTextContent('201');
     });
   });
 

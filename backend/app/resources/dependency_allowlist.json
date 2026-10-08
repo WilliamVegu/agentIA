@@ -46,6 +46,18 @@
       "artifactId": "spring-boot-starter-test",
       "scope": "test",
       "why": "JUnit 5, Mockito, and AssertJ, which the test instruction mandates."
+    },
+    {
+      "groupId": "org.liquibase",
+      "artifactId": "liquibase-core",
+      "scope": "compile",
+      "why": "Versioned native database migrations / selected database driver; prepare dependencies explicitly before offline verification."
+    },
+    {
+      "groupId": "com.mysql",
+      "artifactId": "mysql-connector-j",
+      "scope": "runtime",
+      "why": "Versioned native database migrations / selected database driver; prepare dependencies explicitly before offline verification."
     }
   ],
   "build_plugins": [

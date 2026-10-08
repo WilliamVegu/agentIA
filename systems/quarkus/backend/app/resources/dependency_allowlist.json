@@ -138,6 +138,24 @@
       "artifactId": "quarkus-jdbc-mysql",
       "scope": "compile",
       "why": "Selected MySQL production datasource."
+    },
+    {
+      "groupId": "io.quarkus",
+      "artifactId": "quarkus-flyway",
+      "scope": "compile",
+      "why": "Versioned native database migrations / selected database driver; prepare dependencies explicitly before offline verification."
+    },
+    {
+      "groupId": "org.flywaydb",
+      "artifactId": "flyway-database-postgresql",
+      "scope": "compile",
+      "why": "Versioned native database migrations / selected database driver; prepare dependencies explicitly before offline verification."
+    },
+    {
+      "groupId": "org.flywaydb",
+      "artifactId": "flyway-mysql",
+      "scope": "compile",
+      "why": "Versioned native database migrations / selected database driver; prepare dependencies explicitly before offline verification."
     }
   ],
   "build_plugins": [

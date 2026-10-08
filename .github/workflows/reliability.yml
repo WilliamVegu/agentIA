@@ -1,0 +1,62 @@
+name: Dual studio reliability
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  python:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        studio: [springboot, quarkus]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install pinned dependencies
+        shell: bash
+        run: |
+          BACKEND=backend
+          if [ "${{ matrix.studio }}" = quarkus ]; then BACKEND=systems/quarkus/backend; fi
+          python -m pip install -r "$BACKEND/requirements.txt" -c integration/constraints.txt
+      - name: Backend suite and isolated integration contracts
+        shell: bash
+        run: |
+          mkdir -p integration/validation/reliability/ci
+          if [ "${{ matrix.studio }}" = quarkus ]; then cd systems/quarkus; fi
+          export PYTHONPATH="$PWD/backend"
+          python -m pytest backend/tests -q --junitxml=backend-results.xml
+          cd "$GITHUB_WORKSPACE"
+          export PYTHONPATH="$PWD"
+          python integration/verify_sources.py
+          python -m pytest integration/test_launcher.py integration/test_reliability_fixtures.py integration/test_source_revisions.py integration/test_reliability_journeys.py integration/test_windows_paths.py integration/test_restart_recovery.py -q --junitxml=integration-results.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-${{ matrix.os }}-${{ matrix.studio }}
+          path: '**/*results.xml'
+  frontend:
+    strategy:
+      fail-fast: false
+      matrix:
+        studio: [frontend, systems/quarkus/frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ matrix.studio }}/package-lock.json
+      - name: UI regression and production build
+        working-directory: ${{ matrix.studio }}
+        run: |
+          npm ci
+          npm test -- --run
+          npm run build
+# Native Docker matrix is explicit: prepare caches online before reliability_smoke --docker.
+# A skipped local runtime case does not certify a native build or healthy deployment.

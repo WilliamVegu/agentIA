@@ -153,19 +153,21 @@ def test_project_overview_summary(mock_session):
 
 def test_lifecycle_security_audit_completed_and_100_percent(mock_session):
     session_id, ws_path = mock_session
-    (ws_path / "spec.md").write_text("# Spec", encoding="utf-8")
-    (ws_path / "user_stories.json").write_text(json.dumps([{"id": "US1"}]), encoding="utf-8")
+    from reliability_helpers import prepare_source_delivery
+    from app.services.devops_service import generate_all_devops_assets
+    from app.services.security_service import audit_workspace
+    from reliability_helpers import mark_source_delivery_current as source_delivery
+    prepare_source_delivery(session_id, ws_path, service_name="order-service")
     (ws_path / "architecture.json").write_text("{}", encoding="utf-8")
-    (ws_path / "schema.sql").write_text("CREATE TABLE test (id SERIAL);", encoding="utf-8")
-    (ws_path / "pom.xml").write_text("<project></project>", encoding="utf-8")
-    (ws_path / "src" / "main" / "java").mkdir(parents=True, exist_ok=True)
-    (ws_path / "src" / "main" / "java" / "App.java").write_text("public class App {}", encoding="utf-8")
-    (ws_path / "src" / "main" / "java" / "GlobalExceptionHandler.java").write_text("@RestControllerAdvice\npublic class GlobalExceptionHandler {}", encoding="utf-8")
-    (ws_path / "docker-compose.yml").write_text("version: '3'", encoding="utf-8")
-
+    from app.services.model_sql_service import schema_sql_from_draft
+    from integration.reliability_fixtures import ledger_draft
+    (ws_path/"schema.sql").write_text(schema_sql_from_draft(ledger_draft()),encoding="utf-8")
+    generate_all_devops_assets(str(ws_path), session_id, "order-service", db_engine="H2",host_port=18088)
+    source_delivery(session_id, ws_path)
+    report = audit_workspace(str(ws_path), session_id, "order-service")
+    assert report.qualityGate.canExport
     lifecycle = get_session_lifecycle(session_id)
-    # Check that security audit (Phase 6, index 5) is COMPLETED
     assert lifecycle.phases[5].status == PhaseStatus.COMPLETED
     assert lifecycle.phases[6].status == PhaseStatus.COMPLETED
     assert lifecycle.completion_percentage == 100.0
-    assert "completamente sintetizado" in lifecycle.next_recommended_action
+    assert "Flujo completado" in lifecycle.next_recommended_action

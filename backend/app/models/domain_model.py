@@ -18,6 +18,9 @@ class SqlDataType(str, Enum):
     TIMESTAMP_TZ = "TIMESTAMP WITH TIME ZONE"
     UUID = "UUID"
     DATE = "DATE"
+    TIMESTAMP = "TIMESTAMP"
+    DOUBLE = "DOUBLE PRECISION"
+    REAL = "REAL"
 
 class JavaPropertyType(str, Enum):
     LONG = "Long"
@@ -28,6 +31,9 @@ class JavaPropertyType(str, Enum):
     INSTANT = "Instant"
     UUID = "UUID"
     LOCAL_DATE = "LocalDate"
+    LOCAL_DATE_TIME = "LocalDateTime"
+    DOUBLE = "Double"
+    FLOAT = "Float"
 
 class RelationshipType(str, Enum):
     ONE_TO_MANY = "ONE_TO_MANY"
@@ -44,6 +50,7 @@ class EntityAttributeDefinition(BaseModel):
     nullable: bool = Field(default=False, description="Whether the column permits NULL")
     isPrimaryKey: bool = Field(default=False, description="True if primary key")
     isUnique: bool = Field(default=False, description="True if unique constraint applies")
+    validationRules: List[str] = Field(default_factory=list)
     hasIndex: bool = Field(default=False, description="True if index should be generated")
     defaultValue: Optional[str] = Field(default=None, description="Default SQL expression")
 

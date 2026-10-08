@@ -30,6 +30,8 @@ def mock_export_session():
     finally:
         db.close()
 
+    from reliability_helpers import prepare_source_delivery
+    prepare_source_delivery(session_id,ws_path)
     yield session_id
 
 def test_export_zip(mock_export_session):

@@ -1,0 +1,164 @@
+[
+  {
+    "framework": "quarkus",
+    "buildTool": "maven",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-h2",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "c8a703c57c4145068709ab5e52fce62b6f8663cd9fcbe5a13ff749abaa5244a5",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "e8cef24bdd8f0dea586450b4cb18bd7712650ab6182e6bd99ee174a508f4ac5b",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "23e8c8bee1e63ae6824bcf2407c66a2f25c9b02dd768528fb24a3b1e27f6b5ed",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "f6b4f9769d063219fa46ebf6e29d00763ff8fa0e8259d3b41946c918be20946e"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "maven",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-postgresql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "cb663b0edf4be67c10a8b4d06b219a236216b401e1a068e6e1a31cad98b15428",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "21221b46675a57559f4a1e22659b839fe109d03bb2be2abf5ec18b94abd06d6d",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "59021339daaed4bdd8172d88be364874dd20735ec0b5bc5f827dcbc10b4925be",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "8cbc3464c9bad9783f2c32ea5eab123d41a59659f2a65bcd0ccb2975c7cb3a93"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "maven",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "a7a345195ad3d17a1d5f6f4b5be25a9919748e734fad58c48a1cef2125a1fd12",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "03ba5d034f613e155e8364298491d07d9f6cfffbfdcf4270f83df86827379a40",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "99cd29aa96904358f660324c7e7b2fe8b350dc86113555b648e7bc4284544f0e",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "bad340d33c4b21ccd81464825052131291a02ce79b3ff3b8bcdf99b9d58d7704"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "gradle",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-h2",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "707b7fd11f861089471590e65c894a4be997b839586f2e8b123d9801550544b0",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "7446030bd5205f3c3eebcba5855d8abe9ac2d4757dd06934487f189dcabd0da9",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "2bf8aaf17d6af5fa35c97d89df2c214add8b9c97b87bcbfa00de9086df826580",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "e4731062c039670188a5d6032bcf80bf1fee9a04d41675d9036394c36581647c"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "gradle",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-postgresql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "8c5eac81949f5765b186f9509f8bf737324f27514689e2f191432adfe187ed2c",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "14dbacff9a5cc1faf894fe26bcee3feb3807511224518a39c3b8246b98ace1cf",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "6ac390d5da8af6329afd79a991e18ad71307a4f286442e2945e8893cd90e0139",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "9af84bd15484ee91671de05bdf05ea5bd382867a3e167fe50cd850442912e55c"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "quarkus",
+    "buildTool": "gradle",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-mysql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "38d5b5d5533566c44f133b6cea331150d6179d5558cf25fefb4493626f619cd3",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "df866db880b9e1c4799f7ac51c1d03e380be99d8e44f463789e8f2258c23bd15",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "95ed3a0a14a70ab19de0f3d06be3e21fdf7480fb7ee4e30d5e43a4601e2ebfde",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "9096e6448091c0f0439dd1e0087b134a67e16eb7c074a9b951c19b3f6ef8103a"
+    },
+    "outcome": "PASSED"
+  }
+]

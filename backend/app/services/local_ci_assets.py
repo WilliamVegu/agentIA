@@ -72,6 +72,10 @@ def main():
     def run(command):
         return subprocess.run(command, check=True, text=True, encoding='utf-8', errors='replace', capture_output=True, timeout=900).stdout
     try:
+        # Refuse absent prepared images before build can resolve a remote FROM.
+        for line in (root/'Dockerfile').read_text(encoding='utf-8').splitlines():
+            if line.strip().upper().startswith('FROM '):
+                run(['docker','image','inspect',line.split()[1]])
         # Tests execute inside the prepared builder, with RUN --network=none.
         build = run(['docker', 'build', '--network=none', '--pull=false', '--target', 'build',
                      '--label', 'io.agentia.ci=' + token, '-t', tag, str(root)])

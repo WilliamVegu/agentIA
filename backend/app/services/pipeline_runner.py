@@ -53,6 +53,7 @@ from app.orchestrator.stages.runner import (
 )
 
 # Thread-safe in-memory tracking
+_worker_operations: Dict[str, str] = {}
 _active_threads: Dict[str, threading.Thread] = {}
 _pause_events: Dict[str, threading.Event] = {}
 _stop_events: Dict[str, threading.Event] = {}
@@ -68,6 +69,20 @@ def _get_queue(session_id: str) -> queue.Queue:
 
 
 def _emit_event(session_id: str, phase: LifecyclePhase, step: str, percent: float, message: str, status: PhaseStatus, error: Optional[str] = None):
+    operation_id = _worker_operations.get(session_id)
+    if operation_id:
+        from app.services.operation_repository import get_operation, checkpoint_operation, transition_operation
+        operation = get_operation(session_id, operation_id)
+        if operation and step in {'Error','Pausa','Cancel'}:
+            try:
+                phase = LifecyclePhase(operation.get('checkpoint', {}).get('phase'))
+            except (ValueError, TypeError):
+                pass
+        if operation and operation['state'] in {'RUNNING','PAUSE_REQUESTED','CANCEL_REQUESTED'}:
+            if status == PhaseStatus.BLOCKED and step != 'Cancel':
+                transition_operation(operation_id, operation['version'], 'BLOCKED', checkpoint={'phase':phase.value}, error_code=error or 'GATE_BLOCKED')
+            else:
+                checkpoint_operation(operation_id, operation['version'], phase.value, {'status':status.value})
     evt = PipelineProgressEvent(
         timestamp=datetime.now(timezone.utc),
         sessionId=session_id,
@@ -78,23 +93,19 @@ def _emit_event(session_id: str, phase: LifecyclePhase, step: str, percent: floa
         status=status,
         error=error,
     )
-    _get_queue(session_id).put(evt)
 
-    try:
-        from app.api.routes_session import broadcast_session_event
-        broadcast_session_event(session_id, "pipeline_progress", {
-            "sessionId": session_id,
-            "phase": phase.value if hasattr(phase, "value") else str(phase),
-            "stage": phase.value if hasattr(phase, "value") else str(phase),
-            "step": step,
-            "percent": percent,
-            "message": message,
-            "status": status.value if hasattr(status, "value") else str(status),
-            "error": error,
-            "log": f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] [{step}] {message}"
-        })
-    except Exception:
-        pass
+    from app.services.session_event_service import publish_event
+    publish_event(session_id, "pipeline_progress", {
+        "sessionId": session_id,
+        "phase": phase.value if hasattr(phase, "value") else str(phase),
+        "stage": phase.value if hasattr(phase, "value") else str(phase),
+        "step": step,
+        "percent": percent,
+        "message": message,
+        "status": status.value if hasattr(status, "value") else str(status),
+        "error": error,
+        "log": f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] [{step}] {message}"
+    })
 
 
 def _finalise_blocked_session(session_id: str, state: Dict[str, Any]) -> None:
@@ -138,96 +149,74 @@ def _finalise_blocked_session(session_id: str, state: Dict[str, Any]) -> None:
 
 
 def get_pipeline_status(session_id: str) -> PipelineRunStatus:
+    from app.services.operation_repository import get_operation
+    from fastapi import HTTPException
+    try:
+        operation = get_operation(session_id)
+    except HTTPException:
+        operation = None
+    if operation:
+        mapping = {'QUEUED':'RUNNING', 'PAUSE_REQUESTED':'RUNNING', 'CANCEL_REQUESTED':'RUNNING',
+                   'BLOCKED':'AWAITING_INTERVENTION', 'INTERRUPTED':'PAUSED'}
+        return PipelineRunStatus(mapping.get(operation['state'], operation['state']))
     return _pipeline_statuses.get(session_id, PipelineRunStatus.IDLE)
 
 
-def pause_pipeline(session_id: str) -> bool:
-    """Signals an active Auto-Pilot thread to pause cooperatively and switch to Guided Step mode."""
-    if session_id not in _pause_events or not _active_threads.get(session_id) or not _active_threads[session_id].is_alive():
+def pause_pipeline(session_id: str, *, operation_id=None, expected_version=None) -> bool:
+    from app.services.operation_repository import get_operation, transition_operation
+    operation = get_operation(session_id)
+    if operation_id is not None and (not operation or operation['operationId'] != operation_id) or expected_version is not None and (not operation or operation['version'] != expected_version):
+        from fastapi import HTTPException
+        raise HTTPException(409,'Operación o versión obsoleta')
+    if not operation or operation['state'] not in {'RUNNING', 'PAUSE_REQUESTED'}:
         return False
-
-    _pause_events[session_id].set()
-    _pipeline_statuses[session_id] = PipelineRunStatus.PAUSED
-
-    # Update DB to GUIDED_STEP and PAUSED
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess:
-            sess.status = SessionStatus.PAUSED
-            sess.lifecycle_mode = PipelineExecutionMode.GUIDED_STEP.value
-            db.commit()
-            return True
-    finally:
-        db.close()
+    if operation['state'] != 'PAUSE_REQUESTED':
+        transition_operation(operation['operationId'], operation['version'], 'PAUSE_REQUESTED')
+    _pause_events.setdefault(session_id, threading.Event()).set()
     return True
 
 
-def resume_pipeline(session_id: str) -> bool:
-    """Resumes a paused Auto-Pilot pipeline."""
+def cancel_pipeline(session_id: str, *, operation_id=None, expected_version=None) -> bool:
+    from app.services.operation_repository import get_operation, transition_operation
+    operation = get_operation(session_id)
+    if operation_id is not None and (not operation or operation['operationId'] != operation_id) or expected_version is not None and (not operation or operation['version'] != expected_version):
+        from fastapi import HTTPException
+        raise HTTPException(409,'Operación o versión obsoleta')
+    if not operation or operation['state'] not in {'QUEUED', 'RUNNING', 'PAUSE_REQUESTED', 'CANCEL_REQUESTED', 'PAUSED'}:
+        return False
+    target = 'CANCELLED' if operation['state'] == 'PAUSED' else 'CANCEL_REQUESTED'
+    if operation['state'] != target:
+        transition_operation(operation['operationId'], operation['version'], target)
+    _stop_events.setdefault(session_id, threading.Event()).set()
+    from app.services import local_operations, docker_service
+    deployment = docker_service._active_deployments.get(session_id)
+    if deployment and deployment.operationId and not deployment.finishedAt:
+        local_operations.request_cancel(session_id, deployment.operationId)
+    from app.services.queue_service import queue_manager
+    if hasattr(queue_manager, "cancel_waiting"):
+        queue_manager.cancel_waiting(session_id)
+    return True
+
+
+def resume_pipeline(session_id: str, *, operation_id=None, expected_version=None) -> bool:
+    from app.services.operation_repository import get_operation
+    operation = get_operation(session_id)
+    if operation_id is not None and (not operation or operation['operationId'] != operation_id) or expected_version is not None and (not operation or operation['version'] != expected_version):
+        from fastapi import HTTPException
+        raise HTTPException(409,'Operación o versión obsoleta')
     previous = _active_threads.get(session_id)
     if previous and previous.is_alive():
-        previous.join(timeout=1.0)
+        previous.join(timeout=1)
         if previous.is_alive():
             return False
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess:
-            sess.status = SessionStatus.RUNNING
-            sess.lifecycle_mode = PipelineExecutionMode.AUTO_PILOT.value
-            db.commit()
-    finally:
-        db.close()
-
-    creds = _session_credentials.get(session_id, {})
-    return run_pipeline(
-        session_id,
-        api_key=creds.get("api_key"),
-        provider=creds.get("provider"),
-        model_name=creds.get("model_name"),
-        force=True,
-    )
-
-
-def cancel_pipeline(session_id: str) -> bool:
-    """Signals an active Auto-Pilot thread to cancel immediately and marks status as CANCELLED."""
-    if session_id in _stop_events:
-        _stop_events[session_id].set()
-    if session_id in _pause_events:
-        _pause_events[session_id].set()
-    # Signal only the exact active local deployment of this session. The pipeline
-    # cancellation does not certify that a task inside the daemon has stopped.
-    from app.services import docker_service as local_docker
-    active_deployment = local_docker._active_deployments.get(session_id)
-    if active_deployment and active_deployment.operationKind in ('DEPLOY', 'VERIFY') and not active_deployment.finishedAt:
-        from app.services.local_operations import request_cancel
-        try:
-            request_cancel(session_id, active_deployment.operationId)
-        except (ValueError, OSError):
-            pass  # A completed/replaced operation must not be cancelled by an old request.
-    _pipeline_statuses[session_id] = PipelineRunStatus.CANCELLED
-
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess:
-            sess.status = SessionStatus.CANCELLED
-            db.commit()
-    finally:
-        db.close()
-
-    _record_pipeline_cost(session_id, terminal_status="CANCELLED")
-
-    _emit_event(
-        session_id,
-        LifecyclePhase.COMPLETED,
-        "CANCEL",
-        0.0,
-        "Pipeline cancelado por el usuario.",
-        PhaseStatus.BLOCKED,
-    )
-    return True
+    if not operation or operation['state'] not in {'PAUSED', 'INTERRUPTED'}:
+        return False
+    options = operation['options']
+    credentials = _session_credentials.get(session_id, {})
+    return run_pipeline(session_id, LifecyclePhase(operation['targetPhase']),
+        stop_on_gate=options.get('stopOnGate', True), auto_deploy=options.get('autoDeploy', False),
+        api_key=credentials.get('api_key'), provider=credentials.get('provider'),
+        model_name=credentials.get('model_name'), **({'input_interface':options.get('inputInterface')} if 'springboot' == 'springboot' else {}))
 
 
 def _record_pipeline_cost(
@@ -318,15 +307,26 @@ def _derive_architecture_from_draft(draft: SpecificationDraft) -> dict:
 
 
 def _get_or_create_draft(ws_path: Path, spec_name: str, api_key: Optional[str] = None, provider: Optional[str] = None, model_name: Optional[str] = None) -> SpecificationDraft:
+    from app.services.draft_revision_service import get_revision
+    from fastapi import HTTPException
+    # A structured revision takes precedence even when a live key is supplied.
+    try:
+        revision = get_revision(ws_path.name)
+    except HTTPException as error:
+        if error.status_code != 404:
+            raise
+        revision = {'draft': None, 'source': None}
+    if revision['draft'] is not None:
+        return SpecificationDraft.model_validate(revision['draft'])
+    if revision.get('source') == 'LEGACY':
+        raise ValueError('El borrador legacy necesita revisión; no se reemplazará por datos inventados')
+
     spec_file = ws_path / "spec.md"
     raw_prompt = spec_name
     if spec_file.exists():
-        try:
-            content = spec_file.read_text(encoding="utf-8")
-            if len(content.strip()) > 10:
-                raw_prompt = content.strip()
-        except Exception:
-            pass
+        content = spec_file.read_text(encoding="utf-8")
+        if len(content.strip()) > 10:
+            raw_prompt = content.strip()
 
     import re
     from app.services.specification_guard import assert_looks_like_specification
@@ -504,6 +504,19 @@ def _execute_pipeline_steps(
             return
         _emit_event(session_id, LifecyclePhase.REQUIREMENTS, "Especificación", 15.0, f"Sintetizando especificación y entidades de dominio [{llm_label}]...", PhaseStatus.IN_PROGRESS)
         draft = _get_or_create_draft(ws_path, spec_name, api_key=api_key, provider=provider, model_name=model_name)
+        from app.services.draft_revision_service import get_revision, save_revision, record_artifact
+        from app.models.reliability import ArtifactProvenance
+        authority = get_revision(session_id)
+        if authority['draft'] is None:
+            draft.databaseMode = selected_database
+            draft.inputInterface = input_interface or draft.inputInterface
+            authority = save_revision(session_id, draft.model_dump(), source='GENERATED', _operation_id=_worker_operations.get(session_id))
+        revision_id = authority['revisionId']
+        selected_database = draft.databaseMode.upper()
+        with SessionLocal() as revision_db:
+            if revision_db.query(ArtifactProvenance).filter_by(session_id=session_id, status='OUTDATED').first():
+                raise ValueError('Artefactos OUTDATED: regenere explícitamente desde la revisión vigente con backup')
+
         spec_file = ws_path / "spec.md"
         if not spec_file.exists():
             with open(spec_file, "w", encoding="utf-8") as f:
@@ -534,7 +547,8 @@ def _execute_pipeline_steps(
             return
         _emit_event(session_id, LifecyclePhase.ARCHITECTURE, "Diseño Arquitectónico", 45.0, f"Generando topología solicitada y catálogo DTO [{llm_label}]...", PhaseStatus.IN_PROGRESS)
         arch_file = ws_path / "architecture.json"
-        if not arch_file.exists():
+        new_architecture = not arch_file.exists()
+        if new_architecture:
             if api_key and not LLMFactory.is_mock(api_key, provider):
                 # Model mode: the LLM must produce the architecture. No silent
                 # hardcoded fallback -- let it raise so the pipeline blocks.
@@ -549,6 +563,8 @@ def _execute_pipeline_steps(
             arch_md = ws_path / "architecture.md"
             if not arch_md.exists() and "mermaidDiagram" in arch_data:
                 arch_md.write_text(f"# Arquitectura: {spec_name}\n\n```mermaid\n{arch_data.get('mermaidDiagram', '')}\n```\n", encoding="utf-8")
+        if new_architecture:
+            record_artifact(session_id, 'architecture.json', 'ARCHITECTURE', revision_id)
         transition_phase(session_id, LifecyclePhase.ARCHITECTURE, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.ARCHITECTURE):
@@ -560,7 +576,8 @@ def _execute_pipeline_steps(
             return
         _emit_event(session_id, LifecyclePhase.DATA_MODEL, "Modelo de Datos", 60.0, f"Generando esquema SQL relacional y entidades de persistencia [{llm_label}]...", PhaseStatus.IN_PROGRESS)
         sql_file = ws_path / "schema.sql"
-        if not sql_file.exists():
+        new_sql = not sql_file.exists()
+        if new_sql:
             try:
                 sql_resp = model_sql_service.synthesize_domain_models_and_sql(draft, api_key=api_key, provider=provider, model_name=model_name)
                 from app.services.model_sql_service import generate_schema_sql, generate_seed_data_sql
@@ -583,6 +600,8 @@ def _execute_pipeline_steps(
                 sql_file.write_text(schema_sql_from_draft(draft, selected_database), encoding='utf-8')
                 _emit_event(session_id, LifecyclePhase.DATA_MODEL, 'SQL determinista', 60.0,
                     'Esquema derivado de las entidades del proyecto; no generado por un proveedor IA.', PhaseStatus.IN_PROGRESS)
+        if new_sql:
+            record_artifact(session_id, 'schema.sql', 'DATA_MODEL', revision_id)
         transition_phase(session_id, LifecyclePhase.DATA_MODEL, force=True)
         time.sleep(0.2)
         if _phase_reached_or_exceeded(LifecyclePhase.DATA_MODEL):
@@ -602,6 +621,7 @@ def _execute_pipeline_steps(
                 "packageName": draft.packageName,
                 "basePort": draft.basePort,
                 "databaseMode": selected_database,
+                "inputInterface": draft.inputInterface,
                 "entities": [e.model_dump() for e in draft.entities],
                 "userStories": [s.model_dump() for s in draft.userStories],
             }
@@ -609,7 +629,7 @@ def _execute_pipeline_steps(
             # so the deterministic scaffolder's InferenceEngine actually decides the
             # architecture (layered vs multi-module) and DB target instead of falling
             # back to the hardcoded default.
-            if input_interface:
+            if input_interface and not draft.inputInterface:
                 blueprint_dict["inputInterface"] = input_interface
             agent_state = {
                 "session_id": session_id,
@@ -636,6 +656,8 @@ def _execute_pipeline_steps(
                 stages=GENERATION_STAGE_ORDER,
                 api_key=api_key,
             )
+            for relative_path in (agent_state.get('generated_files') or {}):
+                record_artifact(session_id, relative_path, 'CODE_TESTS', revision_id)
             generated_count = len(agent_state.get("generated_files", {}) or {})
             print(
                 f"[INFO] generation stages complete: mode={generation_mode}, "
@@ -678,7 +700,7 @@ def _execute_pipeline_steps(
             78.0, "Preparando entrega de fuentes sin ejecutar pruebas..." if execution_mode(session_id) == ExecutionMode.SOURCE_ONLY else "Compilando y ejecutando pruebas con la herramienta del proyecto en el sandbox offline...",
             PhaseStatus.IN_PROGRESS,
         )
-        generate_all_devops_assets(str(ws_path), session_id, service_name=spec_name, db_engine=selected_database)
+        generate_all_devops_assets(str(ws_path), session_id, service_name=spec_name, db_engine=selected_database, host_port=draft.basePort)
         verification_logs: List[str] = []
         try:
             verification = run_workspace_verification(
@@ -734,12 +756,17 @@ def _execute_pipeline_steps(
                     .first()
                 )
                 if _row is not None:
+                    previous = json.loads(_row.verification_metrics_json or '{}')
+                    if verification_skipped and previous and not tests_really_passed(previous) and not previous.get('verificationSkipped'):
+                        previous['verificationOutdated'] = True
+                        previous['sourceDeliveryReady'] = False
+                        test_metrics = previous
                     _row.verification_metrics_json = json.dumps(test_metrics)
                     _session_db.commit()
             finally:
                 _session_db.close()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as persistence_error:
+            raise RuntimeError('No se pudo persistir el resultado de verificación') from persistence_error
 
         _emit_event(
             session_id, LifecyclePhase.CODE_TESTS,
@@ -773,8 +800,8 @@ def _execute_pipeline_steps(
             _record_pipeline_cost(session_id, terminal_status=terminal_status)
 
             try:
-                from app.api.routes_session import broadcast_session_event
-                broadcast_session_event(session_id, "session_blocked", {
+                from app.services.session_event_service import publish_event
+                publish_event(session_id, "session_blocked", {
                     "sessionId": session_id,
                     "attempt": 0,
                     "maxAttempts": settings.MAX_REPAIR_ATTEMPTS,
@@ -829,7 +856,10 @@ def _execute_pipeline_steps(
         if pause_event.is_set() or stop_event.is_set():
             return
         _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "DevOps & Manifiestos", 95.0, "Generando Dockerfile, Compose, CI/CD y manifiestos Kubernetes...", PhaseStatus.IN_PROGRESS)
-        generate_all_devops_assets(str(ws_path), session_id, spec_name, db_engine=selected_database)
+        generate_all_devops_assets(str(ws_path), session_id, spec_name, db_engine=selected_database, host_port=draft.basePort)
+        for relative in ('Dockerfile','docker-compose.yml','.dockerignore','ASSET_CONFIGURATION.json','scripts/local-ci.ps1','scripts/local-ci.sh'):
+            if (ws_path / relative).is_file():
+                record_artifact(session_id,relative,'DEVOPS_DEPLOY',revision_id)
 
         if auto_deploy and execution_mode(session_id) == ExecutionMode.DOCKER:
             _emit_event(session_id, LifecyclePhase.DEVOPS_DEPLOY, "Despliegue Local", 98.0, "Orquestando contenedores en Docker local...", PhaseStatus.IN_PROGRESS)
@@ -862,13 +892,13 @@ def _execute_pipeline_steps(
         _pipeline_statuses[session_id] = PipelineRunStatus.COMPLETED
 
         try:
-            from app.api.routes_session import broadcast_session_event
-            broadcast_session_event(session_id, "session_completed", {
+            from app.services.session_event_service import publish_event
+            publish_event(session_id, "session_completed", {
                 "sessionId": session_id,
                 "status": "COMPLETED",
                 "message": "Pipeline completado con éxito.",
                 "percent": 100.0,
-                "artifactCount": 10,
+                "artifactCount": sum(1 for path in ws_path.rglob("*") if path.is_file() and not any(part in {".agentia-runtime", ".git", "target", "build"} for part in path.relative_to(ws_path).parts)),
                 "downloadUrl": f"/api/v1/sessions/{session_id}/export"
             })
         except Exception:
@@ -895,8 +925,8 @@ def _execute_pipeline_steps(
         _pipeline_statuses[session_id] = PipelineRunStatus.FAILED
 
         try:
-            from app.api.routes_session import broadcast_session_event
-            broadcast_session_event(session_id, "session_blocked", {
+            from app.services.session_event_service import publish_event
+            publish_event(session_id, "session_blocked", {
                 "sessionId": session_id,
                 "status": "BLOCKED",
                 "failureReason": str(e),
@@ -942,9 +972,47 @@ def _execute_pipeline_steps(
 
 
 def _execute_pipeline_with_cost(session_id, *args):
+    from fastapi import HTTPException
+    from app.services.operation_repository import get_operation, transition_operation
+    from app.services.session_operation_lock import SessionOperationLock
     from app.cost.recording import recording_context
-    with recording_context(session_id, "AUTOPILOT"):
-        return _execute_pipeline_steps(session_id, *args)
+
+    def current(operation_id=None):
+        try:
+            return get_operation(session_id,operation_id)
+        except HTTPException as error:
+            if error.status_code!=404: raise
+            return None
+
+    operation=current()
+    if operation is None: return
+    operation_id=operation['operationId']
+    lock=SessionOperationLock(session_id)
+    if not lock.acquire(False):
+        transition_operation(operation_id,operation['version'],'BLOCKED',error_code='WRITER_BUSY')
+        return
+    _worker_operations[session_id]=operation_id
+    try:
+        operation=current(operation_id)
+        if operation is None: return
+        transition_operation(operation_id,operation['version'],'RUNNING')
+        from app.services.local_operations import borrowed_lock
+        with recording_context(session_id,'AUTOPILOT'), borrowed_lock(session_id):
+            _execute_pipeline_steps(session_id,*args)
+    except Exception as error:
+        operation=current(operation_id)
+        if operation and operation['state'] in {'QUEUED','RUNNING'}:
+            transition_operation(operation_id,operation['version'],'BLOCKED',error_code=type(error).__name__)
+        _pipeline_statuses[session_id]=PipelineRunStatus.FAILED
+    finally:
+        try:
+            from app.services.operation_repository import finish_operation
+            finish_operation(session_id,operation_id,
+                'COMPLETED' if _pipeline_statuses.get(session_id)==PipelineRunStatus.COMPLETED else 'BLOCKED')
+        finally:
+            if _worker_operations.get(session_id)==operation_id:
+                _worker_operations.pop(session_id,None)
+            lock.release()
 
 
 def run_pipeline(
@@ -981,6 +1049,18 @@ def run_pipeline(
 
     input_interface = input_interface if input_interface is not None else _session_credentials.get(session_id, {}).get("input_interface")
 
+    from app.services.draft_revision_service import get_revision
+    from app.services.operation_repository import begin_operation
+    from app.services.workspace_guard import get_validated_workspace_path
+    from fastapi import HTTPException
+    get_validated_workspace_path(session_id, require_exists=True)
+    revision = get_revision(session_id)
+    if revision.get('draft') is not None and revision['source'] in {'MANUAL','LEGACY'} and revision['approvalStatus'] != 'APPROVED':
+        raise HTTPException(409, 'Apruebe explícitamente la revisión antes de ejecutar')
+    if not (api_key or '').strip() and (provider or '').strip().lower() not in {'mock','mock-mode','offline','offline-mock','testing'}:
+        raise HTTPException(422, 'Configure un proveedor IA con credencial o elija explícitamente el modo offline')
+    begin_operation(session_id, target_phase, {'stopOnGate':stop_on_gate, 'autoDeploy':auto_deploy, 'inputInterface':input_interface})
+
     from app.services.queue_service import queue_manager
     queue_manager.reset_cancellation(session_id)
     _pause_events[session_id] = threading.Event()
@@ -1010,27 +1090,9 @@ def run_pipeline(
     return True
 
 
-def stream_pipeline_events(session_id: str) -> Generator[str, None, None]:
-    """Generator streaming real-time Server-Sent Events (SSE) for the active pipeline."""
-    q = _get_queue(session_id)
-
-    # Yield initial connection ping
-    yield f"event: connect\ndata: {json.dumps({'sessionId': session_id, 'status': 'CONNECTED'})}\n\n"
-
-    while True:
-        try:
-            evt: PipelineProgressEvent = q.get(timeout=1.0)
-            data = evt.model_dump(by_alias=True, mode="json")
-            yield f"event: progress\ndata: {json.dumps(data)}\n\n"
-
-            if evt.phase == LifecyclePhase.COMPLETED or evt.status == PhaseStatus.BLOCKED:
-                break
-        except queue.Empty:
-            status = _pipeline_statuses.get(session_id, PipelineRunStatus.IDLE)
-            if status in (PipelineRunStatus.COMPLETED, PipelineRunStatus.PAUSED, PipelineRunStatus.FAILED, PipelineRunStatus.AWAITING_INTERVENTION):
-                break
-            # Heartbeat comment to keep SSE connection alive
-            yield ": heartbeat\n\n"
+def stream_pipeline_events(session_id: str, after=0) -> Generator[str, None, None]:
+    from app.services.session_event_service import stream_events
+    yield from stream_events(session_id, after)
 
 
 run_pipeline_in_background = run_pipeline

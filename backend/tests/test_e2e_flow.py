@@ -45,42 +45,26 @@ def test_scenario_1_dual_ingestion():
     assert spec_id is not None
 
 def test_scenario_2_autonomous_generation_and_export():
-    """Quickstart Scenario 2: Ingest, create generation session, inspect artifacts, and export ZIP."""
-    # 1. Ingest
     spec_id = _ingest_spec()
+    # A persistent lifespan owns asynchronous graph workers until completion.
+    with TestClient(app) as active_client:
+        created = active_client.post('/api/v1/sessions',json={'specId':spec_id,'executionMode':'SOURCE_ONLY'},headers={'X-LLM-Provider':'mock'})
+        assert created.status_code == 202
+        sid=created.json()['sessionId']
+        for _ in range(100):
+            detail=active_client.get(f'/api/v1/sessions/{sid}').json()
+            if detail['status'] in ('COMPLETED','BLOCKED','CANCELLED'):
+                break
+            time.sleep(0.1)
+        assert detail['status']=='COMPLETED', __import__('json').dumps(detail,ensure_ascii=False)
+        assert detail['verificationOutcome']=='SKIPPED_BY_CHOICE'
+        artifacts=active_client.get(f'/api/v1/sessions/{sid}/artifacts')
+        assert artifacts.status_code==200 and artifacts.json()
+        exported=active_client.get(f'/api/v1/sessions/{sid}/export')
+        assert exported.status_code==200, exported.text
+        assert exported.headers['content-type']=='application/zip'
+        assert exported.content.startswith(b'PK')
 
-    # 2. Trigger generation session
-    create_resp = client.post("/api/v1/sessions", json={"specId": spec_id})
-    assert create_resp.status_code == 202
-    sess_data = create_resp.json()
-    session_id = sess_data.get("sessionId") or sess_data.get("session_id")
-    assert session_id is not None
-
-    # Await the real background worker rather than assuming a fixed machine speed.
-    for _ in range(200):
-        detail = client.get(f'/api/v1/sessions/{session_id}').json()
-        if detail['status'] in ('COMPLETED', 'BLOCKED', 'PAUSED'):
-            break
-        time.sleep(0.1)
-    assert detail['status'] == 'COMPLETED', detail.get('errorMessage')
-
-    # 3. Query session details
-    detail_resp = client.get(f"/api/v1/sessions/{session_id}")
-    assert detail_resp.status_code == 200
-    detail = detail_resp.json()
-    assert detail["specName"] == "order-service"
-
-    # 4. List artifacts
-    art_resp = client.get(f"/api/v1/sessions/{session_id}/artifacts")
-    assert art_resp.status_code == 200
-    artifacts = art_resp.json()
-    assert len(artifacts) >= 5
-
-    # 5. Export ZIP
-    export_resp = client.get(f"/api/v1/sessions/{session_id}/export")
-    assert export_resp.status_code == 200, export_resp.text
-    assert export_resp.headers["content-type"] == "application/zip"
-    assert len(export_resp.content) > 0
 
 def test_quickstart_feature_005_e2e():
     """Validates Feature 005 quickstart scenarios: test synthesis, diagnostic analysis, 3-step repair, and manual unblock."""
@@ -107,8 +91,18 @@ def test_quickstart_feature_005_e2e():
 
     # 3. Execute self-repair iteration loop
     sess_id = f"test-sess-{int(time.time())}"
-    from _support import repair_workspace
-    repair_workspace(sess_id, {"src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\npublic class OrderServiceImpl {}"})
+    from pathlib import Path
+    from app.config import settings
+    from app.models.session import SessionLocal, GenerationSessionDB
+    source='package com.corp.order.service;\npublic class OrderServiceImpl {}'
+    ws=Path(settings.WORKSPACE_DIR)/sess_id
+    file=ws/'src/main/java/com/corp/order/service/OrderServiceImpl.java'
+    file.parent.mkdir(parents=True,exist_ok=True)
+    file.write_text(source,encoding='utf-8')
+    (ws/'pom.xml').write_text('<project/>',encoding='utf-8')
+    with SessionLocal() as db:
+        db.add(GenerationSessionDB(id=sess_id,spec_id=spec_id,spec_name='repair-service',execution_mode='SOURCE_ONLY'))
+        db.commit()
     repair_resp = client.post("/api/v1/tests/repair", json={
         "sessionId": sess_id,
         "iterationNumber": 1,
@@ -123,20 +117,21 @@ def test_quickstart_feature_005_e2e():
     assert len(repair_record["patchesApplied"]) >= 1
     assert "import java.math.BigDecimal;" in repair_record["diffSummary"]
 
-    # 4. A source-only repair records unexecuted tests rather than a verified success.
-    client.post("/api/v1/tests/repair", json={
-        "sessionId": sess_id,
-        "iterationNumber": 3,
-        "diagnostics": analysis_data["diagnostics"],
-        "sourceFiles": {
-            "src/main/java/com/corp/order/service/OrderServiceImpl.java": "package com.corp.order.service;\npublic class OrderServiceImpl {}"
-        }
-    })
+    # The persistent budget cannot be bypassed with a caller-supplied number.
+    for number in (2,3):
+        repaired=client.post('/api/v1/tests/repair',json={
+            'sessionId':sess_id,'iterationNumber':number,'diagnostics':analysis_data['diagnostics'],
+            'sourceFiles':{'src/main/java/com/corp/order/service/OrderServiceImpl.java':file.read_text(encoding='utf-8')}})
+        assert repaired.status_code==200, repaired.text
+    rejected=client.post('/api/v1/tests/repair',json={
+        'sessionId':sess_id,'iterationNumber':1,'diagnostics':analysis_data['diagnostics'],
+        'sourceFiles':{'src/main/java/com/corp/order/service/OrderServiceImpl.java':file.read_text(encoding='utf-8')}})
+    assert rejected.status_code==409
     history_resp = client.get(f"/api/v1/sessions/{sess_id}/repairs")
     assert history_resp.status_code == 200
     history_data = history_resp.json()
-    assert history_data["finalState"] == "UNVERIFIED"
-    assert history_data["canRetryManually"] is False
+    assert history_data["finalState"] == "BLOCKED"
+    assert history_data["canRetryManually"] is True
 
     # 5. Perform manual repair unblock
     manual_resp = client.post(f"/api/v1/sessions/{sess_id}/manual-repair", json={
@@ -145,113 +140,62 @@ def test_quickstart_feature_005_e2e():
         "guidanceHint": "Manual import added"
     })
     assert manual_resp.status_code == 200
-    assert manual_resp.json()["status"] == "UNVERIFIED"
-    assert manual_resp.json()["diagnosticsResolved"] is False
+    assert manual_resp.json()["status"] == "APPLIED_UNVERIFIED"
 
 
-@pytest.fixture
-def hermetic_container_build(monkeypatch):
-    """Keep this suite off the container runtime.
-
-    The pipeline now verifies the workspace, which is correct in production. In a
-    flow test it makes the run depend on the host (a Docker build, seconds long) and
-    on a generated Java project compiling, neither of which is what this test is
-    about -- it asserts the API and lifecycle orchestration. The verification seam is
-    stubbed to a PASS so the rest of the flow is exercised unchanged, and the
-    verification-specific behaviour is covered by test_pipeline_runner.py.
-    """
-    from app.sandbox.docker_runner import DockerExecutionResult
-    from app.services.workspace_verification import WorkspaceVerification
-    import app.services.pipeline_runner as pr
-
-    fake = WorkspaceVerification(
-        result=DockerExecutionResult(
-            exit_code=0,
-            stdout="[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0\n",
-        ),
-        platform_test_path="src/test/java/x/PlatformPersistenceContractTest.java",
-    )
-    monkeypatch.setattr(
-        pr, "run_workspace_verification", lambda path, log_callback=None, **kwargs: fake
-    )
-
-
-def test_full_unified_orchestration_e2e(hermetic_container_build):
-    """T045: Validates end-to-end unified orchestration across all 8 features."""
-    # 1. Quick-Start Session
-    qs_resp = client.post("/api/v1/sessions/quick-start", json={
-        "specName": "payment-service",
-        "prompt": "Payment processing microservice with transactions, credit cards, and refunds",
-        "databaseEngine": "POSTGRESQL",
-        "autoRun": False,
-    })
-    assert qs_resp.status_code == 201
-    qs_data = qs_resp.json()
-    session_id = qs_data["sessionId"]
-    assert session_id is not None
-    assert qs_data["specName"] == "payment-service"
-
-    # 2. Verify Session Listing
-    list_resp = client.get("/api/v1/sessions")
-    assert list_resp.status_code == 200
-    sessions = list_resp.json()
-    assert any(s["sessionId"] == session_id for s in sessions)
-
-    # 3. Query Overview & Lifecycle
-    ov_resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/overview")
-    assert ov_resp.status_code == 200
-    ov_data = ov_resp.json()
-    assert ov_data["specName"] == "payment-service"
-    assert "lifecycle" in ov_data
-
-    # 4. Run Pipeline Auto-Pilot
-    run_resp = client.post("/api/v1/orchestrator/pipeline/run", json={"sessionId": session_id})
-    assert run_resp.status_code == 202
-
-    # 5. In-Flight Pause & Resume
-    pause_resp = client.post("/api/v1/orchestrator/pipeline/pause", json={"sessionId": session_id})
-    assert pause_resp.status_code == 200
-    resume_resp = client.post("/api/v1/orchestrator/pipeline/resume", json={"sessionId": session_id})
-    assert resume_resp.status_code == 200
-
-    # Wait for pipeline completion
-    for _ in range(30):
-        time.sleep(0.3)
-        st_resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/lifecycle")
-        if st_resp.status_code == 200:
-            status_info = st_resp.json()
-            if status_info.get("pipelineStatus") in ("COMPLETED", "FAILED", "AWAITING_INTERVENTION"):
-                break
-    assert status_info.get('pipelineStatus') == 'COMPLETED', status_info
-
-    # 6. Verify Artifacts & Security Audit Report
-    sec_resp = client.get(f"/api/v1/security/{session_id}/report")
-    assert sec_resp.status_code == 200
-    sec_data = sec_resp.json()
-    assert "qualityGate" in sec_data
-    assert "vulnerabilities" in sec_data
-    assert "metrics" in sec_data
-
-    # 7. 1-Click Surgical Remediation
-    remed_resp = client.post("/api/v1/security/remediate", json={
-        "findingId": "SEC-FIX-001",
-        "filePath": "src/main/resources/application.properties",
-        "sourceCode": "jwt.secret=supersecretkey1234567890\n",
-    })
-    assert remed_resp.status_code == 200
-    assert "diff" in remed_resp.json()
-
-    # 8. Verify DevOps & Despliegue Status
-    devops_resp = client.get(f"/api/v1/devops/{session_id}/status")
-    assert devops_resp.status_code == 200
-
-    # 9. Verify Complete Bundle ZIP Export
-    bundle_resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/export-bundle")
-    assert bundle_resp.status_code == 200, bundle_resp.text
-    assert bundle_resp.headers["content-type"] == "application/zip"
-    assert len(bundle_resp.content) > 0
-
-    # 10. Downstream Force Re-sync
-    resync_resp = client.post("/api/v1/orchestrator/pipeline/run", json={"sessionId": session_id, "force": True})
-    assert resync_resp.status_code == 202
-
+def test_full_unified_orchestration_e2e(monkeypatch):
+    import threading, json
+    from pathlib import Path
+    from app.config import settings
+    from app.services import pipeline_runner as runner
+    from integration.reliability_fixtures import ledger_draft
+    created=client.post('/api/v1/sessions/quick-start',json={
+        'specName':'ledger-service','prompt':'Registrar asientos contables con importe y correo',
+        'databaseEngine':'H2','executionMode':'SOURCE_ONLY','autoRun':False})
+    assert created.status_code==201
+    sid=created.json()['sessionId']
+    saved=client.post(f'/api/v1/requirements/sessions/{sid}/save',json=ledger_draft())
+    assert saved.status_code==200, saved.text
+    approved=client.post(f'/api/v1/requirements/sessions/{sid}/approve',params={'revisionId':saved.json()['revisionId']})
+    assert approved.status_code==200
+    reached=threading.Event();release=threading.Event()
+    transition=runner.transition_phase
+    def boundary(session_id,phase,force=False):
+        result=transition(session_id,phase,force=force)
+        if session_id==sid and phase.value=='REQUIREMENTS' and not release.is_set():
+            reached.set()
+            assert release.wait(10)
+        return result
+    monkeypatch.setattr(runner,'transition_phase',boundary)
+    launched=client.post('/api/v1/orchestrator/pipeline/run',json={'sessionId':sid,'provider':'mock'})
+    assert launched.status_code==202, launched.text
+    assert reached.wait(5)
+    try:
+        paused=client.post('/api/v1/orchestrator/pipeline/pause',json={'sessionId':sid,'provider':'mock'})
+        assert paused.status_code==200,paused.text
+    finally:
+        release.set()
+    runner._active_threads[sid].join(timeout=10)
+    assert runner.get_pipeline_status(sid).value=='PAUSED'
+    resumed=client.post('/api/v1/orchestrator/pipeline/resume',json={'sessionId':sid,'provider':'mock'})
+    assert resumed.status_code==200,resumed.text
+    runner._active_threads[sid].join(timeout=15)
+    assert not runner._active_threads[sid].is_alive()
+    status=client.get(f'/api/v1/sessions/{sid}')
+    assert status.json()['status']=='COMPLETED',status.json()
+    assert status.json()['verificationOutcome']=='SKIPPED_BY_CHOICE'
+    stored=json.loads((Path(settings.WORKSPACE_DIR)/sid/'specification_draft.json').read_text(encoding='utf-8'))
+    assert stored['packageName']=='com.audit.custom'
+    assert stored['entities'][0]['name']=='LedgerEntry'
+    compose=(Path(settings.WORKSPACE_DIR)/sid/'docker-compose.yml').read_text(encoding='utf-8')
+    import yaml
+    parsed=yaml.safe_load(compose)
+    bindings=[str(port) for service in parsed['services'].values() for port in service.get('ports',[])]
+    assert any(port.endswith(':8080') and ('18088:' in port or ':-18088}' in port) for port in bindings),bindings
+    config=json.loads((Path(settings.WORKSPACE_DIR)/sid/'ASSET_CONFIGURATION.json').read_text(encoding='utf-8'))
+    assert config['hostPort']==18088
+    audit=client.get(f'/api/v1/security/{sid}/report')
+    assert audit.status_code==200 and audit.json()['qualityGate']['canExport']
+    exported=client.get(f'/api/v1/orchestrator/sessions/{sid}/export-bundle')
+    assert exported.status_code==200,exported.text
+    assert exported.content.startswith(b'PK')

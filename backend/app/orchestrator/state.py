@@ -1,6 +1,7 @@
 from typing import TypedDict, Optional, Dict, List, Any
 
 class GenerationAgentState(TypedDict, total=False):
+    repair_operation_id: Optional[str]
     execution_mode: str
     # --- Pre-existing structural fields. Names and semantics are unchanged;
     # --- FR-021 depends on the generated-artifact map and log list keeping them.

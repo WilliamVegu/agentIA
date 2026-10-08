@@ -250,7 +250,7 @@ def test_evaluate_quality_gate_blocking():
 
 
 def test_evaluate_quality_gate_pass():
-    metrics = CodeQualityMetrics()
+    metrics = CodeQualityMetrics(totalLinesOfCode=20,totalMethodsAudited=1)
     verdict = evaluate_quality_gate([], [], metrics)
     assert verdict.status == QualityGateStatus.PASS
     assert verdict.canExport is True
@@ -284,3 +284,10 @@ public class Order {
     assert "@Builder" in rem
     assert "@Data" not in rem
 
+
+
+def test_no_audited_source_is_not_a_passing_quality_gate():
+    verdict=evaluate_quality_gate([],[],CodeQualityMetrics())
+    assert verdict.status==QualityGateStatus.BLOCKED
+    assert verdict.canExport is False
+    assert verdict.score is None

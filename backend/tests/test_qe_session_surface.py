@@ -36,6 +36,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
+from integration.reliability_fixtures import ledger_draft
 import app.api.routes_session as rs  # noqa: E402
 import app.services.lifecycle_service as lifecycle  # noqa: E402
 from app.models.session import (  # noqa: E402
@@ -87,6 +88,7 @@ def isolated_module_state(monkeypatch):
     monkeypatch.setattr(rs, "SESSION_EVENT_HISTORY", {})
     monkeypatch.setattr(rs, "SESSION_EVENT_SUBSCRIBERS", {})
     monkeypatch.setattr(rs, "SESSION_GENERATION_STATE", {})
+    _make_session(SESSION_ID)
     yield
 
 
@@ -111,6 +113,9 @@ def _make_session(session_id, **overrides):
     defaults.update(overrides)
     db = SessionLocal()
     try:
+        from app.models.reliability import SessionEvent,PipelineOperation,ArtifactProvenance,DraftRevision,SessionConfiguration
+        for model in (SessionEvent,PipelineOperation,ArtifactProvenance,DraftRevision,SessionConfiguration):
+            db.query(model).filter_by(session_id=session_id).delete()
         db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).delete()
         db.add(GenerationSessionDB(**defaults))
         db.commit()
@@ -126,12 +131,24 @@ def _row(session_id):
         db.close()
 
 
+def _history(session_id):
+    from app.services.session_event_service import read_events
+    return read_events(session_id)
+
+
+class _Request:
+    headers={}
+    query_params={}
+    disconnected=False
+    async def is_disconnected(self): return self.disconnected
+
+
 def _events(session_id):
-    return [event["event"] for event in rs.SESSION_EVENT_HISTORY.get(session_id, [])]
+    return [event['event'] for event in _history(session_id)]
 
 
 def _payload(session_id, event_type):
-    for event in rs.SESSION_EVENT_HISTORY.get(session_id, []):
+    for event in _history(session_id):
         if event["event"] == event_type:
             return json.loads(event["data"])
     raise AssertionError(f"no {event_type} event was broadcast")
@@ -195,9 +212,10 @@ def test_persisting_metrics_writes_the_json_that_the_reader_expects():
     assert rs._verification_fallback_used(row) is True
 
 
-def test_a_row_that_rejects_assignment_does_not_break_the_session():
+def test_a_metrics_persistence_failure_is_visible():
     """Metrics are bookkeeping; failing to store them must not fail the generation."""
-    rs._persist_verification_metrics(_Unsettable(), {"test_metrics": {"fallback_used": True}})
+    with pytest.raises(RuntimeError,match="detached"):
+        rs._persist_verification_metrics(_Unsettable(), {"test_metrics": {"fallback_used": True}})
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +244,7 @@ def test_a_broadcast_event_carries_a_string_id_and_the_event_name_twice():
     """The UI and the generic SSE client each read a different field; both must be there."""
     rs.broadcast_session_event(SESSION_ID, "phase_transition", {"currentPhase": "SCAFFOLDING"})
 
-    event = rs.SESSION_EVENT_HISTORY[SESSION_ID][0]
+    event = _history(SESSION_ID)[0]
     payload = json.loads(event["data"])
 
     assert event["id"] == "1"
@@ -240,82 +258,43 @@ def test_event_ids_increase_within_a_session():
     rs.broadcast_session_event(SESSION_ID, "a", {})
     rs.broadcast_session_event(SESSION_ID, "b", {})
 
-    assert [e["id"] for e in rs.SESSION_EVENT_HISTORY[SESSION_ID]] == ["1", "2"]
+    assert [e["id"] for e in _history(SESSION_ID)] == ["1", "2"]
 
 
-def test_an_explicit_event_field_is_not_overwritten():
+def test_untrusted_payload_cannot_override_the_committed_event_type():
     """Some callers set ``event`` themselves to distinguish a sub-type."""
     rs.broadcast_session_event(SESSION_ID, "build_log", {"event": "custom_kind"})
 
-    assert json.loads(rs.SESSION_EVENT_HISTORY[SESSION_ID][0]["data"])["event"] == "custom_kind"
+    assert json.loads(_history(SESSION_ID)[0]["data"])["event"] == "build_log"
 
 
-def test_a_subscriber_on_a_running_loop_is_notified_thread_safely():
-    """The graph runs in an executor thread, so ``put_nowait`` from here is not safe.
-
-    Notifying through the loop is what makes the stream work at all when generation is
-    happening off the event-loop thread.
-    """
-    scheduled = []
-
-    class _Loop:
-        def is_running(self):
-            return True
-
-        def call_soon_threadsafe(self, fn, arg):
-            scheduled.append((fn, arg))
-
-    class _Queue:
-        _loop = _Loop()
-
-        def put_nowait(self, item):  # pragma: no cover - must not be called directly
-            raise AssertionError("a running loop must be notified via call_soon_threadsafe")
-
-    rs.SESSION_EVENT_SUBSCRIBERS[SESSION_ID] = [_Queue()]
-
-    rs.broadcast_session_event(SESSION_ID, "phase_transition", {})
-
-    assert len(scheduled) == 1
+def test_a_threaded_producer_publishes_committed_events():
+    import threading
+    failures=[]
+    def producer():
+        try: rs.broadcast_session_event(SESSION_ID,'phase_transition',{'currentPhase':'SANDBOX_BUILD'})
+        except Exception as error: failures.append(error)
+    thread=threading.Thread(target=producer);thread.start();thread.join(timeout=5)
+    assert not thread.is_alive() and not failures
+    assert json.loads(_history(SESSION_ID)[0]['data'])['currentPhase']=='SANDBOX_BUILD'
 
 
-def test_a_subscriber_without_a_loop_is_written_to_directly():
-    received = []
-
-    class _Queue:
-        _loop = None
-
-        def put_nowait(self, item):
-            received.append(item)
-
-    rs.SESSION_EVENT_SUBSCRIBERS[SESSION_ID] = [_Queue()]
-
-    rs.broadcast_session_event(SESSION_ID, "phase_transition", {"x": 1})
-
-    assert len(received) == 1
-    assert json.loads(received[0]["data"])["x"] == 1
+def test_a_subscriber_without_an_event_loop_reads_committed_progress():
+    rs.broadcast_session_event(SESSION_ID,'phase_transition',{'x':1})
+    assert json.loads(_history(SESSION_ID)[0]['data'])['x']==1
 
 
-def test_a_dead_subscriber_does_not_break_the_broadcast_to_the_living_one():
-    """One disconnected browser tab must not stop the other tabs from updating."""
-    received = []
-
-    class _Dead:
-        _loop = None
-
-        def put_nowait(self, item):
-            raise RuntimeError("queue closed")
-
-    class _Live:
-        _loop = None
-
-        def put_nowait(self, item):
-            received.append(item)
-
-    rs.SESSION_EVENT_SUBSCRIBERS[SESSION_ID] = [_Dead(), _Live()]
-
-    rs.broadcast_session_event(SESSION_ID, "phase_transition", {})
-
-    assert len(received) == 1
+def test_a_disconnected_subscriber_does_not_consume_the_live_subscriber_event(workspace):
+    async def scenario():
+        first=(await rs.stream_session_events(SESSION_ID,_Request())).body_iterator
+        second=(await rs.stream_session_events(SESSION_ID,_Request())).body_iterator
+        assert await first.__anext__()=={'comment':'keepalive'}
+        assert await second.__anext__()=={'comment':'keepalive'}
+        await first.aclose()
+        rs.broadcast_session_event(SESSION_ID,'phase_transition',{'x':2})
+        received=await second.__anext__();await second.aclose()
+        return received
+    assert json.loads(asyncio.run(scenario())['data'])['x']==2
 
 
 # ---------------------------------------------------------------------------
@@ -341,7 +320,7 @@ def test_the_stream_replays_history_then_cleans_up_the_subscriber(workspace):
     rs.broadcast_session_event(SESSION_ID, "build_log", {"n": 2})
 
     async def scenario():
-        response = await rs.stream_session_events(SESSION_ID, None)
+        response = await rs.stream_session_events(SESSION_ID, _Request())
         stream = response.body_iterator
         first = await stream.__anext__()
         second = await stream.__anext__()
@@ -352,7 +331,8 @@ def test_the_stream_replays_history_then_cleans_up_the_subscriber(workspace):
 
     assert json.loads(first["data"])["n"] == 1
     assert json.loads(second["data"])["n"] == 2
-    assert rs.SESSION_EVENT_SUBSCRIBERS[SESSION_ID] == [], "the closed stream leaked its queue"
+    assert len(_history(SESSION_ID))==2
+    assert rs.SESSION_EVENT_SUBSCRIBERS=={}
 
 
 def test_a_live_event_reaches_a_connected_stream_after_the_replay(workspace):
@@ -367,7 +347,7 @@ def test_a_live_event_reaches_a_connected_stream_after_the_replay(workspace):
     _make_session(SESSION_ID)
 
     async def scenario():
-        response = await rs.stream_session_events(SESSION_ID, None)
+        response = await rs.stream_session_events(SESSION_ID, _Request())
         stream = response.body_iterator
         idle = await asyncio.wait_for(stream.__anext__(), timeout=3.0)
         rs.broadcast_session_event(
@@ -393,7 +373,7 @@ def test_a_disconnected_client_is_unsubscribed(workspace):
     _make_session(SESSION_ID)
 
     async def scenario():
-        response = await rs.stream_session_events(SESSION_ID, None)
+        response = await rs.stream_session_events(SESSION_ID, _Request())
         stream = response.body_iterator
         task = asyncio.create_task(stream.__anext__())
         await asyncio.sleep(0.05)
@@ -413,7 +393,7 @@ def test_an_idle_stream_emits_a_keepalive(workspace):
     _make_session(SESSION_ID)
 
     async def scenario():
-        response = await rs.stream_session_events(SESSION_ID, None)
+        response = await rs.stream_session_events(SESSION_ID, _Request())
         stream = response.body_iterator
         item = await asyncio.wait_for(stream.__anext__(), timeout=3.0)
         await stream.aclose()
@@ -606,21 +586,20 @@ def test_cancelling_an_unknown_session_is_a_404(workspace):
     assert excinfo.value.status_code == 404
 
 
-def test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot(workspace):
-    _make_session(SESSION_ID, status=SessionStatus.RUNNING)
-    released = []
-
-    def fake_release(session_id):
-        released.append(session_id)
-
-    rs.queue_manager.cancel_waiting = fake_release
-    try:
-        asyncio.run(rs.cancel_session(SESSION_ID))
-    finally:
-        del rs.queue_manager.cancel_waiting
-
-    assert _row(SESSION_ID).status == SessionStatus.CANCELLED
-    assert released == [SESSION_ID], "a cancelled session must not hold a worker slot"
+def test_cancellation_requests_a_checkpoint_before_releasing_the_worker_slot(workspace,monkeypatch):
+    from app.services.operation_repository import begin_operation,transition_operation,get_operation
+    _make_session(SESSION_ID,status=SessionStatus.RUNNING)
+    operation=begin_operation(SESSION_ID,'CODE_TESTS')
+    operation=transition_operation(operation['operationId'],operation['version'],'RUNNING')
+    released=[]
+    monkeypatch.setattr(rs.queue_manager,'cancel_waiting',lambda sid:released.append(sid))
+    asyncio.run(rs.cancel_session(SESSION_ID))
+    requested=get_operation(SESSION_ID)
+    assert requested['state']=='CANCEL_REQUESTED'
+    assert _row(SESSION_ID).status!=SessionStatus.CANCELLED
+    transition_operation(operation['operationId'],requested['version'],'CANCELLED')
+    assert _row(SESSION_ID).status==SessionStatus.CANCELLED
+    assert released==[SESSION_ID]
 
 
 # ---------------------------------------------------------------------------
@@ -646,7 +625,7 @@ def _blocking_stubs(monkeypatch, steps, diagnostics_calls=None):
         )
 
 
-def test_a_completed_run_records_verified_and_reports_the_substituted_verification(workspace, monkeypatch):
+def test_a_substituted_graph_result_is_blocked_and_reports_the_fallback(workspace, monkeypatch):
     """The terminal event is the only proof a watcher gets. It must carry the fallback flag.
 
     A session can reach VERIFIED on a synthetic sandbox result under permissive mode; the
@@ -665,22 +644,22 @@ def test_a_completed_run_records_verified_and_reports_the_substituted_verificati
     )
 
     asyncio.run(
-        rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {"serviceName": "x"})
+        rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock')
     )
 
     row = _row(SESSION_ID)
-    assert row.status == SessionStatus.COMPLETED
-    assert row.phase == SessionPhase.VERIFIED
+    assert row.status == SessionStatus.BLOCKED
+    assert row.phase == SessionPhase.FAILED
     assert diagnostics == [SESSION_ID], "a completed session must be diagnosed"
     assert rs._verification_fallback_used(row) is True
 
-    completed = _payload(SESSION_ID, "session_completed")
-    assert completed["verificationFallbackUsed"] is True
-    assert completed["fallbackReason"] == "image missing"
-    assert completed["downloadUrl"].endswith("/export")
+    blocked = _payload(SESSION_ID, "session_blocked")
+    assert blocked["verificationFallbackUsed"] is True
+    assert blocked["fallbackReason"] == "image missing"
+    assert "session_completed" not in _events(SESSION_ID)
 
 
-def test_a_completed_run_with_a_real_verification_reports_no_fallback(workspace, monkeypatch):
+def test_graph_test_counts_without_sealed_evidence_do_not_claim_verification(workspace, monkeypatch):
     """The flag must be a *measurement*, not a constant. The negative case is the one that
     catches a flag hardcoded to True."""
     _make_session(SESSION_ID)
@@ -691,12 +670,13 @@ def test_a_completed_run_with_a_real_verification_reports_no_fallback(workspace,
                       "status": "COMPLETED"}}],
     )
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
-    completed = _payload(SESSION_ID, "session_completed")
-    assert completed["verificationFallbackUsed"] is False
-    assert completed["totalTests"] == 9
-    assert completed["passedTests"] == 9
+    assert _row(SESSION_ID).status==SessionStatus.BLOCKED
+    metrics=json.loads(_row(SESSION_ID).verification_metrics_json)
+    assert metrics["fallback_used"] is False
+    assert metrics["totalTests"]==9 and metrics["passedTests"]==9
+    assert "session_completed" not in _events(SESSION_ID)
 
 
 def test_the_pipeline_streams_phase_transitions_logs_and_verification(workspace, monkeypatch):
@@ -722,18 +702,18 @@ def test_the_pipeline_streams_phase_transitions_logs_and_verification(workspace,
         ],
     )
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     types = _events(SESSION_ID)
     assert types.count("phase_transition") >= 4
     assert types.count("build_log") == 4
     assert "verification_result" in types
     assert "repair_iteration" in types
-    assert "session_completed" in types
+    assert "session_blocked" in types
 
     transitions = [
         json.loads(e["data"])["currentPhase"]
-        for e in rs.SESSION_EVENT_HISTORY[SESSION_ID]
+        for e in _history(SESSION_ID)
         if e["event"] == "phase_transition"
     ]
     for expected in ("SCAFFOLDING", "CODE_GENERATION", "SANDBOX_BUILD", "SELF_REPAIR_LOOP"):
@@ -754,11 +734,11 @@ def test_the_test_node_announces_test_synthesis(workspace, monkeypatch):
     _make_session(SESSION_ID)
     _blocking_stubs(monkeypatch, [{"test": {"logs": [], "status": "COMPLETED"}}])
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     transitions = [
         json.loads(e["data"])["currentPhase"]
-        for e in rs.SESSION_EVENT_HISTORY[SESSION_ID]
+        for e in _history(SESSION_ID)
         if e["event"] == "phase_transition"
     ]
     assert "TEST_SYNTHESIS" in transitions
@@ -773,7 +753,7 @@ def test_a_repair_beyond_the_limit_is_reported_as_blocked(workspace, monkeypatch
         [{"repair": {"logs": [], "repair_attempts": 3, "status": "BLOCKED"}}],
     )
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     assert _payload(SESSION_ID, "repair_iteration")["status"] == "BLOCKED"
 
@@ -788,7 +768,7 @@ def test_a_blocked_run_is_persisted_and_diagnosed(workspace, monkeypatch):
         diagnostics,
     )
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     row = _row(SESSION_ID)
     assert row.status == SessionStatus.BLOCKED
@@ -807,7 +787,7 @@ def test_a_crash_inside_the_graph_still_terminates_the_session(workspace, monkey
     _blocking_stubs(monkeypatch, [], diagnostics)
     monkeypatch.setattr(rs, "generation_graph", _FakeGraph(explode=RuntimeError("graph exploded")))
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     row = _row(SESSION_ID)
     assert row.status == SessionStatus.BLOCKED
@@ -827,7 +807,7 @@ def test_the_instruction_revision_is_recorded_when_the_set_loads(workspace, monk
     _make_session(SESSION_ID)
     _blocking_stubs(monkeypatch, [])
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     assert rs.SESSION_GENERATION_STATE[SESSION_ID]["instruction_set_revision"] == "rev-42"
 
@@ -841,10 +821,10 @@ def test_an_unloadable_instruction_set_does_not_break_the_offline_path(workspace
     _make_session(SESSION_ID)
     _blocking_stubs(monkeypatch, [{"scaffolder": {"logs": [], "status": "COMPLETED"}}])
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     assert rs.SESSION_GENERATION_STATE[SESSION_ID]["instruction_set_revision"] == ""
-    assert _row(SESSION_ID).status == SessionStatus.COMPLETED
+    assert _row(SESSION_ID).status == SessionStatus.BLOCKED
 
 
 def test_the_worker_slot_is_released_even_when_the_run_crashes(workspace, monkeypatch):
@@ -863,7 +843,7 @@ def test_the_worker_slot_is_released_even_when_the_run_crashes(workspace, monkey
     monkeypatch.setattr(rs, "select_generation_mode", lambda *a, **k: _Mode())
     monkeypatch.setattr(rs, "generation_graph", _FakeGraph(explode=RuntimeError("boom")))
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
     assert released == [SESSION_ID]
 
@@ -873,9 +853,9 @@ def test_the_generation_state_is_kept_for_inspection(workspace, monkeypatch):
     _make_session(SESSION_ID)
     _blocking_stubs(monkeypatch, [{"scaffolder": {"logs": [], "status": "COMPLETED"}}])
 
-    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", ledger_draft(), provider='mock'))
 
-    assert rs.SESSION_GENERATION_STATE[SESSION_ID]["status"] == "COMPLETED"
+    assert rs.SESSION_GENERATION_STATE[SESSION_ID]["status"] == "BLOCKED"
     assert rs.SESSION_GENERATION_STATE[SESSION_ID]["session_id"] == SESSION_ID
 
 

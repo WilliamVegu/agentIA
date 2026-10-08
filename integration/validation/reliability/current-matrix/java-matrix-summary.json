@@ -1,0 +1,32 @@
+[
+  {
+    "studio": "springboot",
+    "suite": "java-matrix",
+    "exitCode": 1,
+    "outcome": "FAILED",
+    "counts": {
+      "tests": 6,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "log": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\current-matrix\\springboot-java-matrix.log",
+    "report": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\current-matrix\\springboot-native-http.xml",
+    "liveProviderCalls": 0
+  },
+  {
+    "studio": "quarkus",
+    "suite": "java-matrix",
+    "exitCode": 0,
+    "outcome": "PASSED",
+    "counts": {
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "log": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\current-matrix\\quarkus-java-matrix.log",
+    "report": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\current-matrix\\quarkus-native-http.xml",
+    "liveProviderCalls": 0
+  }
+]

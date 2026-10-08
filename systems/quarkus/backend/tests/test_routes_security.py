@@ -96,6 +96,11 @@ def test_session_audit_and_export_blocking():
     ws_path = Path(settings.WORKSPACE_DIR) / session_id
     ws_path.mkdir(parents=True, exist_ok=True)
 
+    with SessionLocal() as db:
+        db.merge(GenerationSessionDB(id=session_id, spec_id="security-fixture", spec_name="blocked-service"))
+        db.commit()
+    from reliability_helpers import prepare_source_delivery
+    prepare_source_delivery(session_id, ws_path, service_name="blocked-service")
     # Insecure file with hardcoded secret
     (ws_path / "application.properties").write_text(
         "api.secret=sk-proj-99998888777766665555444433332222", encoding="utf-8"
@@ -117,6 +122,8 @@ def test_session_audit_and_export_blocking():
     finally:
         db.close()
 
+    from reliability_helpers import mark_source_delivery_current as source_delivery
+    source_delivery(session_id, ws_path)
     # Verify session audit endpoint
     audit_res = client.get(f"/api/v1/sessions/{session_id}/audit")
     assert audit_res.status_code == 200
@@ -127,7 +134,7 @@ def test_session_audit_and_export_blocking():
     # Verify export is blocked with HTTP 403
     export_res = client.get(f"/api/v1/sessions/{session_id}/export")
     assert export_res.status_code == 403
-    assert "Quality Gate is BLOCKED" in export_res.json()["detail"]
+    assert "Source delivery blocked by SAST" in export_res.json()["detail"]
 
     # Verify git publish is also blocked with HTTP 403
     publish_res = client.post(
@@ -135,5 +142,5 @@ def test_session_audit_and_export_blocking():
         json={"repositoryUrl": "https://github.com/corp/repo.git", "branchName": "feature/test"},
     )
     assert publish_res.status_code == 403
-    assert "Quality Gate is BLOCKED" in publish_res.json()["detail"]
+    assert "Source delivery blocked by SAST" in publish_res.json()["detail"]
 

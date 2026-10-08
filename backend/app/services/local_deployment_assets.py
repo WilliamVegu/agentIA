@@ -105,6 +105,13 @@ def compose(service_name, db_engine, host_port=8080):
     # Named H2 volume needs correct ownership for the runtime user.
     result["services"]["data-init"] = {"image": "agentia-runtime:21-v1", "pull_policy": "never", "user": "0:0", "entrypoint": ["sh", "-c", "chown 10001:10001 /app/data"], "volumes": ["appdata:/app/data"], "network_mode": "none", "restart": "no"}
     app.setdefault("depends_on", {})["data-init"] = {"condition": "service_completed_successfully"}
+    result.setdefault('networks',{'default':{}})
+    ownership={'io.agentia.owner':'${COMPOSE_PROJECT_NAME}','io.agentia.studio':'springboot'}
+    for service in result['services'].values(): service['labels']={**ownership,**service.get('labels',{})}
+    result['services']['data-init']['labels']['io.agentia.role']='initialization'
+    for definitions in (result.get('volumes',{}),result.get('networks',{})):
+        for name,definition in definitions.items():
+            definitions[name]={**(definition or {}),'labels':ownership.copy()}
     return yaml.safe_dump(result, sort_keys=False)
 
 

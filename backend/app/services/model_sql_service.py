@@ -62,17 +62,23 @@ def to_plural_table_name(entity_name: str) -> str:
 
 def map_java_to_sql_type(java_type: str) -> SqlDataType:
     """Map common Java property types to standard SQL data types."""
-    jt = java_type.strip().lower()
+    jt = java_type.strip().rsplit('.',1)[-1].lower()
     if jt in ("long", "bigint"):
         return SqlDataType.BIGINT
     if jt in ("int", "integer"):
         return SqlDataType.INTEGER
-    if jt in ("bigdecimal", "double", "float"):
+    if jt == "double":
+        return SqlDataType.DOUBLE
+    if jt == "float":
+        return SqlDataType.REAL
+    if jt in ("bigdecimal", "decimal"):
         return SqlDataType.NUMERIC
     if jt in ("boolean", "bool"):
         return SqlDataType.BOOLEAN
-    if jt in ("instant", "localdatetime", "datetime", "timestamp"):
+    if jt in ("instant",):
         return SqlDataType.TIMESTAMP_TZ
+    if jt in ("localdatetime", "datetime", "timestamp"):
+        return SqlDataType.TIMESTAMP
     if jt in ("uuid",):
         return SqlDataType.UUID
     if jt in ("localdate", "date"):
@@ -252,7 +258,7 @@ def generate_schema_sql(entities: List[DomainEntityDefinition], db_engine: str =
                 fk_name = f"fk_{table_name}_{column}"
                 foreign_keys.append(
                     f"ALTER TABLE {table_name} ADD CONSTRAINT {fk_name} "
-                    f"FOREIGN KEY ({column}) REFERENCES {parent_table}({parent_pk.columnName}) ON DELETE CASCADE;"
+                    f"FOREIGN KEY ({column}) REFERENCES {parent_table}({parent_pk.columnName});"
                 )
 
         table_sql = f"CREATE TABLE IF NOT EXISTS {table_name} (\n" + ",\n".join(col_defs) + "\n);"
@@ -377,6 +383,7 @@ def generate_java_entity_source(entity: DomainEntityDefinition, entities=None) -
         "import java.math.BigDecimal;",
         "import java.time.Instant;",
         "import java.time.LocalDate;",
+        "import java.time.LocalDateTime;",
         "import java.util.*;",
         "",
         "/**",
@@ -423,6 +430,10 @@ def generate_java_entity_source(entity: DomainEntityDefinition, entities=None) -
             else:
                 annos.append("    @NotNull")
 
+        from app.services.domain_descriptor import constraints
+        for constraint in constraints({'type':attr.javaType.value, 'nullable':attr.nullable, 'validationRules':attr.validationRules}):
+            if '    '+constraint not in annos:
+                annos.append('    '+constraint)
         for a in annos:
             lines.append(f"    {a}")
         lines.append(f"    private {attr.javaType.value} {attr.name};")
@@ -478,34 +489,14 @@ def generate_java_entity_source(entity: DomainEntityDefinition, entities=None) -
 
 def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POSTGRESQL') -> DataModelSynthesisResponse:
     """Deterministic offline fallback synthesizing entities, DDL, DML, and Java code without network calls."""
-    service_name = draft.serviceName or "order-service"
-    package_name = draft.packageName or "com.example.orderservice"
-    raw_entities = draft.entities or []
-
-    entities: List[DomainEntityDefinition] = []
-
-    if not raw_entities:
-        # Fallback default entities if draft had none
-        raw_entities = [
-            type("EntityStub", (), {
-                "name": "Order",
-                "attributes": [
-                    type("AttrStub", (), {"name": "orderNumber", "type": "String", "isPrimaryKey": False})(),
-                    type("AttrStub", (), {"name": "totalAmount", "type": "BigDecimal", "isPrimaryKey": False})(),
-                    type("AttrStub", (), {"name": "status", "type": "String", "isPrimaryKey": False})(),
-                ]
-            })(),
-            type("EntityStub", (), {
-                "name": "OrderItem",
-                "attributes": [
-                    type("AttrStub", (), {"name": "productName", "type": "String", "isPrimaryKey": False})(),
-                    type("AttrStub", (), {"name": "unitPrice", "type": "BigDecimal", "isPrimaryKey": False})(),
-                    type("AttrStub", (), {"name": "quantity", "type": "Integer", "isPrimaryKey": False})(),
-                ]
-            })(),
-        ]
-
-    entity_names = [e.name for e in raw_entities]
+    from app.services.domain_descriptor import normalize_blueprint
+    from app.models.blueprint import DomainEntity
+    normalized=normalize_blueprint(draft.model_dump())
+    service_name=draft.serviceName
+    package_name=draft.packageName
+    raw_entities=[DomainEntity.model_validate(entity) for entity in normalized['entities']]
+    if not raw_entities: raise ValueError('El draft debe declarar sus entidades antes de generar Model/SQL')
+    entities: List[DomainEntityDefinition]=[]
 
     for raw_e in raw_entities:
         e_name = raw_e.name
@@ -518,14 +509,14 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
         if pk_attr:
             java_pk = JavaPropertyType.LONG
             for jt in JavaPropertyType:
-                if jt.value.lower() == pk_attr.type.lower():
+                if jt.value.lower() == pk_attr.type.rsplit('.',1)[-1].lower():
                     java_pk = jt
                     break
             sql_pk = map_java_to_sql_type(pk_attr.type)
             attrs.append(
                 EntityAttributeDefinition(
                     name=pk_attr.name,
-                    columnName=to_snake_case(pk_attr.name),
+                    columnName=pk_attr.columnName or to_snake_case(pk_attr.name),
                     javaType=java_pk,
                     sqlType=sql_pk,
                     nullable=False,
@@ -548,26 +539,19 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
 
         # Domain fields
         for raw_attr in getattr(raw_e, "attributes", []):
-            if raw_attr.name.lower() in ("id", "createdat", "updatedat", "created_at", "updated_at") or getattr(raw_attr, "isPrimaryKey", False):
+            if getattr(raw_attr, "isPrimaryKey", False):
                 continue
             sql_type = map_java_to_sql_type(raw_attr.type)
             java_type = JavaPropertyType.STRING
             for jt in JavaPropertyType:
-                if jt.value.lower() == raw_attr.type.lower():
+                if jt.value.lower() == raw_attr.type.rsplit('.',1)[-1].lower():
                     java_type = jt
                     break
 
-            col_name = to_snake_case(raw_attr.name)
+            col_name = raw_attr.columnName or to_snake_case(raw_attr.name)
             if any(a.columnName == col_name for a in attrs):
                 continue
-            is_unique = (
-                bool(getattr(raw_attr, "isUnique", False))
-                or "number" in col_name
-                or "code" in col_name
-                or "email" in col_name
-                or "sku" in col_name
-                or "isbn" in col_name
-            )
+            is_unique=bool(raw_attr.isUnique)
             attrs.append(
                 EntityAttributeDefinition(
                     name=raw_attr.name,
@@ -575,69 +559,22 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
                     javaType=java_type,
                     sqlType=sql_type,
                     length=255 if sql_type == SqlDataType.VARCHAR else None,
-                    nullable=getattr(raw_attr, "nullable", False),
+                    nullable=raw_attr.nullable and not raw_attr.required,
                     isPrimaryKey=False,
                     isUnique=is_unique,
+                    validationRules=getattr(raw_attr, "validationRules", []),
                     hasIndex=is_unique or ("status" in col_name),
                 )
             )
 
-        # Audit fields per Question 2 clarification (createdAt, updatedAt)
-        for audit_attr in [
-            EntityAttributeDefinition(
-                name="createdAt",
-                columnName="created_at",
-                javaType=JavaPropertyType.INSTANT,
-                sqlType=SqlDataType.TIMESTAMP_TZ,
-                nullable=False,
-                isPrimaryKey=False,
-                defaultValue="CURRENT_TIMESTAMP",
-            ),
-            EntityAttributeDefinition(
-                name="updatedAt",
-                columnName="updated_at",
-                javaType=JavaPropertyType.INSTANT,
-                sqlType=SqlDataType.TIMESTAMP_TZ,
-                nullable=False,
-                isPrimaryKey=False,
-                defaultValue="CURRENT_TIMESTAMP",
-            ),
-        ]:
-            if not any(a.columnName == audit_attr.columnName for a in attrs):
-                attrs.append(audit_attr)
-
-        # Infer relationships: if child entity (e.g. OrderItem to Order)
-        relationships: List[EntityRelationshipDefinition] = []
-        for other_name in entity_names:
-            if other_name != e_name and e_name.startswith(other_name):
-                # E.g. OrderItem belongs to Order
-                fk_col = f"{to_snake_case(other_name)}_id"
-                fk_name = f"{to_snake_case(other_name)}Id"
-                relationships.append(
-                    EntityRelationshipDefinition(
-                        sourceEntity=e_name,
-                        targetEntity=other_name,
-                        relationshipType=RelationshipType.MANY_TO_ONE,
-                        joinColumnName=fk_col,
-                        inversePropertyName=to_snake_case(e_name) + "s",
-                        cascadeType="ALL",
-                        fetchType="LAZY",
-                    )
-                )
-                # Add foreign key attribute only if not already present
-                existing_fk = next((a for a in attrs if a.columnName == fk_col or a.name.lower() in (fk_name.lower(), f"{other_name.lower()}id")), None)
-                if existing_fk is None:
-                    attrs.insert(1, EntityAttributeDefinition(
-                        name=fk_name,
-                        columnName=fk_col,
-                        javaType=JavaPropertyType.LONG,
-                        sqlType=SqlDataType.BIGINT,
-                        nullable=False,
-                        hasIndex=True,
-                    ))
-                else:
-                    existing_fk.columnName = fk_col
-                    existing_fk.hasIndex = True
+        # Relationships require an explicit contract; names alone never imply a FK.
+        relationships: List[EntityRelationshipDefinition]=[
+            EntityRelationshipDefinition(sourceEntity=e_name,targetEntity=attribute.referencesEntity,
+                relationshipType=RelationshipType.MANY_TO_ONE,
+                joinColumnName=attribute.columnName or to_snake_case(attribute.name),
+                cascadeType="PERSIST",fetchType="LAZY")
+            for attribute in raw_e.attributes if attribute.referencesEntity
+        ]
 
         # Deduplicate attributes by column name to guarantee uniqueness under all circumstances
         deduped_attrs: List[EntityAttributeDefinition] = []
@@ -655,38 +592,9 @@ def _mock_domain_model_response(draft: SpecificationDraft, db_engine: str = 'POS
                 packageName=f"{package_name}.model",
                 attributes=attrs,
                 relationships=relationships,
-                hasAuditFields=True,
+                hasAuditFields=any(attribute.name in {"createdAt","updatedAt"} for attribute in attrs),
             )
         )
-
-    # Match inferred scalar FKs to the actual parent PK (including UUID/string).
-    for entity in entities:
-        for rel in entity.relationships:
-            if rel.relationshipType == RelationshipType.MANY_TO_ONE:
-                parent = next((e for e in entities if e.name == rel.targetEntity), None)
-                if parent:
-                    primary = next((a for a in parent.attributes if a.isPrimaryKey), None)
-                    scalar = next((a for a in entity.attributes if a.columnName == rel.joinColumnName), None)
-                    if primary and scalar:
-                        scalar.javaType, scalar.sqlType, scalar.length = primary.javaType, primary.sqlType, primary.length
-
-    # If parent entities exist, link inverse one-to-many
-    for entity in entities:
-        for child_entity in entities:
-            for rel in child_entity.relationships:
-                if rel.targetEntity == entity.name and rel.relationshipType == RelationshipType.MANY_TO_ONE:
-                    if not any(r.targetEntity == child_entity.name and r.relationshipType == RelationshipType.ONE_TO_MANY for r in entity.relationships):
-                        entity.relationships.append(
-                            EntityRelationshipDefinition(
-                                sourceEntity=entity.name,
-                                targetEntity=child_entity.name,
-                                relationshipType=RelationshipType.ONE_TO_MANY,
-                                joinColumnName=rel.joinColumnName,
-                                inversePropertyName=to_snake_case(child_entity.name) + "s",
-                                cascadeType="ALL",
-                                fetchType="LAZY",
-                            )
-                        )
 
     schema_ddl = generate_schema_sql(entities, db_engine)
     seed_dml = generate_seed_data_sql(entities, draft, db_engine)
@@ -908,6 +816,7 @@ class ModelSqlService:
                                 length=100 if sql_t == SqlDataType.VARCHAR else None,
                                 nullable=True,
                                 isUnique=is_unique,
+                    validationRules=getattr(raw_attr, "validationRules", []),
                                 hasIndex=is_unique or "índice" in prompt_lower or "index" in prompt_lower,
                             )
                         )
@@ -979,6 +888,15 @@ def schema_sql_from_draft(draft: Any, db_engine: str = 'POSTGRESQL') -> str:
     generated beside it, and under ``ddl-auto: validate`` the application would then
     refuse to start against the database its own schema created.
     """
+    from app.services.domain_descriptor import normalize_blueprint
+    from app.models.blueprint import DomainEntity
+    raw_entities=[]
+    for entity in getattr(draft, 'entities', None) or []:
+        raw=entity.model_dump() if hasattr(entity, 'model_dump') else vars(entity).copy()
+        raw['attributes']=[a.model_dump() if hasattr(a,'model_dump') else vars(a).copy() for a in getattr(entity,'attributes',[]) ]
+        raw_entities.append(raw)
+    normalized=normalize_blueprint({'packageName':getattr(draft,'packageName','com.corp.service'),'entities':raw_entities})
+    normalized_entities=[DomainEntity.model_validate(entity) for entity in normalized['entities']]
     statements = [
         "-- ============================================================================",
         "-- Microservice Code Studio: Relational Schema DDL (fallback from blueprint)",
@@ -987,7 +905,7 @@ def schema_sql_from_draft(draft: Any, db_engine: str = 'POSTGRESQL') -> str:
     ]
 
     emitted = 0
-    for entity in getattr(draft, "entities", None) or []:
+    for entity in normalized_entities:
         emitted += 1
         table_name = getattr(entity, "tableName", None) or _snake_case(
             getattr(entity, "name", "entity")
@@ -1009,7 +927,7 @@ def schema_sql_from_draft(draft: Any, db_engine: str = 'POSTGRESQL') -> str:
             sql_type = _SQL_TYPE_FROM_JAVA.get(java_type, "TEXT")
             if db_engine.upper() == 'MYSQL':
                 sql_type = sql_type.replace('TIMESTAMP WITH TIME ZONE', 'TIMESTAMP(6)').replace('UUID', 'BINARY(16)')
-            constraint = "" if getattr(attribute, "nullable", True) else " NOT NULL"
+            constraint = "" if getattr(attribute, "nullable", True) and not getattr(attribute, "required", False) else " NOT NULL"
             if getattr(attribute, 'isUnique', False):
                 constraint += ' UNIQUE'
             columns.append(f"    {column} {sql_type}{constraint}")
@@ -1021,6 +939,19 @@ def schema_sql_from_draft(draft: Any, db_engine: str = 'POSTGRESQL') -> str:
             f"CREATE TABLE IF NOT EXISTS {table_name} (\n" + ",\n".join(columns) + "\n);"
         )
         statements.append("")
+
+    # Emit all tables first, then explicit constraints, including forward references.
+    by_name={entity.name:entity for entity in normalized_entities}
+    for entity in normalized_entities:
+        for attribute in entity.attributes:
+            if not attribute.referencesEntity:
+                continue
+            target=by_name[attribute.referencesEntity]
+            primary=next(item for item in target.attributes if item.isPrimaryKey)
+            column=attribute.columnName or _snake_case(attribute.name)
+            target_column=primary.columnName or _snake_case(primary.name)
+            statements.append(f'ALTER TABLE {entity.tableName} ADD CONSTRAINT fk_{entity.tableName}_{column} '
+                f'FOREIGN KEY ({column}) REFERENCES {target.tableName}({target_column});')
 
     if not emitted:
         statements.append("-- The blueprint declared no entities.\n")

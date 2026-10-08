@@ -22,6 +22,8 @@ class OperationCancelEvent(threading.Event):
         self.path = record_directory(row.sessionId) / ('cancel-' + row.operationId)
 
     def is_set(self):
+        if any(event.is_set() for event in getattr(self,"parent_controls",())):
+            return True
         return super().is_set() or self.path.is_file()
 
     def set(self):

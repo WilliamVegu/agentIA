@@ -5,8 +5,13 @@ from pydantic import BaseModel, Field, field_validator
 class EntityAttribute(BaseModel):
     name: str = Field(..., description="camelCase attribute name")
     type: str = Field(..., description="Java type, e.g. String, Long, UUID, BigDecimal")
+    columnName: Optional[str] = Field(default=None, description="Explicit SQL column name")
+    referencesEntity: Optional[str] = Field(default=None, description="Explicit foreign key target entity")
+    referencesAttribute: Optional[str] = Field(default=None, description="Target primary key attribute; defaults to declared PK")
+    required: bool = Field(default=False)
     nullable: bool = Field(default=False)
     isPrimaryKey: bool = Field(default=False)
+    isUnique: bool = Field(default=False)
     validationRules: List[str] = Field(default_factory=list, description="Jakarta Validation annotations e.g. @NotNull")
 
 class DomainEntity(BaseModel):

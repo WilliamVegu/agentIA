@@ -1,0 +1,212 @@
+[
+  {
+    "framework": "springboot",
+    "buildTool": "maven",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "b699e78ee2d8f238ab234e9c494042af6e60823d8ca7575acd8e57453e53343c",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml": "88c5dd18335ecdf6c6b8d3fee02df7093f882678bde67fc431b48c18fee8a704",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml": "53f545f96ab2dd558aaba4aed6776d978e06df522b63b851799926d7c83653d6",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "a8b091b59bb0adfed62dcba3eb43a3a868d90af79f87f8195e15ecae7a4626cd",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml": "5e9779ad7dbe9c0d1966f14a532cbe614bd2533ba55acb4fd1103addff1a148b",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml": "2e664db71077ef3433689d28a6e30c80f78d44b2c0740346843b9d96dbfdb482",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "06bee9278d207372ccf373629dcf93001b5b2579fee10951040dad4af821e229",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-h2\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "93c4dc214147741047eaa7f2a9b2b8768dc920ee3bd05bf6af1182362f05d5b4"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "maven",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "8c2b7a84a2277551cb4571d9c20f0a2a9699448f1ce3c277b64678841e8bfc33",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml": "64c8123765ba49b688c2a42b7be1ee16866072e476231c2afc3ac9dd3992311e",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml": "cc1a5cd4a353e02f5561e3fe3b8d778612842edd8ca43a49af18a21353276fad",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "9be1928e03b39e41eac4f23198b20c86d5a7b439100db6944c519f2f89a5cbeb",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml": "52dabb681d6d39d18ef3aeb87fe3ce3f3866da344a340a6f2453a67780090cb9",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml": "d46d43efb852547b8dffa0de248fabd979b83f747a9a97e3f67ac6706957d9d5",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "4a1de166b2bd4741841b467bedd134cfa77237d37e553ef4f5f5028298e91ea8",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-postgresql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "6c1aa3ace146b957c6a05a603a3bffade8e17dd210183c627c24b8dcb9f5c71a"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "maven",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "894ceda50777a4aeb55e45348c747d286bbe5da36532e0e26655939ae3899e5c",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml": "5014d7c51467127824dd4b562ad4ae8c781c37aadc5398283c4ec411e67dbecb",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml": "42468d3644cf6e6b79d60a551296d9c9ac395f06cdea64cb4a8b608dc530c1c9",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "f46f848dc86c2a75c509d289097d93aeb84c8fe0d6964ce0e1f68a741155f044",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml": "c43f710caad7d2fe62196e9eed32de70e2948f6cf0b013ead746afe58a1e1016",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml": "9163c4dc4f5e69bc6b7362f60472ef419519aaf2d52e65316352baa73d8e365b",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "cdafec4fc102dd0624c08fe0e67837ca2b286e11be980d40de6d9e0cfde3e03c",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-maven-mysql\\target\\surefire-reports\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "f190cb19bf1a6cde84da85b10bda8223fdeacb38d6f94b880ab3168ed080d9fa"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "H2",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "7d0c6a34e8d66248abc8de6799539f39ce61408a672662318a318afac51e27a2",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml": "66bacb2418c4a62ba6dfe81e22ca89568fd2006a68363331d0deacfe29066911",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml": "6383b6e5744dc44884fdf19a637657cd2b8336d855000d08c0c69d27220b3ea7",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "55140206e4c12d724556919bf4d80138e82dadd19277f0b346cd3ab66aa6f029",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml": "4a26d26ca27a85c79ee50e24a5b416352af2c8f26189247c197cc5885ddcf087",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml": "450b78156e21084c6302266fb57c9bd55bab333b9bfe18ae11744c274a5eeb0b",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "7f450e2f45b2bbce584e9691f384fd0e14b80fe50bd8e05f1e533a1051de6033",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-h2\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "8fb868d10c9fb9b90f7926179a7a59af3ac83a1959513d5a2100ad44059db9d9"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "POSTGRESQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "81f7316177580fbc0921a804edfd305a7f318aa4a582f3d24a5b3a5d6c039aaa",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml": "81c596067e09f47cfeea51c4bc0372f1f181cc46597e75a361c4b5d5e3a6ede8",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml": "ef8fbfe596a28eaa90df5be2022648576edf5e64fc2c046532e023bef1a6bd32",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "e1c9077168fd78922be66ef0585f6899c059ac7ed34f47cb7134234b54898933",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml": "cf3d3d4f06c9abf9ca4e613970b44c92cb7061d6a5b49ecf7c4c523bbca488cf",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml": "7daf5b3c2504b5d058d0a849ee92dbc896f07e6aca1970ba75ac9e23b903625a",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "51e00112cbd03cdf5a31530e84e1b7ab7aec7698c6a2a968cb1cfedbea7a420b",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-postgresql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "7b9037297cfd3a8f5ecd8902119595a4adefdf759689a10b763e940710c1a046"
+    },
+    "outcome": "PASSED"
+  },
+  {
+    "framework": "springboot",
+    "buildTool": "gradle",
+    "databaseEngine": "MYSQL",
+    "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql",
+    "liveProviderCalls": 0,
+    "workspaceFingerprint": "ba50de56fce02a7195df69838e32a0036e4b1278f62e93049a50b62df5394b78",
+    "verificationExitCode": 0,
+    "testCounts": {
+      "total": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "reports": [
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml",
+      ".runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml"
+    ],
+    "sourceUnchanged": true,
+    "reportHashes": {
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerAccountControllerTest.xml": "02b9dff58817b07413ed6edb576e069787d940da6ce254b92e8b5ab1ca097ea5",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.controller.LedgerEntryControllerTest.xml": "07ea3f88391e0a9cd01e322b5cbb3c66693a51c99fbd76f9f3327e46e9d1546b",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.LedgerServiceApplicationTests.xml": "5907199d569cef05dbece4a5ee68c787e471a18faec7e402385be24159b90445",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerAccountRepositoryTest.xml": "8e99c9d8a7d7a41fa27ae2e90ff5c75c7f4185930054e21f4c7b7adf14f9db75",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.repository.LedgerEntryRepositoryTest.xml": "2d22ca0e300a145557bc289f09be8795f9dfc12dd42828607da8760d243086c9",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerAccountServiceTest.xml": "0b15f413262ce64b10377138d238604c6b93c0fec8883bc4ada2f03ee480d355",
+      "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-springboot-gradle-mysql\\build\\test-results\\test\\TEST-com.audit.custom.service.LedgerEntryServiceTest.xml": "52de5d46f9ed25a93b7ffd75e16b395ce1f0a26724e3d06c709b762e27b4f811"
+    },
+    "outcome": "PASSED"
+  }
+]

@@ -5,51 +5,24 @@ from datetime import datetime, timezone
 from app.models.devops import DatabaseEngine, DevOpsManifestBundle
 
 
-def generate_dockerfile(service_name: str = "microservice") -> str:
-    """Generates an optimized, multi-stage Fast-Jar Dockerfile for Quarkus 3 / Java 21 LTS."""
-    return f"""# ==============================================================================
-# Multi-Stage Fast-Jar Dockerfile for Quarkus 3 / Java 21 LTS
-# Hermetic & Non-Root Execution (Constitution Principles IV & VI)
-# ==============================================================================
-
-# Stage 1: Build fast-jar inside container with Maven
-FROM maven:3.9-eclipse-temurin-21-alpine AS builder
+def generate_dockerfile(service_name="microservice",build_tool="maven",prepared_image="agentia-quarkus-builder:prepare-first"):
+    build="gradle --no-daemon --console=plain --offline build" if build_tool=='gradle' else "mvn -B -ntp -o -Dmaven.repo.local=/tmp/cache verify"
+    cache="export GRADLE_USER_HOME=/tmp/cache && " if build_tool=='gradle' else ""
+    output="build" if build_tool=='gradle' else "target"
+    return f"""FROM {prepared_image} AS build
+USER root
 WORKDIR /workspace
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
+COPY . .
+RUN --network=none mkdir -p /tmp/cache && cp -R /opt/agentia-cache/. /tmp/cache/ && {cache}{build}
+RUN --network=none test -f {output}/quarkus-app/quarkus-run.jar && cp -R {output}/quarkus-app /quarkus-app
 
-# Stage 2: Minimal Non-Root Runtime Image
-FROM eclipse-temurin:21-jre-alpine AS runner
+FROM agentia-runtime:21-v1
 WORKDIR /app
-
-# Create unprivileged non-root user and group
-RUN addgroup -g 10001 -S appgroup && \\
-    adduser -u 10001 -S appuser -G appgroup
-
-# Copy Quarkus fast-jar application files
-COPY --from=builder /workspace/target/quarkus-app/lib/ /app/lib/
-COPY --from=builder /workspace/target/quarkus-app/*.jar /app/
-COPY --from=builder /workspace/target/quarkus-app/app/ /app/app/
-COPY --from=builder /workspace/target/quarkus-app/quarkus/ /app/quarkus/
-
-# Change ownership of application files
-RUN chown -R appuser:appgroup /app
-
-# Switch to non-root execution
-USER appuser:appgroup
-
-# Configure JVM container memory management & network defaults
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
+COPY --from=build --chown=10001:10001 /quarkus-app/ /app/
+USER 10001:10001
 ENV QUARKUS_HTTP_PORT=8080
-
 EXPOSE 8080
-
-# Native container healthcheck polling Quarkus SmallRye Health
-HEALTHCHECK --interval=15s --timeout=3s --start-period=15s --retries=3 \\
-  CMD wget -q -O - http://localhost:8080/q/health | grep UP || exit 1
-
-# Launch using Quarkus fast-jar
+HEALTHCHECK NONE
 ENTRYPOINT ["java", "-jar", "/app/quarkus-run.jar"]
 """
 
@@ -74,7 +47,7 @@ secrets/
 """
 
 
-def generate_docker_compose(
+def _generate_docker_compose_template(
     service_name: str = "microservice",
     db_engine: str = "POSTGRESQL",
     host_port: int = 8080
@@ -98,7 +71,7 @@ services:
       - QUARKUS_HTTP_PORT=8080
       - QUARKUS_DATASOURCE_DB_KIND=h2
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:h2:mem:{service_name}_db;MODE=PostgreSQL
-      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=validate
     networks:
       - app-network
     restart: unless-stopped
@@ -126,7 +99,7 @@ services:
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://db:3306/{service_name}_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       - QUARKUS_DATASOURCE_USERNAME=root
       - QUARKUS_DATASOURCE_PASSWORD=${{DB_PASSWORD:-root}}
-      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=validate
     depends_on:
       db:
         condition: service_healthy
@@ -135,7 +108,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: mysql:8.0-debian
+    image: mysql:8.0.40
     container_name: {service_name}-mysql
     ports:
       - "3306:3306"
@@ -144,7 +117,6 @@ services:
       - MYSQL_DATABASE={service_name}_db
     volumes:
       - mysqldata:/var/lib/mysql
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -181,7 +153,7 @@ services:
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/{service_name}_db
       - QUARKUS_DATASOURCE_USERNAME=postgres
       - QUARKUS_DATASOURCE_PASSWORD=${{DB_PASSWORD:-postgres}}
-      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
+      - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=validate
     depends_on:
       db:
         condition: service_healthy
@@ -190,7 +162,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16-alpine
+    image: postgres:16.4-alpine
     container_name: {service_name}-postgres
     ports:
       - "5432:5432"
@@ -200,7 +172,6 @@ services:
       - POSTGRES_PASSWORD=${{DB_PASSWORD:-postgres}}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d {service_name}_db"]
       interval: 5s
@@ -220,140 +191,34 @@ networks:
 """
 
 
-def generate_github_actions(service_name: str = "microservice") -> str:
-    """Generates .github/workflows/ci-cd.yml with hermetic Maven build, testing, SAST/secrets gates, and Trivy scan."""
-    return f"""name: "CI/CD Pipeline - {service_name}"
-
-on:
-  push:
-    branches: [ "main", "feature/**" ]
-  pull_request:
-    branches: [ "main" ]
-
-concurrency:
-  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
-  cancel-in-progress: true
-
-jobs:
-  # ----------------------------------------------------------------------------
-  # Stage 1: Hermetic Compilation, Test Execution & Security Audit
-  # ----------------------------------------------------------------------------
-  build-and-verify:
-    name: "Hermetic Build, Tests & Security Gate"
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout Source Code"
-        uses: actions/checkout@v4
-
-      - name: "Set up Java 21 (Eclipse Temurin)"
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
-          cache: "maven"
-
-      - name: "Run Hermetic Maven Tests (Principle IV & Spec 005)"
-        run: mvn clean test -B
-
-      - name: "Verify Quality Gate & Secret Leaks (Principle VI & Spec 006)"
-        run: |
-          echo "Executing SAST and Secret Scan verification..."
-          # In CI runners, exit non-zero if credentials or high vulnerabilities exist
-
-  # ----------------------------------------------------------------------------
-  # Stage 2: Multi-Stage Container Build & Trivy Vulnerability Scan
-  # ----------------------------------------------------------------------------
-  container-build-scan:
-    name: "Docker Build & Trivy CVE Scan"
-    needs: build-and-verify
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout Repository"
-        uses: actions/checkout@v4
-
-      - name: "Set up Java 21 for Package Layer"
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
-          cache: "maven"
-
-      - name: "Package Application JAR"
-        run: mvn package -DskipTests -B
-
-      - name: "Set up Docker Buildx"
-        uses: docker/setup-buildx-action@v3
-
-      - name: "Build Local Docker Image"
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          load: true
-          tags: {service_name}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: "Scan Docker Image with Trivy"
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "{service_name}:latest"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
-"""
+def generate_docker_compose(service_name="microservice", db_engine="POSTGRESQL", host_port=8080):
+    import yaml
+    manifest = yaml.safe_load(_generate_docker_compose_template(service_name, db_engine, host_port))
+    manifest.pop('version', None)
+    owner = {'io.agentia.owner': chr(36) + '{COMPOSE_PROJECT_NAME}', 'io.agentia.studio': 'quarkus'}
+    for name, service in manifest['services'].items():
+        service.pop('container_name', None)
+        service['labels'] = {**owner, 'io.agentia.role': 'database' if name == 'db' else 'application'}
+        if name == 'db':
+            service.pop('ports', None)
+        else:
+            service['ports'] = ['127.0.0.1:' + chr(36) + '{HOST_PORT:-' + str(host_port) + '}:8080']
+    for kind in ('volumes', 'networks'):
+        for name in manifest.get(kind, {}):
+            definition = manifest[kind][name] or {}
+            definition['labels'] = owner.copy()
+            manifest[kind][name] = definition
+    return yaml.safe_dump(manifest, sort_keys=False)
 
 
-def generate_gitlab_ci(service_name: str = "microservice") -> str:
-    """Generates .gitlab-ci.yml with pipeline stages for GitLab runners."""
-    return f"""# ==============================================================================
-# GitLab CI Pipeline for {service_name}
-# ==============================================================================
+def generate_github_actions(service_name="microservice"):
+    from app.services.local_ci_assets import github
+    return github(service_name)
 
-stages:
-  - build-test
-  - security-audit
-  - container-scan
 
-variables:
-  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
-  IMAGE_NAME: "$CI_REGISTRY_IMAGE/{service_name}:$CI_COMMIT_SHA"
-
-cache:
-  paths:
-    - .m2/repository/
-
-# Stage 1: Hermetic Maven Compilation & Unit/Integration Tests
-maven-test:
-  stage: build-test
-  image: maven:3.9-eclipse-temurin-21
-  script:
-    - mvn clean test -B
-  artifacts:
-    paths:
-      - target/
-
-# Stage 2: SAST & Secret Leak Audit
-security-gate:
-  stage: security-audit
-  image: alpine:latest
-  script:
-    - echo "Validating Constitution Principles & Quality Gate..."
-
-# Stage 3: Docker Build & Trivy Scan
-docker-trivy:
-  stage: container-scan
-  image: docker:24.0.5
-  services:
-    - docker:24.0.5-dind
-  before_script:
-    - apk add --no-cache curl
-    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-  script:
-    - docker build -t {service_name}:latest .
-    - trivy image --exit-code 1 --severity CRITICAL {service_name}:latest
-"""
+def generate_gitlab_ci(service_name="microservice"):
+    from app.services.local_ci_assets import gitlab
+    return gitlab(service_name)
 
 
 def generate_kubernetes_manifests(
@@ -487,9 +352,7 @@ def generate_all_devops_assets(
     ws.mkdir(parents=True, exist_ok=True)
 
     # 1. Dockerfile & .dockerignore
-    dockerfile = generate_dockerfile(service_name)
     dockerignore = generate_dockerignore()
-    (ws / "Dockerfile").write_text(dockerfile, encoding="utf-8")
     (ws / ".dockerignore").write_text(dockerignore, encoding="utf-8")
 
     # Ensure pom.xml includes Actuator for health checks and database driver if present
@@ -545,6 +408,34 @@ def generate_all_devops_assets(
             pom_text = pom_text[:dependencies_end] + injection + pom_text[dependencies_end + len("</dependencies>"):]
             pom_path.write_text(pom_text, encoding="utf-8")
 
+    import hashlib,json
+    from app.services.build_layout import build_layout
+    from app.services.local_ci_assets import AUDIT_SCRIPT
+    tool,directory,manifest=build_layout(ws)
+    if directory!='.': raise ValueError('Quarkus requires a native root build manifest')
+    inputs=[path for path in ws.rglob('*') if path.is_file() and path.name in {'pom.xml','build.gradle','build.gradle.kts','settings.gradle','settings.gradle.kts','gradle.properties','gradle.lockfile'} and not any(part in {'target','build','.agentia-runtime','.gradle'} for part in path.relative_to(ws).parts)]
+    fingerprint=hashlib.sha256(b''.join(path.relative_to(ws).as_posix().encode()+b'\0'+path.read_bytes() for path in sorted(inputs))).hexdigest()
+    builder='agentia-quarkus-builder:'+fingerprint[:20]
+    dockerfile = generate_dockerfile(service_name,tool,builder)
+    preparation_image='gradle:8.10.2-jdk21' if tool=='gradle' else 'maven:3.9-eclipse-temurin-21'
+    preparation_build='gradle --no-daemon --console=plain build' if tool=='gradle' else 'mvn -B -ntp verify'
+    preparation_cache='/home/gradle/.gradle' if tool=='gradle' else '/root/.m2/repository'
+    (ws/'Dockerfile.prepare').write_text(f'FROM {preparation_image}\nUSER root\nWORKDIR /workspace\nCOPY . .\nRUN {preparation_build} && mkdir -p /opt/agentia-cache && cp -R {preparation_cache}/. /opt/agentia-cache/\nLABEL io.agentia.dependencies="{fingerprint}"\n',encoding='utf-8')
+    preparation_script="""import argparse,json,subprocess
+from pathlib import Path
+parser=argparse.ArgumentParser(description='Explicit dependency preparation; never a verification verdict')
+parser.add_argument('--allow-network',action='store_true')
+args=parser.parse_args()
+if not args.allow_network: parser.error('Preparation requires explicit --allow-network authorization')
+root=Path(__file__).resolve().parent
+config=json.loads((root/'ASSET_CONFIGURATION.json').read_text(encoding='utf-8'))
+subprocess.run(['docker','build','--pull=false','-f','Dockerfile.prepare','-t',config['preparedBuilder'],'.'],cwd=root,check=True)
+print('Dependencies prepared. Run python local-ci.py --docker for offline verification.')
+"""
+    (ws/'prepare-builder.py').write_text(preparation_script,encoding='utf-8')
+    (ws/'local-ci.py').write_text(AUDIT_SCRIPT,encoding='utf-8')
+    (ws/'ASSET_CONFIGURATION.json').write_text(json.dumps({'framework':'quarkus','buildTool':tool,'buildDirectory':'.','preparedBuilder':builder,'dependencyFingerprint':fingerprint,'databaseEngine':db_engine,'hostPort':host_port},indent=2),encoding='utf-8')
+    (ws / 'Dockerfile').write_text(dockerfile,encoding='utf-8')
     # 2. docker-compose.yml
     compose = generate_docker_compose(service_name, db_engine, host_port)
     (ws / "docker-compose.yml").write_text(compose, encoding="utf-8")

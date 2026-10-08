@@ -157,11 +157,11 @@ describe('Frontend API Services & Client Interceptors', () => {
     });
 
     it('securityService.getAuditReport calls GET /security/:id/report', async () => {
-      const spy = vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { qualityGate: { verdict: 'PASS' } } });
+      const spy = vi.spyOn(apiClient, 'get').mockResolvedValueOnce({ data: { qualityGate: { status: 'PASS' } } });
       const res = await securityService.getAuditReport('sess-99');
 
       expect(spy).toHaveBeenCalledWith('/security/sess-99/report');
-      expect(res.qualityGate.verdict).toBe('PASS');
+      expect(res.qualityGate.status).toBe('PASS');
     });
   });
 

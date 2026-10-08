@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="75.682" timestamp="2026-10-08T11:35:32.569052-05:00" hostname="VeguFam"><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[H2-maven-springboot]" time="16.736"><failure message="AssertionError: ('accountKey', 201, {'entryId': '7c0fdf19-a9b7-44fb-bf2e-0ffc2cb6669c', 'email': 'native@example.com', 'balance': 12.34, 'bookedAt': '2024-01-01T12:00:00Z', ...})&#10;assert 201 == 409">integration\test_generated_domain.py:160: in test_native_relational_http_matrix
+    http_contract(framework,ROOT/'.runtime/reliability/java'/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:84: in http_contract
+    assert status==expected,(field,status,body)
+E   AssertionError: ('accountKey', 201, {'entryId': '7c0fdf19-a9b7-44fb-bf2e-0ffc2cb6669c', 'email': 'native@example.com', 'balance': 12.34, 'bookedAt': '2024-01-01T12:00:00Z', ...})
+E   assert 201 == 409</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[POSTGRESQL-maven-springboot]" time="22.299"><failure message="AssertionError: ('accountKey', 201, {'entryId': '0e29a553-42b3-4f2d-bd54-d253a14f015c', 'email': 'native@example.com', 'balance': 12.34, 'bookedAt': '2024-01-01T12:00:00Z', ...})&#10;assert 201 == 409">integration\test_generated_domain.py:160: in test_native_relational_http_matrix
+    http_contract(framework,ROOT/'.runtime/reliability/java'/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:84: in http_contract
+    assert status==expected,(field,status,body)
+E   AssertionError: ('accountKey', 201, {'entryId': '0e29a553-42b3-4f2d-bd54-d253a14f015c', 'email': 'native@example.com', 'balance': 12.34, 'bookedAt': '2024-01-01T12:00:00Z', ...})
+E   assert 201 == 409</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[MYSQL-maven-springboot]" time="36.402"><failure message="AssertionError: ('accountKey', 201, {'entryId': '8c89bbac-e87d-4fa9-aa40-38962ffea70d', 'email': 'native@example.com', 'balance': 12.34, 'bookedAt': '2024-01-01T12:00:00Z', ...})&#10;assert 201 == 409">integration\test_generated_domain.py:160: in test_native_relational_http_matrix
+    http_contract(framework,ROOT/'.runtime/reliability/java'/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:84: in http_contract
+    assert status==expected,(field,status,body)
+E   AssertionError: ('accountKey', 201, {'entryId': '8c89bbac-e87d-4fa9-aa40-38962ffea70d', 'email': 'native@example.com', 'balance': 12.34, 'bookedAt': '2024-01-01T12:00:00Z', ...})
+E   assert 201 == 409</failure></testcase></testsuite></testsuites>

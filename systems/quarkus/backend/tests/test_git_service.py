@@ -5,8 +5,8 @@ from app.services.git_service import prepare_authenticated_url, sanitize_git_url
 def test_prepare_authenticated_url():
     raw_url = "https://github.com/my-org/my-repo.git"
     auth_url = prepare_authenticated_url(raw_url, "ghp_secretToken123")
-    assert "ghp_secretToken123" in auth_url
-    assert "@github.com/my-org/my-repo.git" in auth_url
+    assert "ghp_secretToken123" not in auth_url
+    assert auth_url == raw_url
 
 def test_sanitize_git_url_strips_token():
     auth_url = "https://oauth2:ghp_secretToken123@github.com/my-org/my-repo.git"

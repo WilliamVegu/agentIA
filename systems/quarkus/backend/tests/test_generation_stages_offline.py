@@ -1,16 +1,8 @@
-"""Native Quarkus generation from the retained historical blueprint corpus.
+"""Exact deterministic output revisions, with immutable historical baselines.
 
-Asserts that the DETERMINISTIC path through the stage execution boundary is
-framework-correct for the frozen pre-migration corpus, requires no model
-credentials, and consumes no model requests.
-
-This is deliberately a *parity* test, not a re-derivation of expected content.
-The baseline at reports/baselines/011-pre-migration-generation-baseline.json is
-the recorded output of the pre-migration implementation and is the only valid
-comparison target (contracts/baseline-artifact.md).
-
-The pre-existing end-to-end suite is NOT modified by this feature and must keep
-passing unchanged; those tests describe this same offline path.
+The reliability fixture declares valid annotation parameters explicitly. Captured
+expectations are separate from historical evidence and never rewritten by tests.
+Incomplete historical declarations must be rejected rather than guessed.
 """
 
 from __future__ import annotations
@@ -30,7 +22,7 @@ from app.orchestrator.stages.runner import STAGE_ORDER, run_stages  # noqa: E402
 from app.services.llm_factory import LLMFactory  # noqa: E402
 
 BASELINE_JSON = REPO_ROOT / "reports" / "baselines" / "011-pre-migration-generation-baseline.json"
-CORPUS_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "baseline_blueprints"
+CORPUS_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "reliability_blueprints"
 
 
 def _sha256(text: str) -> str:
@@ -40,9 +32,18 @@ def _sha256(text: str) -> str:
 
 @pytest.fixture(scope="module")
 def baseline() -> dict:
-    if not BASELINE_JSON.is_file():
-        pytest.skip(f"pre-migration baseline not captured at {BASELINE_JSON}")
-    return json.loads(BASELINE_JSON.read_text(encoding="utf-8"))
+    revisions=REPO_ROOT/'backend/tests/fixtures/reliability_generation_revisions.json'
+    recorded=json.loads(revisions.read_text(encoding='utf-8'))
+    assert recorded['formatVersion']==1
+    assert recorded['historicalBaselineSha256']==hashlib.sha256(BASELINE_JSON.read_bytes()).hexdigest()
+    for entry in recorded['per_blueprint']:
+        name=entry['blueprint_id']+'.json'
+        original=REPO_ROOT/'backend/tests/fixtures/baseline_blueprints'/name
+        assert entry['historicalInputSha256']==hashlib.sha256(original.read_bytes()).hexdigest()
+        assert entry['inputSha256']==hashlib.sha256((CORPUS_DIR/name).read_bytes()).hexdigest()
+        for path,item in entry['comparison_subset_content'].items():
+            assert _sha256(item['content'])==item['sha256']==entry['artifact_digests'][path]
+    return recorded
 
 
 @pytest.fixture(scope="module")
@@ -87,7 +88,7 @@ def test_offline_sessions_require_no_credentials(baseline, corpus, tmp_path, mon
     assert result.get("status") != "BLOCKED"
 
 
-def test_offline_output_is_quarkus_for_the_frozen_corpus(baseline, corpus, tmp_path):
+def test_offline_output_is_quarkus_for_explicit_reliability_revision(baseline, corpus, tmp_path):
     """The historical corpus survives; generated framework changes to Quarkus."""
     by_id = {entry['blueprint_id']: entry for entry in baseline['per_blueprint']}
     compared = 0
@@ -99,7 +100,7 @@ def test_offline_output_is_quarkus_for_the_frozen_corpus(baseline, corpus, tmp_p
         workspace.mkdir()
         result = _run_offline(blueprint, workspace)
         actual = result['generated_files']
-        expected_paths = {path.replace('application.yml', 'application.properties') for path in expected['artifact_digests'] if not path.endswith('Application.java')}
+        expected_paths = set(expected['artifact_digests'])
         assert set(actual) == expected_paths
         assert 'quarkus-bom' in actual['pom.xml']
         assert 'org.springframework' not in '\n'.join(actual.values())
@@ -184,3 +185,14 @@ def test_offline_provenance_has_no_provider_or_model(baseline, corpus, tmp_path)
         assert record["generation_mode"] == journal_mod.GENERATION_MODE_DETERMINISTIC
         assert record["provider"] is None
         assert record["model"] is None
+
+
+@pytest.mark.parametrize('name',['constrained','pair-b'])
+def test_historical_incomplete_annotations_remain_rejected_and_unchanged(baseline,name):
+    from app.services.domain_descriptor import normalize_blueprint
+    original=REPO_ROOT/'backend/tests/fixtures/baseline_blueprints'/(name+'.json')
+    payload=json.loads(original.read_text(encoding='utf-8'))
+    with pytest.raises(ValueError,match='sin parámetros'):
+        normalize_blueprint(payload)
+    entry=next(item for item in baseline['per_blueprint'] if item['blueprint_id']==name)
+    assert hashlib.sha256(original.read_bytes()).hexdigest()==entry['historicalInputSha256']

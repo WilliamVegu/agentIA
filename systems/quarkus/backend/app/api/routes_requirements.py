@@ -134,94 +134,33 @@ def refine_requirements_endpoint(
         )
 
 
-@router.get("/sessions/{session_id}")
+@router.get('/sessions/{session_id}')
 async def get_session_requirements(session_id: str):
-    """Retrieves existing requirements, prompt, and user stories draft for an active session."""
-    import json
-    from pathlib import Path
-    from app.config import settings
-    from app.models.session import GenerationSessionDB, SessionLocal
-
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if not sess:
-            raise HTTPException(status_code=404, detail="Session not found")
-        spec_name = sess.spec_name or "Microservicio"
-    finally:
-        db.close()
-
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
-    raw_prompt = ""
-    if ws_path.exists():
-        spec_file = ws_path / "spec.md"
-        if spec_file.exists():
-            try:
-                raw_prompt = spec_file.read_text(encoding="utf-8").strip()
-            except Exception:
-                pass
-
-    stories_file = ws_path / "user_stories.json"
-    entities_file = ws_path / "entities.json"
-    draft_data = None
-    if stories_file.exists() or entities_file.exists():
-        try:
-            stories_json = []
-            if stories_file.exists():
-                with open(stories_file, "r", encoding="utf-8") as f:
-                    stories_json = json.load(f)
-
-            entities_json = []
-            if entities_file.exists():
-                with open(entities_file, "r", encoding="utf-8") as f:
-                    entities_json = json.load(f)
-
-            draft_data = {
-                "serviceName": spec_name,
-                "packageName": f"com.corp.{spec_name.lower().replace('-', '.')}",
-                "basePort": 8080,
-                "entities": entities_json if isinstance(entities_json, list) else entities_json.get("entities", []),
-                "userStories": stories_json if isinstance(stories_json, list) else stories_json.get("userStories", []),
-                "assumptions": [],
-            }
-        except Exception:
-            pass
-
-    return {
-        "sessionId": session_id,
-        "serviceName": spec_name,
-        "rawPrompt": raw_prompt,
-        "hasDraft": draft_data is not None,
-        "draft": draft_data,
-    }
+    from app.services.draft_revision_service import get_revision
+    result = get_revision(session_id)
+    draft = result['draft']
+    return {**result, 'sessionId': session_id, 'hasDraft': draft is not None,
+            'serviceName': draft['serviceName'] if draft else None,
+            'rawPrompt': draft.get('markdownSpec','') if draft else ''}
 
 
-@router.post("/sessions/{session_id}/save")
-async def save_session_requirements(session_id: str, draft: SpecificationDraft):
-    """Saves approved requirements draft and advances session to Architecture phase."""
-    import json
-    from pathlib import Path
-    from app.config import settings
-    from app.services.lifecycle_service import transition_phase, LifecyclePhase
-
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
-    ws_path.mkdir(parents=True, exist_ok=True)
-
-    stories_file = ws_path / "user_stories.json"
-    with open(stories_file, "w", encoding="utf-8") as f:
-        json.dump([s.model_dump() for s in draft.userStories], f, indent=2)
-
-    entities_file = ws_path / "entities.json"
-    if draft.entities:
-        with open(entities_file, "w", encoding="utf-8") as f:
-            json.dump([e.model_dump() for e in draft.entities], f, indent=2)
-
-    spec_file = ws_path / "spec.md"
-    if draft.markdownSpec:
-        with open(spec_file, "w", encoding="utf-8") as f:
-            f.write(draft.markdownSpec)
-
-    transition_phase(session_id, LifecyclePhase.STORIES, force=True)
-    return {"sessionId": session_id, "status": "SAVED", "storiesCount": len(draft.userStories), "entitiesCount": len(draft.entities)}
+@router.post('/sessions/{session_id}/save')
+async def save_session_requirements(session_id: str, draft: SpecificationDraft, expectedRevisionId: Optional[str] = None, expectedVersion: Optional[int] = None):
+    from app.services.draft_revision_service import save_revision
+    result = save_revision(session_id, draft.model_dump(), expected_revision_id=expectedRevisionId, expected_version=expectedVersion)
+    return {**result, 'sessionId': session_id, 'status': 'SAVED',
+            'storiesCount': len(draft.userStories), 'entitiesCount': len(draft.entities)}
 
 
+@router.post('/sessions/{session_id}/approve')
+async def approve_session_requirements(session_id: str, revisionId: str, expectedVersion: Optional[int] = None):
+    from app.services.draft_revision_service import approve_revision
+    return {'sessionId': session_id, **approve_revision(session_id, revisionId, expected_version=expectedVersion)}
+
+
+@router.post('/sessions/{session_id}/regenerate')
+async def regenerate_revision(session_id: str, revisionId: str, confirmBackup: bool = False):
+    if not confirmBackup: raise HTTPException(422,'Confirme explícitamente la regeneración con backup')
+    from app.services.draft_revision_service import prepare_regeneration
+    backup=prepare_regeneration(session_id,revisionId)
+    return {'sessionId':session_id,'revisionId':revisionId,'status':'READY_TO_REGENERATE','backup':backup.name}

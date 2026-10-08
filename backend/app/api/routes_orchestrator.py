@@ -3,7 +3,7 @@ import io
 import uuid
 from pathlib import Path
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, status, Response
+from fastapi import APIRouter, HTTPException, status, Response, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
@@ -105,8 +105,6 @@ async def run_autopilot_pipeline(payload: PipelineRunRequest):
     else:
         _verify_session_exists(target_session_id)
 
-    if payload.force:
-        clear_outdated_phases(target_session_id)
 
     started = run_pipeline(
         session_id=target_session_id,
@@ -119,11 +117,14 @@ async def run_autopilot_pipeline(payload: PipelineRunRequest):
     )
     if not started:
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="Pipeline is already running or cannot be started for this session."
         )
 
+    from app.services.operation_repository import get_operation
+    operation = get_operation(target_session_id)
     return {
+        **(operation or {}),
         "sessionId": target_session_id,
         "status": "RUNNING",
         "streamUrl": f"/api/v1/orchestrator/pipeline/{target_session_id}/events",
@@ -138,13 +139,13 @@ async def pause_autopilot_pipeline(session_id: Optional[str] = None, payload: Op
     if not target_id:
         raise HTTPException(status_code=400, detail="sessionId required")
     _verify_session_exists(target_id)
-    success = pause_pipeline(target_id)
+    success = pause_pipeline(target_id, operation_id=(payload or {}).get('operationId'), expected_version=(payload or {}).get('expectedVersion'))
     if not success:
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="No active running pipeline found to pause for this session."
         )
-    return {"sessionId": target_id, "status": "PAUSED"}
+    return {"sessionId": target_id, "status": "PAUSE_REQUESTED"}
 
 
 @router.post("/pipeline/{session_id}/resume")
@@ -155,7 +156,7 @@ async def resume_autopilot_pipeline(session_id: Optional[str] = None, payload: O
     if not target_id:
         raise HTTPException(status_code=400, detail="sessionId required")
     _verify_session_exists(target_id)
-    success = resume_pipeline(target_id)
+    success = resume_pipeline(target_id, operation_id=(payload or {}).get('operationId'), expected_version=(payload or {}).get('expectedVersion'))
     if not success:
         raise HTTPException(
             status_code=400,
@@ -172,16 +173,23 @@ async def cancel_autopilot_pipeline(session_id: Optional[str] = None, payload: O
     if not target_id:
         raise HTTPException(status_code=400, detail="sessionId required")
     _verify_session_exists(target_id)
-    cancel_pipeline(target_id)
-    return {"sessionId": target_id, "status": "CANCELLED"}
+    success = cancel_pipeline(target_id, operation_id=(payload or {}).get('operationId'), expected_version=(payload or {}).get('expectedVersion'))
+    if not success: raise HTTPException(409,'No active operation to cancel')
+    from app.services.operation_repository import get_operation
+    operation=get_operation(target_id)
+    return {**operation,'status':operation['state']}
 
 
 @router.get("/pipeline/{session_id}/events")
-async def stream_pipeline_progress(session_id: str):
+async def stream_pipeline_progress(session_id: str, request: Request):
     """Streams real-time progress events for an active pipeline via Server-Sent Events (SSE)."""
     _verify_session_exists(session_id)
+    try:
+        cursor=int(request.headers.get('Last-Event-ID') or request.query_params.get('after') or '0')
+        if cursor<0: raise ValueError()
+    except ValueError: raise HTTPException(400,'Cursor inválido')
     return StreamingResponse(
-        stream_pipeline_events(session_id),
+        stream_pipeline_events(session_id,cursor),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

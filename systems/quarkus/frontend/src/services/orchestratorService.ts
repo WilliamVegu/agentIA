@@ -1,18 +1,30 @@
 import apiClient from './apiClient';
 
 export interface ProjectOverview {
-  sessionId: string;
-  serviceName: string;
-  database: string;
-  totalStories: number;
-  totalEntities: number;
-  totalEndpoints: number;
-  testSuitesCount: number;
-  qualityGateStatus: string;
-  qualityScore: number;
-  deploymentStatus: string;
-  activePhase: string;
-  completionPercentage: number;
+ sessionId: string;
+ executionMode?: 'SOURCE_ONLY' | 'DOCKER';
+ verificationOutcome?: string;
+ specName?: string;
+ serviceName?: string;
+ databaseEngine?: string;
+ database?: string;
+ userStoriesCount?: number;
+ entitiesCount?: number;
+ totalStories?: number;
+ totalEntities?: number;
+ totalEndpoints?: number;
+ testSuitesCount?: number;
+ testsPassed?: boolean;
+ testsExecuted?: boolean;
+ securityAuditVerdict?: string;
+ qualityGateStatus?: string;
+ qualityScore?: number | null;
+ deploymentStatus?: string;
+ deploymentUrl?: string;
+ activePhase?: string;
+ completionPercentage?: number;
+ pipelineStatus?: string;
+ lifecycle?: Record<string,unknown>;
 }
 
 export interface PhaseTransitionPayload {

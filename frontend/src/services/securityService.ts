@@ -2,29 +2,29 @@ import apiClient from './apiClient';
 
 export interface AuditFinding {
   id: string;
-  rule_id: string;
+  title: string;
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   category: string;
-  file: string;
-  line: number;
-  message: string;
-  snippet?: string;
-  remediation?: string;
-  title?: string;
-  filePath?: string;
-  lineNumber?: number;
-  cweId?: string;
-  owaspCategory?: string;
+  filePath: string;
+  lineNumber: number;
+  cweId: string;
+  owaspCategory: string;
+  codeSnippet: string;
+  description: string;
+  remediationGuidance: string;
+  autoFixAvailable: boolean;
 }
 
 export interface SecurityQualityReport {
   sessionId: string;
   serviceName: string;
+  evaluatedStatus?: string;
+  auditedAt?: string;
   qualityGate: {
-    verdict: 'PASS' | 'WARNING' | 'BLOCKED';
+    status: 'PASS' | 'WARNING' | 'BLOCKED';
     canExport: boolean;
-    canDeploy: boolean;
-    score: number;
+    canDeploy?: boolean;
+    score: number | null;
     summaryMessage: string;
     criticalCount: number;
     highCount: number;
@@ -32,16 +32,23 @@ export interface SecurityQualityReport {
     lowCount: number;
   };
   metrics: {
-    linesOfCode: number;
-    testCoverageEstimate: number;
-    cyclomaticComplexityAverage: number;
-    maintainabilityIndex: number;
+    averageCyclomaticComplexity: number;
+    maxCyclomaticComplexity: number;
+    totalMethodsAudited: number;
+    methodsExceedingThreshold: number;
+    totalLinesOfCode: number;
+    duplicationPercentage: number;
+    testAssertionDensity: number;
+    totalCodeSmells: number;
   };
   vulnerabilities: AuditFinding[];
   violations: any[];
 }
 
 export interface RemediationPayload {
+  sessionId?: string;
+  persist?: boolean;
+  expectedFingerprint?: string;
   findingId: string;
   filePath: string;
   sourceCode?: string;

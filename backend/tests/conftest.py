@@ -102,3 +102,19 @@ def no_outbound_telemetry(tmp_path, monkeypatch):
 
     monkeypatch.setattr(settings, "MLFLOW_TRACKING_URI", (tmp_path / "mlruns").as_uri())
 
+
+
+@pytest.fixture(autouse=True)
+def clean_owned_test_orphans(setup_test_db):
+    """Only the disposable suite DB: legacy fixtures delete sessions through raw SQL."""
+    from app.models.reliability import DraftRevision,SessionConfiguration,PipelineOperation,ArtifactProvenance,VerificationRun,AuditRun,DeploymentOperation,RepairAttempt,SessionEvent
+    from app.models.session import GenerationSessionDB
+    def cleanup():
+        with SessionLocal(bind=setup_test_db) as db:
+            existing=db.query(GenerationSessionDB.id)
+            for model in (SessionEvent,RepairAttempt,DeploymentOperation,AuditRun,VerificationRun,ArtifactProvenance,PipelineOperation,DraftRevision,SessionConfiguration):
+                db.query(model).filter(~model.session_id.in_(existing)).delete(synchronize_session=False)
+            db.commit()
+    cleanup()
+    yield
+    cleanup()

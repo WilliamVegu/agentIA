@@ -1,14 +1,8 @@
-"""Offline parity (task T021, SC-004, FR-013).
+"""Exact deterministic output revisions, with immutable historical baselines.
 
-Asserts that the DETERMINISTIC path through the stage execution boundary is
-byte-for-byte equivalent to the reviewed baseline, requires no model
-credentials, and consumes no model requests.
-
-This is deliberately a *parity* test, not a re-derivation of expected content.
-The original pre-migration recording is retained. A separate checked-in fixture
-updates only eight Java artifacts affected by the local deployment corrections:
-JPA names/columns and date/decimal types. Every other artifact still compares to
-the historical recording; expected output is never derived during a test run.
+The reliability fixture declares valid annotation parameters explicitly. Captured
+expectations are separate from historical evidence and never rewritten by tests.
+Incomplete historical declarations must be rejected rather than guessed.
 """
 
 from __future__ import annotations
@@ -28,7 +22,7 @@ from app.orchestrator.stages.runner import STAGE_ORDER, run_stages  # noqa: E402
 from app.services.llm_factory import LLMFactory  # noqa: E402
 
 BASELINE_JSON = REPO_ROOT / "reports" / "baselines" / "011-pre-migration-generation-baseline.json"
-CORPUS_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "baseline_blueprints"
+CORPUS_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "reliability_blueprints"
 
 
 def _sha256(text: str) -> str:
@@ -38,19 +32,17 @@ def _sha256(text: str) -> str:
 
 @pytest.fixture(scope="module")
 def baseline() -> dict:
-    if not BASELINE_JSON.is_file():
-        pytest.skip(f"pre-migration baseline not captured at {BASELINE_JSON}")
-    recorded = json.loads(BASELINE_JSON.read_text(encoding="utf-8"))
-    updates = json.loads((REPO_ROOT / 'backend/tests/fixtures/local_deployment_java_baseline.json').read_text(encoding='utf-8'))['per_blueprint']
-    by_id = {entry['blueprint_id']: entry for entry in recorded['per_blueprint']}
-    for blueprint_id, artifacts in updates.items():
-        expected = by_id[blueprint_id]
-        for path, record in artifacts.items():
-            assert path in expected['artifact_digests']
-            assert _sha256(record['content']) == record['sha256']
-            expected['artifact_digests'][path] = record['sha256']
-            if path in expected.get('comparison_subset_content', {}):
-                expected['comparison_subset_content'][path]['content'] = record['content']
+    revisions=REPO_ROOT/'backend/tests/fixtures/reliability_generation_revisions.json'
+    recorded=json.loads(revisions.read_text(encoding='utf-8'))
+    assert recorded['formatVersion']==1
+    assert recorded['historicalBaselineSha256']==hashlib.sha256(BASELINE_JSON.read_bytes()).hexdigest()
+    for entry in recorded['per_blueprint']:
+        name=entry['blueprint_id']+'.json'
+        original=REPO_ROOT/'backend/tests/fixtures/baseline_blueprints'/name
+        assert entry['historicalInputSha256']==hashlib.sha256(original.read_bytes()).hexdigest()
+        assert entry['inputSha256']==hashlib.sha256((CORPUS_DIR/name).read_bytes()).hexdigest()
+        for path,item in entry['comparison_subset_content'].items():
+            assert _sha256(item['content'])==item['sha256']==entry['artifact_digests'][path]
     return recorded
 
 
@@ -96,7 +88,7 @@ def test_offline_sessions_require_no_credentials(baseline, corpus, tmp_path, mon
     assert result.get("status") != "BLOCKED"
 
 
-def test_offline_output_matches_frozen_baseline(baseline, corpus, tmp_path):
+def test_offline_output_matches_explicit_reliability_revision(baseline, corpus, tmp_path):
     """SC-004: byte-for-byte parity with the pre-migration baseline."""
     by_id = {entry["blueprint_id"]: entry for entry in baseline["per_blueprint"]}
 
@@ -199,3 +191,14 @@ def test_offline_provenance_has_no_provider_or_model(baseline, corpus, tmp_path)
         assert record["generation_mode"] == journal_mod.GENERATION_MODE_DETERMINISTIC
         assert record["provider"] is None
         assert record["model"] is None
+
+
+@pytest.mark.parametrize('name',['constrained','pair-b'])
+def test_historical_incomplete_annotations_remain_rejected_and_unchanged(baseline,name):
+    from app.services.domain_descriptor import normalize_blueprint
+    original=REPO_ROOT/'backend/tests/fixtures/baseline_blueprints'/(name+'.json')
+    payload=json.loads(original.read_text(encoding='utf-8'))
+    with pytest.raises(ValueError,match='sin parámetros'):
+        normalize_blueprint(payload)
+    entry=next(item for item in baseline['per_blueprint'] if item['blueprint_id']==name)
+    assert hashlib.sha256(original.read_bytes()).hexdigest()==entry['historicalInputSha256']

@@ -36,22 +36,56 @@ def python_for(root: Path) -> str:
     return str(executable)
 
 
+def validate_python(executable: str) -> None:
+    if 'windowsapps' in executable.replace('\\', '/').lower().split('/'):
+        raise RuntimeError('El alias WindowsApps no es un intérprete Python. Usa Python 3.11 o 3.12 instalado.')
+    probe = subprocess.run([executable, '-c', 'import json,sys;print(json.dumps(list(sys.version_info[:3])))'], capture_output=True, text=True)
+    try:
+        version = tuple(json.loads(probe.stdout))
+    except (ValueError, TypeError):
+        raise RuntimeError(f'No se pudo comprobar el intérprete: {executable}')
+    if probe.returncode or not (3, 11) <= version[:2] < (3, 13):
+        raise RuntimeError('Las dependencias verificadas requieren Python 3.11 o 3.12.')
+
+
+def ensure_pip(executable: str) -> None:
+    probe = subprocess.run([executable, '-m', 'pip', '--version'], capture_output=True, text=True)
+    if probe.returncode:
+        bootstrap = subprocess.run([executable, '-m', 'ensurepip', '--upgrade'], capture_output=True, text=True)
+        if bootstrap.returncode:
+            raise RuntimeError('No se pudo preparar pip en el entorno seleccionado. Instala Python con venv y ensurepip.')
+
+
+def npm_command(node: str, npm: str) -> list[str]:
+    candidates = [Path(npm).resolve().parent / 'node_modules/npm/bin/npm-cli.js',
+                  Path(node).resolve().parent / 'node_modules/npm/bin/npm-cli.js']
+    for cli in candidates:
+        if cli.is_file():
+            return [node, str(cli)]
+    # Unix npm normally is a symlink to the JavaScript entry point.
+    resolved = Path(npm).resolve()
+    if resolved.suffix == '.js' and resolved.is_file():
+        return [node, str(resolved)]
+    raise RuntimeError('No se encontró npm-cli.js. Reinstala Node.js con npm; no se ejecutará el wrapper como JavaScript.')
+
+
 def install() -> None:
     node = shutil.which('node')
     npm = shutil.which('npm.cmd' if os.name == 'nt' else 'npm')
     if not node or not npm:
         raise RuntimeError('Instala Node.js y npm antes de preparar ambos sistemas.')
-    # Invoke the npm JavaScript entry point without a shell, including on Windows.
-    npm_cli = Path(npm).resolve().parent / 'node_modules/npm/bin/npm-cli.js'
-    if not npm_cli.is_file():
-        npm_cli = Path(npm).resolve()
+    npm_args = npm_command(node, npm)
+    validate_python(sys.executable)
     for name, system in SYSTEMS.items():
         root = system['root']
         print(f'Preparando dependencias independientes: {name}', flush=True)
         if not (root / '.venv').exists():
             subprocess.run([sys.executable, '-m', 'venv', str(root / '.venv')], check=True)
-        subprocess.run([python_for(root), '-m', 'pip', 'install', '-c', str(ROOT / 'integration/constraints.txt'), '-r', str(root / 'backend/requirements.txt')], cwd=root, check=True)
-        subprocess.run([node, str(npm_cli), 'ci'], cwd=root / 'frontend', check=True)
+        executable = python_for(root)
+        validate_python(executable)
+        ensure_pip(executable)
+        subprocess.run([executable, '-m', 'pip', 'install', '-c', str(ROOT / 'integration/constraints.txt'), '-r', str(root / 'backend/requirements.txt')], cwd=root, check=True)
+        subprocess.run(npm_args + ['ci'], cwd=root / 'frontend', check=True)
 
 
 def service_environment(name: str, system: dict) -> dict:

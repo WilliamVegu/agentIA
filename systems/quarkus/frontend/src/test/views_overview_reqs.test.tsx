@@ -123,6 +123,8 @@ describe('Views: StudioOverview, SpecIngestion, Requirements', () => {
       fireEvent.change(nameInput, { target: { value: 'billing-service' } });
       fireEvent.change(promptInput, { target: { value: 'Manage invoices and customer payments' } });
 
+      fireEvent.change(screen.getByRole('combobox',{name:'Ejecución de este microservicio'}),{target:{value:'DOCKER'}});
+      fireEvent.click(screen.getByRole('checkbox',{name:/Desplegar automáticamente tras aprobar las pruebas/i}));
       expect(autoBtn).not.toBeDisabled();
       fireEvent.click(autoBtn);
 
@@ -132,6 +134,8 @@ describe('Views: StudioOverview, SpecIngestion, Requirements', () => {
             service_name: 'billing-service',
             prompt: 'Manage invoices and customer payments',
             auto_run: true,
+            execution_mode: 'DOCKER',
+            auto_deploy: true,
           })
         );
       });

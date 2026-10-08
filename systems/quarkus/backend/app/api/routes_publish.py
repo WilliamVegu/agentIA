@@ -16,7 +16,7 @@ class PublishRequest(BaseModel):
     branchName: str = Field(..., description="Feature branch name e.g. feature/001-order-service")
     gitToken: Optional[str] = Field(None, description="Ephemeral Personal Access Token (PAT)")
     commitMessage: Optional[str] = Field(
-        default="feat: initial autonomous generation and verified test suite",
+        default="feat: generated microservice sources",
         description="Git commit message"
     )
 
@@ -34,11 +34,14 @@ async def export_session_project(session_id: str):
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if not sess:
             raise HTTPException(status_code=404, detail="Session not found")
+        from app.services.verification_policy import require_source_delivery
+        require_source_delivery(sess)
         service_name = sess.spec_name or "microservice"
     finally:
         db.close()
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(status_code=404, detail="Project workspace directory not found")
 
@@ -69,12 +72,15 @@ async def publish_session_project(session_id: str, payload: PublishRequest):
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
         if not sess:
             raise HTTPException(status_code=404, detail="Session not found")
+        from app.services.verification_policy import require_source_delivery
+        require_source_delivery(sess)
         if sess.spec_name:
             service_name = sess.spec_name
     finally:
         db.close()
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(status_code=404, detail="Project workspace directory not found")
 
@@ -96,5 +102,7 @@ async def publish_session_project(session_id: str, payload: PublishRequest):
         )
         return PublishResponse(**result)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Git publishing failed: {str(e)}")
-
+        from app.services.git_service import GitPublishConflict
+        from app.services.secret_redaction import redact
+        raise HTTPException(status_code=409 if isinstance(e, GitPublishConflict) else 400,
+                            detail=redact(str(e))) from None

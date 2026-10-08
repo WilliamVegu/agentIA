@@ -48,6 +48,8 @@ def create_project_zip(workspace_path: str) -> bytes:
                     raise ValueError('Snapshot sin verificación aprobada')
                 status['sourceSnapshotId'] = metrics['sourceSnapshotId']
 
+    from app.services.workspace_guard import io_path
+    io_root=io_path(ws_dir)
     ignored_dirs = {".git", "target", "build", ".gradle", ".idea", "__pycache__", ".m2", ".agentia-runtime", ".operation-locks", "node_modules"}
     ignored_files = {".DS_Store", "Thumbs.db", "DELIVERY_STATUS.json", "images.tar"}
 
@@ -56,15 +58,15 @@ def create_project_zip(workspace_path: str) -> bytes:
             with zipfile.ZipFile(sealed_archive) as sealed:
                 for name in sealed.namelist():
                     zf.writestr(name, sealed.read(name))
-        for root, dirs, files in ([] if sealed_archive else os.walk(ws_dir)):
-            dirs[:] = [d for d in dirs if d not in ignored_dirs]
+        for root, dirs, files in ([] if sealed_archive else os.walk(io_root)):
+            dirs[:] = [d for d in dirs if d not in ignored_dirs and not (Path(root) / d).is_symlink() and not getattr((Path(root) / d).lstat(), "st_file_attributes", 0) & 0x400]
             for file in files:
                 if file in ignored_files or file.endswith(".pyc") or (file.startswith(".env") and file != ".env.example"):
                     continue
                 full_path = Path(root) / file
-                if full_path.is_symlink() or not full_path.resolve().is_relative_to(ws_dir):
+                if full_path.is_symlink() or not full_path.resolve().is_relative_to(io_root):
                     continue
-                rel_path = str(full_path.relative_to(ws_dir)).replace("\\", "/")
+                rel_path = str(full_path.relative_to(io_root)).replace("\\", "/")
                 zf.write(full_path, arcname=rel_path)
 
         from app.services.verification_policy import workspace_fingerprint

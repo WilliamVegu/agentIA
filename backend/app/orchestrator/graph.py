@@ -25,6 +25,8 @@ def _route_after_sandbox(state: GenerationAgentState) -> str:
     return "repair"
 
 def _route_after_repair(state: GenerationAgentState) -> str:
+    if state.get("build_success"):
+        return END
     if state.get("status") == "BLOCKED":
         return END
     return "sandbox"

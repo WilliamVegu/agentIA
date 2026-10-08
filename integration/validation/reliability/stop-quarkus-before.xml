@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.991" timestamp="2026-10-07T23:12:05.541854-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_runtime_data_safety" name="test_public_stop_does_not_hide_docker_failure" time="0.124"><failure message="AssertionError: assert 'STOPPED' == 'FAILED'&#10;  &#10;  - FAILED&#10;  + STOPPED">backend\tests\test_runtime_data_safety.py:63: in test_public_stop_does_not_hide_docker_failure
+    assert result.status.value == 'FAILED'
+E   AssertionError: assert 'STOPPED' == 'FAILED'
+E     
+E     - FAILED
+E     + STOPPED</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,42 @@
+{
+  "framework": "quarkus",
+  "liveProviderCalls": 0,
+  "twoSessions": [
+    {
+      "sessionId": "reliability-native-c0cb70bdf3ce400ebc6fc7efd813968f",
+      "hostPort": 65108,
+      "containers": [
+        "a3ef12f5ba3a378d7a84af72d22964ef2c16748e14d4e8bf0466ba398d749941"
+      ],
+      "revisionId": "2048f7b5-540d-4200-802f-83fc4f50f570",
+      "fingerprint": "c303ee9047b64047186e14c50ae13d046b55ff2f0e99fcafec78b25f42e087e7",
+      "tests": 7
+    },
+    {
+      "sessionId": "reliability-native-22e6f96325f3417b8ede28cfdba86750",
+      "hostPort": 60087,
+      "containers": [
+        "68e4c0211fb77fd978c1b86fb9d36a907b792ce38766406ec1bda9799d668a73"
+      ],
+      "revisionId": "fa041c56-0a0f-41ed-9000-c5027bdfa7c6",
+      "fingerprint": "c82fb23db1770a97957224798e334304e752c407c3781f4d0bf7b5df62410927",
+      "tests": 7
+    },
+    {
+      "sessionId": "reliability-native-7c9a2e4526204cde9a66ee672895555e",
+      "entryPoint": "AUTO_PILOT",
+      "hostPort": 60096,
+      "containers": [
+        "721ed31bd82633ca8eb10dba1a616f8fa5f9563c24f6f79261dbf634a12d8be8"
+      ],
+      "revisionId": "97a9790f-3637-48db-86b2-fb38ef6147d5",
+      "fingerprint": "bca28dc2c5c71c88ba23333aed2bc9bdf862e0dba49296881101e797576304cf",
+      "tests": 7
+    }
+  ],
+  "freshBackendRecovery": "PASSED",
+  "collision": "PASSED",
+  "dockerUnavailable": "PASSED",
+  "stop": "PASSED",
+  "autoPilot": "PASSED"
+}

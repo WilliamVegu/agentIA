@@ -28,6 +28,10 @@ def test_run_pipeline_stores_input_interface(monkeypatch):
 
     monkeypatch.setattr(pipeline_runner.threading, "Thread", _FakeThread)
 
+    from app.models.session import SessionLocal, GenerationSessionDB
+    with SessionLocal() as db:
+        db.add(GenerationSessionDB(id="sess-iface",spec_id="interface-test",spec_name="interface-service"))
+        db.commit()
     iface = {"requestVolume": "high", "architecturePreference": "hexagonal"}
     ok = pipeline_runner.run_pipeline(
         "sess-iface", api_key="sk-x", provider="deepseek", input_interface=iface

@@ -15,6 +15,18 @@ from app.models.devops import DeploymentStatus, LocalDeploymentSession, SmokeTes
 _active_deployments: Dict[str, LocalDeploymentSession] = {}
 _log_queues: Dict[str, queue.Queue] = {}
 _raw_log_history: Dict[str, list] = {}
+_deployment_controls = {}
+
+
+class _DeploymentControl:
+    def __init__(self, parents=()):
+        self.event=threading.Event()
+        self.finished=threading.Event()
+        self.parents=parents
+    def is_set(self):
+        return self.event.is_set() or any(event.is_set() for event in self.parents)
+    def set(self):
+        self.event.set()
 
 
 def check_docker_daemon() -> bool:
@@ -34,248 +46,219 @@ def check_docker_daemon() -> bool:
 
 
 def get_deployment_status(session_id: str, host_port: int = 8080) -> LocalDeploymentSession:
-    """Returns the current deployment tracking state for a session, actively checking actual container health."""
-    session = _active_deployments.get(session_id)
-    if session and session.status == DeploymentStatus.BUILDING:
-        return session
-
-    # Check if container is actually running and healthy via Quarkus (/q/health) or Actuator
-    for ep in ["/q/health", "/actuator/health", "/healthz"]:
-        test_url = f"http://localhost:{host_port}{ep}"
-        try:
-            resp = requests.get(test_url, timeout=0.8)
-            if resp.status_code == 200:
-                is_up = False
-                try:
-                    is_up = resp.json().get("status") == "UP"
-                except Exception:
-                    is_up = True
-                if is_up:
-                    if not session:
-                        session = LocalDeploymentSession(
-                            sessionId=session_id,
-                            status=DeploymentStatus.HEALTHY,
-                            hostPort=host_port,
-                            containerPort=8080,
-                            testUrl=test_url,
-                            healthStatus="UP",
-                        )
-                        _active_deployments[session_id] = session
-                    else:
-                        session.status = DeploymentStatus.HEALTHY
-                        session.healthStatus = "UP"
-                        session.testUrl = test_url
-                        session.errorMessage = None
-                    return session
-        except Exception:
-            pass
-
-    if session:
-        return session
-    return LocalDeploymentSession(sessionId=session_id, status=DeploymentStatus.IDLE)
+    from app.services.local_runtime import status
+    return status(session_id,requests.get)
 
 
 def get_deployment_logs(session_id: str) -> list:
-    """Returns the captured logs history for a session."""
-    return _raw_log_history.get(session_id, [])
+    """Return retained committed runtime logs, including after backend restart."""
+    import json
+    from app.models.session import SessionLocal, GenerationSessionDB
+    from app.models.reliability import SessionEvent
+    from fastapi import HTTPException
+    with SessionLocal() as db:
+        if not db.get(GenerationSessionDB,session_id): raise HTTPException(404,'Session not found')
+        rows=db.query(SessionEvent).filter_by(session_id=session_id,event_type='runtime_log').order_by(SessionEvent.sequence).all()
+        return [json.loads(row.payload_json)['message'] for row in rows]
 
 
 def _log_message(session_id: str, message: str):
-    """Appends a log line to the session queue and history."""
-    if session_id not in _log_queues:
-        _log_queues[session_id] = queue.Queue()
-    if session_id not in _raw_log_history:
-        _raw_log_history[session_id] = []
-
-    _log_queues[session_id].put(message)
-    _raw_log_history[session_id].append(message)
+    from app.services.session_event_service import publish_event
+    publish_event(session_id,'runtime_log',{'message':message})
 
 
-def deploy_local(
-    session_id: str,
-    workspace_dir: str,
-    host_port: int = 8080,
-    rebuild: bool = False
-) -> LocalDeploymentSession:
-    """Initiates background local container deployment using docker-compose."""
-    # 1. Preventive Daemon Check (Ratified Option A)
-    if not check_docker_daemon():
-        session = LocalDeploymentSession(
-            sessionId=session_id,
-            status=DeploymentStatus.DOCKER_UNAVAILABLE,
-            hostPort=host_port,
-            containerPort=8080,
-            errorMessage="Docker daemon is not running or accessible on the host. Entering Export-Only mode.",
-            startedAt=datetime.now(timezone.utc).isoformat(),
-        )
-        _active_deployments[session_id] = session
-        _log_message(session_id, "[ERROR] Docker daemon is unreachable. Local deployment disabled.")
-        return session
-
-    # 2. Setup Active Deployment Tracking
-    session = LocalDeploymentSession(
-        sessionId=session_id,
-        status=DeploymentStatus.BUILDING,
-        hostPort=host_port,
-        containerPort=8080,
-        startedAt=datetime.now(timezone.utc).isoformat(),
-    )
-    _active_deployments[session_id] = session
-    _log_queues[session_id] = queue.Queue()
-    _raw_log_history[session_id] = []
-
-    _log_message(session_id, f"[INFO] Initializing Docker Compose deployment for session {session_id} on port {host_port}...")
-
-    # 3. Spawn Background Execution Thread
-    def _run_compose():
+def deploy_local(session_id: str,workspace_dir: str,host_port: int=None,rebuild: bool=False,*,_borrowed=False) -> LocalDeploymentSession:
+    """Build only the sealed verified native artifact, then observe this operation's runtime."""
+    import json,yaml
+    from fastapi import HTTPException
+    from app.models.session import SessionLocal,GenerationSessionDB
+    from app.models.execution import ExecutionMode
+    from app.services.verification_policy import session_has_current_evidence,require_verified_session
+    from app.services.workspace_guard import get_validated_workspace_path
+    from app.services.source_snapshot import materialize_snapshot
+    from app.services.local_runtime import begin,update,latest
+    from app.services.runtime_lifecycle import compose_project,owned_resources,command
+    from app.services.session_operation_lock import SessionOperationLock
+    from app.services.secret_redaction import redact
+    ws=get_validated_workspace_path(session_id,require_exists=True)
+    if ws.resolve()!=Path(workspace_dir).resolve(): raise HTTPException(400,'Workspace does not match session')
+    with SessionLocal() as db:
+        row=db.get(GenerationSessionDB,session_id)
+        if row.execution_mode!=ExecutionMode.DOCKER: raise HTTPException(403,'SOURCE_ONLY does not authorize Docker deployment')
+        if _borrowed:
+            if not session_has_current_evidence(row): raise HTTPException(403,'Current native verification required')
+        else: require_verified_session(row)
+        metrics=json.loads(row.verification_metrics_json or '{}')
+        configured=db.query(__import__('app.models.reliability',fromlist=['SessionConfiguration']).SessionConfiguration).filter_by(session_id=session_id).order_by(__import__('app.models.reliability',fromlist=['SessionConfiguration']).SessionConfiguration.version.desc()).first()
+        port=host_port or (configured.host_port if configured else None)
+        if port is None: raise HTTPException(409,'Persist a host port before deployment')
+    lock=SessionOperationLock(session_id)
+    if _borrowed and not lock.locked(): raise HTTPException(409,'Parent pipeline writer is required')
+    if not _borrowed and not lock.acquire(False): raise HTTPException(409,'Session has an active writer')
+    operation_id=None
+    try:
+        if not check_docker_daemon(): raise HTTPException(503,'Docker is unavailable; execution mode was preserved')
+        import socket
+        probe=socket.socket()
+        try: probe.bind(('127.0.0.1',port))
+        except OSError: raise HTTPException(409,'Configured host port is occupied')
+        finally: probe.close()
+        operation_id=begin(session_id,metrics['workspaceFingerprint'],metrics['sourceSnapshotId'],port)
+    except Exception:
+        if not _borrowed: lock.release()
+        raise
+    state=LocalDeploymentSession(sessionId=session_id,status=DeploymentStatus.BUILDING,hostPort=port)
+    _active_deployments[session_id]=state
+    parents=()
+    if _borrowed:
+        from app.services import pipeline_runner
+        parents=tuple(event for event in (pipeline_runner._stop_events.get(session_id),pipeline_runner._pause_events.get(session_id)) if event is not None)
+    control=_DeploymentControl(parents)
+    _deployment_controls[operation_id]=control
+    def worker():
+        start_attempted=False
+        def require_active():
+            if control.is_set(): raise RuntimeError("Deployment was interrupted")
+            observed=latest(session_id)
+            if not observed or observed.operation_id!=operation_id or observed.state not in {'BUILDING','STARTING','PREPARING'}:
+                raise RuntimeError('Deployment operation no longer active')
         try:
-            cmd = ["docker", "compose", "up", "-d"]
-            if rebuild:
-                cmd.append("--build")
+            require_active()
+            with materialize_snapshot(ws,metrics['sourceSnapshotId'],metrics['workspaceFingerprint']) as (staged,artifact_hash):
+                runtime_image='agentia-runtime:21-v1'
+                command(['docker','image','inspect',runtime_image])
+                (staged/'Dockerfile.runtime').write_text('FROM '+runtime_image+'\nWORKDIR /app\nCOPY --chown=10001:10001 .verified-artifact/quarkus-app/ /app/\nUSER 10001\nHEALTHCHECK NONE\nENV QUARKUS_HTTP_PORT=8080\nEXPOSE 8080\nENTRYPOINT ["java", "-jar", "/app/quarkus-run.jar"]\n',encoding='utf-8')
+                # The source ignore file excludes *.jar. This context contains only the sealed fast-jar tree.
+                (staged/'.dockerignore').write_text('*\n!.verified-artifact/\n!.verified-artifact/quarkus-app/\n!.verified-artifact/quarkus-app/**\n!Dockerfile.runtime\n',encoding='utf-8')
+                tag=compose_project(session_id)+':'+artifact_hash[:20]
+                command(['docker','build','--network','none','--pull=false','--label','io.agentia.source='+metrics['workspaceFingerprint'],'--label','io.agentia.studio=quarkus','-f','Dockerfile.runtime','-t',tag,'.'],cwd=staged,timeout=180,cancel_event=control)
+                require_active()
+                compose=yaml.safe_load((staged/'docker-compose.yml').read_text(encoding='utf-8'))
+                app=[item for name,item in compose['services'].items() if name!='db']
+                if len(app)!=1: raise RuntimeError('Exactly one native application service required')
+                app[0].pop('build',None);app[0]['image']=tag
+                (staged/'docker-compose.runtime.yml').write_text(yaml.safe_dump(compose,sort_keys=False),encoding='utf-8')
+                require_active()
+                start_attempted=True
+                command(['docker','compose','-p',compose_project(session_id),'-f','docker-compose.runtime.yml','up','-d','--no-build','--pull','never'],cwd=staged,env={**os.environ,'HOST_PORT':str(port)},timeout=180,cancel_event=control)
+            if not update(operation_id,'RUNNING',records=owned_resources(session_id)): return
+            smoke=run_smoke_test(session_id,port,max_retries=30,interval=2,cancel_event=control)
+            if not smoke.passed: raise RuntimeError(smoke.details)
+            observed=latest(session_id)
+            if not observed or observed.operation_id!=operation_id or observed.state!='HEALTHY': return
+            state.status=DeploymentStatus.HEALTHY;state.healthStatus='UP';state.testUrl=smoke.testUrl
+            _log_message(session_id,'[READY] Owned native Quarkus runtime is healthy')
+        except Exception as error:
+            state.status=DeploymentStatus.FAILED;state.errorMessage=redact(str(error))
+            update(operation_id,'FAILED',error=state.errorMessage)
+            if start_attempted and control.is_set():
+                try:
+                    from app.services.runtime_lifecycle import stop_owned
+                    from app.services.local_runtime import record_stopped
+                    stop_owned(session_id)
+                    record_stopped(session_id)
+                except Exception as stop_error:
+                    state.errorMessage+=' Parada no confirmada: '+redact(str(stop_error))
+            _log_message(session_id,'[FAILED] '+state.errorMessage)
+        finally:
+            control.finished.set()
+            _deployment_controls.pop(operation_id,None)
+            if not _borrowed: lock.release()
+    if _borrowed:
+        worker()
+    else:
+        try: threading.Thread(target=worker,daemon=True).start()
+        except Exception:
+            control.finished.set();_deployment_controls.pop(operation_id,None)
+            update(operation_id,'FAILED',error='Worker could not start')
+            lock.release()
+            raise
+    return state
 
-            _log_message(session_id, f"[EXEC] Running: {' '.join(cmd)}")
-            proc = subprocess.Popen(
-                cmd,
-                cwd=workspace_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
 
-            if proc.stdout:
-                for line in proc.stdout:
-                    clean_line = line.strip()
-                    if clean_line:
-                        _log_message(session_id, clean_line)
-
-            proc.wait()
-
-            if proc.returncode == 0:
-                _log_message(session_id, "[SUCCESS] Docker Compose containers launched successfully.")
-                session.status = DeploymentStatus.RUNNING
-                # Run automated smoke test
-                _log_message(session_id, "[SMOKE_TEST] Polling /actuator/health for readiness...")
-                smoke_res = run_smoke_test(session_id, host_port, max_retries=20, interval=2.0)
-                if smoke_res.passed:
-                    session.status = DeploymentStatus.HEALTHY
-                    session.healthStatus = "UP"
-                    session.testUrl = smoke_res.testUrl
-                    _log_message(session_id, f"[READY] Application is HEALTHY at {smoke_res.testUrl} (Latency: {smoke_res.latencyMs:.1f}ms)")
-                else:
-                    session.status = DeploymentStatus.FAILED
-                    session.errorMessage = f"Smoke test failed: {smoke_res.details}"
-                    _log_message(session_id, f"[WARNING] Smoke test failed: {smoke_res.details}")
-            else:
-                session.status = DeploymentStatus.FAILED
-                session.errorMessage = f"Docker compose failed with exit code {proc.returncode}"
-                _log_message(session_id, f"[ERROR] Docker compose failed with exit code {proc.returncode}")
-
-        except Exception as e:
-            session.status = DeploymentStatus.FAILED
-            session.errorMessage = str(e)
-            _log_message(session_id, f"[FATAL] Deployment exception: {str(e)}")
-
-    thread = threading.Thread(target=_run_compose, daemon=True)
-    thread.start()
-
-    return session
+def wait_deployment(session_id,timeout=420,*,stop_event=None,pause_event=None):
+    from app.services.local_runtime import latest
+    deadline=time.monotonic()+timeout
+    while time.monotonic()<deadline:
+        if stop_event is not None and stop_event.is_set() or pause_event is not None and pause_event.is_set():
+            operation=latest(session_id)
+            control=_deployment_controls.get(operation.operation_id) if operation else None
+            if control:
+                control.set()
+                if not control.finished.wait(10): raise RuntimeError('Deployment writer has not confirmed interruption')
+            return get_deployment_status(session_id)
+        row=latest(session_id)
+        if row and row.state in {'HEALTHY','FAILED','STOPPED','UNKNOWN'}:
+            if row.state!='HEALTHY': raise RuntimeError(row.error_code or 'Deployment did not become healthy')
+            return get_deployment_status(session_id)
+        time.sleep(.5)
+    from app.services.local_runtime import update
+    row=latest(session_id)
+    if row and row.state not in {'HEALTHY','FAILED','STOPPED','CANCELLED'}:
+        control=_deployment_controls.get(row.operation_id)
+        if control:
+            control.set()
+            if not control.finished.wait(10): raise RuntimeError('Deployment writer has not confirmed timeout')
+        update(row.operation_id,'FAILED',error='Deployment operation timed out')
+    raise RuntimeError('Deployment operation timed out')
 
 
-def stream_logs(session_id: str) -> Generator[str, None, None]:
-    """Generates Server-Sent Events (SSE) from the session log queue."""
-    if session_id not in _log_queues:
-        _log_queues[session_id] = queue.Queue()
-
-    # Replay existing log history first
-    history = _raw_log_history.get(session_id, [])
-    for msg in history:
-        yield f"data: {msg}\n\n"
-
-    # Stream new logs live
-    q = _log_queues[session_id]
-    timeout_counter = 0
-    while timeout_counter < 30:  # Terminate stream after 30 idle iterations (~15s)
-        try:
-            msg = q.get(timeout=0.5)
-            timeout_counter = 0
-            yield f"data: {msg}\n\n"
-        except queue.Empty:
-            timeout_counter += 1
-            yield f": keep-alive\n\n"
+def stream_logs(session_id: str, after: int = 0) -> Generator[str, None, None]:
+    """Each client reads the committed log with its own cursor; no shared queue."""
+    import json
+    from app.services.session_event_service import read_events
+    cursor=after
+    idle=0
+    while idle<30:
+        emitted=False
+        events=read_events(session_id,cursor)
+        for event in events:
+            cursor=int(event['id'])
+            if event['event']=='runtime_log':
+                emitted=True
+                message=json.loads(event['data'])['message']
+                # Encode one SSE data line per physical log line.
+                lines=''.join('data: '+line+'\n' for line in message.splitlines())
+                yield 'id: '+event['id']+'\n'+lines+'\n'
+            elif event['event']=='resync_required':
+                emitted=True
+                yield 'id: '+event['id']+'\nevent: resync_required\ndata: '+event['data']+'\n\n'
+        if emitted: idle=0
+        elif not events:
+            idle+=1
+            yield ': keep-alive\n\n'
+            time.sleep(.5)
 
 
 def stop_deployment(session_id: str, workspace_dir: str) -> LocalDeploymentSession:
-    """Stops and cleans up active containers via docker compose down."""
+    """Stop inspected containers only; volumes and networks are preserved."""
+    from app.services.local_runtime import require_runtime_allowed
+    require_runtime_allowed(session_id)
+    from app.services.runtime_lifecycle import stop_owned
+    from app.services.session_operation_lock import SessionOperationLock
+    from app.services.secret_redaction import redact
     session = _active_deployments.get(session_id, LocalDeploymentSession(sessionId=session_id))
+    lock = SessionOperationLock(session_id)
+    if not lock.acquire(False):
+        session.errorMessage = 'An operation is active; stop was not performed'
+        return session
     try:
-        subprocess.run(
-            ["docker", "compose", "down", "-v"],
-            cwd=workspace_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=15.0,
-            check=False,
-        )
-    except Exception:
-        pass
-
-    session.status = DeploymentStatus.STOPPED
-    _log_message(session_id, "[STOPPED] Containers and networks terminated.")
+        stop_owned(session_id)
+        from app.services.local_runtime import record_stopped
+        record_stopped(session_id)
+        session.status, session.healthStatus, session.testUrl = DeploymentStatus.STOPPED, 'DOWN', None
+        session.errorMessage = None
+        _log_message(session_id, '[STOPPED] Owned containers stopped; data preserved.')
+    except Exception as exc:
+        session.status, session.healthStatus, session.testUrl = DeploymentStatus.FAILED, 'UNKNOWN', None
+        session.errorMessage = redact(str(exc))
+        _log_message(session_id, '[STOP_FAILED] ' + session.errorMessage)
+    finally:
+        _active_deployments[session_id] = session
+        lock.release()
     return session
 
 
-def run_smoke_test(
-    session_id: str,
-    host_port: int = 8080,
-    max_retries: int = 15,
-    interval: float = 2.0
-) -> SmokeTestResult:
-    """Polls http://localhost:{host_port}/q/health or /actuator/health until UP or timeout."""
-    start_time = time.time()
-    endpoints = ["/q/health", "/actuator/health"]
-
-    for attempt in range(1, max_retries + 1):
-        for ep in endpoints:
-            test_url = f"http://localhost:{host_port}{ep}"
-            try:
-                req_start = time.time()
-                resp = requests.get(test_url, timeout=3.0)
-                latency = (time.time() - req_start) * 1000.0
-
-                if resp.status_code == 200:
-                    try:
-                        payload = resp.json()
-                    except Exception:
-                        payload = {"raw": resp.text}
-
-                    status_str = str(payload.get("status", "")).upper()
-                    if status_str == "UP" or not status_str:
-                        result = SmokeTestResult(
-                            passed=True,
-                            statusCode=200,
-                            statusPayload=payload,
-                            latencyMs=round(latency, 2),
-                            testUrl=test_url,
-                            details="Health endpoint reports application status is UP.",
-                        )
-                        if session_id in _active_deployments:
-                            _active_deployments[session_id].status = DeploymentStatus.HEALTHY
-                            _active_deployments[session_id].healthStatus = "UP"
-                            _active_deployments[session_id].testUrl = test_url
-                        return result
-            except requests.RequestException:
-                pass
-
-        time.sleep(interval)
-
-    total_latency = (time.time() - start_time) * 1000.0
-    return SmokeTestResult(
-        passed=False,
-        statusCode=503,
-        statusPayload={"status": "DOWN"},
-        latencyMs=round(total_latency, 2),
-        testUrl=test_url,
-        details=f"Actuator healthcheck timed out after {max_retries} attempts.",
-    )
-
+def run_smoke_test(session_id: str,host_port: int=8080,max_retries: int=15,interval: float=2.0,*,cancel_event=None) -> SmokeTestResult:
+    from app.services.local_runtime import smoke
+    return smoke(session_id,requests.get,max_retries,interval,cancel_event=cancel_event)

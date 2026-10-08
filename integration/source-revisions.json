@@ -1,0 +1,4543 @@
+{
+  "formatVersion": 1,
+  "baselineSha256": "2fd6cc9cf71b196e3d22d0aa155e4ad83d7abf45063d80438b44daaa44c3bbba",
+  "baseCommit": "cd50688c8188b47ba789ec30683a50eabc7bd593",
+  "revisions": [
+    {
+      "studio": "springboot",
+      "path": ".dockerignore",
+      "beforeSha256": "69c7c1be79ef2d7f7c34335cde35799b07cd505adaf5b02165c4fad8b5f347f1",
+      "afterSha256": "17482350defcfedc38c022479431c53ae1181e28c61098ef499375bd074a1853",
+      "afterNormalizedSha256": "17482350defcfedc38c022479431c53ae1181e28c61098ef499375bd074a1853",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": ".gitignore",
+      "beforeSha256": "2f490d9fc38b473ba44627043076a126dfa4719eb53c4cdeb1e0992a91b3196d",
+      "afterSha256": "76fef3db76bfa5c7141922a30958e9e002d96faf4f9c336f9019091748a287b4",
+      "afterNormalizedSha256": "9701ee5107a87c478de4840c6b9661bf7e936919cedf106ddcabcaf27a40c76d",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_artifact.py",
+      "beforeSha256": "b8595221e011f127592321c61601844eba69a9e8e16b097994cf11ffde6a66a9",
+      "afterSha256": "ae249901ee3edd28a72fd25e983ae013b1de0cbb8c51eb8ce38c3b463d6b4268",
+      "afterNormalizedSha256": "446aa9b87bc2a39386cf804b70d384225345f3aaaced76362e81a5db22411aa3",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_devops.py",
+      "beforeSha256": "0842bd33661eb2b49a7c994c7dc0fe4a1fef33a69cf32f665f9c1d8a717fb24e",
+      "afterSha256": "960990126209e1ae79f44f7293b24f6990de3f1fc85de5cf4d9676751572eeec",
+      "afterNormalizedSha256": "cc2e1d620010deb3772be0dc0f538fb8277aa774a06ab54f2fe935cca59f4dbe",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_orchestrator.py",
+      "beforeSha256": "e3166f6bdbf7e3bb574c9ceda15cf64871ccb5592bdbc5bb0eb8e85550e18377",
+      "afterSha256": "cb6bd197cef4be7236d94f5bdfed769e94b7cff6c031f92b069c3a1663c00ee1",
+      "afterNormalizedSha256": "b1ee919ff9635bf0f42e6052f5e6fb1485b115b2f467f9f78b967f46b22a237d",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_publish.py",
+      "beforeSha256": "e31ab6ae9c355485eb8e4a86714cd89c78af09ced9c5885b40348bd676067931",
+      "afterSha256": "c9af1d316f686eed65bf5d70ee1f7e4fd1ae6068c5802208833eaad8a0fd9fa3",
+      "afterNormalizedSha256": "0b9b8c42a607573eb3ffdd8ccf9435216136706c6a6abc87cb7d1e9e9a869188",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_requirements.py",
+      "beforeSha256": "e87fbaab90d6aa2cfa49f9d7a9f453f952ce6a1b6a0be5182e240b5088708419",
+      "afterSha256": "3c0359c6e7cbff541e60d8c6807f2208d6536e5f7aa0e9d4aa5c24567bb5fa5d",
+      "afterNormalizedSha256": "47631a8316b5d189982f0cf33d3befa9447fab07fc03ed219192b31c8477f9d9",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_security.py",
+      "beforeSha256": "741bcded1beeb7b39ee0879c9b1071b6b99269cab622f12b53e47a598603ddb8",
+      "afterSha256": "8096479602a52b96490cb4ec4a27f0c28f39efc0b0b7b6ddab89c2532d982081",
+      "afterNormalizedSha256": "22c19ac1dc566456b29df3752e7c22d69de6a797f1e79eeedcfc36aac2e56774",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_session.py",
+      "beforeSha256": "5ae038e181ad9480bee0347fc0f3f98259a3fadd89f1dcabfb619e6f052d224f",
+      "afterSha256": "b7331bba296e2f2f39f15d2b446b3d36f17f74bc35bb28aa699f85402eec4043",
+      "afterNormalizedSha256": "2992efc75973b125631b4319ed43cfbeaee40376f570cd91764b2aa5beffa51b",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/api/routes_tests.py",
+      "beforeSha256": "b0b501e1f59a49972fddf16d06971a7815f9ec211f4a200cbd709a0ba605253d",
+      "afterSha256": "8d95f32a7c34a24c94d16f63781f26cb3b90c1edde093c4272ba7ee7c5c31c45",
+      "afterNormalizedSha256": "5cd4dda9120faa6cd08237491b93c773f5e38a361e59e6d2754a3b89e949f28b",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/main.py",
+      "beforeSha256": "d8c37348d3cd05a3ef0ac73e08d3306817926d76bb77d8fb31efa7e8637030cc",
+      "afterSha256": "ee0ad2d45fae85861631fbc9994dbfc5ca650a6fe99bbd7ffb5621e6e687668f",
+      "afterNormalizedSha256": "cf9078dc1ce40798bc841b06e8021e00f41090d22ab3e7179567c7b913871176",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/models/blueprint.py",
+      "beforeSha256": "4acb1647c88ae50f15d7d4d3233fd7fdde910e178ea63895132278432dbe7769",
+      "afterSha256": "25d7d2973e2a631353f538f1b8f0d89243a385438372e31c60533cb56b223ff7",
+      "afterNormalizedSha256": "5c70b9754106ea00312f8611eaaeef49afa00c82a1da1d2994ff120de613d085",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/models/devops.py",
+      "beforeSha256": "d28048133230e7998884a745e2bfd430695771d23b2042e03bbe8d64d620d353",
+      "afterSha256": "f09995c4a700e31544ff3313a6abe2c8d965af931eaee90940e8257ebec04e11",
+      "afterNormalizedSha256": "9e9922ab794fcfaeea677046b88b3e42955a42ef79ed7b41226797d80339dbb1",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/models/domain_model.py",
+      "beforeSha256": "f425eab178c03fa3a751ebcd3119bba19128ceee856435e8f32dd7e2f3300686",
+      "afterSha256": "91288dcb5b9952ffa64210d920b8d98aa561c3978d849551cecc580fd5ec96a7",
+      "afterNormalizedSha256": "b452124375efaecee870ec0381367f5322354cc43cd3c70d1cf7e7b55d905ea8",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/models/requirements.py",
+      "beforeSha256": "2dec1780d35e737392a3c588cf108ed3542db52dd266d0f828ef5a1ab0d2f732",
+      "afterSha256": "277b9fe51c9f3e819d8d7c21f39ea411a7a20d5f5cdb0c7c6bbedf80d04949c9",
+      "afterNormalizedSha256": "d499b4dce9ac03f2680c049b374353ff41be1e16a1827b0e6d4ee0a1dcc23e7d",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/models/security_quality.py",
+      "beforeSha256": "b2fa3f984d3e35cb2f58c0aa8ffb1796b537ed1dbf8d0d5443106c1183c54a45",
+      "afterSha256": "788483a9036b574cbbfeb8ba205ef139b218d293f2a6ec9afa76663fc47c2c85",
+      "afterNormalizedSha256": "484bf14395e81e4fa552b91f32984817a68974cd3fc458e90325576353849239",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/models/session.py",
+      "beforeSha256": "529d1bdeb5e12d27fed2df94d310ae34f5826784c1d5eade6881b894ead971cf",
+      "afterSha256": "9b04ddefef5ee78ec76b5676bf51e5ccef668c7db0d091b8db7b51bb3bf1c004",
+      "afterNormalizedSha256": "72e70e5438e8b76b14258a7aa30a6a899c98d462cb9b2143f2ecdc2dd279aa58",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/models/test_analysis.py",
+      "beforeSha256": "f486784270f482584c8065bc707bef530a3bf097155664f50a668c6b8a2267c0",
+      "afterSha256": "9c76f03bd7f4c78fd2fe7a142fd46fff5f316a3355bca46b098800bccf7d63c0",
+      "afterNormalizedSha256": "5ece6f4b46817f485115e129a5662daa94a8745bffde6bee6ce09667de6d4459",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/graph.py",
+      "beforeSha256": "f2721a9d922dd97e212c358be77e335c724d7e18eb7a12724dbfbec22411434a",
+      "afterSha256": "5acab1e251806ba9a0159fd066861110ea0eed5d31480d39832216f5a6c2f14b",
+      "afterNormalizedSha256": "ec06ab64c09b5306c076ccfb93d8ebe9da061398c6650cc6b66eb662335e93ee",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/nodes/repair_node.py",
+      "beforeSha256": "3eee28c08844c148bb157af15f98b8f4ca79eb0f9e14c276a6148249d761757c",
+      "afterSha256": "2aa4d3fcd9da19083f81f38f379a62cd6b6460648173eca4279caa809e665b85",
+      "afterNormalizedSha256": "d47a873e1a6f889fc4ec30417cd53eecfb5386ccaf257c33508d643db0575014",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/stages/deterministic/controller.py",
+      "beforeSha256": "e611c7b787566ac2007a77f07c77c59072675bd7f74b79d49773c5e59c2a4bce",
+      "afterSha256": "feef30acc5bc6d16385108924e6441e373bc985c1f1882511806a1135771809f",
+      "afterNormalizedSha256": "ef5f78acac40a9457cc7861eb7692a338729a6819c161e61f6dfd90fd026adf1",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/stages/deterministic/domain.py",
+      "beforeSha256": "04da63772231f406a1e620fb082962114118e8f1d18751f6a704aab038e387ad",
+      "afterSha256": "c3e0b6511cfaeebdd6b7f8adc082112a29ea7723527c7b2463a5fa839139e6d5",
+      "afterNormalizedSha256": "ea1b18879a673ccaef8895bedda54bf8376d64c22cb83c79bc5f64ce64b1e967",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/stages/deterministic/scaffolder.py",
+      "beforeSha256": "47c48dc348f343712b2e46a16eeb48b005deb5d49524af289fcd7f4386c98402",
+      "afterSha256": "84e53f5effc30a32e7d9f405c065297533a5bf68281a83f31faaa13fd78a3266",
+      "afterNormalizedSha256": "35ff739b7e6c4fb12666a31642f4e618d54d82d44c44708426ccf73f36c96312",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/stages/deterministic/service.py",
+      "beforeSha256": "28cd6d7015f2ff05e227aa7de1c2de1a6d2ddddede97cc7290dd07151b744493",
+      "afterSha256": "beed2a77032396b67dec8cd3e61b5c7f8dfb05e75adc39c8aef26eaa218bc390",
+      "afterNormalizedSha256": "256d997b537dcc5baf1335355885403a2ad072e4749f4ac9cc4bf69179f00f9f",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/stages/deterministic/test_synthesis.py",
+      "beforeSha256": "d3e9ad0a4026a359c8fad1b655b5f2cb75108deee7e4c7b90c4df26ac1325fba",
+      "afterSha256": "8f6a4c7e6f358d6f5c4f7b0b245825cf06717882f8b4978a3870bc8ebcaf15d8",
+      "afterNormalizedSha256": "262bef0a1ae3c21c0eb545a8f53c2155e662899073aa02f39999f989c8de401c",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/stages/runner.py",
+      "beforeSha256": "887e420406103db72f66bee22a48ef7edfd3623f46610236fd1fc5e9e9446643",
+      "afterSha256": "a1c3c9bd44d17dc826dad4998f3d308f791cca0223e30b31edc278739b57e191",
+      "afterNormalizedSha256": "3f6b96c2cb17a52e576e0c358d022a2f471f434f3f82bdcf08d2306e80b49cc5",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/orchestrator/state.py",
+      "beforeSha256": "628b4c6adc16d05538684c7ce1facfe72a173292bfc27daf725939c73f6033b1",
+      "afterSha256": "3eb34c5ff98d63e16aab7d90dc75f5129ecfe7f8872bf84291502e9c05f1001b",
+      "afterNormalizedSha256": "dc22d659732ca49a1021c23448824e453873b51e4d8b993fece06674128e8e3c",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/resources/dependency_allowlist.json",
+      "beforeSha256": "ab5ee3f83419494e4e4ee52dca71b8fa0a1bd5099b8a684be6de736682bd2426",
+      "afterSha256": "37275f235db1a12654945ed86c659e1e14159d9efd81dd419366178a13cddf42",
+      "afterNormalizedSha256": "43d1c61a578357c8cb9c9d8b44ba8abbeea1e47d072ac4d9e3d40cc558bdc821",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/docker_service.py",
+      "beforeSha256": "eccecd42ad494718f66ce2b6dca9860ba0736cab2ab937135fe6e1c0441e7177",
+      "afterSha256": "4d30c61b933275075c039754869d00fa7fc530b98f4c4ad66accb39861470667",
+      "afterNormalizedSha256": "ad57095e480e116d465baeb788b019a7253effe6ec67fb6072eae8b1e1be031e",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/export_service.py",
+      "beforeSha256": "c377ca43d4d6be173f2f13626bb9c65409a3c78ccb884d829d1e3e8f4b04a5bf",
+      "afterSha256": "890ee411a7a585901e7a8d7140e596704fcaf4b3ea176b1ead779f675e3e23b2",
+      "afterNormalizedSha256": "e9cf1693646095e61f958f992ee81aec685c608ba506988ea7bf45ccdb04d7fa",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/generated_code_fixes.py",
+      "beforeSha256": "0c420dca7b6e05c1c16aca91b577753bee19908716b21f39fd0da0a286c0ece3",
+      "afterSha256": "91973ef5430a894fa8381ce96439d8f108abe94f7c5cb59cc6542e88670038d7",
+      "afterNormalizedSha256": "6ba90cdd279cc573c65ff03cd6b86d8fbfe8ee9e1831771586129a56a8ca6026",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/git_service.py",
+      "beforeSha256": "3f599eb626849e468fa5714da5125dd0ecdc0949c6f501bb59b474e4b8eaee3d",
+      "afterSha256": "343942816194019c67b27c2d2918f5b26273868e822d2822039be17b12549972",
+      "afterNormalizedSha256": "3da2bb4c9ffbcd3ae37dc2fed66ac2b2576a4b6bfb5b850ca658c65cf66dd6c2",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/lifecycle_scripts.py",
+      "beforeSha256": "556a73e285daa1f44cb4be6fc2a7801f9b2e7cd04c0d92ca5679944e1dd77a17",
+      "afterSha256": "33af42dd9dc3374b73c937486c4921dbc3086bcf2f8f205a4ca79630d4d97948",
+      "afterNormalizedSha256": "7d5755ce071c2471186081978e1e8a4c71038e34f4b5fc540eaa86060a9f0c21",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/lifecycle_service.py",
+      "beforeSha256": "05366796056d186e74b740f1a780346686bc963fc021baa38455124ee38a6d33",
+      "afterSha256": "17f76c16b555b03720f1b1e00cda09ef9fb615b33d3e95d0d8fba124389abf26",
+      "afterNormalizedSha256": "654785b23ce4938ceff01b8ccf4c63777111aaf90fc1b945f6a7d9b92080e4d8",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/local_ci_assets.py",
+      "beforeSha256": "a2c12d7b778f77d45d3f3acbd0ee58caf5906f513f15ee148595935f37fff137",
+      "afterSha256": "caf48fc323f5e351d59be6a75e19a863ccb5116f94f9ef6613b7d7123eb6050e",
+      "afterNormalizedSha256": "43e6bdb58b9cda8103ede6b5eecad7a4ec296153464e75f739fafc566971291c",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/local_configuration.py",
+      "beforeSha256": "83d60a6aa550a43b3792bb9eb9453ca9bd9499404861efbadbf832bd7d295ddc",
+      "afterSha256": "2c69b5f3e7aa720799ebd893098e3e0cb03a7886dffb1bab1432bccea7d9b25c",
+      "afterNormalizedSha256": "c6c9b9bcc1f731e7a96082d5e1b4ba3227f8346ab08ecb00e1a61717c647f8d2",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/local_deployment_assets.py",
+      "beforeSha256": "080a8e2c59b8c67b07fc23d95a56f629522bc2c597842c01955e44db44a175bb",
+      "afterSha256": "bfc3d8cdd5e11e8bf8d3c6cea4cf02835577c4def224af4f462456ce98bdcbf7",
+      "afterNormalizedSha256": "718ef57270a3aefd34c509158f523b0b5d13968a85f6f5accff1e28e9f81c88c",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/local_operations.py",
+      "beforeSha256": "812cbabaedf51a3edba03b5b05bfe047110f119f355991a4dcc7854613b48d4f",
+      "afterSha256": "f99a47f0fe5f0a914622c8668dd9464487883cc7a6c8cab5e779239accf78985",
+      "afterNormalizedSha256": "f873a84cd55ae6d06b4711b821c64f4ab54ce194061c81d93358c0e8927d1054",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/local_runtime.py",
+      "beforeSha256": "b98c93be84d8881d4979d7209742343a9ee2a83e71eff6d2a2176f185dd9e189",
+      "afterSha256": "4cdd5644b11f97e923a9ad3894d2f112e753e8ba32461bcdde4ac8e589c3bbd1",
+      "afterNormalizedSha256": "de7ad77c17a708547bb1c16cbe870c0ebe07def22bf1132be23b4813f25f2dd2",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/model_sql_service.py",
+      "beforeSha256": "8b8b3545b0551f1f0cc2f8c8954cdee4211e6a3a122ff44cbec5cd27831fe457",
+      "afterSha256": "517a072980b6669220d60a3bd625ac0fd0920319fdedd073a6981f945784785e",
+      "afterNormalizedSha256": "ca2e485052642c4151f2688a58a41bc72f7625db01fc2c0e486fd579eb089eeb",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/pipeline_runner.py",
+      "beforeSha256": "3098215642ec63c82a22353af7f82d7a52931671cddb6b37fc6f0370aa2bdcb6",
+      "afterSha256": "1fe51cb08f8d30a58d62ba404a51309f0f6cbb4afa2cfcbe97f567f5e82c2b59",
+      "afterNormalizedSha256": "a5cad44087de1a95ce40e8ed16c2f6dd2831ab7c74fa38298d11c9194cde1c5e",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/runtime_lifecycle.py",
+      "beforeSha256": "0ccb8baf28ab74154fe2c8ef6f668edc6d0b80536d6a844b04073114e374d4ab",
+      "afterSha256": "26bff0cadf055b03752d7c53cb897c2ffa2aa720da237fe283fbc483e86a21d0",
+      "afterNormalizedSha256": "daf95a1a02f1ece3c0e2011ea20c80b0a5ccedead87a6cc241f1a87a50913fce",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/security_service.py",
+      "beforeSha256": "16bbb063ccb0e10de36ee78c18d77f48e2b4a2cfe30312ee76c362d22e2466d7",
+      "afterSha256": "47a146b4e61fff00c9b10dc32e2bf3cb32aa1393e5e945231db839bf1b6bed8d",
+      "afterNormalizedSha256": "c84e0e78d5274764e286a5fec81e1455b14e2ff6a4e565e9e09b7b5c4439b87b",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/source_snapshot.py",
+      "beforeSha256": "0eb1e1221f9e3d9dc5720ac1906ff3ddb13f2e7e1577315954fb4aec5c47831c",
+      "afterSha256": "f247addfe6d2124203f8d9feb3587af089531e516d44acbd818ee800cadcd855",
+      "afterNormalizedSha256": "d58e5d0eed11547745655d4e7a754dbef205e23babaf8cb8d85fd507bc414bfe",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/verification_policy.py",
+      "beforeSha256": "ba866e08d874d34194b34f067e7fffa4ba88eb1f0bd8714d8d36b55466321f25",
+      "afterSha256": "30254aa66cbd1cb040c8f13c2eb6dea727aa872b8b6d244002de6f76e8bf3b7f",
+      "afterNormalizedSha256": "78bf340a56f2bef72603eb9c1bbead67e0385d9194e2daa2cf03e9896ba2c906",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/workspace_guard.py",
+      "beforeSha256": "8520cd2761f95c464ce6f6ceeda39ae99b004b2277d995652101d8d1d4391b21",
+      "afterSha256": "9ea2ccc717171913c5bd6b7b30e705496e005922ebbbca4a36a1670ccd831c1e",
+      "afterNormalizedSha256": "d4b9c3dafa740096f894d0bfcd2e2b604dce79ddd8867ed5772e333133ceb232",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/app/services/workspace_verification.py",
+      "beforeSha256": "f3c048233eada2e8f3d89ef52f92e1cb30c8ac8d259ac13b3869a475e1425f4d",
+      "afterSha256": "1a9e02dfe75e06192b4c5380717f7b2882e58cd2823eea3e07197b34b8afbb9a",
+      "afterNormalizedSha256": "cc4b74244fd6e4fd28f3d45b18889696f298019358d470367415b88c05d01ac6",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/conftest.py",
+      "beforeSha256": "6098d0308542529c76f28d8a17eba1b156f4a5e4832f05de4286c501895ad0bb",
+      "afterSha256": "59263ad605566e62b3e52ed0db462d91ad020f3c4ef0b6cef3cdb1d72a0d9dc2",
+      "afterNormalizedSha256": "9bffa278c7ff0125ca283ccbaa2ac2f194c0abdfedf0675252febf928634056d",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_app_examples.py",
+      "beforeSha256": "fdacc23aecfb02f30221cb422da3f96832fb18d4b14b55e74e9e8c84dd979f01",
+      "afterSha256": "70f0333ab2c3ccafded165ac32723ba1b5a2e38bf3831dc323dea4ce7c4c3eb6",
+      "afterNormalizedSha256": "4ffc44e3622737eeb3881f9e66755c80dce02c7204580e079113bed165741017",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_autopilot_deployment_completion.py",
+      "beforeSha256": "e58461364e9961fcc8c035f107cb1f9daf46ba13dc6798c2a98b62b75a5bbb36",
+      "afterSha256": "d1c868229b17b41e53e2a4925974440b717e515f8eebb8880adb04d9eea770ac",
+      "afterNormalizedSha256": "c9e8978eac2891a2cde59ea8fc18457019d4bc98758fbb30b2a68b921eb35779",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_autopilot_input_interface.py",
+      "beforeSha256": "0ad5f874054ac4bb205b58796351d83b104d52d8e87091d7438e368945a6ad64",
+      "afterSha256": "b56883106d4d4b7db27d4264d390a7c82ff1a715a3f45a7253a1ab7c1d639997",
+      "afterNormalizedSha256": "6075c3e793c5f675ac73833d045d943a448d9d4a39a19ff941a76b47f027deb2",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_code_generation_module.py",
+      "beforeSha256": "5c7952b1c93fbca5b9b2ab3ac939c02302a8ce796be099f4a7553c8ec9d03151",
+      "afterSha256": "b1fd641c4a9b4310347d9a40d33dc9e0c5fa222037d9f0972ecafc1d09c64136",
+      "afterNormalizedSha256": "d99177d4ed00105addf029e95842d4ed5b7c88857d1e1ddfd5ba0ef066c8be61",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_deployment_completion.py",
+      "beforeSha256": "07df5334a93d44ace74cd783cb6c1a019198657b39ec35a03f02aecf4afcb601",
+      "afterSha256": "bce7ef754ef8b4d4be2aa8592da7b62b73e3bdc1fbcd78c98d9c07c72359631a",
+      "afterNormalizedSha256": "e99818faa0b5b41c837b2c90255cd1aa4ccbbc5419ee4b7c006838f858191e7a",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_e2e_flow.py",
+      "beforeSha256": "612c35d80b19f853ea7b3b5100a9bc5eb87339ffacc7bea329e97f9676f480a8",
+      "afterSha256": "5a7b4cfb993b9caef99c31d8365f8b3984edfbfb1fb6660778c7e4699dc9e1e5",
+      "afterNormalizedSha256": "87edb7ff1f661bc0841f8dcfe0601adf51f187b45f2d7e2a733527bfaed7272d",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_entry_point_parity.py",
+      "beforeSha256": "b38a7ae6033a989aa664a4294519480b471246a8f61a2d59f03eac12edb65131",
+      "afterSha256": "739491eb3cb13a59001ee0c9be1d96a0eb6850e556dd92eb185c09b98704f419",
+      "afterNormalizedSha256": "fcad139cee55e37c4074b11018ba73fb233a90d8eb1453432f9c9b4b623fcc66",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_generation_stage_measurement.py",
+      "beforeSha256": "26ce05ac4a8c3a8affc60dea560d63b88d419be8a34dc9ed13a780fbe00c95e0",
+      "afterSha256": "ccc9ddbf3848f9fa83208a301948c6188ae2eae8a06ceb074bc6b18a998bf303",
+      "afterNormalizedSha256": "4b0f426c78cc652a41a5c40aa3331988c0583d2e3382aa31ada5f49aeeab43aa",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_generation_stages_model.py",
+      "beforeSha256": "ab54c08d90a303d5bd0b8642e7c06709c811daa1a2af91b585543e4a6ec374c5",
+      "afterSha256": "44a85cb659ed4dcda6009e8133059700b4a6e2d64cbac5b17d26820540fb6dac",
+      "afterNormalizedSha256": "9ec1d926f1c0ec6641d5c5a092d9f07c18b3523cd4230db33529535c25419dbc",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_generation_stages_offline.py",
+      "beforeSha256": "6d0c2828911a7b147e6f99904b8c5ac297e8355f9d3bd13fc0aa3057549511e8",
+      "afterSha256": "8e3c0e8659959a506921fc769b296dfa1c6e0952f93e7e5e6be296eaeb6bda2a",
+      "afterNormalizedSha256": "531d28fd516945ef4937f846b95bc4500c87fe645c644b3cf2b0d9c49ef9be28",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_git_service.py",
+      "beforeSha256": "d42155cb4af2fe41fe5698c74e48460a18b3fcd856c7bc471a79ea7387cacf54",
+      "afterSha256": "846cce04ae908e06735f86df67ee1b2c2e5270a36ac28f1b7b9e63ecd810e9f1",
+      "afterNormalizedSha256": "a0183d0184513950ce55f5cb5229a2d70657dd0af79d475ffb5912b5cd988704",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_lifecycle_scripts.py",
+      "beforeSha256": "bd4c727aca1e289818dcd3531d043b4bae338ab98ea98016871c13a62cde590b",
+      "afterSha256": "afa29a0bde3850641909934602e1a53b7b5ca7473afda8086133b95465918341",
+      "afterNormalizedSha256": "36b70568ef2d602409c92ac88a073d798b16e38582396e66a37669e4dc525168",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_lifecycle_service.py",
+      "beforeSha256": "17eadee7a8f3ccc9f17d238bae97c1b969ee404b8e86021b5eb3212831883879",
+      "afterSha256": "31fd524fd9c3b487dffafd3e125671fee3e636e3a0e54624a174722b305b733d",
+      "afterNormalizedSha256": "b006c9db0be081c2d8e24cb493544b58950b96002cdf3f25217937123611b435",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_local_docker_runtime.py",
+      "beforeSha256": "3aca05224ccc7d00a620b17c6db2b2f7a8defee7f0d12669abdf97aa781ebbe7",
+      "afterSha256": "ed5851f032f06d953b65ff04ddacabb1376cfdea018de5b569633c5e23f4fb9c",
+      "afterNormalizedSha256": "86e945181a8866c2ee16dde1eacf7c5a0d92224a07f65a5dc42e581c26319a9c",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_local_execution_mode.py",
+      "beforeSha256": "6afec54bd82fb6e8676bf0cbe8d7aa4c2686b674e5c2732845a2cdd81eb6ae16",
+      "afterSha256": "3b56d004847521528b2f5b50dfe0bba83e09c1ce7afd997c02bff3e0240c7f4a",
+      "afterNormalizedSha256": "5322e66c34e25d02e9f3fc9e689ad8dcb7e62dbdb1f0e601078a5a7213f68a30",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_local_operation_controls.py",
+      "beforeSha256": "7422ae215537ff238e62a256989ff95c5cbd2f6a05b52ff584e855e254ca48e7",
+      "afterSha256": "ddc3716638391f2813157ad715448dcddff46e95e167093e93bc5579b7007d62",
+      "afterNormalizedSha256": "63e12a60b7d51c7ef8a107f61d24c10b46f1262860a9a9a8c3808f2d8d2413fc",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_local_operation_controls_real.py",
+      "beforeSha256": "c0c63ef0bcb463534fbdd2550cec082e4f07afe4df301ed1bc44f670af7a0402",
+      "afterSha256": "7d88dd8fca8b48c1085790d38db1a08f15a1cc7ecbd2e1fb7ae90a55509ab233",
+      "afterNormalizedSha256": "3895abf6c5d18efe5b76790626de97b4384e1e4347fb11c56204485e7418dc4f",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_model_sql_relationships.py",
+      "beforeSha256": "4efb9e24e5b347517213e3342bbc7f4b244e413e78541b0b3e4e3952ba5a0716",
+      "afterSha256": "f3a090813c0cf26f2b8dafe79ab0874dfcb2e99228de8674279d193d9a0d9194",
+      "afterNormalizedSha256": "86443dbbcb2d9b072d07f4ad55c2a5730f4456c151ecd4b377f0aa10a0cd6a71",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_model_sql_service.py",
+      "beforeSha256": "b23698ee2b36ef19f28e7b2396096a2d1412f52f005722aac50f2b3afbf37b60",
+      "afterSha256": "974fd19d84eea2ec1bc899804bb85ac5772aa49878d0eba244cd626f0be7c326",
+      "afterNormalizedSha256": "4a8ecdcccc18b8f506b26d107f48e21e422fb8cbe691f679d3781380acb678d3",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_pipeline_runner.py",
+      "beforeSha256": "6d778dbda5bb640bf226920896ee9cfd3cba4a8759d1f84501ca7caeee6dba59",
+      "afterSha256": "4d66a61234127ed264216a592671ef8a8898747f326d894a42469558c312c0d0",
+      "afterNormalizedSha256": "96c526ca55e18be5f3ff25bdd168fda334f51051dcd4b844db4ce60dbf54fe8b",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_qe_api_surface.py",
+      "beforeSha256": "390adcd9aeeb9317083473889b8e422feaa548b881e27d73667070886bc81a97",
+      "afterSha256": "e65c5155917b3efe9ecd9fb4d6ff279c21f198343129cbb31c0a424272141822",
+      "afterNormalizedSha256": "c7c91ea0b31c5d341a4981d8cf30e7eda72c1aa9c1c5172f6269dbc7cd83b2aa",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_qe_lifecycle_rules.py",
+      "beforeSha256": "a2086cab548e99054be480da92df6f5ad270f155fd6d309028a1b576c6ca033b",
+      "afterSha256": "1b225e8cc63b28b2f62aed4cc00a84a0a0576cd43c1eef20673cd6939c6cdc22",
+      "afterNormalizedSha256": "34c3621ffbcd6c31ba3f4a8072c6a27e697c1811c85649ff786ec5b64d3bed14",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_qe_pipeline_autopilot.py",
+      "beforeSha256": "d7bf7c5f763fff218fdce1a12a198ddd234cbd0eb8e76e51b82147a3b78bf22c",
+      "afterSha256": "8f74ec9a8418bebedbc31557d7fcc76c17e06e5eebe6d71aa612eb412a3d7c22",
+      "afterNormalizedSha256": "4197a5825d17e7744d0b420d7c06999c9a695e26a9958dc42ec6071917dad297",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_qe_publish_git.py",
+      "beforeSha256": "75aca4f70f91ab4edd88a56d009fedc8b26d9ab7dc4763c1b43fbb230aa33e9b",
+      "afterSha256": "db5bfe6b6dc9db43965635c69d7989679cadd982a7ac16c8774bbbf6cc70efa9",
+      "afterNormalizedSha256": "836874771425688b0a596bcba6b5e0ff23f0048281e8ef05e6ec749253c57761",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_qe_session_surface.py",
+      "beforeSha256": "23027d1d257eb777ee017caa2816a05f536989be43815ea19ebeaa0196543fb7",
+      "afterSha256": "1475599c67266bcaf4b45d41ba2a113ac222a15be4a2a2dcdf718edef224fe92",
+      "afterNormalizedSha256": "c6b1dbd58b7e42e46aa787e7e84871699c18fa76cdfb1a969402974efea3ed79",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_qe_slice_test_emission.py",
+      "beforeSha256": "0eb3953c101486caa3e188d428d99d34d75af714e300dc48522cc63061e00cd2",
+      "afterSha256": "ff53b5a99b6621eb13fcd7436c66ab147dc808fbd5ef41cad352fe43ff819ba6",
+      "afterNormalizedSha256": "ac42e93c5a11ef7cb4ccf9a4c8279afb54a77428fbbb907382e300d73826a281",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_routes_devops.py",
+      "beforeSha256": "ae53fdcd8127711072ca2b4314163e3229a95a8c68ba70179f0619130369c85d",
+      "afterSha256": "471b2e457124ec25f5d394eda1004c5dfe63887a602c24bb931a43aa714f53b9",
+      "afterNormalizedSha256": "7aed94510b5984cc99d8ab8934addb0eaddcb13d43fdc9652828bda83ee0577c",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_routes_models_sql.py",
+      "beforeSha256": "791f7049b3758339a44fe623b15c1eecaf2f7fc7a9cf1044f5bc908fbb53c6cd",
+      "afterSha256": "d04bb237f90d9a7febe745fb115f89e5bfb2817b6f2681e77e2f4b860a67849a",
+      "afterNormalizedSha256": "1060304236df341dccf3a77bddc252195a87e44b30d5ec5dbdd218228ecd6493",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_routes_orchestrator.py",
+      "beforeSha256": "a3a8ea00d164449e0b93e6b5ead2f70f5d9ed08f759dac503f4190093884ce13",
+      "afterSha256": "d979f76f0c8257f26d9fb1fb4a72a7e09886f5a5e5ac89c9f9712b04afc4c0f1",
+      "afterNormalizedSha256": "0fafcec199da6b0817dd0ce6331558b4894e495743a1ed4e885880f1d93ca73f",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_routes_session.py",
+      "beforeSha256": "a567b1b6296de5d77556ca402cde39054ea4357a7875188c6eeffd6794daf95d",
+      "afterSha256": "9ebf1bdeab5516450bf774c882754962dcb3db2e9ae6e19e5c958720071ae09d",
+      "afterNormalizedSha256": "7eccd7ef617800b807f2b1f8b528667d9c9a96be79807cb59f1b6c1ca878ab87",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_routes_tests.py",
+      "beforeSha256": "b344811442c2590ae2a4e44582eac95f880eb4321c6afe5322ef5300e1be56ef",
+      "afterSha256": "1f41a420bf34ba11defe2bd6e0ddb586b2ad984e89b7b6a82483f27216dc5b77",
+      "afterNormalizedSha256": "dac9b9329ae9c1bcf19e610ad01ddab68e13b373f08f3faa1f5b37bda9a2f807",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_runtime_lifecycle.py",
+      "beforeSha256": "9abab3f10c741ab04a10529d8b909b4b83608a282d033f779f780cdb746560b2",
+      "afterSha256": "d2c03e3e41c92cce7d850b2e658b49501a08d85837de7e2988f587e7e51e5d0a",
+      "afterNormalizedSha256": "99eb4a56568f28821e180f362da45df994d83aacd7b974b24685595b3e780eda",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_sandbox_verifier_honesty.py",
+      "beforeSha256": "06c006a1ff3712bca705b5dbb9beb88cff486cde03149e646a1cc0bf7fa77a2d",
+      "afterSha256": "b068e71da9bf1b73d4eff303e8006e52659b1c9c833282d3eac4dcbc7397b732",
+      "afterNormalizedSha256": "e6689aca36dfeebec8550dfc89630266bbc81254ee1cb31ea8bd8849a3cb80bc",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_scaffolder_plan.py",
+      "beforeSha256": "9c2e00979064abae308867768c0a10dd1bf44e3ad96e8a1e4b32fdf512877c01",
+      "afterSha256": "e20ba0fed4476863cff07c32ad1c4828db3022ac1cdb0d8436cdcb198c8063c6",
+      "afterNormalizedSha256": "7fb644ddf4329888178423cbb4b1f84eafbf49ceb25945590a9f16ccb813420d",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_security_service.py",
+      "beforeSha256": "060c417e1e50731c7b3076806ff013619ae7c72c1d590b91186a056636a93f6f",
+      "afterSha256": "524b3fa71a872c79a0e078d96764c1df1c6df6d80efa6e6f8b295600523956e8",
+      "afterNormalizedSha256": "4ee874372ad594b10fcd2a742a5a4877f858e3326fe0357dd9d407454993959c",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_session_operation_lock.py",
+      "beforeSha256": "1aa1c466c9465b0d9319006f5f45f8f942ffec8ac39119deff33300911a8b27a",
+      "afterSha256": "453d072c70df1c226f52d25cf957797969a873c1a754ca7ecc1f089cfe73cece",
+      "afterNormalizedSha256": "8b28cb2df72f65054cf3ecf3aab33c216ec103492fc12220ff173536149897b5",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "backend/tests/test_source_snapshot.py",
+      "beforeSha256": "a867c8f5e130bd309e049fa07beabd9866132cdadec8d14f68a1004f141bd23c",
+      "afterSha256": "33ac6399b214cf09c21e19a48a81b56d7ab8147823f0859f93ed71e093ec4acb",
+      "afterNormalizedSha256": "20bb0569a257443af3bbfeafc995e3002d8f7a4fe1c45072735979552c6e7e92",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/context/StudioContext.tsx",
+      "beforeSha256": "f25ac46565b29eaf1758dfb2f1627a1b5e712aa4acff9bd0dafc5a503f76383c",
+      "afterSha256": "c5972ef3c44c6e40c1650320e4ec9763e07e64d011c4d55b091fa487f7bd6d65",
+      "afterNormalizedSha256": "87a46035e06a05bd6b46be2fb03dffe119260d89e764e71cb58842f767651b47",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/hooks/useSSE.ts",
+      "beforeSha256": "b6fc6293e8d30ee5a1ed8f50942330a9f280409aa1a6103661de6842142d753e",
+      "afterSha256": "e75a5e1c56468be9e27453b0bc9bd3cbfdf2bd58d1bb7af3eda4ddf3c694433b",
+      "afterNormalizedSha256": "6685d257784a9dffd8a6bb36e25bc2f7c398e0352623644a75d5ff2fed65ef24",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/services/devopsService.ts",
+      "beforeSha256": "0a309f682e56b0ebf4d9fb7ee97594eb068f9ac8e7d18f6421c051442cf2eea8",
+      "afterSha256": "f749806ab56205197a76df8c4a87d6ab9eb5cb0f2ff84d831dc15d614d12c8f4",
+      "afterNormalizedSha256": "14096c580ccae32ab5e5555e6e232a156ee59dc3f621f9d7b3678760d41ac3e9",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/services/requirementsService.ts",
+      "beforeSha256": "1d25862cd78339e7dff9cb52c1e9cf191f1181c3c60117adbee263d7f39b0387",
+      "afterSha256": "8f7c34a364213da63a9a0af5e04b922c09a6c6d088d8e00a1b80bc3d1eaf0fd0",
+      "afterNormalizedSha256": "94ed2297f2baa7880b70222041991c493b881a4281c153510b0b7006ce367021",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/services/securityService.ts",
+      "beforeSha256": "17098dd38d4161ac51d2a8b2bd2aa16711d0c0a6bc555dbfab20b1a1951a83f3",
+      "afterSha256": "a95eb3ea2bf1dc010f50e39d491034ff488a90347db7cf8ee05d129d49ed6484",
+      "afterNormalizedSha256": "dc12d9c047b4286b85ca458588cb79bf020d7e814a9bc9d14948af37b4bb155e",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/services/sessionService.ts",
+      "beforeSha256": "1c61d66b09b557a32a655503c7e774542ba0912d14967e4beae11416abf097f0",
+      "afterSha256": "e7b0673322b31fa194bdaac2d74585fc1667ca3d16fb560847b07987c78e83dd",
+      "afterNormalizedSha256": "a349ed613f0e1c9d6f66ffaf06ed8e1578471792244e36512ed83daf1a49d366",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/services/testsService.ts",
+      "beforeSha256": "12de296ba3b55e85528e597082457950928f552de5ca067e87c54a38b7fef6d4",
+      "afterSha256": "d90de3d2ab10cd2db426a3cbdfc53f73ea8b703d32ee66017ef8f776108c7d7d",
+      "afterNormalizedSha256": "cb0f93977fd68e792b904c38c9fe334cf6caedcc90d988f5a8affd3e3eecba2b",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/test/local_execution_mode.test.tsx",
+      "beforeSha256": "ee575ccf53a5acb17c28284cb9cd36bda4c54dac3d09ee275e3e9618b33102e8",
+      "afterSha256": "85fdba19999734d5f73f184e877a7e24cf74c84c5f2770dfd3df35ff28ca1e4e",
+      "afterNormalizedSha256": "7365bb380775f88cc50c20a6c42a8b1530de71df64ee1e142b6f2daf78f9c7f8",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/test/services.test.ts",
+      "beforeSha256": "5067114c285398c32ce2d44c1b88d0a0619f662c41294233281eb2b448c4d293",
+      "afterSha256": "ea6d6a138c1ed9e1f42d3af4f79a9e00d3653c77e4de5f738c2a24ddbfcec364",
+      "afterNormalizedSha256": "d28f5dacdd61fa725d098b14d48b9a675d158d5dfb3a5d94347d8231242f6f86",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/test/session_sse_isolation.test.tsx",
+      "beforeSha256": "4037ff334ea37cdf9f70e298542d7028540c83cd365d37767b860ae2835eee9c",
+      "afterSha256": "2d1b407254cf72fb801270a7649288d6485499520665f5857c20616a11461f99",
+      "afterNormalizedSha256": "18cc4f48101cc90541ab1144067794e2819fdb75cfe7542059945edd97b110c9",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/test/views_devops_security_export.test.tsx",
+      "beforeSha256": "e983155c3cac9452030747b3048de91cebe61c7b2857561f831593abf36fc703",
+      "afterSha256": "14fb1056e39a6533caa4487f2e0b33f00196665ad80b190d5651ab7dacc37ecd",
+      "afterNormalizedSha256": "1568c5d6b645b8cd0108af7c818b96afe80724dd59c32030c8f57c516c4a758e",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/test/workflow_journeys.test.tsx",
+      "beforeSha256": "268ac90bd7bb6343950f5ee762195eb3a64bbd98708bfce2dc3c990cdef5d043",
+      "afterSha256": "60fa1dc0a077eb729ff5392efd33ce62c3fffe2db871c447297b9778781bdd45",
+      "afterNormalizedSha256": "16f4d57aa65ae06903ecf60bb6102ad169f5c17be259abc12aee66b4925467bd",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/views/DevOpsDeploymentView.tsx",
+      "beforeSha256": "ffb73134d9f552fc89d9ae7364b6c5d125efd6cd1029a992cb0adcc474eb3021",
+      "afterSha256": "d5e2267a3e134199a13503805000029be36750c460c938158a198e60dc23ce3a",
+      "afterNormalizedSha256": "8df2e5afaaaec9b2d943d2099015fef3427c93c09a7b7f0014e330f7564a95f7",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/views/RequirementsView.tsx",
+      "beforeSha256": "7d1b7dc97a44d37492ab7993129b83620504503b95429426f79921fc8e5117bb",
+      "afterSha256": "e830c378817515ed3e5fb68217d380af8fe4c978e9d94646ee2852a07544f104",
+      "afterNormalizedSha256": "5dcf7b1bf9cfb4fb1cf31d172c0f7ae697674178edc99341984ec5fd70bbdd50",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "frontend/src/views/SecurityQualityView.tsx",
+      "beforeSha256": "8cf775dbaf2765515b3a51c066dd34cc941ffe3c16f3043c12d0ba9dab7472b8",
+      "afterSha256": "0629d2ec4a521ace006b0d81da8e434c4a72d99c656b7072c861c5c8744a3817",
+      "afterNormalizedSha256": "bfb448c87a28a5b7c3f1c2bcf9d32c8f2234bba5f4dbe705fee898b9e380d01d",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "springboot",
+      "path": "specs/007-docker-cicd-orchestration/contracts/devops-api.yaml",
+      "beforeSha256": "00758ab4be703f3f43755bcfd5f121e2fe0f56dc6cd06a93ed611a6439ec20b2",
+      "afterSha256": "92e904ecf20510960e9701b21065a832cb01a953aedf3f13627145df14725a95",
+      "afterNormalizedSha256": "e9c594553cecfbfa0a9d47beff3e66974dbb6d3c0cba6f9c000c0a9969942c92",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_artifact.py",
+      "beforeSha256": "db0ad7d8670e010b0bce3cd1906798cec3aaa5f2e383344325a6c22d5e704db9",
+      "afterSha256": "76d2bf5562f0e3486f64d50813664d22eedfd20b0c9b40eedd8f7a9b54196f33",
+      "afterNormalizedSha256": "9b151b123beea6faedab0e3f96bfcf370608538d75e7853d04c97066948dde21",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_devops.py",
+      "beforeSha256": "75e0c484deb4bdeb6ea4bf2d33cc1cc79f5046f75fc0e3e362810bcb3dd9db09",
+      "afterSha256": "0a93d6f6db3fd6b19bca2b9f163456ebd49c6dc411bfb503e040c5e2deca0d07",
+      "afterNormalizedSha256": "962b4e15e29774c30b557bccc221300470c1fb5b833f420a2737b9a4bd7f9815",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_orchestrator.py",
+      "beforeSha256": "5796f3fab4b2616d79c92dceec4ee98fa5b92b6ee771086c8641b7cb45a8f46d",
+      "afterSha256": "54f10fddf2fa7f2664cd43205d148ad21358f1b27d84cffd7deb5fc0c98ed109",
+      "afterNormalizedSha256": "d4404a72837f56a6d100ee44970fdace103b310718006b0f6a80f975cc9835ac",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_publish.py",
+      "beforeSha256": "296a94cb68eb0e0be9b2b33e1b2fe2fa7793f9d263118714f82f40d31c2ea90c",
+      "afterSha256": "3368922355221bda7095f6a2e69dba16f6193761663781b64211f64bde037a9c",
+      "afterNormalizedSha256": "fd71c95862b415971d9d2eb593217029334682c8aaf69af98a123f8a4d70f77a",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_requirements.py",
+      "beforeSha256": "8aca9bb6235ce01fb79e29101f299ceb9a31dc47450f0721247a158f34508efd",
+      "afterSha256": "f4a00deea0df82c5e05a6456763aa03f7e6a74af7ef508ed136c82388d941b66",
+      "afterNormalizedSha256": "4075764badc252d0022edf583752adeff08f50df339a2ffb374d83f6d37bdf67",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_security.py",
+      "beforeSha256": "c83de8713200a609bf65de71ebfb05a8c7e7966b1a424bb6d69f5038ddf0b46f",
+      "afterSha256": "8096479602a52b96490cb4ec4a27f0c28f39efc0b0b7b6ddab89c2532d982081",
+      "afterNormalizedSha256": "22c19ac1dc566456b29df3752e7c22d69de6a797f1e79eeedcfc36aac2e56774",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_session.py",
+      "beforeSha256": "0d070cdaf97ea861652eb687c74413538680b1a34a6ac95e0fdf8cb0eaa6c2ee",
+      "afterSha256": "97d30246b21aba13082ae28c9a1b3adca850e74d23810dc5fbc25b7758b06727",
+      "afterNormalizedSha256": "3d89040b976bf90e6b3fa312d82bb2aeb5e9262691cf024cdd3a738d1d97220b",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/api/routes_tests.py",
+      "beforeSha256": "74fba99a3a43caa6ba689f414ee04f1da678446811cdf6efaf0efcbb2db1a463",
+      "afterSha256": "694593b5466595305c7697a0df059f01ccb3aceeb50b3059c1079e8ea60337bf",
+      "afterNormalizedSha256": "3641d266055a83e48f0885bfd9202f1f9d8e86864607062fcd0f1b4ec2473bfe",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/config.py",
+      "beforeSha256": "c6db6f3b20e68c5fdd57825203b85a6bc6bd43e1a1fe2c710d01881b5d36bd8e",
+      "afterSha256": "f251d7ed30d9e4854b37024ddcfa050d2a4b8b074ab77eaf30b95834505761d5",
+      "afterNormalizedSha256": "9cf36695d474881cc7b4a45fe2428bc563cb441e33a359d3f3df590a39113c60",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/main.py",
+      "beforeSha256": "e7a2e578f4a3d15eab840eee416e1a98155c270fd26ce6218f0aa15bb9c35883",
+      "afterSha256": "ac1dd4e8452e409534a9dc817fb52573d4b67e1efb42751cf8465ace1195f1ec",
+      "afterNormalizedSha256": "ae3c6b62c0bbf729e547e5af6cf513666f73c3afd1647e13d6f901a23c6c6518",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/artifact.py",
+      "beforeSha256": "953a77742f23b7c5f6735cc3b45e5968130e75464c8b5f60dce6d759944a0da1",
+      "afterSha256": "3c867a85e0d40abd97c73b013cc0223ad35361f94c0ba9e47ad9614b92617662",
+      "afterNormalizedSha256": "cce79e50e96954d8dd81ccc5e0abf3f3297c9a9bf114b2df652d08e0fd1d3265",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/blueprint.py",
+      "beforeSha256": "9c3f97fb61a9eb7dff49b532ba6a38f5992f7e335afc6ea5ae08052807bbb0f4",
+      "afterSha256": "00ea789495093dca32a81f6c563b4805ee3a30d8398153bd6a29a255763fbb78",
+      "afterNormalizedSha256": "211bf9e52e5dd6b7fd8268d4369d9a20449ae590d4ebf4018496fe93ed1eda83",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/devops.py",
+      "beforeSha256": "58960a3a34aa7aba53a654b0897d74a2bc74f2f0a215045cfbbf630c775b2e8e",
+      "afterSha256": "2a7ba85eb1918320f4239e5bc9e5454948377e8f784ca890d962858b69540496",
+      "afterNormalizedSha256": "280e9886b7246a702dd0d0166470eb87ac25f7de9e6b2332af0b192803aa2e6a",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/domain_model.py",
+      "beforeSha256": "10ba9b479081c607acb345dc52f261c2db3130c49df265e9091e001a51dee988",
+      "afterSha256": "91288dcb5b9952ffa64210d920b8d98aa561c3978d849551cecc580fd5ec96a7",
+      "afterNormalizedSha256": "b452124375efaecee870ec0381367f5322354cc43cd3c70d1cf7e7b55d905ea8",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/orchestrator.py",
+      "beforeSha256": "4c77c74f1f4b2d2c6af2049e303b957f819b3da7c892cbfdcff244fb783ef145",
+      "afterSha256": "f35c280ba200ca257fc66520d2f4a9125ede45c8e23b3a9986ad3facf2c9d615",
+      "afterNormalizedSha256": "bc1bf779273c3596cfe6131b59b3cdffd3ab250bf07c356cf91daf612bf23a5b",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/requirements.py",
+      "beforeSha256": "2dec1780d35e737392a3c588cf108ed3542db52dd266d0f828ef5a1ab0d2f732",
+      "afterSha256": "277b9fe51c9f3e819d8d7c21f39ea411a7a20d5f5cdb0c7c6bbedf80d04949c9",
+      "afterNormalizedSha256": "d499b4dce9ac03f2680c049b374353ff41be1e16a1827b0e6d4ee0a1dcc23e7d",
+      "tasks": [
+        "T013",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/security_quality.py",
+      "beforeSha256": "995c7e3480ab362ef6542b61d8b108fb17c7febb7eee35a9bffeb3f186b37143",
+      "afterSha256": "7cc7e611b1fb9ea904b2b43c770bd7096095420c9f3f489fe65b2c8c09c338f4",
+      "afterNormalizedSha256": "bb7c8da46a4b6ff02705f6f4366141f5d09a65ae2b5e03b8f2b0120ca0ee5b43",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/session.py",
+      "beforeSha256": "e78d143af3525f0144196073934bb26e3271947d839cb5b06a8e69ce682a31a7",
+      "afterSha256": "20a84844afb7697dca26393ab8721f0cd333b1903f659a1b25d8d5fe81419595",
+      "afterNormalizedSha256": "02ca55d63d5d7361e05c064608f23ab03cb984daff4ac81c4740d523ee72f3af",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/models/test_analysis.py",
+      "beforeSha256": "0f28df19c23871d2071554431a816dbccc74689bcc600fbf75007ecbdb326f96",
+      "afterSha256": "8fa050c1c0f8c7189904a8f904e046333612aeaca777c3ab2bc5a91c740aca5c",
+      "afterNormalizedSha256": "337ccbd1f9ef59e6d315b100c161523c21015e7c3125ed8cefa03dea26881528",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/graph.py",
+      "beforeSha256": "d8224c7c39b8196b520fbbcf385766f5ce5d0dcdb00ddf1f08f6f6e7048ac4f7",
+      "afterSha256": "298641c1bfdcd19333db0321f61e06cb4d208b4cda8149ff75c5c6284b1c02a1",
+      "afterNormalizedSha256": "6a080abc80d54d4b773b59fc103190facf2bf9342611e588ae7b5dabb265a267",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/nodes/repair_node.py",
+      "beforeSha256": "3eee28c08844c148bb157af15f98b8f4ca79eb0f9e14c276a6148249d761757c",
+      "afterSha256": "98c93a9dac80c92fee2febb1d28c0b967ca331039fcaee7434cd030897d8136c",
+      "afterNormalizedSha256": "bfe2b53370cc94956b084c754208cdda4dfa98adb41b8a9711e1be395a39a058",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/nodes/sandbox_node.py",
+      "beforeSha256": "3b81fecd1ee2872eb3ba89cc6721ad41add751126e16d958ef37707e3e515299",
+      "afterSha256": "61fdcb02d43ba37589a2fb38e8d01114fb35a456f3b3fe171d6ab65c85ec7510",
+      "afterNormalizedSha256": "8f618c83f2d289a0d3738655c647fbb8659195188cb04ff1c9f8ca0b8b7a799c",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/stages/deterministic/controller.py",
+      "beforeSha256": "bd4081e9074492b06e7fb8de810be62a66c3333fc72d6c1442c9384352ad9751",
+      "afterSha256": "8a1b1d5fb2512f59006777d7f23a2d861328a32585ac73ea9fec832c9d6c380b",
+      "afterNormalizedSha256": "c57e84127f9f7483681859e3871e95205b9755910c426953d1cdde995bd443cb",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/stages/deterministic/domain.py",
+      "beforeSha256": "2c5b137a9aedd2cb75678c13038abcdaa5a384acef1054086f13672fe83ae880",
+      "afterSha256": "ea85bd4739dca7b65bfe9abdd441d02243817d1f896bfd4f4b4d749dd1a96714",
+      "afterNormalizedSha256": "ad1d3e802440f9fa4ac6c777da3f90cc33ad71ca370285062982b90b1e16728e",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/stages/deterministic/scaffolder.py",
+      "beforeSha256": "00425791ec9bab96cddf02c241d29367bd8d340f8f697ec95acea45f095e2f31",
+      "afterSha256": "86cc9c70da8ebecbab0e4e19feddb23d18e8281bc73c3058e25109cdfe657dc9",
+      "afterNormalizedSha256": "e5b4285029f676aa82548544188dee9e051151c4008ab92443d84de55fef8607",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/stages/deterministic/schema.py",
+      "beforeSha256": "6e65a7cbcea49660d6691d0146a4b3e08c698ec4b6f3a3979a52076ae8562eb1",
+      "afterSha256": "5766ae83b2a525a3d16434f0c62182d5602bfc1ce3d7a1c8483529127f205eab",
+      "afterNormalizedSha256": "ac8bba0407771e856ab2e2aa898007f533595670f0e89a856f4b472e7ba05daf",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/stages/deterministic/service.py",
+      "beforeSha256": "61d807bd67bc72ae12756f512443ad4549f29f9a2ee84e2bcc8a85722aebcd7a",
+      "afterSha256": "91447e0d4a0ffed314eeeab21868f10772dc19022dda08bb14529fcdcb45a6cd",
+      "afterNormalizedSha256": "8060f3893750d1fec4b63d86231329d6bf1e205dfb8ec8d558504cff44ef9490",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/stages/deterministic/test_synthesis.py",
+      "beforeSha256": "452f8ecc83e418f6f12dc4dc7d468ef9ce5a49f52f10202e152da657a1e2dffa",
+      "afterSha256": "9f36467874d85138361ac004dfa6e83b091195f161750abf6930703025d68753",
+      "afterNormalizedSha256": "deab58e61bd3e2aec89bc5aa1339a6ab2c87b4413c1ebe6b7b79999e4bf15d42",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/orchestrator/stages/runner.py",
+      "beforeSha256": "52e1f9ba7019d6b44318c5451b2f0b5ce2bd855c494670e67139605950216dd8",
+      "afterSha256": "0b8430bc398872940745536bb1d98f17a46782c8c164f505f7f89c41b3386b20",
+      "afterNormalizedSha256": "21b33724906780c199d8f665cac359cf59eb25aa5ded9af9afaffa58ce234e41",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/resources/dependency_allowlist.json",
+      "beforeSha256": "fbb1d381a3a1d4cff29892700abc807045fba9d7fe59dd658faf57eff4aaf749",
+      "afterSha256": "5b9ff3066917fb76cf21ea25640a951ef6e4be95571603a69464fff842e2c377",
+      "afterNormalizedSha256": "174ba96977b0c4bc095aacbc72ca18aa53859241e6c61a04e457e5faa592d7eb",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/sandbox/docker_runner.py",
+      "beforeSha256": "df92ca84308b8bbf47132b6d73f6f71b035225348877a1bc1298e6ab7bddb515",
+      "afterSha256": "51107a448a87c3066f623ba2e8810c62a396121816b979face9635a400553606",
+      "afterNormalizedSha256": "d1386feb55c8d772f06ed0e11b225bd654f086c49ab4daa3ee5833db197abe41",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/devops_service.py",
+      "beforeSha256": "f631d60abce7022eb2c0297385411153450bfc4621ebabf383096678b047f099",
+      "afterSha256": "155332efa9293413e7240fc434f9151dfcfb5e725ffc7f3f607ec5fd6d88bd1d",
+      "afterNormalizedSha256": "d70604b9a178e304fed94eac432caac35a5f0866dc9874b1791bfe9215fc8e66",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/docker_service.py",
+      "beforeSha256": "3624b44c00810b5a4df1b58bfed1d8a3224c319b8f3faeb9ff2f97c21013acca",
+      "afterSha256": "8e25cb63996b7d9d8882a98798324761257256adcb61e0fe9f9e5d1a941ffb81",
+      "afterNormalizedSha256": "f7131e200d0c9b5606926cc08986f43990b8c53e5d9dcc128d416e5cbf72d177",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/export_service.py",
+      "beforeSha256": "7c8afb3be8e39a945a0b3095ef4ef697d58060763af24f75c08819aeb8071462",
+      "afterSha256": "890ee411a7a585901e7a8d7140e596704fcaf4b3ea176b1ead779f675e3e23b2",
+      "afterNormalizedSha256": "e9cf1693646095e61f958f992ee81aec685c608ba506988ea7bf45ccdb04d7fa",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/git_service.py",
+      "beforeSha256": "12181f578ac51066f4f49b86462353c0a28b87c07cdeae20086ac43746de38cc",
+      "afterSha256": "343942816194019c67b27c2d2918f5b26273868e822d2822039be17b12549972",
+      "afterNormalizedSha256": "3da2bb4c9ffbcd3ae37dc2fed66ac2b2576a4b6bfb5b850ca658c65cf66dd6c2",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/lifecycle_service.py",
+      "beforeSha256": "c5a9f24ef18d97cadd1fcbbc5107af88c80d365c1cb6d0f4131be6bd19dac72e",
+      "afterSha256": "39eaeef6d575068b207e17e9263cc94d758c9ad3144c329dec12ae2fa4f1ac68",
+      "afterNormalizedSha256": "f8360f73b21316181bc06aeb170abc10c8238c4bb8a6b5c65d407a6523e629b4",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/model_sql_service.py",
+      "beforeSha256": "5756598cfc237335dd7fbd9832cc6de346c752587119d9f2fdbdfb05f5769052",
+      "afterSha256": "4950c57bfb066706699a4018890fc0b141f22ddff8078df904fcc7e39ea4710c",
+      "afterNormalizedSha256": "a93abea8d322206393395bdfb83771dd446c2b1492ab255722c7c2726a07252b",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/pipeline_runner.py",
+      "beforeSha256": "358974d243d764137ee77410fc9872c5ce3e1d4f2071d4894c96b45eec3a5296",
+      "afterSha256": "48f691fbf423b915e1919cb24aeaceda6440b34ed79a6fe9b90b964990e7d39c",
+      "afterNormalizedSha256": "0b21a8113cfba4966294c9747d5da046fb658b3054f575db34bc456261593e72",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/queue_service.py",
+      "beforeSha256": "28152c031a7ab7c9213ac5acb61b378a44df206984f05dbae41c188579295345",
+      "afterSha256": "96f5f0847768dde446a353a07712640d234c4b2c30449a1a2c2c00107717a692",
+      "afterNormalizedSha256": "6470daa06e00b64fb31187d52f69ca0e586ae7ad72419b6bf39cc4e077233c10",
+      "tasks": [
+        "T005",
+        "T006",
+        "T007",
+        "T025",
+        "T027",
+        "T051",
+        "T052",
+        "T053",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/security_service.py",
+      "beforeSha256": "c7654b838791da57efa4f7cb7375eef80c0f8b665af096b2ec15703e70efa319",
+      "afterSha256": "b0e7a902b936885714d74bf731da17942344642e4c129fa12a938b6ed80d5bc2",
+      "afterNormalizedSha256": "27b7d77f047a38fdeb16130e015845be1f2e6f4ed8de123a93a4654173efc436",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/app/services/test_analysis_service.py",
+      "beforeSha256": "75ef21b6ee2abd984c70da0f8467c9bdcd7b33d5fb81b57466a9c568b5eeb5b6",
+      "afterSha256": "9c927e25f46b4b7b3f4419792b3f42004c6a019af2f747e06548e816abe86525",
+      "afterNormalizedSha256": "e11730aa48e696210de6cf721c6b34f97074255853b377bc0a05da72252ea709",
+      "tasks": [
+        "T055",
+        "T058",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/conftest.py",
+      "beforeSha256": "a4637ae508b1249e73c7165c01a2c0f634d268b1695e5b4cb48efeb25f087a14",
+      "afterSha256": "9338ba15fdb3a9807a4e91639b4dcb816b2b31c8a2689556d38dad40f35ef0f9",
+      "afterNormalizedSha256": "431ee4c028a75248fbaff518a1874a0a485808ef1edd1960917a69fadd11d77c",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_app_examples.py",
+      "beforeSha256": "fe14cc0b416bff63d9eec6c30ba7c412ce7db1d49c966e233cf5b5b697872292",
+      "afterSha256": "9e4432a1c86aa2150706d027208b98fd240b2a4c2d9038bd84c2084ce60fef74",
+      "afterNormalizedSha256": "6a3b77e5a6218e5bcd69911cd9c4c98e28cdfaab813ea04507109401e80367c8",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_code_generation_module.py",
+      "beforeSha256": "222eb12d0cb911f22757e3655a3da6128506a5d7b93bc1ab26de05a6b3d65dff",
+      "afterSha256": "d2dcda4d9b276361670a777639a47d3012e1b4e4791d932f5a6b565d4b4f90a5",
+      "afterNormalizedSha256": "ab3da9b460d6ee429e0767e48daa1f79bf4122cbd235c24c31b69266b0d7f22f",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_devops_service.py",
+      "beforeSha256": "1de00eda846926023c3fac88a5fccab7836e85b69d859d29b97f8d23d2326b78",
+      "afterSha256": "77732d5abace4b192a00d4c5a600929247faa660f9e4ff20ae4b44ee19ee1489",
+      "afterNormalizedSha256": "f597a0130f60a6acec36181d002010c24ecae2c8b477436f78b8382af0713d5e",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_diagnostic_record.py",
+      "beforeSha256": "9d5db81f9a3a1e2772c99241b90aa2c19a5211db092f2fb1be0ce49b1b4aafe3",
+      "afterSha256": "265ce330fba31a785801e7c33192b3ceda32535d24cddae14dbd6a2b20d31cb0",
+      "afterNormalizedSha256": "1f1a49d1d790d9b99d0c7d70ef36eb0eb94866765a14944237fea3dfdcbb46ad",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_docker_runner.py",
+      "beforeSha256": "e2b6be08816fc18282bec032f936b59e415ee6bb5c1b06d46d2f669dfbd84252",
+      "afterSha256": "181a7be1f844d74a273c6ca3b380924ed3ef979470dbff989afa5cee16eed3d7",
+      "afterNormalizedSha256": "2b193a33075c36b7c9057b846c865e82074372bfa2e10b9fa502bb093671069c",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_e2e_flow.py",
+      "beforeSha256": "6486c2b6c4212411188501cbcca495fb92bfc796247a1e549b463145a12342e4",
+      "afterSha256": "7df35eaf3833de106018124e55d6df610b44b28ef456de4f04b84565643c51a3",
+      "afterNormalizedSha256": "7e03c8502a08c28812fe1ac22f5b0bce78e5e71c448cbb53a2ce1f87efee6c1e",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_generation_stage_measurement.py",
+      "beforeSha256": "26ce05ac4a8c3a8affc60dea560d63b88d419be8a34dc9ed13a780fbe00c95e0",
+      "afterSha256": "ccc9ddbf3848f9fa83208a301948c6188ae2eae8a06ceb074bc6b18a998bf303",
+      "afterNormalizedSha256": "4b0f426c78cc652a41a5c40aa3331988c0583d2e3382aa31ada5f49aeeab43aa",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_generation_stages_model.py",
+      "beforeSha256": "b9414b85a2395a85a43d8c2c671d19c2fcfc8d2aa4ba2ed2bea45dcf611f00d9",
+      "afterSha256": "d9d6b9b42eba3895c7fe0a9b03462fd9cf833d5b47d4276e7c01ad0f54d5ce16",
+      "afterNormalizedSha256": "c24572743eaa942433a24c60b782ead9628e3608ff51b64304fadc9e01867d18",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_generation_stages_offline.py",
+      "beforeSha256": "50fd2ab4d971edcc600510606386397a1c1c7c928a55799846049140831e99ac",
+      "afterSha256": "4751567d6e1f2f7558c5be0a1566d658846cb04effd538a11423e87babe3823b",
+      "afterNormalizedSha256": "10b2cd625c6286ce48c2ee370214886495ed31945353cdccaa362fa24c9b7156",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_git_service.py",
+      "beforeSha256": "d42155cb4af2fe41fe5698c74e48460a18b3fcd856c7bc471a79ea7387cacf54",
+      "afterSha256": "846cce04ae908e06735f86df67ee1b2c2e5270a36ac28f1b7b9e63ecd810e9f1",
+      "afterNormalizedSha256": "a0183d0184513950ce55f5cb5229a2d70657dd0af79d475ffb5912b5cd988704",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_lifecycle_service.py",
+      "beforeSha256": "698d089da6a7473401721012f872ecd2aa50fe575a620ef452eb7aba437c71a4",
+      "afterSha256": "c2873271b8ca83754776f4cf8eb8f3cc16a2b73f24f000e0173fd92cbb4c9439",
+      "afterNormalizedSha256": "1bad301a832fec6b56dd910a3a044c393cee79c31b35b5bffda8da59eed3b309",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_model_sql_service.py",
+      "beforeSha256": "1d7749ab6dcd2028528a20ff3fa3a68aa89ac35939ad9f0a366a975424d3aca6",
+      "afterSha256": "4e6f162a561e5b22f705afc6ce94a3f5b675f18e32e8b1c8a3bc0e4ab36b26cd",
+      "afterNormalizedSha256": "98f4f66743db78f4e687c730d1d45c932a137358233735cff963453075cd75fa",
+      "tasks": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036",
+        "T037",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_pipeline_runner.py",
+      "beforeSha256": "d91a14b9db455391e2906f6cebf5320fddd421b3113f43c34f1e436b83ebcb41",
+      "afterSha256": "98a5fab4bf53f8576b979bf05a2a51013bdbf2563d189ce0340cf02a684f5975",
+      "afterNormalizedSha256": "cdcdc6ee6a26715d605e94710544db53c5feb3a5704f788fe4043f46690562b9",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_routes_devops.py",
+      "beforeSha256": "802d4d91094b35977b8d1abc5fbd2c74eb5ddcd25fe4b6d888714dff162f692b",
+      "afterSha256": "2baf7a7fe31c6a329b6afd33a447f99263be58d58556127c59f89f9807d4c65c",
+      "afterNormalizedSha256": "ecd9e3d24347c3bbc637e03e18bac09f0072afccb990a63c7ac2d3e5724a8e20",
+      "tasks": [
+        "T014",
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_routes_models_sql.py",
+      "beforeSha256": "61b820d7b523e9070b3fc1a47a9641d541e780bb179775fa6647ff3e23f96b7f",
+      "afterSha256": "2e4d9c178f5a602a82d96e3bbe3ed5672a3dd59419b89214771b12c2ecc01f7c",
+      "afterNormalizedSha256": "73c9b63c330b06e4f0fef73e47be31ad1f2cca094fe62da0cf3fffa2753622ea",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_routes_orchestrator.py",
+      "beforeSha256": "26c7b761bb98e7dbba981216184eb31a21c5bb0bac957b25c31c41da53d8d138",
+      "afterSha256": "4436ce40d06136160981866760b354eb733e057b861fcdeb4a452b285cc2334f",
+      "afterNormalizedSha256": "65134aec1b1bf2c4f4a81ae3c3c20f60a49b8566bf7e9bbd3123f18b44207077",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_routes_publish.py",
+      "beforeSha256": "d703b1efb767edcf0ba0e146efe0510f0547b1b253306a332473546cb7af4a86",
+      "afterSha256": "ece0debcf0403e5bc963d69afb7645f13f60e369e2c34e5785687a86f016b49a",
+      "afterNormalizedSha256": "4d0ed41103d4d8646270d18fe58c1264f31753fbf7713080232691f83a0f7548",
+      "tasks": [
+        "T010",
+        "T015",
+        "T050"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_routes_security.py",
+      "beforeSha256": "2d4c32d030f6a513eb0ea6edcee030edf41e22adfa46ee2feb61c3ae6fb9b004",
+      "afterSha256": "8d4a9120458ce8a4c5a26784d70693e7d9099ac7f5cf1bc1eb689a5d6ca69db0",
+      "afterNormalizedSha256": "51c7dd509bfd1b688796ee2a9fb51a6b2eb47fbffc1e598fb223e67cf711c261",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_routes_session.py",
+      "beforeSha256": "a567b1b6296de5d77556ca402cde39054ea4357a7875188c6eeffd6794daf95d",
+      "afterSha256": "97e8e001f1235cf49d27babea44e4fb70d7eb1a6851daf18744d65c8035cca62",
+      "afterNormalizedSha256": "a704dee0dc25d2abb1bb433df52e4d41ee243c10ff5f24d7b9f09b6fc7f5bf2b",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_routes_tests.py",
+      "beforeSha256": "2c9857646f89394f44bf9a98d98ab4b94a8b1c4766558121689df0ad6adbf709",
+      "afterSha256": "03f1a304bc62fa5a05449c9a1def5b4b5fa6155cefefdafc0ad16aaa8b2ac76f",
+      "afterNormalizedSha256": "f153e73900ec8ee4f4cdd5961ec964e5831d2c39dd0a5e698812a90b87e94cf5",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_sandbox_verifier_honesty.py",
+      "beforeSha256": "321e33b29bcb1f477960e1edf5d7e59d00a68d65481f6b979a12d7b809c1dee3",
+      "afterSha256": "61f9829e44006a3182050dd7251e064eabe3967a5b165589ef3516f1625b26eb",
+      "afterNormalizedSha256": "78c187345d7f98baee747d50c3c01178425b03890301ce66e02847ccb166920c",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_security_service.py",
+      "beforeSha256": "1479cfca13dda1180c2b6e0e89806339f850aea77808b30e685022d0e29dea70",
+      "afterSha256": "6871970732829bb6ba73b030e626ad58cd52ede7657c3a8a82928e1a6763786e",
+      "afterNormalizedSha256": "4d570643791821f6b59d18bd0f547693da08f5062bd26750735cd4c34383f2a8",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "backend/tests/test_test_analysis_service.py",
+      "beforeSha256": "546fc1d227a685c627fa83ab418f8eb53ecd3312554df388f550bf094366818f",
+      "afterSha256": "1c5ed27fea7f9a0cdf4dba6a77c4c06f0ee919d4b34dd028b5a20e30e6e9be0b",
+      "afterNormalizedSha256": "729f2e7e610aa2ba307a3815ffc1f773f75c6617d9750cf98627267d0ac47de4",
+      "tasks": [
+        "T013",
+        "T023",
+        "T024",
+        "T026",
+        "T028",
+        "T029",
+        "T030",
+        "T056",
+        "T057",
+        "T059"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/context/StudioContext.tsx",
+      "beforeSha256": "12dc17ca421db8126ecf5bfa542e80855c8a40f6aec09ab1fb2bfa13fe32c157",
+      "afterSha256": "cd6b903be3336b4bb6ed25d87a37d03036243c1b8e56ea897797ec491f82f846",
+      "afterNormalizedSha256": "bd31671deffb7625cb2b68392e6a9ab9e0ba1a5a2e1a8a5e3df5037d76fcc7bc",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/hooks/useSSE.ts",
+      "beforeSha256": "31daba77c32404a1ee48f9625ff78527998b926ec3bfb127229968ee72c638d6",
+      "afterSha256": "e75a5e1c56468be9e27453b0bc9bd3cbfdf2bd58d1bb7af3eda4ddf3c694433b",
+      "afterNormalizedSha256": "6685d257784a9dffd8a6bb36e25bc2f7c398e0352623644a75d5ff2fed65ef24",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/services/devopsService.ts",
+      "beforeSha256": "eb2e1d23606100b44a8bf36dbc0be32de00a25bc5794c3ab1bb2b917792c94e1",
+      "afterSha256": "70752a6a95d6bae3e0c4c5c3894ff3c2fc0b23417b7e0931b602ae65cd014866",
+      "afterNormalizedSha256": "5514a9ce9876b7d465e21bf90ea830ad58dab6490f1ad3de9ab523bbcf3ca992",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/services/llmService.ts",
+      "beforeSha256": "9d46b4f4e673f3f5b6dd14eedca4fc29d64db4151c26adc86abba23c99dfde1e",
+      "afterSha256": "5edb3627e6e8b9eb54795d799e2e8ee7b0b57f900a9002a17b40393f4498c8ea",
+      "afterNormalizedSha256": "2de73e511ec14de705cee78cb43cbdc4cdb0b3e46e28bb91b1f3effc068ba1a9",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/services/orchestratorService.ts",
+      "beforeSha256": "72852f20b6fade9ebcbf35cc0a620e3c28d3af1ed53fa327110c2b2b67ae0b49",
+      "afterSha256": "1155268d7a953818d6d7f22b06d0a8ecb91e3d50a2be1ce696f0d25039f73a71",
+      "afterNormalizedSha256": "33972bf381af2f1f4f2a36655f3a6178ac5c22d557d95cd52b30b44bdea96785",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/services/requirementsService.ts",
+      "beforeSha256": "f59709e68bcee94c5a7020e6bc25ed1535e68d71a6fde07c7b3ecd7aa93782c9",
+      "afterSha256": "e318e7b9dcb4d29a5667a8153c07599f613ac0e97b554be7732579227cc0d5d5",
+      "afterNormalizedSha256": "ae83d814efa90569c3918f49ea26dc63487a0c5c20c4aa5266fd964a9c62a97d",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/services/securityService.ts",
+      "beforeSha256": "17098dd38d4161ac51d2a8b2bd2aa16711d0c0a6bc555dbfab20b1a1951a83f3",
+      "afterSha256": "a95eb3ea2bf1dc010f50e39d491034ff488a90347db7cf8ee05d129d49ed6484",
+      "afterNormalizedSha256": "dc12d9c047b4286b85ca458588cb79bf020d7e814a9bc9d14948af37b4bb155e",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/services/sessionService.ts",
+      "beforeSha256": "a1dd4a2f981c8c514a06d77076b9584d5648ab81a0d1c870de74907f3c1a2f5b",
+      "afterSha256": "940a80c9f3935f927db79b6d91d30c3a87dd4f44c06072564ceb630e2fb2542b",
+      "afterNormalizedSha256": "d755dc09131f588ff264811b96310d38f5364d6fdb0ee63df512100a65548691",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/services/testsService.ts",
+      "beforeSha256": "6bc7e75a6e6ccdfcb6ab1d58d440958c1a861fe4109e3e4ebddbc6976a1a891d",
+      "afterSha256": "83d2309fcff8dded9dbc2ece847d6f0730d27dd1b906c17e9b02037a8ab3a9a6",
+      "afterNormalizedSha256": "694082d42ba9c12ff8803dbae472d9ceef84f20ce9417d7d1696c5399ffb1800",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/test/services.test.ts",
+      "beforeSha256": "5067114c285398c32ce2d44c1b88d0a0619f662c41294233281eb2b448c4d293",
+      "afterSha256": "ea6d6a138c1ed9e1f42d3af4f79a9e00d3653c77e4de5f738c2a24ddbfcec364",
+      "afterNormalizedSha256": "d28f5dacdd61fa725d098b14d48b9a675d158d5dfb3a5d94347d8231242f6f86",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/test/views_devops_security_export.test.tsx",
+      "beforeSha256": "a5bd534beff789ccbbcf9a533bb7f7e6dc1aab55240d33012261cd85c803c146",
+      "afterSha256": "caa889ab6903ea148e1a47fe2d1cad3145fe9c6be930af4f39783468c801053c",
+      "afterNormalizedSha256": "b72eea67f3098ec4010aef0474744e999aa1bd9a94ed8de1f6589f33506dc87b",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/test/views_overview_reqs.test.tsx",
+      "beforeSha256": "1127bf9b0cccbb3e1c8bae805b08fcf2f027223cfb16e84c1d44bb58e5435b16",
+      "afterSha256": "6c23597e806beb006afba21ae2be04b955311ccd7ea07d6dab244087a78e31ee",
+      "afterNormalizedSha256": "3541d7d5f88db82820abe424b6e8ec3da3767103d2e02f03d09d3fc300dd8686",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/views/DevOpsDeploymentView.tsx",
+      "beforeSha256": "de6d8556d1786cbd8fcdcbb51a03488d6057af3fd18a849549edb8ef2a7f6bba",
+      "afterSha256": "1cd9c3264bfa5bbf9031c3fcb56d40edd2dce2b0d3eb2d6354511631e9847434",
+      "afterNormalizedSha256": "5dec5e502efd7977e16059c54ec69f9803917f7fa249dbee04ad9dd08b487782",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/views/RequirementsView.tsx",
+      "beforeSha256": "7a104348fe6e9b181242dd47d620e0c6f8adac2d805165e3ae209418fe125085",
+      "afterSha256": "1631d2fe23121ff9a46883a4fedaa0a7712ca72ead73d03c0c428df830c387f2",
+      "afterNormalizedSha256": "6359aee1f973065840c9907fcab45e501760ebe23f7a98da129284badf1e7db3",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/views/SecurityQualityView.tsx",
+      "beforeSha256": "0b016c6bb5fcbc3b887220f86e06acc3792769c1b4dbad17d521b6a34747a1c5",
+      "afterSha256": "699570ca0b0a9e773eee4664a469785b9615faa15217cc46824c46ef156702f0",
+      "afterNormalizedSha256": "825f9747336a81bae21e5242c5d3d44e6204e5bf2b4436964d33a40b2b81c53f",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    },
+    {
+      "studio": "quarkus",
+      "path": "frontend/src/views/StudioOverviewView.tsx",
+      "beforeSha256": "5ce8afd98754d98dab298e0e9836a1152406d8daa10d2fd43b719eb1f384190c",
+      "afterSha256": "65c93370d76656682d0d6128fc502d511bef7df598d9ed1195cce3e404a60512",
+      "afterNormalizedSha256": "719add1413e998b2e9f6344d881cd7bed2cb6812e4d666accb27603ef97006d0",
+      "tasks": [
+        "T045",
+        "T046",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T054"
+      ],
+      "evidence": [
+        "integration/validation/reliability/spring-full-final-verified.xml",
+        "integration/validation/reliability/quarkus-full-final-verified.xml",
+        "integration/validation/reliability/spring-checkpoint-final.xml",
+        "integration/validation/reliability/quarkus-checkpoint-final.xml",
+        "integration/validation/reliability/spring-offline-choice-final.xml",
+        "integration/validation/reliability/quarkus-offline-choice-final.xml"
+      ]
+    }
+  ],
+  "liveProviderCalls": 0
+}

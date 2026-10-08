@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="14" time="0.899" timestamp="2026-10-08T11:19:03.214422-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_draft_domain_projection" name="test_domain_projection_preserves_explicit_columns_and_non_unique_email" time="0.107"><failure message="RuntimeError: generator raised StopIteration">backend\tests\test_draft_domain_projection.py:13: in test_domain_projection_preserves_explicit_columns_and_non_unique_email
+    email=next(attribute for attribute in entity.attributes if attribute.name=='ownerEmail')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   StopIteration
+
+The above exception was the direct cause of the following exception:
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:361: in from_call
+    result: TResult | None = func()
+                             ^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\runner.py:250: in &lt;lambda&gt;
+    lambda: runtest_hook(item=item, **kwds),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\pluggy\_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv-reliability-spring\Lib\site-packages\_pytest\logging.py:865: in pytest_runtest_call
+    yield
+.venv-reliability-spring\Lib\site-packages\_pytest\capture.py:900: in pytest_runtest_call
+    return (yield)
+            ^^^^^
+E   RuntimeError: generator raised StopIteration</failure></testcase><testcase classname="backend.tests.test_draft_domain_projection" name="test_related_names_do_not_invent_foreign_keys_or_relationships" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_complete_descriptor_preserves_custom_identifier_dates_and_rules" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_invalid_descriptors_fail_before_writing[package]" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_invalid_descriptors_fail_before_writing[entity]" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_invalid_descriptors_fail_before_writing[field]" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_invalid_descriptors_fail_before_writing[table]" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_invalid_descriptors_fail_before_writing[constraint]" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_invalid_descriptors_fail_before_writing[unknown-type]" time="0.006" /><testcase classname="backend.tests.test_normalized_domain" name="test_invalid_descriptors_fail_before_writing[composite]" time="0.005" /><testcase classname="backend.tests.test_normalized_domain" name="test_typed_draft_preserves_column_names_and_explicit_uniqueness" time="0.005" /><testcase classname="backend.tests.test_normalized_domain" name="test_implicit_identifier_agrees_between_migration_and_java" time="0.005" /><testcase classname="backend.tests.test_generated_validation_contract" name="test_native_sources_preserve_constraints_uuid_and_date" time="0.014" /><testcase classname="backend.tests.test_generated_validation_contract" name="test_scaffolding_uses_versioned_dialects_and_original_port" time="0.037" /></testsuite></testsuites>

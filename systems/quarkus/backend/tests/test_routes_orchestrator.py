@@ -35,6 +35,10 @@ def client_with_session(tmp_path, monkeypatch):
 
     yield client, session_id, ws_path
 
+    from app.services.pipeline_runner import _active_threads
+    thread=_active_threads.get(session_id)
+    if thread: thread.join(timeout=10)
+    assert not thread or not thread.is_alive()
     db = SessionLocal()
     db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).delete()
     db.commit()
@@ -87,22 +91,25 @@ def test_get_overview_endpoint(client_with_session):
     assert data["userStoriesCount"] == 1
 
 
-def test_pipeline_run_and_pause_endpoints(client_with_session):
-    client, session_id, ws_path = client_with_session
-
-    # Run pipeline
-    resp = client.post(
-        "/api/v1/orchestrator/pipeline/run",
-        json={"sessionId": session_id, "targetPhase": "DEVOPS_DEPLOY", "stopOnGate": True},
-    )
-    assert resp.status_code == 202
-    data = resp.json()
-    assert data["sessionId"] == session_id
-    assert data["status"] == "RUNNING"
-
-    # Pause pipeline
-    pause_resp = client.post(f"/api/v1/orchestrator/pipeline/{session_id}/pause")
-    assert pause_resp.status_code in (200, 400)  # 200 if still running, 400 if already completed
+def test_pipeline_run_and_pause_endpoints(client_with_session,monkeypatch):
+    import threading
+    from app.services import pipeline_runner
+    from app.services.operation_repository import get_operation
+    client,session_id,ws_path=client_with_session
+    reached=threading.Event()
+    def controlled_steps(sid,*args):
+        reached.set()
+        assert pipeline_runner._pause_events[sid].wait(timeout=5)
+    monkeypatch.setattr(pipeline_runner,'_execute_pipeline_steps',controlled_steps)
+    resp=client.post('/api/v1/orchestrator/pipeline/run',json={'sessionId':session_id,'provider':'mock','targetPhase':'CODE_TESTS','stopOnGate':True})
+    assert resp.status_code==202
+    assert reached.wait(timeout=5)
+    pause=client.post(f'/api/v1/orchestrator/pipeline/{session_id}/pause')
+    assert pause.status_code==200
+    assert pause.json()['status']=='PAUSE_REQUESTED'
+    pipeline_runner._active_threads[session_id].join(timeout=5)
+    assert get_operation(session_id)['state']=='PAUSED'
+    assert get_operation(session_id)['targetPhase']=='CODE_TESTS'
 
 
 def test_export_bundle_endpoint(client_with_session):
@@ -120,7 +127,7 @@ def test_pipeline_run_with_new_session():
     client = TestClient(app)
     resp = client.post(
         "/api/v1/orchestrator/pipeline/run",
-        json={"sessionId": "new", "targetPhase": "DEVOPS_DEPLOY", "stopOnGate": True},
+        json={"sessionId": "new", "provider": "mock", "targetPhase": "DEVOPS_DEPLOY", "stopOnGate": True},
     )
     assert resp.status_code == 202
     data = resp.json()
@@ -128,6 +135,9 @@ def test_pipeline_run_with_new_session():
     assert len(data["sessionId"]) > 10
     assert data["status"] == "RUNNING"
 
+    from app.services.pipeline_runner import _active_threads
+    _active_threads[data['sessionId']].join(timeout=10)
+    assert not _active_threads[data['sessionId']].is_alive()
     # Cleanup created session
     db = SessionLocal()
     try:
@@ -137,51 +147,25 @@ def test_pipeline_run_with_new_session():
         db.close()
 
 
-def test_invalidation_and_resync_flow(client_with_session):
-    client, session_id, ws_path = client_with_session
-
-    # Invalidate from STORIES downstream
-    inv_resp = client.post(
-        f"/api/v1/orchestrator/sessions/{session_id}/invalidate",
-        json={"modifiedPhase": "STORIES"},
-    )
-    assert inv_resp.status_code == 200
-    inv_data = inv_resp.json()
-    assert inv_data["sessionId"] == session_id
-    assert "ARCHITECTURE" in inv_data["outdatedPhases"]
-
-    # Verify lifecycle marks isOutdated
-    lc_resp = client.get(f"/api/v1/orchestrator/sessions/{session_id}/lifecycle")
-    assert lc_resp.status_code == 200
-    assert lc_resp.json()["isOutdated"] is True
-
-    # Re-sync with force=True
-    resync_resp = client.post(
-        "/api/v1/orchestrator/pipeline/run",
-        json={"sessionId": session_id, "force": True},
-    )
-    assert resync_resp.status_code == 202
-
-    # Verify outdated cleared
-    lc_after = client.get(f"/api/v1/orchestrator/sessions/{session_id}/lifecycle")
-    assert lc_after.status_code == 200
-    assert lc_after.json()["isOutdated"] is False
+def test_invalidation_without_built_artifacts_does_not_invent_stale_phases(client_with_session):
+    client,session_id,ws_path=client_with_session
+    response=client.post(f'/api/v1/orchestrator/sessions/{session_id}/invalidate',json={'modifiedPhase':'STORIES'})
+    assert response.status_code==200
+    assert response.json()['outdatedPhases']==[]
+    assert client.get(f'/api/v1/orchestrator/sessions/{session_id}/lifecycle').json()['isOutdated'] is False
 
 
 def test_pipeline_cancel_endpoints(client_with_session):
-    client, session_id, ws_path = client_with_session
-
-    # Cancel via path param
-    cancel_resp = client.post(f"/api/v1/orchestrator/pipeline/{session_id}/cancel")
-    assert cancel_resp.status_code == 200
-    assert cancel_resp.json()["status"] == "CANCELLED"
-
-    # Cancel via body
-    cancel_body_resp = client.post(
-        "/api/v1/orchestrator/pipeline/cancel",
-        json={"sessionId": session_id},
-    )
-    assert cancel_body_resp.status_code == 200
-    assert cancel_body_resp.json()["status"] == "CANCELLED"
-
-
+    from app.services.operation_repository import begin_operation,transition_operation,get_operation
+    client,session_id,ws_path=client_with_session
+    assert client.post(f'/api/v1/orchestrator/pipeline/{session_id}/cancel').status_code==409
+    operation=begin_operation(session_id,'CODE_TESTS')
+    response=client.post(f'/api/v1/orchestrator/pipeline/{session_id}/cancel')
+    assert response.status_code==200
+    assert response.json()['status']=='CANCEL_REQUESTED'
+    requested=get_operation(session_id)
+    assert requested['state']=='CANCEL_REQUESTED'
+    transition_operation(operation['operationId'],requested['version'],'CANCELLED')
+    repeat=client.post('/api/v1/orchestrator/pipeline/cancel',json={'sessionId':session_id})
+    assert repeat.status_code==409
+    assert get_operation(session_id)['state']=='CANCELLED'

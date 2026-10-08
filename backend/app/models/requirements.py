@@ -49,7 +49,9 @@ class RequirementsTransformRequest(BaseModel):
 class SpecificationDraft(BaseModel):
     serviceName: str = Field(..., description="Hyphenated service name (e.g. payment-service).")
     packageName: str = Field(..., description="Reverse domain Java package (e.g. com.corp.payment).")
-    basePort: int = Field(default=8080, description="Default port (8080).")
+    basePort: int = Field(default=8080, ge=1024, le=65535, description="Default port (8080).")
+    databaseMode: str = Field(default="POSTGRESQL", pattern="(?i)^(H2|POSTGRESQL|MYSQL)$")
+    inputInterface: Optional[dict] = None
     entities: List[DomainEntity] = Field(default_factory=list, description="List of extracted domain entities.")
     userStories: List[UserStoryRecord] = Field(
         default_factory=list,
@@ -70,6 +72,8 @@ class SpecificationDraft(BaseModel):
             serviceName=self.serviceName,
             packageName=self.packageName,
             basePort=self.basePort,
+            databaseMode=self.databaseMode,
+            inputInterface=self.inputInterface,
             entities=self.entities,
             userStories=self.userStories,
         )

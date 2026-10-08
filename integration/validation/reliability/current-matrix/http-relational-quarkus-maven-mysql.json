@@ -1,0 +1,55 @@
+{
+  "outcome": "PASSED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "a7a345195ad3d17a1d5f6f4b5be25a9919748e734fad58c48a1cef2125a1fd12",
+  "framework": "quarkus",
+  "buildTool": "maven",
+  "databaseEngine": "MYSQL",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\current-matrix\\java\\relational-quarkus-maven-mysql",
+  "checks": [
+    {
+      "check": "relational-invalid-accountKey",
+      "status": 409
+    },
+    {
+      "check": "relational-invalid-effectiveDate",
+      "status": 400
+    },
+    {
+      "check": "relational-invalid-recordedAt",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-invalid",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance-0",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance--1",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-None",
+      "status": 400
+    },
+    {
+      "check": "parent-delete-does-not-cascade",
+      "status": "PASSED"
+    },
+    {
+      "check": "unique-email",
+      "status": 409
+    },
+    {
+      "check": "stop-restart-data-preserved",
+      "status": "PASSED"
+    },
+    {
+      "check": "CRUD-UUID-date-decimal",
+      "status": "PASSED"
+    }
+  ]
+}

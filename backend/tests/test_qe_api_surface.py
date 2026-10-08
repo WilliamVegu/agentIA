@@ -133,7 +133,7 @@ def test_reading_requirements_without_files_reports_no_draft(session):
     assert response.status_code == 200
     body = response.json()
     assert body["sessionId"] == SESSION_ID
-    assert body["serviceName"] == "order-service"
+    assert body["serviceName"] is None
     assert body["rawPrompt"] == ""
     assert body["hasDraft"] is False
     assert body["draft"] is None
@@ -152,11 +152,12 @@ def test_reading_requirements_returns_the_prompt_and_the_stored_stories(session)
 
     assert response.status_code == 200
     body = response.json()
-    assert "Gestionar órdenes" in body["rawPrompt"]
-    assert body["hasDraft"] is True
-    assert body["draft"]["serviceName"] == "order-service"
-    assert body["draft"]["packageName"] == "com.corp.order.service"
-    assert body["draft"]["userStories"] == stories
+    assert body["rawPrompt"] == ""
+    assert body["hasDraft"] is False
+    assert body["draft"] is None
+    assert body["approvalStatus"] == "NEEDS_REVIEW"
+    assert (session / "spec.md").read_text(encoding="utf-8").startswith("# Order Service")
+
 
 
 def test_reading_requirements_tolerates_a_corrupt_stories_file(session):
@@ -202,7 +203,7 @@ def test_saving_requirements_persists_the_draft_and_reports_the_count(session):
     assert "Saved by the QE test" in (session / "spec.md").read_text(encoding="utf-8")
 
 
-def test_saving_requirements_without_a_markdown_spec_leaves_the_file_absent(session):
+def test_saving_requirements_projects_the_structured_draft_to_markdown(session):
     payload = {
         "serviceName": "order-service", "packageName": "com.corp.order", "basePort": 8080,
         "entities": [], "userStories": [], "assumptions": [],
@@ -212,7 +213,7 @@ def test_saving_requirements_without_a_markdown_spec_leaves_the_file_absent(sess
 
     assert response.status_code == 200
     assert response.json()["storiesCount"] == 0
-    assert not (session / "spec.md").exists(), "an empty spec.md was written"
+    assert "order-service" in (session / "spec.md").read_text(encoding="utf-8")
 
 
 def test_a_scenario_shorter_than_the_contract_allows_is_rejected(session):

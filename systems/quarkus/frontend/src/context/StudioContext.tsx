@@ -43,6 +43,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentSpecId, setCurrentSpecId] = useState<string | null>(null);
   const [parsedSpec, setParsedSpec] = useState<any | null>(null);
   const initialLoadDone = useRef(false);
+  const activeSessionRef = useRef(activeSessionId);
+  activeSessionRef.current = activeSessionId;
+  const overviewRequest = useRef(0);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -66,11 +69,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const reloadCurrentOverview = useCallback(async () => {
     if (!activeSessionId) return;
+    const requestedSession = activeSessionId;
+    const requestVersion = ++overviewRequest.current;
     try {
       const [overviewData, lifecycleData] = await Promise.allSettled([
         orchestratorService.getOverview(activeSessionId),
         orchestratorService.getLifecycle(activeSessionId),
       ]);
+      if (activeSessionRef.current !== requestedSession || overviewRequest.current !== requestVersion) return;
       if (overviewData.status === 'fulfilled') {
         setProjectOverview(overviewData.value);
       }
@@ -91,9 +97,18 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [activeSessionId, reloadCurrentOverview]);
 
+  useEffect(() => {
+    const resync = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.sessionId !== activeSessionRef.current) return;
+      void Promise.all([reloadCurrentOverview(), refreshSessions()]);
+    };
+    window.addEventListener('agentia:session-resync', resync);
+    return () => window.removeEventListener('agentia:session-resync', resync);
+  }, [reloadCurrentOverview, refreshSessions]);
+
   const selectSession = (sessionId: string | null) => {
-    setActiveSessionId(sessionId);
-    if (!sessionId) {
+    if (sessionId !== activeSessionId) {
       setProjectOverview(null);
       setLifecycle(null);
       setCurrentDraft(null);
@@ -102,6 +117,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCurrentSpecId(null);
       setParsedSpec(null);
     }
+    setActiveSessionId(sessionId);
   };
 
   const startNewService = () => {

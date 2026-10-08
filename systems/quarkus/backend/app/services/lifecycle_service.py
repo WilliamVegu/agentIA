@@ -1,3 +1,4 @@
+from app.services.verification_policy import require_verified_session, session_is_verified, tests_really_passed, session_allows_source_delivery, verification_outcome
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +14,7 @@ from app.models.orchestrator import (
     PipelineRunStatus,
     ProjectOverviewSummary,
 )
-from app.models.session import GenerationSessionDB, SessionLocal, SessionStatus
+from app.models.session import GenerationSessionDB, SessionLocal, SessionStatus, SessionPhase
 from app.services.security_service import audit_workspace
 from app.services.docker_service import get_deployment_status
 
@@ -51,7 +52,7 @@ PHASE_METADATA = {
     },
     LifecyclePhase.CODE_TESTS: {
         "title": "5. Código, Tests & Auto-Reparación",
-        "description": "Síntesis del microservicio Quarkus 3.x, suites de tests y sandbox Surefire",
+        "description": "Síntesis del microservice Quarkus 3.x, suites de tests y sandbox Surefire",
         "tabIndex": 5,
     },
     LifecyclePhase.SECURITY_AUDIT: {
@@ -100,7 +101,6 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
         phase_states: List[PhaseState] = []
         completed_count = 0
         is_blocked = False
-        blocked_reason = None
 
         # Determine phase completion based on workspace artifacts and DB status
         for idx, phase in enumerate(PHASE_ORDER):
@@ -130,7 +130,10 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                             data = json.load(f)
                             summary["storiesCount"] = len(data) if isinstance(data, list) else len(data.get("stories", []))
                     except Exception:
-                        summary["storiesCount"] = 1
+                        summary["storiesCount"] = 0
+                        status = PhaseStatus.BLOCKED
+                        is_blocked = True
+                        reason = "No se pudo leer el archivo de historias; revise su contenido"
                 elif phase_states[0].status == PhaseStatus.COMPLETED:
                     status = PhaseStatus.NOT_STARTED
                 else:
@@ -167,15 +170,31 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
             # Phase 5: Code & Tests
             elif phase == LifecyclePhase.CODE_TESTS:
                 pom_file = ws_path / "pom.xml"
+                build_file = pom_file.exists() or (ws_path / "build.gradle").exists() or (ws_path / "build.gradle.kts").exists()
                 src_dir = ws_path / "src"
-                if pom_file.exists() and src_dir.exists():
+                if build_file and src_dir.exists():
                     if sess.repair_attempts >= 3 and sess.status == SessionStatus.BLOCKED:
                         status = PhaseStatus.BLOCKED
                         is_blocked = True
-                        blocked_reason = "Límite de 3 auto-reparaciones alcanzado (Principio V)"
-                    else:
+                        reason = "Límite de 3 auto-reparaciones alcanzado (Principio V)"
+                    elif sess.status == SessionStatus.BLOCKED or sess.phase == SessionPhase.FAILED:
+                        status = PhaseStatus.BLOCKED
+                        is_blocked = True
+                        reason = sess.error_message or "Verificación o compilación de pruebas falló"
+                    elif sess.status == SessionStatus.CANCELLED:
+                        status = PhaseStatus.BLOCKED
+                        is_blocked = True
+                        reason = "Sesión cancelada"
+                    elif session_is_verified(sess):
                         status = PhaseStatus.COMPLETED
-                        summary["pom"] = "pom.xml"
+                        summary["build"] = "pom.xml" if pom_file.exists() else "Gradle"
+                    elif session_allows_source_delivery(sess):
+                        status = PhaseStatus.COMPLETED
+                        summary["verification"] = "No ejecutada: entrega de fuentes elegida sin Docker"
+                        reason = "Código generado; compilación y pruebas no ejecutadas."
+                    else:
+                        status = PhaseStatus.IN_PROGRESS
+                        reason = "Código generado; pruebas reales pendientes"
                 elif phase_states[3].status == PhaseStatus.COMPLETED:
                     status = PhaseStatus.NOT_STARTED
                 else:
@@ -188,16 +207,19 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 if phase_states[4].status == PhaseStatus.COMPLETED:
                     # Run or inspect security audit
                     try:
-                        audit = audit_workspace(str(ws_path), session_id, sess.spec_name or "microservice")
-                        qg_status = audit.qualityGate.status.value if hasattr(audit.qualityGate.status, "value") else str(audit.qualityGate.status)
-                        summary["qualityGate"] = qg_status
-                        summary["findingsCount"] = len(audit.vulnerabilities) + len(audit.violations)
-                        if qg_status == "BLOCKED":
-                            status = PhaseStatus.BLOCKED
-                            is_blocked = True
-                            blocked_reason = f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
+                        from app.services.verification_evidence import current_audit
+                        audit=current_audit(session_id,ws_path)
+                        if audit is None:
+                            audit=audit_workspace(str(ws_path),session_id,sess.spec_name or "microservice")
+                        qg_status=getattr(audit.qualityGate.status,'value',audit.qualityGate.status)
+                        summary['qualityGate']=qg_status
+                        summary['findingsCount']=len(audit.vulnerabilities)+len(audit.violations)
+                        if not audit.qualityGate.canExport or qg_status!='PASS':
+                            status=PhaseStatus.BLOCKED
+                            is_blocked=True
+                            reason=f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
                         else:
-                            status = PhaseStatus.COMPLETED
+                            status=PhaseStatus.COMPLETED
                     except Exception:
                         status = PhaseStatus.NOT_STARTED
                 else:
@@ -211,7 +233,14 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 if compose_file.exists():
                     deploy_info = get_deployment_status(session_id)
                     summary["deploymentStatus"] = deploy_info.status
-                    status = PhaseStatus.COMPLETED
+                    if sess.execution_mode == "SOURCE_ONLY" and phase_states[5].status == PhaseStatus.COMPLETED:
+                        status = PhaseStatus.COMPLETED
+                        summary["deployment"] = "No ejecutado: entrega de fuentes elegida sin Docker"
+                        reason = "Manifiestos generados; despliegue no ejecutado."
+                    else:
+                        status = PhaseStatus.COMPLETED if str(getattr(deploy_info.status, "value", deploy_info.status)) == "HEALTHY" else PhaseStatus.IN_PROGRESS
+                    if status != PhaseStatus.COMPLETED:
+                        reason = "Manifiestos generados; despliegue saludable pendiente"
                 elif phase_states[5].status == PhaseStatus.COMPLETED:
                     status = PhaseStatus.NOT_STARTED
                 else:
@@ -251,7 +280,7 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 next_phase = p.phase
                 break
         if completed_count == len(PHASE_ORDER):
-            next_action = "¡Microservicio completamente sintetizado y desplegado!"
+            next_action = "Flujo completado; consulte por separado la verificación y el despliegue"
             next_phase = LifecyclePhase.COMPLETED
 
         current_phase_str = sess.current_lifecycle_phase or LifecyclePhase.INITIAL.value
@@ -322,49 +351,6 @@ def transition_phase(session_id: str, target_phase: LifecyclePhase, force: bool 
     return get_session_lifecycle(session_id)
 
 
-def mark_downstream_outdated(session_id: str, modified_phase: LifecyclePhase):
-    """Marks all downstream phases after modified_phase as OUTDATED in session progress tracking."""
-    if modified_phase not in PHASE_ORDER:
-        return
-
-    mod_index = PHASE_ORDER.index(modified_phase)
-    outdated = [p.value for p in PHASE_ORDER[mod_index + 1:]]
-
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess:
-            prog = {}
-            if sess.phase_progress_json:
-                try:
-                    prog = json.loads(sess.phase_progress_json)
-                except Exception:
-                    prog = {}
-            prog["outdated_phases"] = outdated
-            prog["last_modified_phase"] = modified_phase.value
-            sess.phase_progress_json = json.dumps(prog)
-            db.commit()
-    finally:
-        db.close()
-
-
-def clear_outdated_phases(session_id: str):
-    """Clears outdated phase flags after re-synchronization."""
-    db = SessionLocal()
-    try:
-        sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
-        if sess and sess.phase_progress_json:
-            try:
-                prog = json.loads(sess.phase_progress_json)
-                prog["outdated_phases"] = []
-                sess.phase_progress_json = json.dumps(prog)
-                db.commit()
-            except Exception:
-                pass
-    finally:
-        db.close()
-
-
 def get_project_overview(session_id: str) -> ProjectOverviewSummary:
     """Compiles aggregate project metrics and milestone status for the Project Overview Home View."""
     lifecycle = get_session_lifecycle(session_id)
@@ -392,19 +378,22 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
 
     # Calculate entities count & database
     entities_count = 0
-    db_engine = "POSTGRESQL"
+    db_engine = sess.database_engine if sess else "POSTGRESQL"
     sql_file = ws_path / "schema.sql"
     if sql_file.exists():
         try:
             with open(sql_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 entities_count = content.count("CREATE TABLE")
-                if "SERIAL" in content or "VARCHAR" in content:
-                    db_engine = "POSTGRESQL"
-                elif "AUTO_INCREMENT" in content:
-                    db_engine = "MYSQL"
         except Exception:
             pass
+
+    from app.services.draft_revision_service import get_revision
+    revision = get_revision(session_id)
+    if revision['draft'] is not None:
+        stories_count = len(revision['draft']['userStories'])
+        entities_count = len(revision['draft']['entities'])
+        db_engine = revision['draft']['databaseMode'].upper()
 
     # Security verdict
     sec_verdict = "PENDING"
@@ -416,22 +405,74 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
 
     # Deployment
     deploy_info = get_deployment_status(session_id)
-    test_url = f"http://localhost:{deploy_info.hostPort}/actuator/health" if deploy_info.hostPort else None
+    test_url = f"http://localhost:{deploy_info.hostPort}/q/health" if deploy_info.hostPort else None
+
+    real_tests_passed = False
+    if sess.verification_metrics_json:
+        try:
+            vm = json.loads(sess.verification_metrics_json)
+            if (
+                vm.get("totalTests", 0) > 0
+                and vm.get("passedTests", 0) == vm.get("totalTests")
+                and vm.get("allPassed", False)
+                and not vm.get("fallback_used", False)
+            ):
+                real_tests_passed = True
+        except Exception:
+            pass
+    real_tests_passed = session_is_verified(sess)
+    try:
+        verification_metrics = json.loads(sess.verification_metrics_json or "{}")
+        tests_executed = (verification_metrics.get("totalTests", 0) > 0
+                          and not verification_metrics.get("fallback_used", False))
+    except (ValueError, TypeError):
+        tests_executed = False
 
     return ProjectOverviewSummary(
         sessionId=session_id,
+        executionMode=sess.execution_mode if sess else "SOURCE_ONLY",
+        verificationOutcome=verification_outcome(sess).value if sess else "NOT_RUN",
         specName=spec_name,
         lifecycle=lifecycle,
         framework="Java 21 / Quarkus 3.x",
         databaseEngine=db_engine,
         userStoriesCount=stories_count,
         entitiesCount=entities_count,
-        testsPassed=(lifecycle.phases[4].status == PhaseStatus.COMPLETED) if len(lifecycle.phases) > 4 else False,
+        testsPassed=real_tests_passed,
+        testsExecuted=tests_executed,
         securityAuditVerdict=sec_verdict,
         deploymentStatus=deploy_info.status.value if hasattr(deploy_info.status, "value") else str(deploy_info.status),
-        deploymentUrl=test_url,
+        deploymentUrl=deploy_info.testUrl,
         pipelineStatus=lifecycle.pipeline_status,
     )
+
+
+#: The artifacts whose presence means a phase has actually been built. Deliberately
+#: the same conditions `get_session_progress` uses to derive COMPLETED from the
+#: workspace, so the two cannot disagree about whether a phase exists.
+_PHASE_COMPLETION_ARTIFACTS = {
+    LifecyclePhase.REQUIREMENTS: ("spec.md",),
+    LifecyclePhase.STORIES: ("user_stories.json",),
+    LifecyclePhase.ARCHITECTURE: ("architecture.json",),
+    LifecyclePhase.DATA_MODEL: ("schema.sql",),
+    LifecyclePhase.CODE_TESTS: ("pom.xml", "src"),
+    LifecyclePhase.SECURITY_AUDIT: ("security_audit_report.json",),
+    LifecyclePhase.DEVOPS_DEPLOY: ("docker-compose.yml",),
+}
+
+
+def completed_phases(session_id: str) -> set:
+    """The phases whose artifacts exist on disk, i.e. that have actually been built.
+
+    Derived from the workspace rather than from a stored flag, for the same reason the
+    status view does it that way: a flag can claim a phase ran when nothing was written.
+    """
+    ws_path = _get_workspace_path(session_id)
+    return {
+        phase.value
+        for phase, artifacts in _PHASE_COMPLETION_ARTIFACTS.items()
+        if all((ws_path / artifact).exists() for artifact in artifacts)
+    }
 
 
 def mark_downstream_outdated(session_id: str, modified_phase: Union[str, LifecyclePhase]) -> List[str]:
@@ -452,6 +493,25 @@ def mark_downstream_outdated(session_id: str, modified_phase: Union[str, Lifecyc
     if not downstream:
         return []
 
+    # Only a phase that has been BUILT can become stale. A phase with no artifacts is
+    # not outdated, it is simply not built yet -- and on a first pass through the
+    # lifecycle every downstream phase is empty.
+    #
+    # This is the bug reported from the UI: clicking "Aprobar y Diseñar Arquitectura"
+    # saves the requirements and then marked all five downstream phases outdated, so the
+    # banner announced "upstream modifications detected" when nothing had been modified.
+    # The phases could not even display as OUTDATED -- the status view only shows that
+    # for a COMPLETED phase -- so the flag existed solely to raise the banner. Its
+    # "Re-sincronizar" button then re-runs generation to DEVOPS_DEPLOY for a state that
+    # was already correct, spending real model calls to fix nothing.
+    built = completed_phases(session_id)
+    stale = [phase for phase in downstream if phase in built]
+
+    # No early return when `stale` is empty: the stored flags still have to be pruned,
+    # or a flag whose artifact was removed keeps the banner up with nothing behind it.
+    # A first version of this fix returned early and left exactly that state behind,
+    # which the test `test_flags_for_artifacts_that_no_longer_exist_are_dropped` caught.
+
     db = SessionLocal()
     try:
         sess = db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).first()
@@ -465,12 +525,14 @@ def mark_downstream_outdated(session_id: str, modified_phase: Union[str, Lifecyc
             except Exception:
                 prog = {}
 
-        existing_outdated = set(prog.get("outdated_phases", []))
-        existing_outdated.update(downstream)
-        prog["outdated_phases"] = list(existing_outdated)
+        # Drop flags for phases that are no longer built (a workspace reset, or an
+        # artifact removed). Keeping them would keep the banner up with nothing behind it.
+        existing_outdated = {p for p in prog.get("outdated_phases", []) if p in built}
+        existing_outdated.update(stale)
+        prog["outdated_phases"] = sorted(existing_outdated)
         sess.phase_progress_json = json.dumps(prog)
         db.commit()
-        return list(existing_outdated)
+        return sorted(existing_outdated)
     finally:
         db.close()
 

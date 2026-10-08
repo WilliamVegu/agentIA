@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="7" skipped="0" tests="7" time="5.630" timestamp="2026-10-07T23:06:51.385864-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_git_safety" name="test_divergent_push_does_not_replace_history_and_preserves_origin" time="0.599"><failure message="TypeError: publish_to_git() got an unexpected keyword argument 'allow_local'">backend\tests\test_git_safety.py:22: in test_divergent_push_does_not_replace_history_and_preserves_origin
+    publish_to_git(str(tmp_path / 'first'), str(tmp_path / 'remote.git'), 'feature/test', allow_local=True)
+E   TypeError: publish_to_git() got an unexpected keyword argument 'allow_local'</failure></testcase><testcase classname="backend.tests.test_git_safety" name="test_pat_never_enters_urls_or_config_even_when_push_fails" time="0.690"><failure message="IndexError: list index out of range">backend\tests\test_git_safety.py:48: in test_pat_never_enters_urls_or_config_even_when_push_fails
+    assert environments[0]['GIT_CONFIG_KEY_0'] == 'http.https://github.com/.extraHeader'
+           ^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="backend.tests.test_git_safety" name="test_invalid_branch_rejected_before_writing[--force]" time="0.284"><failure message="git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git checkout -B --force&#10;  stderr: 'fatal: '--force' is not a valid branch name&#10;hint: See 'git help check-ref-format'&#10;hint: Disable this message with &quot;git config set advice.refSyntax false&quot;'">backend\app\services\git_service.py:47: in publish_to_git
+    current_branch = repo.create_head(branch_name)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\base.py:585: in create_head
+    return Head.create(self, path, commit, logmsg, force)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:758: in create
+    return cls._create(repo, path, cls._resolve_ref_on_create, reference, force, logmsg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:696: in _create
+    target = repo.rev_parse(str(reference))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:409: in rev_parse
+    obj = name_to_object(repo, rev)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:202: in name_to_object
+    raise BadName(name)
+E   gitdb.exc.BadName: Ref 'HEAD' did not resolve to an object
+
+During handling of the above exception, another exception occurred:
+backend\tests\test_git_safety.py:55: in test_invalid_branch_rejected_before_writing
+    publish_to_git(str(tmp_path), 'https://github.com/example/repo.git', branch)
+backend\app\services\git_service.py:50: in publish_to_git
+    repo.git.checkout("-B", branch_name)
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:986: in &lt;lambda&gt;
+    return lambda *args, **kwargs: self._call_process(name, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1599: in _call_process
+    return self.execute(call, **exec_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1389: in execute
+    raise GitCommandError(redacted_command, status, stderr_value, stdout_value)
+E   git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)
+E     cmdline: git checkout -B --force
+E     stderr: 'fatal: '--force' is not a valid branch name
+E   hint: See 'git help check-ref-format'
+E   hint: Disable this message with "git config set advice.refSyntax false"'</failure></testcase><testcase classname="backend.tests.test_git_safety" name="test_invalid_branch_rejected_before_writing[x..y]" time="0.156"><failure message="git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git checkout -B x..y&#10;  stderr: 'fatal: 'x..y' is not a valid branch name&#10;hint: See 'git help check-ref-format'&#10;hint: Disable this message with &quot;git config set advice.refSyntax false&quot;'">backend\app\services\git_service.py:47: in publish_to_git
+    current_branch = repo.create_head(branch_name)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\base.py:585: in create_head
+    return Head.create(self, path, commit, logmsg, force)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:758: in create
+    return cls._create(repo, path, cls._resolve_ref_on_create, reference, force, logmsg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:696: in _create
+    target = repo.rev_parse(str(reference))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:409: in rev_parse
+    obj = name_to_object(repo, rev)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:202: in name_to_object
+    raise BadName(name)
+E   gitdb.exc.BadName: Ref 'HEAD' did not resolve to an object
+
+During handling of the above exception, another exception occurred:
+backend\tests\test_git_safety.py:55: in test_invalid_branch_rejected_before_writing
+    publish_to_git(str(tmp_path), 'https://github.com/example/repo.git', branch)
+backend\app\services\git_service.py:50: in publish_to_git
+    repo.git.checkout("-B", branch_name)
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:986: in &lt;lambda&gt;
+    return lambda *args, **kwargs: self._call_process(name, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1599: in _call_process
+    return self.execute(call, **exec_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1389: in execute
+    raise GitCommandError(redacted_command, status, stderr_value, stdout_value)
+E   git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)
+E     cmdline: git checkout -B x..y
+E     stderr: 'fatal: 'x..y' is not a valid branch name
+E   hint: See 'git help check-ref-format'
+E   hint: Disable this message with "git config set advice.refSyntax false"'</failure></testcase><testcase classname="backend.tests.test_git_safety" name="test_invalid_branch_rejected_before_writing[refs/heads/main]" time="2.585"><failure message="RuntimeError: Git push failed to https://github.com/example/repo.git: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git push --porcelain --force -- origin refs/heads/main:refs/heads/main&#10;  stderr: 'fatal: repository 'https://github.com/example/repo.git/' not found'">backend\app\services\git_service.py:71: in publish_to_git
+    remote.push(refspec=f"{branch_name}:{branch_name}", force=True)
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\remote.py:1210: in push
+    return self._get_push_info(proc, progress, kill_after_timeout=kill_after_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\remote.py:975: in _get_push_info
+    proc.wait(stderr=stderr_text)
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:834: in wait
+    raise GitCommandError(remove_password_if_present(self.args), status, errstr)
+E   git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push --porcelain --force -- origin refs/heads/main:refs/heads/main
+E     stderr: 'fatal: repository 'https://github.com/example/repo.git/' not found'
+
+During handling of the above exception, another exception occurred:
+backend\tests\test_git_safety.py:55: in test_invalid_branch_rejected_before_writing
+    publish_to_git(str(tmp_path), 'https://github.com/example/repo.git', branch)
+backend\app\services\git_service.py:78: in publish_to_git
+    raise RuntimeError(f"Git push failed to {clean_url}: {str(push_err)}")
+E   RuntimeError: Git push failed to https://github.com/example/repo.git: Cmd('git') failed due to: exit code(128)
+E     cmdline: git push --porcelain --force -- origin refs/heads/main:refs/heads/main
+E     stderr: 'fatal: repository 'https://github.com/example/repo.git/' not found'</failure></testcase><testcase classname="backend.tests.test_git_safety" name="test_invalid_branch_rejected_before_writing[main:other]" time="0.125"><failure message="git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git checkout -B main:other&#10;  stderr: 'fatal: 'main:other' is not a valid branch name&#10;hint: See 'git help check-ref-format'&#10;hint: Disable this message with &quot;git config set advice.refSyntax false&quot;'">backend\app\services\git_service.py:47: in publish_to_git
+    current_branch = repo.create_head(branch_name)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\base.py:585: in create_head
+    return Head.create(self, path, commit, logmsg, force)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:758: in create
+    return cls._create(repo, path, cls._resolve_ref_on_create, reference, force, logmsg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:696: in _create
+    target = repo.rev_parse(str(reference))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:409: in rev_parse
+    obj = name_to_object(repo, rev)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:202: in name_to_object
+    raise BadName(name)
+E   gitdb.exc.BadName: Ref 'HEAD' did not resolve to an object
+
+During handling of the above exception, another exception occurred:
+backend\tests\test_git_safety.py:55: in test_invalid_branch_rejected_before_writing
+    publish_to_git(str(tmp_path), 'https://github.com/example/repo.git', branch)
+backend\app\services\git_service.py:50: in publish_to_git
+    repo.git.checkout("-B", branch_name)
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:986: in &lt;lambda&gt;
+    return lambda *args, **kwargs: self._call_process(name, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1599: in _call_process
+    return self.execute(call, **exec_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1389: in execute
+    raise GitCommandError(redacted_command, status, stderr_value, stdout_value)
+E   git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)
+E     cmdline: git checkout -B main:other
+E     stderr: 'fatal: 'main:other' is not a valid branch name
+E   hint: See 'git help check-ref-format'
+E   hint: Disable this message with "git config set advice.refSyntax false"'</failure></testcase><testcase classname="backend.tests.test_git_safety" name="test_invalid_branch_rejected_before_writing[x\nmain]" time="0.127"><failure message="git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)&#10;  cmdline: git checkout -B x&#10;main&#10;  stderr: 'fatal: 'x&#10;main' is not a valid branch name&#10;hint: See 'git help check-ref-format'&#10;hint: Disable this message with &quot;git config set advice.refSyntax false&quot;'">backend\app\services\git_service.py:47: in publish_to_git
+    current_branch = repo.create_head(branch_name)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\base.py:585: in create_head
+    return Head.create(self, path, commit, logmsg, force)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:758: in create
+    return cls._create(repo, path, cls._resolve_ref_on_create, reference, force, logmsg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\refs\symbolic.py:696: in _create
+    target = repo.rev_parse(str(reference))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:409: in rev_parse
+    obj = name_to_object(repo, rev)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\repo\fun.py:202: in name_to_object
+    raise BadName(name)
+E   gitdb.exc.BadName: Ref 'HEAD' did not resolve to an object
+
+During handling of the above exception, another exception occurred:
+backend\tests\test_git_safety.py:55: in test_invalid_branch_rejected_before_writing
+    publish_to_git(str(tmp_path), 'https://github.com/example/repo.git', branch)
+backend\app\services\git_service.py:50: in publish_to_git
+    repo.git.checkout("-B", branch_name)
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:986: in &lt;lambda&gt;
+    return lambda *args, **kwargs: self._call_process(name, *args, **kwargs)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1599: in _call_process
+    return self.execute(call, **exec_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\.venv-reliability-quarkus\Lib\site-packages\git\cmd.py:1389: in execute
+    raise GitCommandError(redacted_command, status, stderr_value, stdout_value)
+E   git.exc.GitCommandError: Cmd('git') failed due to: exit code(128)
+E     cmdline: git checkout -B x
+E   main
+E     stderr: 'fatal: 'x
+E   main' is not a valid branch name
+E   hint: See 'git help check-ref-format'
+E   hint: Disable this message with "git config set advice.refSyntax false"'</failure></testcase></testsuite></testsuites>

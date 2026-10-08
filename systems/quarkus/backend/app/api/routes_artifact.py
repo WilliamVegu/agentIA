@@ -39,7 +39,8 @@ async def list_artifacts(session_id: str):
     finally:
         db.close()
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     if not ws_path.exists() or not ws_path.is_dir():
         return []
 
@@ -47,11 +48,13 @@ async def list_artifacts(session_id: str):
     ignored_dirs = {".git", "target", ".idea", "__pycache__", ".m2"}
 
     for root, dirs, files in os.walk(ws_path):
-        dirs[:] = [d for d in dirs if d not in ignored_dirs]
+        dirs[:] = [d for d in dirs if d not in ignored_dirs and not (Path(root) / d).is_symlink() and not getattr((Path(root) / d).lstat(), "st_file_attributes", 0) & 0x400]
         for file in files:
             full_file_path = Path(root) / file
             try:
                 rel_path = str(full_file_path.relative_to(ws_path)).replace("\\", "/")
+                from app.services.workspace_guard import resolve_workspace_file
+                full_file_path = resolve_workspace_file(session_id, rel_path, require_exists=True)
                 file_type = _detect_file_type(rel_path, full_file_path)
                 size_bytes = full_file_path.stat().st_size
                 artifacts.append(
@@ -72,18 +75,8 @@ async def list_artifacts(session_id: str):
 @router.get("/{session_id}/artifacts/content")
 async def get_artifact_content(session_id: str, path: str = Query(..., description="Relative path of file")):
     """Returns the raw source code text of a specific artifact."""
-    ws_path = (Path(settings.WORKSPACE_DIR) / session_id).resolve()
-    if not ws_path.exists():
-        raise HTTPException(status_code=404, detail="Session workspace not found")
-
-    target_file = (ws_path / path).resolve()
-    # Prevent path traversal attacks
-    if not target_file.is_relative_to(ws_path):
-        raise HTTPException(status_code=400, detail="Invalid path traversal attempt")
-
-    if not target_file.exists() or not target_file.is_file():
-        raise HTTPException(status_code=404, detail=f"Artifact '{path}' not found")
-
+    from app.services.workspace_guard import resolve_workspace_file, io_path
+    target_file = io_path(resolve_workspace_file(session_id, path, require_exists=True))
     try:
         content = target_file.read_text(encoding="utf-8")
         return Response(content=content, media_type="text/plain; charset=utf-8")

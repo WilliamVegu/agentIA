@@ -130,7 +130,10 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                             data = json.load(f)
                             summary["storiesCount"] = len(data) if isinstance(data, list) else len(data.get("stories", []))
                     except Exception:
-                        summary["storiesCount"] = 1
+                        summary["storiesCount"] = 0
+                        status = PhaseStatus.BLOCKED
+                        is_blocked = True
+                        reason = "No se pudo leer el archivo de historias; revise su contenido"
                 elif phase_states[0].status == PhaseStatus.COMPLETED:
                     status = PhaseStatus.NOT_STARTED
                 else:
@@ -204,33 +207,19 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 if phase_states[4].status == PhaseStatus.COMPLETED:
                     # Run or inspect security audit
                     try:
-                        report_file = ws_path / "security_audit_report.json"
-                        if report_file.exists():
-                            with open(report_file, "r", encoding="utf-8") as f:
-                                audit_data = json.load(f)
-                            qg = audit_data.get("qualityGate", {})
-                            qg_status = qg.get("status", "COMPLETED")
-                            summary["qualityGate"] = qg_status
-                            vulns = audit_data.get("vulnerabilities", [])
-                            viols = audit_data.get("violations", [])
-                            summary["findingsCount"] = len(vulns) + len(viols)
-                            if qg_status == "BLOCKED":
-                                status = PhaseStatus.BLOCKED
-                                is_blocked = True
-                                reason = f"Quality Gate BLOQUEADO: {qg.get('summaryMessage', '')}"
-                            else:
-                                status = PhaseStatus.COMPLETED
+                        from app.services.verification_evidence import current_audit
+                        audit=current_audit(session_id,ws_path)
+                        if audit is None:
+                            audit=audit_workspace(str(ws_path),session_id,sess.spec_name or "microservice")
+                        qg_status=getattr(audit.qualityGate.status,'value',audit.qualityGate.status)
+                        summary['qualityGate']=qg_status
+                        summary['findingsCount']=len(audit.vulnerabilities)+len(audit.violations)
+                        if not audit.qualityGate.canExport or qg_status!='PASS':
+                            status=PhaseStatus.BLOCKED
+                            is_blocked=True
+                            reason=f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
                         else:
-                            audit = audit_workspace(str(ws_path), session_id, sess.spec_name or "microservice")
-                            qg_status = audit.qualityGate.status.value if hasattr(audit.qualityGate.status, "value") else str(audit.qualityGate.status)
-                            summary["qualityGate"] = qg_status
-                            summary["findingsCount"] = len(audit.vulnerabilities) + len(audit.violations)
-                            if qg_status == "BLOCKED":
-                                status = PhaseStatus.BLOCKED
-                                is_blocked = True
-                                reason = f"Quality Gate BLOQUEADO: {audit.qualityGate.summaryMessage}"
-                            else:
-                                status = PhaseStatus.COMPLETED
+                            status=PhaseStatus.COMPLETED
                     except Exception:
                         status = PhaseStatus.NOT_STARTED
                 else:
@@ -291,7 +280,7 @@ def get_session_lifecycle(session_id: str) -> LifecycleState:
                 next_phase = p.phase
                 break
         if completed_count == len(PHASE_ORDER):
-            next_action = "¡Microservicio completamente sintetizado y desplegado!"
+            next_action = "Flujo completado; consulte por separado la verificación y el despliegue"
             next_phase = LifecyclePhase.COMPLETED
 
         current_phase_str = sess.current_lifecycle_phase or LifecyclePhase.INITIAL.value
@@ -398,6 +387,13 @@ def get_project_overview(session_id: str) -> ProjectOverviewSummary:
                 entities_count = content.count("CREATE TABLE")
         except Exception:
             pass
+
+    from app.services.draft_revision_service import get_revision
+    revision = get_revision(session_id)
+    if revision['draft'] is not None:
+        stories_count = len(revision['draft']['userStories'])
+        entities_count = len(revision['draft']['entities'])
+        db_engine = revision['draft']['databaseMode'].upper()
 
     # Security verdict
     sec_verdict = "PENDING"

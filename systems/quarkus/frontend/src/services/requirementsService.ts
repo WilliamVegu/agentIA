@@ -40,8 +40,19 @@ export const requirementsService = {
     return response.data;
   },
 
-  async saveSessionRequirements(sessionId: string, draft: any) {
-    const response = await apiClient.post(`/requirements/sessions/${sessionId}/save`, draft);
+  async saveSessionRequirements(sessionId: string, draft: any, expectedRevisionId?: string | null, expectedVersion?: number) {
+    const response = await apiClient.post(`/requirements/sessions/${sessionId}/save`, draft, { params: { expectedRevisionId: expectedRevisionId ?? undefined, expectedVersion } });
+    return response.data;
+  },
+
+  async approveSessionRequirements(sessionId: string, revisionId: string, expectedVersion?: number) {
+    const response = await apiClient.post(`/requirements/sessions/${sessionId}/approve`, null, { params: { revisionId, expectedVersion } });
+    return response.data;
+  },
+
+  async prepareRegeneration(sessionId: string, revisionId: string) {
+    const response = await apiClient.post(`/requirements/sessions/${sessionId}/regenerate`, null,
+      { params: { revisionId, confirmBackup: true } });
     return response.data;
   },
 

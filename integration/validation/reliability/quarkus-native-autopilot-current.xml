@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="305.791" timestamp="2026-10-08T16:33:49.493058-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_native_runtime_integration" name="test_native_two_sessions_collision_restart_and_controls" time="305.325"><failure message="AssertionError: Execution timed out after 300 seconds.&#10;ngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)&#10;&#09;at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)&#10;&#09;at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)&#10;&#09;at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)&#10;&#09;at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)&#10;&#09;at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)&#10;&#09;at org.apache.maven.surefire.junitplatform.LazyLauncher.execute(LazyLauncher.java:56)&#10;&#09;at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:184)&#10;&#09;at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:148)&#10;&#09;at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:122)&#10;&#09;at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)&#10;&#09;at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)&#10;&#09;at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)&#10;&#09;at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)&#10;Caused by: java.net.UnknownHostException: 9004e3ee59c3: Temporary failure in name resolution&#10;&#09;at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)&#10;&#09;at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Inet6AddressImpl.java:52)&#10;&#09;at java.base/java.net.InetAddress$PlatformResolver.lookupByName(InetAddress.java:1211)&#10;&#09;at java.base/java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1828)&#10;&#09;at java.base/java.net.InetAddress$NameServiceAddresses.get(InetAddress.java:1139)&#10;&#09;at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1818)&#10;&#09;at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1931)&#10;&#09;... 98 more&#10;&#10;2026-10-08 21:37:41,983 INFO  [org.fly.cor.FlywayExecutor] (main) Database: jdbc:h2:mem:ledger_service (H2 2.3)&#10;2026-10-08 21:37:41,996 WARN  [org.fly.cor.int.dat.bas.Database] (main) Flyway upgrade recommended: H2 2.3.230 is newer than this version of Flyway and support has not been tested. The latest supported version of H2 is 2.2.224.&#10;2026-10-08 21:37:42,078 INFO  [org.fly.cor.int.sch.JdbcTableSchemaHistory] (main) Schema history table &quot;PUBLIC&quot;.&quot;flyway_schema_history&quot; does not exist yet&#10;2026-10-08 21:37:42,083 INFO  [org.fly.cor.int.com.DbValidate] (main) Successfully validated 1 migration (execution time 00:00.055s)&#10;2026-10-08 21:37:42,103 INFO  [org.fly.cor.int.sch.JdbcTableSchemaHistory] (main) Creating Schema History table &quot;PUBLIC&quot;.&quot;flyway_schema_history&quot; ...&#10;2026-10-08 21:37:42,174 INFO  [org.fly.cor.int.com.DbMigrate] (main) Current version of schema &quot;PUBLIC&quot;: &lt;&lt; Empty Schema &gt;&gt;&#10;2026-10-08 21:37:42,193 INFO  [org.fly.cor.int.com.DbMigrate] (main) Migrating schema &quot;PUBLIC&quot; to version &quot;1 - initial&quot;&#10;2026-10-08 21:37:42,222 INFO  [org.fly.cor.int.com.DbMigrate] (main) Successfully applied 1 migration to schema &quot;PUBLIC&quot;, now at version v1 (execution time 00:00.006s)&#10;2026-10-08 21:37:43,761 INFO  [io.quarkus] (main) ledger-service 1.0.0-SNAPSHOT on JVM (powered by Quarkus 3.15.1) started in 14.155s. Listening on: http://localhost:38473&#10;2026-10-08 21:37:43,761 INFO  [io.quarkus] (main) Profile test activated. &#10;2026-10-08 21:37:43,762 INFO  [io.quarkus] (main) Installed features: [agroal, cdi, flyway, hibernate-orm, hibernate-validator, jdbc-h2, narayana-jta, rest, rest-jackson, smallrye-context-propagation, smallrye-health, smallrye-openapi, swagger-ui, vertx]&#10;[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 31.78 s -- in com.audit.custom.LedgerServiceApplicationTests&#10;[INFO] Running com.audit.custom.model.entity.platformverification.PlatformPersistenceContractTest&#10;2026-10-08 21:37:45,855 INFO  [io.quarkus] (main) ledger-service stopped in 0.259s&#10;2026-10-08 21:37:58,437 INFO  [org.fly.cor.FlywayExecutor] (main) Database: jdbc:h2:mem:ledger_service (H2 2.3)&#10;2026-10-08 21:37:58,443 WARN  [org.fly.cor.int.dat.bas.Database] (main) Flyway upgrade recommended: H2 2.3.230 is newer than this version of Flyway and support has not been tested. The latest supported version of H2 is 2.2.224.&#10;2026-10-08 21:37:58,495 INFO  [org.fly.cor.int.com.DbValidate] (main) Successfully validated 1 migration (execution time 00:00.039s)&#10;2026-10-08 21:37:58,507 INFO  [org.fly.cor.int.com.DbMigrate] (main) Current version of schema &quot;PUBLIC&quot;: 1&#10;2026-10-08 21:37:58,509 INFO  [org.fly.cor.int.com.DbMigrate] (main) Schema &quot;PUBLIC&quot; is up to date. No migration necessary.&#10;2026-10-08 21:37:59,819 INFO  [io.quarkus] (main) ledger-service 1.0.0-SNAPSHOT on JVM (powered by Quarkus 3.15.1) started in 10.663s. Listening on: http://localhost:38747&#10;2026-10-08 21:37:59,819 INFO  [io.quarkus] (main) Profile test activated. &#10;2026-10-08 21:37:59,819 INFO  [io.quarkus] (main) Installed features: [agroal, cdi, flyway, hibernate-orm, hibernate-validator, jdbc-h2, narayana-jta, rest, rest-jackson, smallrye-context-propagation, smallrye-health, smallrye-openapi, swagger-ui, vertx]&#10;[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.79 s -- in com.audit.custom.model.entity.platformverification.PlatformPersistenceContractTest&#10;[INFO] Running com.audit.custom.service.LedgerEntryServiceTest&#10;[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.472 s -- in com.audit.custom.service.LedgerEntryServiceTest&#10;2026-10-08 21:38:01,098 INFO  [io.quarkus] (main) ledger-service stopped in 0.193s&#10;[INFO] &#10;[INFO] Results:&#10;[INFO] &#10;[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0&#10;[INFO] &#10;[INFO] &#10;[INFO] --- jar:3.5.0:jar (default-jar) @ ledger-service ---&#10;[INFO] Building jar: /workspace/target/ledger-service-1.0.0-SNAPSHOT.jar&#10;[INFO] &#10;[INFO] --- quarkus:3.15.1:build (default) @ ledger-service ---&#10;&#10;Tests run: 7, Failures: 0, Errors: 0, Skipped: 0">backend\tests\test_native_runtime_integration.py:8: in test_native_two_sessions_collision_restart_and_controls
+    run_native_case('quarkus',tmp_path,monkeypatch)
+..\..\integration\native_runtime_cases.py:52: in run_native_case
+    assert verification.platform_verified and verification.result.exit_code==0,verification.result.stderr+'\n'+verification.result.stdout[-6000:]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Execution timed out after 300 seconds.
+E   ngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+E   	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+E   	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+E   	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+E   	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+E   	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+E   	at org.apache.maven.surefire.junitplatform.LazyLauncher.execute(LazyLauncher.java:56)
+E   	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:184)
+E   	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:148)
+E   	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:122)
+E   	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+E   	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+E   	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+E   	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+E   Caused by: java.net.UnknownHostException: 9004e3ee59c3: Temporary failure in name resolution
+E   	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+E   	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Inet6AddressImpl.java:52)
+E   	at java.base/java.net.InetAddress$PlatformResolver.lookupByName(InetAddress.java:1211)
+E   	at java.base/java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1828)
+E   	at java.base/java.net.InetAddress$NameServiceAddresses.get(InetAddress.java:1139)
+E   	at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1818)
+E   	at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1931)
+E   	... 98 more
+E   
+E   2026-10-08 21:37:41,983 INFO  [org.fly.cor.FlywayExecutor] (main) Database: jdbc:h2:mem:ledger_service (H2 2.3)
+E   2026-10-08 21:37:41,996 WARN  [org.fly.cor.int.dat.bas.Database] (main) Flyway upgrade recommended: H2 2.3.230 is newer than this version of Flyway and support has not been tested. The latest supported version of H2 is 2.2.224.
+E   2026-10-08 21:37:42,078 INFO  [org.fly.cor.int.sch.JdbcTableSchemaHistory] (main) Schema history table "PUBLIC"."flyway_schema_history" does not exist yet
+E   2026-10-08 21:37:42,083 INFO  [org.fly.cor.int.com.DbValidate] (main) Successfully validated 1 migration (execution time 00:00.055s)
+E   2026-10-08 21:37:42,103 INFO  [org.fly.cor.int.sch.JdbcTableSchemaHistory] (main) Creating Schema History table "PUBLIC"."flyway_schema_history" ...
+E   2026-10-08 21:37:42,174 INFO  [org.fly.cor.int.com.DbMigrate] (main) Current version of schema "PUBLIC": &lt;&lt; Empty Schema &gt;&gt;
+E   2026-10-08 21:37:42,193 INFO  [org.fly.cor.int.com.DbMigrate] (main) Migrating schema "PUBLIC" to version "1 - initial"
+E   2026-10-08 21:37:42,222 INFO  [org.fly.cor.int.com.DbMigrate] (main) Successfully applied 1 migration to schema "PUBLIC", now at version v1 (execution time 00:00.006s)
+E   2026-10-08 21:37:43,761 INFO  [io.quarkus] (main) ledger-service 1.0.0-SNAPSHOT on JVM (powered by Quarkus 3.15.1) started in 14.155s. Listening on: http://localhost:38473
+E   2026-10-08 21:37:43,761 INFO  [io.quarkus] (main) Profile test activated. 
+E   2026-10-08 21:37:43,762 INFO  [io.quarkus] (main) Installed features: [agroal, cdi, flyway, hibernate-orm, hibernate-validator, jdbc-h2, narayana-jta, rest, rest-jackson, smallrye-context-propagation, smallrye-health, smallrye-openapi, swagger-ui, vertx]
+E   [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 31.78 s -- in com.audit.custom.LedgerServiceApplicationTests
+E   [INFO] Running com.audit.custom.model.entity.platformverification.PlatformPersistenceContractTest
+E   2026-10-08 21:37:45,855 INFO  [io.quarkus] (main) ledger-service stopped in 0.259s
+E   2026-10-08 21:37:58,437 INFO  [org.fly.cor.FlywayExecutor] (main) Database: jdbc:h2:mem:ledger_service (H2 2.3)
+E   2026-10-08 21:37:58,443 WARN  [org.fly.cor.int.dat.bas.Database] (main) Flyway upgrade recommended: H2 2.3.230 is newer than this version of Flyway and support has not been tested. The latest supported version of H2 is 2.2.224.
+E   2026-10-08 21:37:58,495 INFO  [org.fly.cor.int.com.DbValidate] (main) Successfully validated 1 migration (execution time 00:00.039s)
+E   2026-10-08 21:37:58,507 INFO  [org.fly.cor.int.com.DbMigrate] (main) Current version of schema "PUBLIC": 1
+E   2026-10-08 21:37:58,509 INFO  [org.fly.cor.int.com.DbMigrate] (main) Schema "PUBLIC" is up to date. No migration necessary.
+E   2026-10-08 21:37:59,819 INFO  [io.quarkus] (main) ledger-service 1.0.0-SNAPSHOT on JVM (powered by Quarkus 3.15.1) started in 10.663s. Listening on: http://localhost:38747
+E   2026-10-08 21:37:59,819 INFO  [io.quarkus] (main) Profile test activated. 
+E   2026-10-08 21:37:59,819 INFO  [io.quarkus] (main) Installed features: [agroal, cdi, flyway, hibernate-orm, hibernate-validator, jdbc-h2, narayana-jta, rest, rest-jackson, smallrye-context-propagation, smallrye-health, smallrye-openapi, swagger-ui, vertx]
+E   [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.79 s -- in com.audit.custom.model.entity.platformverification.PlatformPersistenceContractTest
+E   [INFO] Running com.audit.custom.service.LedgerEntryServiceTest
+E   [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.472 s -- in com.audit.custom.service.LedgerEntryServiceTest
+E   2026-10-08 21:38:01,098 INFO  [io.quarkus] (main) ledger-service stopped in 0.193s
+E   [INFO] 
+E   [INFO] Results:
+E   [INFO] 
+E   [INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
+E   [INFO] 
+E   [INFO] 
+E   [INFO] --- jar:3.5.0:jar (default-jar) @ ledger-service ---
+E   [INFO] Building jar: /workspace/target/ledger-service-1.0.0-SNAPSHOT.jar
+E   [INFO] 
+E   [INFO] --- quarkus:3.15.1:build (default) @ ledger-service ---
+E   
+E   Tests run: 7, Failures: 0, Errors: 0, Skipped: 0</failure></testcase></testsuite></testsuites>

@@ -34,6 +34,13 @@ def client_with_session(tmp_path, monkeypatch):
     db.close()
 
     yield client, session_id, ws_path
+    from app.services import pipeline_runner
+    from threading import Thread
+    worker=pipeline_runner._active_threads.get(session_id)
+    if isinstance(worker,Thread):
+        pipeline_runner._stop_events[session_id].set()
+        worker.join(timeout=10)
+        assert not worker.is_alive()
 
     db = SessionLocal()
     db.query(GenerationSessionDB).filter(GenerationSessionDB.id == session_id).delete()
@@ -93,7 +100,7 @@ def test_pipeline_run_and_pause_endpoints(client_with_session):
     # Run pipeline
     resp = client.post(
         "/api/v1/orchestrator/pipeline/run",
-        json={"sessionId": session_id, "targetPhase": "DEVOPS_DEPLOY", "stopOnGate": True},
+        json={"sessionId": session_id, "provider": "mock", "targetPhase": "DEVOPS_DEPLOY", "stopOnGate": True},
     )
     assert resp.status_code == 202
     data = resp.json()
@@ -102,7 +109,7 @@ def test_pipeline_run_and_pause_endpoints(client_with_session):
 
     # Pause pipeline
     pause_resp = client.post(f"/api/v1/orchestrator/pipeline/{session_id}/pause")
-    assert pause_resp.status_code in (200, 400)  # 200 if still running, 400 if already completed
+    assert pause_resp.status_code in (200, 409)  # 200 if still running, 400 if already completed
 
 
 def test_export_bundle_endpoint(client_with_session):
@@ -128,7 +135,7 @@ def test_pipeline_run_with_new_session():
     client = TestClient(app)
     resp = client.post(
         "/api/v1/orchestrator/pipeline/run",
-        json={"sessionId": "new", "targetPhase": "DEVOPS_DEPLOY", "stopOnGate": True},
+        json={"sessionId": "new", "provider": "mock", "targetPhase": "DEVOPS_DEPLOY", "stopOnGate": True},
     )
     assert resp.status_code == 202
     data = resp.json()
@@ -186,30 +193,22 @@ def test_invalidation_and_resync_flow(client_with_session):
     # Re-sync with force=True
     resync_resp = client.post(
         "/api/v1/orchestrator/pipeline/run",
-        json={"sessionId": session_id, "force": True},
+        json={"sessionId": session_id, "provider": "mock", "force": True},
     )
     assert resync_resp.status_code == 202
 
     # Verify outdated cleared
     lc_after = client.get(f"/api/v1/orchestrator/sessions/{session_id}/lifecycle")
     assert lc_after.status_code == 200
-    assert lc_after.json()["isOutdated"] is False
+    assert lc_after.json()["isOutdated"] is True  # Force alone never clears obsolete artifacts
 
 
 def test_pipeline_cancel_endpoints(client_with_session):
-    client, session_id, ws_path = client_with_session
-
-    # Cancel via path param
-    cancel_resp = client.post(f"/api/v1/orchestrator/pipeline/{session_id}/cancel")
-    assert cancel_resp.status_code == 200
-    assert cancel_resp.json()["status"] == "CANCELLED"
-
-    # Cancel via body
-    cancel_body_resp = client.post(
-        "/api/v1/orchestrator/pipeline/cancel",
-        json={"sessionId": session_id},
-    )
-    assert cancel_body_resp.status_code == 200
-    assert cancel_body_resp.json()["status"] == "CANCELLED"
-
-
+    client,session_id,ws_path=client_with_session
+    from app.services.operation_repository import begin_operation,get_operation
+    begin_operation(session_id,'STORIES')
+    for endpoint in (f'/api/v1/orchestrator/pipeline/{session_id}/cancel','/api/v1/orchestrator/pipeline/cancel'):
+        result=client.post(endpoint,json={'sessionId':session_id})
+        assert result.status_code==200,result.text
+        assert result.json()['status']=='CANCEL_REQUESTED'
+        assert get_operation(session_id)['state']=='CANCEL_REQUESTED'

@@ -69,8 +69,13 @@ def test_get_session_by_id(sample_spec):
 def test_broadcast_session_event_string_id():
     from app.api.routes_session import broadcast_session_event, SESSION_EVENT_HISTORY
     test_sid = "test-session-sse-id-type"
+    from app.models.session import GenerationSessionDB, SessionLocal
+    with SessionLocal() as db:
+        db.add(GenerationSessionDB(id=test_sid,spec_id="sse-test",spec_name="events"))
+        db.commit()
     broadcast_session_event(test_sid, "phase_transition", {"phase": "SCAFFOLDING"})
-    events = SESSION_EVENT_HISTORY.get(test_sid, [])
+    from app.services.session_event_service import read_events
+    events = read_events(test_sid)
     assert len(events) >= 1
     last_event = events[-1]
     assert isinstance(last_event["id"], str)

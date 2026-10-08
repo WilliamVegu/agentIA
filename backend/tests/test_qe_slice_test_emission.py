@@ -85,7 +85,7 @@ def test_the_mockbean_style_matches_the_spring_boot_version(generated):
     assert "MockitoBean" not in source.replace("@MockBean", "")
 
 
-def test_an_entity_with_an_unsupported_attribute_type_skips_the_slice_test(tmp_path):
+def test_an_entity_with_an_unsupported_attribute_type_is_rejected_before_writing(tmp_path):
     """A slice test that cannot be given a value is skipped, never emitted broken."""
     from app.orchestrator.stages.deterministic import test_synthesis
 
@@ -101,18 +101,13 @@ def test_an_entity_with_an_unsupported_attribute_type_skips_the_slice_test(tmp_p
         "userStories": [],
     }
     state = {"blueprint": blueprint, "workspace_path": str(tmp_path), "generated_files": {}, "logs": []}
-    result = test_synthesis.emit(state)
-
-    assert not list(Path(tmp_path).rglob("*RepositoryTest.java")), "an uncompilable test was emitted"
-    assert any("Skipped @DataJpaTest" in line for line in result["logs"]), (
-        "the skip was silent; an operator cannot tell that coverage is missing"
-    )
-    assert list(Path(tmp_path).rglob("*ControllerTest.java")), "the web slice needs no values"
+    import pytest
+    with pytest.raises(ValueError,match='Tipo Java no soportado'):
+        test_synthesis.emit(state)
+    assert not list(Path(tmp_path).rglob('*.java')), 'Invalid domain wrote partial tests'
 
 
-# ---------------------------------------------------------------------------
-# The false positive that blocked the whole pipeline
-# ---------------------------------------------------------------------------
+
 def test_data_jpa_test_is_not_reported_as_a_prohibited_lombok_annotation(generated):
     """`@DataJpaTest` CONTAINS the substring `@Data`.
 

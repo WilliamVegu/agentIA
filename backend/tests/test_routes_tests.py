@@ -1,3 +1,5 @@
+from pathlib import Path
+from app.config import settings
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -15,10 +17,11 @@ def test_repair_missing_session_returns_404():
 
 def test_repair_busy_workspace_returns_409_without_changing_sources():
     from _support import repair_workspace
-    from app.services.queue_service import queue_manager
+    from app.services.session_operation_lock import SessionOperationLock
     files = {'src/main/java/App.java': 'class App {}'}
     ws = repair_workspace('busy-repair-session', files)
-    assert queue_manager.try_acquire_slot_sync('busy-repair-session')
+    lock=SessionOperationLock('busy-repair-session')
+    assert lock.acquire(False)
     try:
         response = client.post('/api/v1/tests/repair', json={
             'sessionId': 'busy-repair-session', 'iterationNumber': 1,
@@ -27,7 +30,7 @@ def test_repair_busy_workspace_returns_409_without_changing_sources():
         assert response.status_code == 409
         assert (ws / 'src/main/java/App.java').read_text(encoding='utf-8') == files['src/main/java/App.java']
     finally:
-        queue_manager.release_slot_sync('busy-repair-session')
+        lock.release()
 
 
 def test_repair_stale_sources_returns_409_without_overwriting():
@@ -156,7 +159,16 @@ def test_get_repairs_and_manual_override(monkeypatch):
     monkeypatch.setattr('app.orchestrator.nodes.sandbox_node.sandbox_node', lambda state: {
         'status': 'BLOCKED', 'error': 'test assertion failed', 'test_metrics': {
             'totalTests': 1, 'passedTests': 0, 'failedTests': 1, 'allPassed': False, 'fallback_used': False}})
-    assert client.post("/api/v1/tests/repair", json=payload).status_code == 200
+    from types import SimpleNamespace
+    from app.sandbox.docker_runner import DockerExecutionResult
+    monkeypatch.setattr('app.services.workspace_verification.run_workspace_verification', lambda *a,**k: SimpleNamespace(
+        result=DockerExecutionResult(exit_code=1,stdout='BUILD FAILED'),workspace_fingerprint='fixture',snapshot_id=None,source_changed=False))
+    for number in range(1,4):
+        payload['iterationNumber']=number
+        response=client.post('/api/v1/tests/repair',json=payload)
+        assert response.status_code==200,response.text
+        payload['sourceFiles']={relative:(Path(settings.WORKSPACE_DIR)/session_id/relative).read_text(encoding='utf-8') for relative in payload['sourceFiles']}
+
 
     # Check GET repairs
     rep_resp = client.get(f"/api/v1/sessions/{session_id}/repairs")
@@ -175,5 +187,5 @@ def test_get_repairs_and_manual_override(monkeypatch):
         }
     )
     assert man_resp.status_code == 200
-    assert man_resp.json()["status"] == "BLOCKED"
+    assert man_resp.json()["status"] == "APPLIED_UNVERIFIED"
     assert man_resp.json()["diagnosticsResolved"] is False

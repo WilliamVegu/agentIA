@@ -34,9 +34,9 @@ def test_cli_cancel_is_honest_and_scoped_stop_preserves_volume_and_other_project
     docker_service._active_deployments[identity] = row
     try:
         report['imageId'] = docker('image', 'inspect', image, '--format', '{{.Id}}')
-        docker('volume', 'create', '--label', f'com.docker.compose.project={identity}', volume)
+        docker('volume', 'create', '--label', f'com.docker.compose.project={identity}','--label',f'io.agentia.owner={identity}','--label','io.agentia.studio=springboot', volume)
         main = docker('run', '-d', '--pull', 'never', '--network', 'none',
-            '--label', f'com.docker.compose.project={identity}', '--label', 'io.agentia.role=application',
+            '--label', f'com.docker.compose.project={identity}','--label',f'io.agentia.owner={identity}','--label','io.agentia.studio=springboot', '--label', 'io.agentia.role=application',
             '-v', f'{volume}:/probe-data', image, 'sh', '-c', 'sleep 300')
         foreign = docker('run', '-d', '--pull', 'never', '--network', 'none',
             '--label', f'com.docker.compose.project={other}', '--label', 'io.agentia.role=application',

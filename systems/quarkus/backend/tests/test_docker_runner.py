@@ -36,7 +36,8 @@ def test_build_docker_cmd_structure():
     assert "--network" in cmd
     assert "none" in cmd[cmd.index("--network") + 1]
     assert "mvn" in cmd
-    assert "test" in cmd
+    assert "verify" in cmd
+    assert "--network" in cmd and "none" in cmd
     assert "-o" in cmd  # Constitution Principle IV: offline-first
 
 def test_docker_execution_result_model():

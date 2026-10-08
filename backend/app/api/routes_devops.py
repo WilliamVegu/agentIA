@@ -254,9 +254,11 @@ async def cleanup_containers(session_id: str, payload: LocalCleanupRequest):
     from app.services.runtime_lifecycle import cleanup_local
     _resolve_session_context(session_id)
     try:
-        return cleanup_local(session_id, payload.deleteData)
+        return cleanup_local(session_id, payload.deleteData, payload.confirmationToken)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
 
 
 
@@ -294,3 +296,9 @@ async def get_playground_resources(session_id: str):
         resources=discover_resources(session_id, str(ws_path)),
         defaultResource=default_resource(session_id, str(ws_path)),
     )
+
+@router.get('/{session_id}/cleanup/preview')
+async def preview_cleanup(session_id: str):
+    _resolve_session_context(session_id)
+    from app.services.runtime_lifecycle import cleanup_preview
+    return cleanup_preview(session_id)

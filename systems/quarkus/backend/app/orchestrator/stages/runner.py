@@ -39,6 +39,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
@@ -221,8 +222,8 @@ def select_generation_mode(
        baseline capture depends on being able to force the offline path while
        credentials are configured.
     2. An explicit offline/mock selection forces deterministic mode.
-    3. Otherwise, attempt to construct the model client. If it cannot be
-       constructed, fall back to deterministic mode.
+    3. Otherwise, require a credential and construct the model client.
+       Invalid configuration is an error; it never selects deterministic mode.
 
     Note what this function does NOT do: it never inspects a *rejected response*
     to decide the mode. Falling back after a rejection would silently emit
@@ -235,12 +236,17 @@ def select_generation_mode(
             reason="explicit operator request for deterministic generation",
         )
 
-    if offline_requested or LLMFactory.is_mock(api_key, provider):
+    explicit_offline = (provider or '').strip().lower() in {'mock','mock-mode','offline','offline-mock','testing'}
+    clean_key = (api_key or '').strip()
+    explicit_offline = explicit_offline or clean_key in {'mock-key','test-key','testing','mock','offline-mock'} or clean_key.startswith(('mock-','offline-'))
+    if offline_requested or explicit_offline:
         return GenerationModeSelection(
             mode=journal_mod.GENERATION_MODE_DETERMINISTIC,
             reason="explicit offline/mock selection",
         )
 
+    if not api_key or not api_key.strip():
+        raise ValueError('Configure un proveedor IA con credencial o elija explícitamente el modo offline')
     detected = LLMFactory.detect_provider(api_key, provider)
     resolved_model = LLMFactory.resolve_model_name(detected, model_name)
 
@@ -252,16 +258,10 @@ def select_generation_mode(
             temperature=0.2,
         )
     except Exception as exc:  # noqa: BLE001
-        return GenerationModeSelection(
-            mode=journal_mod.GENERATION_MODE_DETERMINISTIC,
-            reason=f"model client construction failed: {type(exc).__name__}: {exc}",
-        )
+        raise ValueError('No se pudo configurar el proveedor IA; revise proveedor, modelo y credencial') from None
 
     if client is None:
-        return GenerationModeSelection(
-            mode=journal_mod.GENERATION_MODE_DETERMINISTIC,
-            reason="no model client constructible",
-        )
+        raise ValueError('El proveedor IA no produjo un cliente; elija offline explícitamente si desea ese modo')
 
     return GenerationModeSelection(
         mode=journal_mod.GENERATION_MODE_MODEL,
@@ -334,8 +334,8 @@ def persist_artifacts(workspace_path: str, artifacts: Mapping[str, str]) -> Tupl
     written = []
     for rel_path, content in sorted(artifacts.items()):
         target = base / rel_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        io_path(target.parent).mkdir(parents=True, exist_ok=True)
+        io_path(target).write_text(content, encoding="utf-8")
         written.append(rel_path)
     return tuple(written)
 

@@ -73,6 +73,7 @@ def isolated_runner_state(monkeypatch):
     monkeypatch.setattr(pr, "_event_queues", {})
     monkeypatch.setattr(pr, "_pipeline_statuses", {})
     monkeypatch.setattr(pr, "_session_credentials", {})
+    monkeypatch.setattr(pr,"_worker_operations",{})
     # The pipeline's own broadcast must not leak into other modules' state.
     yield
 
@@ -85,6 +86,9 @@ def session(tmp_path, monkeypatch):
 
     db = SessionLocal()
     try:
+        from app.models.reliability import RepairAttempt, SessionEvent, DeploymentOperation, AuditRun, VerificationRun, ArtifactProvenance, SessionConfiguration, PipelineOperation, DraftRevision
+        for model in (RepairAttempt,SessionEvent,DeploymentOperation,AuditRun,VerificationRun,ArtifactProvenance,SessionConfiguration,PipelineOperation,DraftRevision):
+            db.query(model).filter_by(session_id=SESSION_ID).delete()
         db.query(GenerationSessionDB).filter(GenerationSessionDB.id == SESSION_ID).delete()
         db.add(GenerationSessionDB(
             id=SESSION_ID,
@@ -101,9 +105,16 @@ def session(tmp_path, monkeypatch):
         db.close()
 
     yield SESSION_ID, ws
+    for worker in pr._active_threads.values():
+        if isinstance(worker,threading.Thread):
+            worker.join(timeout=10)
+            assert not worker.is_alive(), "Fixture cannot delete an active writer"
 
     db = SessionLocal()
     try:
+        from app.models.reliability import RepairAttempt, SessionEvent, DeploymentOperation, AuditRun, VerificationRun, ArtifactProvenance, SessionConfiguration, PipelineOperation, DraftRevision
+        for model in (RepairAttempt,SessionEvent,DeploymentOperation,AuditRun,VerificationRun,ArtifactProvenance,SessionConfiguration,PipelineOperation,DraftRevision):
+            db.query(model).filter_by(session_id=SESSION_ID).delete()
         db.query(GenerationSessionDB).filter(GenerationSessionDB.id == SESSION_ID).delete()
         db.commit()
     finally:
@@ -118,6 +129,22 @@ def _row(session_id):
         db.close()
 
 
+def _recorded_events(session_id):
+    from types import SimpleNamespace
+    from app.services.session_event_service import read_events
+    return [SimpleNamespace(**json.loads(event['data'])) for event in read_events(session_id) if event['event']=='pipeline_progress']
+
+
+def _running_operation(session_id, paused=False):
+    from app.services.operation_repository import begin_operation, transition_operation
+    operation = begin_operation(session_id, LifecyclePhase.DEVOPS_DEPLOY)
+    operation = transition_operation(operation['operationId'], operation['version'], 'RUNNING')
+    if paused:
+        operation = transition_operation(operation['operationId'], operation['version'], 'PAUSE_REQUESTED')
+        operation = transition_operation(operation['operationId'], operation['version'], 'PAUSED')
+    return operation
+
+
 def _prepare_events(session_id):
     pr._pause_events[session_id] = threading.Event()
     pr._stop_events[session_id] = threading.Event()
@@ -130,7 +157,7 @@ def _fast_stages(state, stages=None, api_key=None, **kwargs):
     java = ws / "src" / "main" / "java"
     java.mkdir(parents=True, exist_ok=True)
     (java / "App.java").write_text("class App {}", encoding="utf-8")
-    state["generated_files"] = {"pom.xml": "<project/>", "App.java": "class App {}"}
+    state["generated_files"] = {"pom.xml": "<project/>", "src/main/java/App.java": "class App {}"}
     state["status"] = SessionStatus.COMPLETED.value
     return state
 
@@ -144,7 +171,7 @@ def _stub_heavy_steps(monkeypatch, audit=None):
 # Cooperative pause at every step boundary
 # ===========================================================================
 STEP_ARTIFACTS = [
-    (LifecyclePhase.REQUIREMENTS, "user_stories.json"),
+    (LifecyclePhase.REQUIREMENTS, "architecture.json"),
     (LifecyclePhase.STORIES, "architecture.json"),
     (LifecyclePhase.ARCHITECTURE, "schema.sql"),
     (LifecyclePhase.DATA_MODEL, "pom.xml"),
@@ -178,10 +205,10 @@ def test_pausing_after_a_step_stops_before_the_next_one(session, monkeypatch,
     monkeypatch.setattr(pr, "transition_phase", transition_then_pause)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr._pipeline_statuses[session_id] == PipelineRunStatus.PAUSED
-    assert (not (ws / next_artifact).exists() if pause_after != LifecyclePhase.SECURITY_AUDIT else not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue)), (
+    assert (not (ws / next_artifact).exists() if pause_after != LifecyclePhase.SECURITY_AUDIT else not any(e.step == "DevOps & Manifiestos" for e in _recorded_events(session_id))), (
         f"the step after {pause_after.value} ran despite the pause"
     )
 
@@ -202,9 +229,9 @@ def test_a_pause_emits_its_own_event_and_keeps_the_progress_made(session, monkey
     monkeypatch.setattr(pr, "transition_phase", transition_then_pause)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
-    statuses = [e.status for e in list(pr._event_queues[session_id].queue)]
+    statuses = [e.status for e in _recorded_events(session_id)]
     assert PhaseStatus.IN_PROGRESS in statuses
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.PAUSED
     # The work already done is preserved, which is the difference between pause and cancel.
@@ -220,7 +247,7 @@ def test_cancelling_before_the_first_step_marks_the_run_cancelled(session, monke
     pr._stop_events[session_id].set()
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr._pipeline_statuses[session_id] == PipelineRunStatus.CANCELLED
     assert not (ws / "spec.md").exists(), "a cancelled run generated artifacts"
@@ -232,30 +259,35 @@ def test_cancelling_before_the_first_step_marks_the_run_cancelled(session, monke
 def test_cancel_marks_the_row_signals_the_threads_and_emits_an_event(session):
     session_id, _ = session
     _prepare_events(session_id)
+    _running_operation(session_id, paused=False)
     pr._pipeline_statuses[session_id] = PipelineRunStatus.RUNNING
 
     assert pr.cancel_pipeline(session_id) is True
 
-    assert _row(session_id).status == SessionStatus.CANCELLED
-    assert pr.get_pipeline_status(session_id) == PipelineRunStatus.CANCELLED
-    assert pr._stop_events[session_id].is_set(), "the worker was never told to stop"
-    assert pr._pause_events[session_id].is_set(), "a paused worker would ignore the stop"
-    events = list(pr._event_queues[session_id].queue)
-    assert events and events[-1].step == "CANCEL"
-    assert events[-1].status == PhaseStatus.BLOCKED
+    from app.services.operation_repository import get_operation
+    from app.services.session_event_service import read_events
+    assert get_operation(session_id)['state'] == 'CANCEL_REQUESTED'
+    assert _row(session_id).status != SessionStatus.CANCELLED
+    assert pr.get_pipeline_status(session_id) == PipelineRunStatus.RUNNING
+    assert pr._stop_events[session_id].is_set()
+    assert any(e['event'] == 'operation_state' and 'CANCEL_REQUESTED' in e['data'] for e in read_events(session_id))
+
 
 
 def test_pause_switches_the_session_to_guided_step(session):
     """Pause is a mode change, not just a flag: the operator takes over by hand."""
     session_id, _ = session
     _prepare_events(session_id)
+    _running_operation(session_id, paused=False)
 
     from types import SimpleNamespace
     pr._active_threads[session_id] = SimpleNamespace(is_alive=lambda: True)
     assert pr.pause_pipeline(session_id) is True
 
     row = _row(session_id)
-    assert row.status == SessionStatus.PAUSED
+    from app.services.operation_repository import get_operation
+    assert get_operation(session_id)['state'] == 'PAUSE_REQUESTED'
+    assert row.status != SessionStatus.PAUSED
     assert row.lifecycle_mode == "GUIDED_STEP"
     assert pr._pause_events[session_id].is_set()
 
@@ -268,8 +300,11 @@ def test_pausing_a_session_that_was_never_started_reports_whether_it_is_paused(s
     """
     pr._pause_events["qe-orphan"] = threading.Event()
 
-    assert pr.pause_pipeline("qe-orphan") is False  # no active worker to pause
-    assert pr.pause_pipeline("qe-never-existed") is False
+    from fastapi import HTTPException
+    for missing in ("qe-orphan", "qe-never-existed"):
+        with pytest.raises(HTTPException) as error:
+            pr.pause_pipeline(missing)
+        assert error.value.status_code == 404
 
 
 def test_resume_replays_the_session_credentials_and_waits_for_the_old_thread(session, monkeypatch):
@@ -280,6 +315,7 @@ def test_resume_replays_the_session_credentials_and_waits_for_the_old_thread(ses
     """
     session_id, _ = session
     _prepare_events(session_id)
+    _running_operation(session_id, paused=True)
     pr._session_credentials[session_id] = {
         "api_key": "sk-cached", "provider": "deepseek", "model_name": "deepseek-flash"
     }
@@ -291,7 +327,7 @@ def test_resume_replays_the_session_credentials_and_waits_for_the_old_thread(ses
 
     called = {}
 
-    def fake_run(sid, **kwargs):
+    def fake_run(sid, target_phase=None, **kwargs):
         called["sid"] = sid
         called.update(kwargs)
         return True
@@ -307,9 +343,9 @@ def test_resume_replays_the_session_credentials_and_waits_for_the_old_thread(ses
     assert called["api_key"] == "sk-cached"
     assert called["provider"] == "deepseek"
     assert called["model_name"] == "deepseek-flash"
-    assert called["force"] is True, "resume must start a new run despite the old thread"
+    assert not called.get("force", False), "resume must preserve writer exclusion"
     row = _row(session_id)
-    assert row.lifecycle_mode == "AUTO_PILOT"
+    assert row.lifecycle_mode == "GUIDED_STEP"  # fake_run does not mutate persistence
 
 
 # ===========================================================================
@@ -328,9 +364,9 @@ def test_a_second_run_is_refused_while_one_is_alive(session, monkeypatch):
 
     monkeypatch.setattr(pr, "_execute_pipeline_steps", blocking_steps)
 
-    assert pr.run_pipeline(session_id) is True
+    assert pr.run_pipeline(session_id, provider='mock') is True
     assert started.wait(3), "the worker thread never started"
-    assert pr.run_pipeline(session_id) is False, "a concurrent run was allowed"
+    assert pr.run_pipeline(session_id, provider='mock') is False, "a concurrent run was allowed"
 
     gate.set()
     pr._active_threads[session_id].join(timeout=3)
@@ -348,7 +384,7 @@ def test_force_refuses_a_run_while_another_writer_is_alive(session, monkeypatch)
         gate.wait(5)
 
     monkeypatch.setattr(pr, "_execute_pipeline_steps", blocking_steps)
-    assert pr.run_pipeline(session_id) is True
+    assert pr.run_pipeline(session_id, provider='mock') is True
     assert started.wait(3)
 
     assert pr.run_pipeline(session_id, force=True) is False  # force cannot interleave writers
@@ -363,7 +399,7 @@ def test_starting_a_run_marks_the_session_running_and_auto_pilot(session, monkey
     _prepare_events(session_id)
     monkeypatch.setattr(pr, "_execute_pipeline_steps", lambda *a, **k: None)
 
-    assert pr.run_pipeline(session_id) is True
+    assert pr.run_pipeline(session_id, provider='mock') is True
 
     row = _row(session_id)
     assert row.status == SessionStatus.RUNNING
@@ -398,93 +434,32 @@ def test_credentials_are_replayed_from_memory_when_a_run_omits_them(session, mon
 # ===========================================================================
 # stream_pipeline_events -- the monitor screen's feed
 # ===========================================================================
-def test_the_stream_opens_with_a_connect_frame(session):
-    session_id, _ = session
-
-    frames = list(islice(pr.stream_pipeline_events(session_id), 1))
-
-    assert frames[0].startswith("event: connect\ndata: ")
-    payload = json.loads(frames[0].split("data: ", 1)[1].split("\n")[0])
-    assert payload == {"sessionId": session_id, "status": "CONNECTED"}
+def test_empty_stream_heartbeat_can_be_disconnected(session):
+    session_id,_=session
+    stream=pr.stream_pipeline_events(session_id)
+    assert next(stream)==': keepalive\n\n'
+    stream.close()
 
 
-def test_a_progress_event_is_forwarded_with_its_aliases(session):
-    """The UI reads camelCase; ``by_alias`` is what makes that true on the wire."""
-    session_id, _ = session
-    pr._emit_event(session_id, LifecyclePhase.REQUIREMENTS, "Especificación", 15.0,
-                   "sintetizando", PhaseStatus.IN_PROGRESS)
-
-    frames = list(islice(pr.stream_pipeline_events(session_id), 2))
-
-    assert frames[1].startswith("event: progress\ndata: ")
-    payload = json.loads(frames[1].split("data: ", 1)[1].split("\n")[0])
-    assert payload["sessionId"] == session_id
-    assert payload["step"] == "Especificación"
-    assert payload["percent"] == 15.0
+def test_progress_replays_identically_for_independent_clients(session):
+    session_id,_=session
+    pr._emit_event(session_id,LifecyclePhase.REQUIREMENTS,'Especificación',15.0,'sintetizando',PhaseStatus.IN_PROGRESS)
+    from app.services.session_event_service import read_events
+    events=read_events(session_id)
+    payload=json.loads(events[-1]['data'])
+    assert payload['sessionId']==session_id and payload['percent']==15.0
+    one=pr.stream_pipeline_events(session_id);two=pr.stream_pipeline_events(session_id)
+    assert next(one)==next(two)
+    one.close();two.close()
 
 
-def test_the_stream_closes_after_a_completion_event(session):
-    """A stream that never ends holds an HTTP connection per open browser tab."""
-    session_id, _ = session
-    pr._emit_event(session_id, LifecyclePhase.COMPLETED, "Finalizado", 100.0,
-                   "listo", PhaseStatus.COMPLETED)
-
-    frames = list(pr.stream_pipeline_events(session_id))
-
-    assert len(frames) == 2, "the stream did not stop at the terminal event"
-
-
-def test_the_stream_closes_after_a_blocked_event(session):
-    session_id, _ = session
-    pr._emit_event(session_id, LifecyclePhase.SECURITY_AUDIT, "Bloqueada", 85.0,
-                   "quality gate", PhaseStatus.BLOCKED)
-
-    frames = list(pr.stream_pipeline_events(session_id))
-
-    assert len(frames) == 2
-
-
-class _EmptyQueue:
-    """Drains nothing, so the stream takes its idle path every time."""
-
-    def get(self, timeout=None):
-        raise queue.Empty
-
-
-@pytest.mark.parametrize("terminal_status", [
-    PipelineRunStatus.COMPLETED,
-    PipelineRunStatus.PAUSED,
-    PipelineRunStatus.FAILED,
-    PipelineRunStatus.AWAITING_INTERVENTION,
-])
-def test_an_idle_stream_ends_once_the_run_is_over(session, monkeypatch, terminal_status):
-    """The last event can be missed (a reload, a dropped connection), so the poll on the
-    run status is what guarantees the stream terminates on its own.
-
-    The status is checked *before* the heartbeat is emitted, so the stream closes on the
-    first idle tick rather than sending one more keepalive to a finished run.
-    """
-    session_id, _ = session
-    monkeypatch.setitem(pr._event_queues, session_id, _EmptyQueue())
-    pr._pipeline_statuses[session_id] = terminal_status
-
-    frames = list(pr.stream_pipeline_events(session_id))
-
-    assert frames[0].startswith("event: connect")
-    assert len(frames) == 1, "the stream kept talking after the run was over"
-
-
-def test_an_idle_stream_keeps_heartbeating_while_the_run_is_alive(session, monkeypatch):
-    """A silent SSE connection is closed by proxies; the heartbeat is what keeps the
-    monitor screen receiving events it has not been sent yet."""
-    session_id, _ = session
-    monkeypatch.setitem(pr._event_queues, session_id, _EmptyQueue())
-    pr._pipeline_statuses[session_id] = PipelineRunStatus.RUNNING
-
-    frames = list(islice(pr.stream_pipeline_events(session_id), 4))
-
-    assert frames[0].startswith("event: connect")
-    assert frames[1:] == [": heartbeat\n\n"] * 3
+def test_terminal_event_remains_replayable_after_disconnect(session):
+    session_id,_=session
+    pr._emit_event(session_id,LifecyclePhase.COMPLETED,'Finalizado',100.0,'listo',PhaseStatus.COMPLETED)
+    from app.services.session_event_service import read_events
+    events=read_events(session_id)
+    assert json.loads(events[-1]['data'])['status']=='COMPLETED'
+    assert read_events(session_id,int(events[-1]['id']))==[]
 
 
 # ===========================================================================
@@ -503,11 +478,11 @@ def test_a_broken_event_broadcaster_does_not_stop_the_pipeline(session, monkeypa
     monkeypatch.setattr("app.api.routes_session.broadcast_session_event", explode)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED
     assert (ws / "docker-compose.yml").exists()
-    assert list(pr._event_queues[session_id].queue), "the local queue lost the events too"
+    assert _recorded_events(session_id), "the local queue lost the events too"
 
 
 class _ExplodingDB:
@@ -586,13 +561,13 @@ def test_a_crash_in_a_step_fails_the_run_and_blocks_the_session(session, monkeyp
                         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no subscribers")))
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     row = _row(session_id)
     assert row.status == SessionStatus.BLOCKED
     assert "requirements synthesis exploded" in row.error_message
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.FAILED
-    events = list(pr._event_queues[session_id].queue)
+    events = _recorded_events(session_id)
     assert events[-1].status == PhaseStatus.BLOCKED
     assert "requirements synthesis exploded" in (events[-1].error or "")
 
@@ -615,7 +590,7 @@ def test_a_failed_schema_synthesis_falls_back_to_this_blueprints_own_ddl(session
     monkeypatch.setattr(pr.model_sql_service, "synthesize_domain_models_and_sql", explode)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED, (
         "the run died in the fallback instead of falling back"
@@ -644,7 +619,7 @@ def test_auto_deploy_asks_for_the_local_deployment(session, monkeypatch):
     monkeypatch.setattr(pr, "run_workspace_verification", lambda *a, **kw: WorkspaceVerification(result=DockerExecutionResult(exit_code=0, stdout="Tests run: 1, Failures: 0, Errors: 0, Skipped: 0"), platform_test_path=None))
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=True)
+                               stop_on_gate=True, auto_deploy=True, provider='mock')
 
     assert deployed == [(session_id, str(ws))]
 
@@ -657,7 +632,7 @@ def test_auto_deploy_is_skipped_when_not_requested(session, monkeypatch):
     monkeypatch.setattr(pr, "deploy_local", lambda *a, **k: deployed.append(a))
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert deployed == []
 
@@ -671,10 +646,10 @@ def test_a_blocking_quality_gate_stops_before_devops_even_with_auto_deploy(sessi
     monkeypatch.setattr(pr, "deploy_local", lambda *a, **k: deployed.append(a))
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=True)
+                               stop_on_gate=True, auto_deploy=True, provider='mock')
 
     assert deployed == []
-    assert not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue)
+    assert not any(e.step == "DevOps & Manifiestos" for e in _recorded_events(session_id))
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
 
 
@@ -685,7 +660,7 @@ def test_the_gate_can_be_ignored_when_the_operator_asks(session, monkeypatch):
     _stub_heavy_steps(monkeypatch, audit=_Audit(_Gate("BLOCKED", "hardcoded secret")))
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=False, auto_deploy=False)
+                               stop_on_gate=False, auto_deploy=False, provider='mock')
 
     assert (ws / "docker-compose.yml").exists()
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED
@@ -715,7 +690,7 @@ def test_a_missing_instruction_set_only_warns_on_the_deterministic_path(session,
     monkeypatch.setattr("app.orchestrator.stages.instructions.load_instruction_set", explode)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED
     assert (ws / "docker-compose.yml").exists()
@@ -744,7 +719,7 @@ def test_a_missing_instruction_set_fails_loudly_on_the_model_path(session, monke
     monkeypatch.setattr("app.orchestrator.stages.instructions.load_instruction_set", explode)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.FAILED
     assert "no instruction set installed" in _row(session_id).error_message
@@ -778,7 +753,7 @@ def test_exhausted_stages_block_the_session_and_record_the_evidence(session, mon
     monkeypatch.setattr(pr, "run_generation_stages", blocked_stages)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     row = _row(session_id)
     assert row.status == SessionStatus.BLOCKED
@@ -786,8 +761,8 @@ def test_exhausted_stages_block_the_session_and_record_the_evidence(session, mon
     assert row.completed_at is not None
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
     assert recorded == [session_id], "the blocked session was not diagnosed"
-    assert not any(e.step == "DevOps & Manifiestos" for e in pr._event_queues[session_id].queue), "a blocked run continued into DevOps"
-    events = list(pr._event_queues[session_id].queue)
+    assert not any(e.step == "DevOps & Manifiestos" for e in _recorded_events(session_id)), "a blocked run continued into DevOps"
+    events = _recorded_events(session_id)
     assert events[-1].status == PhaseStatus.BLOCKED
     assert events[-1].error == "3 repair attempts exhausted"
 
@@ -806,7 +781,7 @@ def test_deterministic_architecture_is_derived_per_entity(session, monkeypatch):
     monkeypatch.setattr(pr, "design_architecture", explode)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED
     arch = json.loads((ws / "architecture.json").read_text(encoding="utf-8"))
@@ -834,13 +809,13 @@ def test_an_ambiguous_api_key_blocks_the_session_instead_of_escaping(session, mo
     monkeypatch.setattr(pr.LLMFactory, "detect_provider", explode)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert pr.get_pipeline_status(session_id) == PipelineRunStatus.FAILED
     assert "Ambiguous provider" in _row(session_id).error_message
 
 
-def test_an_unreadable_spec_file_falls_back_to_the_service_name(session, monkeypatch):
+def test_an_unreadable_spec_file_blocks_without_inventing_a_draft(session, monkeypatch):
     """A spec.md that cannot be read is a normal half-written state, not a fatal one."""
     session_id, ws = session
     (ws / "spec.md").mkdir(parents=True, exist_ok=True)  # a directory: read_text raises
@@ -848,10 +823,12 @@ def test_an_unreadable_spec_file_falls_back_to_the_service_name(session, monkeyp
     _stub_heavy_steps(monkeypatch)
 
     pr._execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY,
-                               stop_on_gate=True, auto_deploy=False)
+                               stop_on_gate=True, auto_deploy=False, provider='mock')
 
-    assert pr.get_pipeline_status(session_id) == PipelineRunStatus.COMPLETED
-    assert (ws / "user_stories.json").exists()
+    assert pr.get_pipeline_status(session_id) == PipelineRunStatus.FAILED
+    assert not (ws / "user_stories.json").exists()
+    assert (ws / "spec.md").is_dir()
+    assert _row(session_id).error_message
 
 
 def test_an_entity_without_a_primary_key_gets_one(monkeypatch, tmp_path):

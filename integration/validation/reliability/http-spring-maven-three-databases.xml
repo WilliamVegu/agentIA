@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="3" time="71.198" timestamp="2026-10-08T02:59:36.924468-05:00" hostname="VeguFam"><testcase classname="integration.test_generated_domain" name="test_native_http_full_matrix[H2-maven-springboot]" time="19.507" /><testcase classname="integration.test_generated_domain" name="test_native_http_full_matrix[POSTGRESQL-maven-springboot]" time="15.176"><failure message="IndexError: list index out of range">integration\test_generated_domain.py:125: in test_native_http_full_matrix
+    http_contract(framework,ROOT/'.runtime/reliability/java'/(framework+'-'+tool+'-'+engine.lower()),tool,engine)
+integration\test_generated_domain.py:61: in http_contract
+    port=json.loads(docker('inspect',name))[0]['NetworkSettings']['Ports']['8080/tcp'][0]['HostPort']
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_http_full_matrix[MYSQL-maven-springboot]" time="36.286"><failure message="IndexError: list index out of range">integration\test_generated_domain.py:125: in test_native_http_full_matrix
+    http_contract(framework,ROOT/'.runtime/reliability/java'/(framework+'-'+tool+'-'+engine.lower()),tool,engine)
+integration\test_generated_domain.py:61: in http_contract
+    port=json.loads(docker('inspect',name))[0]['NetworkSettings']['Ports']['8080/tcp'][0]['HostPort']
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase></testsuite></testsuites>

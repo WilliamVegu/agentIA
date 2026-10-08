@@ -217,3 +217,12 @@ except ImportError:
     pass
 
 
+
+
+@app.on_event("startup")
+def initialize_session_schema():
+    from app.models.session import engine
+    from app.services.session_schema_migrations import migrate_sessions
+    migrate_sessions(engine)
+    from app.services.operation_repository import recover_interrupted
+    recover_interrupted()

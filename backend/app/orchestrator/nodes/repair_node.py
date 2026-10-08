@@ -1,110 +1,48 @@
-from pathlib import Path
-from typing import Dict, Any, List
-from app.orchestrator.state import GenerationAgentState
-from app.models.session import SessionPhase, SessionStatus
-from app.orchestrator.repair import can_retry, format_repair_prompt
+"""Graph repairs share the persistent three-attempt budget with API repairs."""
+import json
+from fastapi import HTTPException
+from app.models.session import SessionLocal,GenerationSessionDB,SessionPhase,SessionStatus
+from app.models.reliability import RepairAttempt
+from app.models.test_analysis import FailureDiagnostic,DiagnosticCategory,DiagnosticSeverity,RepairExecutionRequest
+from app.services.automatic_repair_service import automatic_repair
+from app.services.workspace_guard import resolve_workspace_file,io_path
+from app.services.secret_redaction import redact
 
-try:
-    from app.services.test_analysis_service import test_analysis_service
-    from app.models.test_analysis import (
-        FailureDiagnostic,
-        DiagnosticCategory,
-        DiagnosticSeverity,
-        RepairIterationRecord,
-        RepairOutcome,
-    )
-    from app.api.routes_tests import REPAIR_HISTORIES_STORE, BLOCKED_SESSIONS_STORE
-except ImportError:
-    from backend.app.services.test_analysis_service import test_analysis_service
-    from backend.app.models.test_analysis import (
-        FailureDiagnostic,
-        DiagnosticCategory,
-        DiagnosticSeverity,
-        RepairIterationRecord,
-        RepairOutcome,
-    )
-    from backend.app.api.routes_tests import REPAIR_HISTORIES_STORE, BLOCKED_SESSIONS_STORE
 
-def repair_node(state: GenerationAgentState) -> Dict[str, Any]:
-    repair_attempts = state.get("repair_attempts", 0) + 1
-    max_attempts = state.get("max_repair_attempts", 5)
-    session_id = state.get("session_id", "default-session")
-    diag = state.get("last_diagnostic", {})
-    logs = state.get("logs", [])
-    generated_files = dict(state.get("generated_files", {}))
-    workspace_path = state.get("workspace_path")
-
-    logs.append(f"[REPAIR] Evaluating auto-repair attempt {repair_attempts}/{max_attempts}")
-
-    # Build structured FailureDiagnostic
-    diagnostics: List[FailureDiagnostic] = []
-    if diag:
-        if isinstance(diag, FailureDiagnostic):
-            diagnostics.append(diag)
-        elif isinstance(diag, dict):
-            failed_file = diag.get("failed_file") or diag.get("filePath", "unknown")
-            error_msg = diag.get("summary") or diag.get("errorSummary", "Sandbox build or test failure")
-            category = (
-                DiagnosticCategory.COMPILATION_ERROR
-                if "compil" in str(diag.get("error_type", "")).lower()
-                else DiagnosticCategory.ASSERTION_FAILURE
-            )
-            diagnostics.append(
-                FailureDiagnostic(
-                    id=f"DIAG-{repair_attempts}",
-                    category=category,
-                    severity=DiagnosticSeverity.BLOCKING if repair_attempts >= max_attempts else DiagnosticSeverity.HIGH,
-                    filePath=failed_file,
-                    errorSummary=error_msg,
-                    lineNumber=diag.get("line_number") or diag.get("lineNumber"),
-                    rawStackTrace=diag.get("raw_trace", ""),
-                )
-            )
-
-    if not can_retry(repair_attempts - 1, max_attempts) or repair_attempts > max_attempts:
-        logs.append(f"[REPAIR] Bloqueo por intervención humana requerida: {max_attempts} repair attempts exhausted.")
-        if diagnostics:
-            BLOCKED_SESSIONS_STORE[session_id] = {
-                "blocked": True,
-                "diagnostic": diagnostics[0],
-            }
-        return {
-            "repair_attempts": repair_attempts,
-            "status": SessionStatus.BLOCKED.value,
-            "current_phase": SessionPhase.FAILED.value,
-            "error": f"Bloqueo por intervención humana requerida: Maximum repair attempts ({max_attempts}) exhausted.",
-            "diff_summary": f"-- Maximum repair attempts ({max_attempts}) exhausted. Human intervention required.",
-            "logs": logs,
-        }
-
-    # Execute repair iteration with surgical patch planner
-    record = test_analysis_service.execute_repair_iteration(
-        session_id=session_id,
-        iteration_number=repair_attempts,
-        diagnostics=diagnostics,
-        source_files=generated_files,
-    )
-
-    if session_id not in REPAIR_HISTORIES_STORE:
-        REPAIR_HISTORIES_STORE[session_id] = []
-    REPAIR_HISTORIES_STORE[session_id].append(record)
-
-    # Apply patches to files and disk workspace
-    for patch in record.patchesApplied:
-        generated_files, _ = test_analysis_service.apply_code_patch(generated_files, patch)
-        if workspace_path and patch.filePath in generated_files:
-            target_path = Path(workspace_path) / patch.filePath
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            target_path.write_text(generated_files[patch.filePath], encoding="utf-8")
-
-    diff_summary = record.diffSummary or format_repair_prompt(diag)
-    logs.append(f"[REPAIR] Applied patch (attempt {repair_attempts}/{max_attempts}): {diff_summary[:80]}...")
-
-    return {
-        "repair_attempts": repair_attempts,
-        "current_phase": SessionPhase.SELF_REPAIR_LOOP.value,
-        "diff_summary": diff_summary,
-        "generated_files": generated_files,
-        "logs": logs,
-    }
-
+def repair_node(state):
+    session_id=state.get('session_id')
+    logs=list(state.get('logs',[]))
+    try:
+        with SessionLocal() as db:
+            if not db.get(GenerationSessionDB,session_id): raise HTTPException(404,'Session not found')
+            count=db.query(RepairAttempt).filter_by(session_id=session_id,automatic=1).count()
+        if count>=3: raise HTTPException(409,'Maximum repair attempts (3) exhausted. Human intervention required.')
+        raw=state.get('last_diagnostic') or {}
+        diagnostics=[]
+        if isinstance(raw,FailureDiagnostic): diagnostics=[raw]
+        elif raw:
+            diagnostics=[FailureDiagnostic(id='GRAPH-'+str(count+1),
+                category=DiagnosticCategory.COMPILATION_ERROR if 'compil' in str(raw.get('error_type','')).lower() else DiagnosticCategory.ASSERTION_FAILURE,
+                severity=DiagnosticSeverity.HIGH,filePath=raw.get('failed_file') or raw.get('filePath','unknown'),
+                errorSummary=raw.get('summary') or raw.get('errorSummary','Sandbox build or test failure'),
+                lineNumber=raw.get('line_number') or raw.get('lineNumber'),rawStackTrace=raw.get('raw_trace',''))]
+        request=RepairExecutionRequest(sessionId=session_id,iterationNumber=count+1,diagnostics=diagnostics,
+            sourceFiles=state.get('generated_files',{}),provider=state.get('llm_provider'),modelName=state.get('llm_model'))
+        record=automatic_repair(request,framework='springboot',effective_key=state.get('llm_api_key'),_operation_id=state.get('repair_operation_id'))
+        generated={relative:io_path(resolve_workspace_file(session_id,relative,require_exists=True)).read_text(encoding='utf-8') for relative in request.sourceFiles}
+        with SessionLocal() as db:
+            session=db.get(GenerationSessionDB,session_id)
+            metrics=json.loads(session.verification_metrics_json or '{}')
+        verified=record.outcome.value=='SUCCESS'
+        blocked=not verified and count+1>=3
+        logs.append('[REPAIR] Intento persistido '+str(count+1)+'/3; '+record.outcome.value)
+        return {'repair_attempts':count+1,'max_repair_attempts':3,'build_success':verified,
+            'status':SessionStatus.COMPLETED.value if verified else SessionStatus.BLOCKED.value if blocked else SessionStatus.RUNNING.value,
+            'current_phase':SessionPhase.VERIFIED.value if verified else SessionPhase.FAILED.value if blocked else SessionPhase.SELF_REPAIR_LOOP.value,
+            'test_metrics':metrics,'generated_files':generated,'diff_summary':record.diffSummary,
+            'error':None if verified else 'Maximum repair attempts (3) exhausted. Human intervention required.' if blocked else None,'logs':logs}
+    except HTTPException as error:
+        message=redact(str(error.detail))
+        logs.append('[REPAIR] '+message)
+        return {'status':SessionStatus.BLOCKED.value,'current_phase':SessionPhase.FAILED.value,
+            'build_success':False,'error':message,'max_repair_attempts':3,'logs':logs}

@@ -25,7 +25,7 @@ function Get-LocalResources {
   if (@($records).Count -ne $ids.Count) { throw 'Inspeccion incompleta; no se modifican recursos' }
   foreach ($record in $records) {
     if ($Kind -eq 'container') { $labels = $record.Config.Labels } else { $labels = $record.Labels }
-    if ($labels.'com.docker.compose.project' -ne $LocalProject) { throw 'Recurso ajeno; operacion rechazada' }
+    if ($labels.'com.docker.compose.project' -ne $LocalProject -or $labels.'io.agentia.owner' -ne $LocalProject -or $labels.'io.agentia.studio' -ne 'springboot') { throw 'Recurso ajeno; operacion rechazada' }
   }
   return $records
 }
@@ -66,6 +66,7 @@ foreach ($kind in @('volumes','networks')) {
   }
 }
 if (@($apps[0].ports).Count -eq 0 -or @($apps[0].ports | Where-Object { $_.host_ip -ne '127.0.0.1' }).Count -gt 0) { throw 'Solo se admite localhost' }
+foreach ($kind in @('container','volume','network')) { Get-LocalResources -Kind $kind | Out-Null }
 $previous = @(Get-LocalResources | Where-Object { $_.Config.Labels.'io.agentia.role' -eq 'application' })
 if ($Port -eq 0) {
   if ($previous.Count -gt 0) { $Port = [int]$previous[0].HostConfig.PortBindings.'8080/tcp'[0].HostPort }

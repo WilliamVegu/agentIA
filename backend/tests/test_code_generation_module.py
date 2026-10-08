@@ -95,7 +95,7 @@ def test_scaffolder_node_generates_maven_archetype(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = scaffolder_node(state)
 
@@ -145,7 +145,7 @@ def test_domain_node_generates_jpa_entities_and_record_dtos(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = domain_node(state)
 
@@ -233,7 +233,7 @@ def test_service_node_generates_repositories_and_services(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = service_node(state)
 
@@ -314,7 +314,7 @@ def test_controller_node_generates_controllers_and_advice(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = controller_node(state)
 
@@ -370,7 +370,7 @@ def test_test_node_generates_mockito_and_web_tests(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     result = execute_test_node(state)
 
@@ -447,7 +447,7 @@ def test_complete_langgraph_generation_graph(clean_workspace, monkeypatch):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     final_state = generation_graph.invoke(initial_state)
 
@@ -486,7 +486,7 @@ def test_validator_fails_gracefully_when_no_entities(clean_workspace):
         "workspace_path": str(session_ws),
         "generated_files": {},
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
     final_state = generation_graph.invoke(initial_state)
     assert final_state.get("status") == "FAILED"
@@ -512,8 +512,14 @@ def test_repair_node_stops_after_3_attempts(clean_workspace):
             "line_number": 20,
         },
         "logs": [],
-    }
+     'generation_mode':'DETERMINISTIC'}
 
+    from app.models.reliability import RepairAttempt
+    with SessionLocal() as db:
+        db.merge(GenerationSessionDB(id="sess_repair",spec_id="budget-test",spec_name="repair-service"))
+        for number in range(1,4):
+            db.add(RepairAttempt(session_id="sess_repair",relative_path="src/Invoice.java",automatic=1,iteration=number,outcome="FAILED_BLOCKED"))
+        db.commit()
     result = repair_node(state)
     assert result["status"] == SessionStatus.BLOCKED.value
     assert "Maximum repair attempts (3) exhausted" in result["error"]
@@ -551,7 +557,7 @@ def test_api_artifact_listing_and_export_zip(clean_workspace):
             "workspace_path": str(session_ws),
             "generated_files": {},
             "logs": [],
-        }
+         'generation_mode':'DETERMINISTIC'}
         generation_graph.invoke(state)
 
         # 1. Test listing artifacts via API

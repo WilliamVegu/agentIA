@@ -1,0 +1,45 @@
+{
+  "framework": "springboot",
+  "liveProviderCalls": 0,
+  "twoSessions": [
+    {
+      "sessionId": "reliability-native-c9d4ef98eaf7463eb804866d305f7279",
+      "hostPort": 49552,
+      "containers": [
+        "3f2b8fa1e8855db54d1e74bb4427c4d207addb837c89256c21a4503cd40cfad3",
+        "c6ce543afec962db33267dabf7c1731f789c92ed7518f7ac76d94e7c94c8f1ea"
+      ],
+      "revisionId": "279ee8ec-871c-4ecc-bec4-7bb7b64d43c6",
+      "fingerprint": "154cc0c9bb208fae2c25402a20ee0e58fd6c2eba8818a36513d16ff0c549b655",
+      "tests": 9
+    },
+    {
+      "sessionId": "reliability-native-05771ad5f28c4f109577aa84a44029ce",
+      "hostPort": 50267,
+      "containers": [
+        "579c230f6b78ba987e51d371c3371979c2146623caf6bcc4a8c6bc239b49caf4",
+        "49b9deb55a8cc3d777be1293457d0f243063f289cf856b610eb7af06e1752c08"
+      ],
+      "revisionId": "d43b6de8-51e6-405d-868d-52138d3a20ac",
+      "fingerprint": "2b53df9035161bf5a0c5aa6be81bd673e4d31a53f562dc77c5a76314328fba00",
+      "tests": 9
+    },
+    {
+      "sessionId": "reliability-native-63128d79a680481d93dc5afdbd1aab81",
+      "entryPoint": "AUTO_PILOT",
+      "hostPort": 58570,
+      "containers": [
+        "a6a395ca767e54204860406b28036e4ef26b549dd6b11d92b29dea6ea52a79ec",
+        "34fa865c07245a51aeb04b722000272bf90530e14a88eb007e3db73dba41505d"
+      ],
+      "revisionId": "db2d2ae6-b52e-4586-982e-577fbda10d05",
+      "fingerprint": "5028414cd294ebd7aeebaf528cd5d7bcec52b0184e52f8851a752c9f5b568127",
+      "tests": 9
+    }
+  ],
+  "freshBackendRecovery": "PASSED",
+  "collision": "PASSED",
+  "dockerUnavailable": "PASSED",
+  "stop": "PASSED",
+  "autoPilot": "PASSED"
+}

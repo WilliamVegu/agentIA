@@ -419,7 +419,13 @@ export const DevOpsDeploymentView: React.FC = () => {
     setIsDeploying(true);
     setSmokeResult(null); setRestResponse(null); setOrders([]);
     try {
-      const result = cleanup ? await devopsService.cleanupLocal(activeSessionId, true) : await devopsService.restartLocal(activeSessionId);
+      let confirmationToken: string | undefined;
+      if (cleanup) {
+        const preview = await devopsService.cleanupPreview(activeSessionId);
+        if (!isCurrent() || !window.confirm('Eliminar definitivamente los recursos y datos de esta sesión: ' + JSON.stringify(preview.resources))) return;
+        confirmationToken = preview.confirmationToken;
+      }
+      const result = cleanup ? await devopsService.cleanupLocal(activeSessionId, true, confirmationToken) : await devopsService.restartLocal(activeSessionId);
       if (!isCurrent()) return;
       setDeployment(result); setHostPort(result.hostPort);
       setFeedback(result.errorMessage || result.message || `Estado: ${result.status}`);

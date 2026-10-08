@@ -7,6 +7,8 @@ export interface QuickStartPayload {
   service_name: string;
   prompt?: string;
   raw_text?: string;
+  databaseEngine?: 'POSTGRESQL' | 'MYSQL' | 'H2';
+  /** Compatibility alias; conflicting values are rejected by the API. */
   database?: 'POSTGRESQL' | 'MYSQL' | 'H2';
   auto_run?: boolean;
   llm_provider?: string;
@@ -62,8 +64,8 @@ export const sessionService = {
   },
 
   async quickStart(payload: QuickStartPayload) {
-    const { database, ...rest } = payload;
-    const response = await apiClient.post('/sessions/quick-start', { ...rest, database_engine: database });
+    const { database, databaseEngine, ...rest } = payload;
+    const response = await apiClient.post('/sessions/quick-start', { ...rest, databaseEngine: databaseEngine ?? database, ...(databaseEngine && database ? { database } : {}) });
     return response.data;
   },
 
@@ -84,7 +86,7 @@ export const sessionService = {
       sessionId,
       filePath,
       modifiedCode,
-      promptHint,
+      guidanceHint: promptHint,
     });
     return response.data;
   },

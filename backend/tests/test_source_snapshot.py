@@ -96,6 +96,9 @@ def test_original_edit_restored_during_run_cannot_change_execution_inputs(runtim
         (runtime.ws / 'pom.xml').write_text('transient invalid input')
         assert (execution / 'pom.xml').read_bytes() == old
         (runtime.ws / 'pom.xml').write_bytes(old)
+        reports = Path(path)/'target/surefire-reports'
+        reports.mkdir(parents=True, exist_ok=True)
+        (reports/'TEST-fixture.xml').write_text('<testsuite tests="3" failures="0" errors="0" skipped="0"/>')
         return DockerExecutionResult(exit_code=0, stdout='Tests run: 3, Failures: 0, Errors: 0, Skipped: 0')
     monkeypatch.setattr(workspace_verification, '_run_sandbox_blocking', run)
     outcome = workspace_verification.run_workspace_verification(str(runtime.ws))
@@ -171,6 +174,9 @@ def test_normalisation_precedes_sealing_and_matches_original_sources(runtime, mo
         relative = test.relative_to(runtime.ws)
         assert (Path(path) / relative).read_bytes() == test.read_bytes()
         assert '@MockBean' in test.read_text() and 'MockitoBean' not in test.read_text()
+        reports = Path(path)/'target/surefire-reports'
+        reports.mkdir(parents=True, exist_ok=True)
+        (reports/'TEST-fixture.xml').write_text('<testsuite tests="3" failures="0" errors="0" skipped="0"/>')
         return DockerExecutionResult(exit_code=0, stdout='Tests run: 3, Failures: 0, Errors: 0, Skipped: 0')
     monkeypatch.setattr(workspace_verification, '_run_sandbox_blocking', run)
     outcome = workspace_verification.run_workspace_verification(str(runtime.ws))

@@ -254,13 +254,15 @@ def test_the_environment_pattern_list_was_not_narrowed():
 # T008 — terminal state, and the repair loop is NOT entered
 # ---------------------------------------------------------------------------
 def _sandbox_state(workspace) -> dict:
+    (workspace / "pom.xml").write_text("<project/>",encoding="utf-8")
     return {
         "session_id": "t008",
         "workspace_path": str(workspace),
         "generated_files": {},
         "logs": [],
         "repair_attempts": 0,
-        "max_repair_attempts": 5,
+        "max_repair_attempts": 3,
+        "execution_mode": "DOCKER",
     }
 
 
@@ -272,7 +274,7 @@ def test_sandbox_node_blocks_instead_of_verifying(monkeypatch, tmp_path):
 
     out = sandbox_node(_sandbox_state(tmp_path))
 
-    assert out["status"] == SessionStatus.BLOCKED.value
+    assert out["status"] == SessionStatus.PAUSED.value
     assert out["current_phase"] == SessionPhase.FAILED.value
     assert out["build_success"] is False
     assert out["test_metrics"]["fallback_used"] is True
@@ -284,7 +286,7 @@ def test_sandbox_node_blocks_instead_of_verifying(monkeypatch, tmp_path):
     assert out.get("error"), "no reason was recorded on the error key"
     assert "error_message" not in out, "the reason was written to the wrong state key"
     reason = out["error"].lower()
-    assert "verif" in reason, f"the reason does not say verification failed: {out['error']!r}"
+    assert "docker" in reason or "verif" in reason, f"the reason does not say verification failed: {out['error']!r}"
     assert "test" not in reason.replace("tested", ""), (
         f"the reason misattributes the fault to the generated code: {out['error']!r}"
     )
@@ -365,7 +367,7 @@ async def test_permissive_mode_still_records_the_marking(monkeypatch, tmp_path):
     assert result.fallback_reason
 
 
-def test_permissive_session_reaches_verified_while_marked(monkeypatch, tmp_path):
+def test_permissive_flag_cannot_certify_unexecuted_native_build(monkeypatch, tmp_path):
     """FR-002 relaxing FR-003 (Q1 Option A): a permissive session MAY verify.
 
     The marking is what keeps that safe, so both halves are asserted together.
@@ -377,14 +379,14 @@ def test_permissive_session_reaches_verified_while_marked(monkeypatch, tmp_path)
 
     out = sandbox_node(_sandbox_state(tmp_path))
 
-    assert out["status"] == SessionStatus.COMPLETED.value
-    assert out["current_phase"] == SessionPhase.VERIFIED.value
-    assert out["build_success"] is True
+    assert out["status"] == SessionStatus.PAUSED.value
+    assert out["current_phase"] == SessionPhase.FAILED.value
+    assert out["build_success"] is False
     assert out["test_metrics"]["fallback_used"] is True, "a synthetic pass was not marked"
     assert out["verification_fallback_used"] is True
 
 
-def test_default_and_permissive_disagree_only_about_permission(monkeypatch, tmp_path):
+def test_default_and_permissive_both_require_native_evidence(monkeypatch, tmp_path):
     """The contrast: same trigger, same marking, different permission."""
     from app.orchestrator.nodes.sandbox_node import sandbox_node
 
@@ -395,8 +397,8 @@ def test_default_and_permissive_disagree_only_about_permission(monkeypatch, tmp_
     monkeypatch.setattr(_settings, "ALLOW_HERMETIC_FALLBACK", True)
     permissive = sandbox_node(_sandbox_state(tmp_path))
 
-    assert honest["status"] == SessionStatus.BLOCKED.value
-    assert permissive["status"] == SessionStatus.COMPLETED.value
+    assert honest["status"] == SessionStatus.PAUSED.value
+    assert permissive["status"] == SessionStatus.PAUSED.value
     # Both mark it; neither hides it.
     assert honest["test_metrics"]["fallback_used"] is True
     assert permissive["test_metrics"]["fallback_used"] is True
@@ -552,11 +554,11 @@ def test_session_detail_reports_false_on_unparseable_metrics(detail_session):
 # ---------------------------------------------------------------------------
 # T018 — US3: the live stream carries a structured field
 # ---------------------------------------------------------------------------
-def test_stream_event_carries_the_marking_as_a_structured_field():
+def test_stream_event_carries_the_marking_as_a_structured_field(detail_session):
     """The stream payload exposes the marking as a field, not only as a log line."""
     from app.api.routes_session import SESSION_EVENT_HISTORY, broadcast_session_event
 
-    session_id = f"t018-{uuid.uuid4().hex[:10]}"
+    session_id = detail_session
     broadcast_session_event(session_id, "verification_result", {
         "sessionId": session_id,
         "verificationFallbackUsed": True,
@@ -564,7 +566,8 @@ def test_stream_event_carries_the_marking_as_a_structured_field():
         "buildSuccess": False,
     })
 
-    events = SESSION_EVENT_HISTORY[session_id]
+    from app.services.session_event_service import read_events
+    events = read_events(session_id)
     payload = json.loads(events[0]["data"])
     assert payload["event"] == "verification_result"
     assert payload["verificationFallbackUsed"] is True

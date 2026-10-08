@@ -494,8 +494,8 @@ def calculate_code_metrics(files: Dict[str, str]) -> CodeQualityMetrics:
                     total_methods += 1
                     in_method = False
 
-    avg_complexity = round(sum(complexities) / len(complexities), 2) if complexities else 1.0
-    max_complexity = max(complexities) if complexities else 1
+    avg_complexity = round(sum(complexities) / len(complexities), 2) if complexities else 0.0
+    max_complexity = max(complexities) if complexities else 0
     duplication_pct = round((duplicate_lines / total_loc * 100), 2) if total_loc > 0 else 0.0
     assertion_density = round(test_assertions / total_test_methods, 2) if total_test_methods > 0 else 0.0
 
@@ -520,6 +520,9 @@ def evaluate_quality_gate(
     metrics: CodeQualityMetrics,
 ) -> QualityGateVerdict:
     """Evaluates composite Quality Gate score and blocking status."""
+    if metrics.totalLinesOfCode == 0 and not vulnerabilities and not violations:
+        return QualityGateVerdict(status=QualityGateStatus.BLOCKED, score=None,
+                                  canExport=False, summaryMessage="No source code was audited.")
     critical_count = sum(1 for v in vulnerabilities if v.severity == SeverityLevel.CRITICAL) + sum(
         1 for v in violations if v.severity == SeverityLevel.CRITICAL
     )
@@ -625,14 +628,19 @@ def apply_surgical_remediation(finding_id: str, file_path: str, source_code: str
 # ---------------------------------------------------------------------------
 def audit_workspace(workspace_dir: str, session_id: str, service_name: str = "microservice") -> SecurityQualityAuditReport:
     """Scans all relevant files in a session workspace and computes the complete audit report."""
-    ws_path = Path(workspace_dir)
+    from app.services.workspace_guard import io_path
+    ws_path = io_path(Path(workspace_dir))
     files: Dict[str, str] = {}
     pom_content: Optional[str] = None
 
     if ws_path.exists() and ws_path.is_dir():
-        for root, _, filenames in os.walk(ws_path):
+        for root, directories, filenames in os.walk(ws_path):
+            from app.services.dependency_inputs import EXCLUDED
+            directories[:] = [name for name in directories if name not in EXCLUDED and not (Path(root)/name).is_symlink() and not (getattr((Path(root)/name).lstat(),'st_file_attributes',0) & 0x400)]
             for filename in filenames:
                 file_abs = Path(root) / filename
+                if file_abs.is_symlink() or not file_abs.resolve().is_relative_to(ws_path.resolve()):
+                    continue
                 rel_path = file_abs.relative_to(ws_path).as_posix()
                 if rel_path.endswith((".java", ".yml", ".yaml", ".properties", ".xml", ".sql", "Dockerfile")):
                     try:
@@ -641,8 +649,8 @@ def audit_workspace(workspace_dir: str, session_id: str, service_name: str = "mi
                             files[rel_path] = content
                             if rel_path == "pom.xml" or rel_path.endswith("/pom.xml"):
                                 pom_content = content
-                    except Exception:
-                        pass
+                    except OSError as error:
+                        raise RuntimeError("Audit source unreadable: "+rel_path) from error
 
     # Run all scanners
     secret_findings = scan_secrets(files)
@@ -659,9 +667,15 @@ def audit_workspace(workspace_dir: str, session_id: str, service_name: str = "mi
         serviceName=service_name,
         qualityGate=quality_gate,
         metrics=metrics,
+        evaluatedStatus="EVALUATED" if metrics.totalLinesOfCode > 0 else "NOT_EVALUATED",
         vulnerabilities=vulnerabilities,
         violations=violations,
     )
+
+    from app.services.secret_redaction import redact
+    report = SecurityQualityAuditReport.model_validate(redact(report.model_dump(mode='json')))
+    from app.services.verification_evidence import record_audit
+    record_audit(session_id, ws_path, report)
 
     # Cache report in workspace if possible
     try:

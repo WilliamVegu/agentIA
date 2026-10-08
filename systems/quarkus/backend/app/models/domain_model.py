@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
+from app.models.devops import DatabaseEngine
 
 try:
     from app.models.requirements import SpecificationDraft
@@ -17,6 +18,9 @@ class SqlDataType(str, Enum):
     TIMESTAMP_TZ = "TIMESTAMP WITH TIME ZONE"
     UUID = "UUID"
     DATE = "DATE"
+    TIMESTAMP = "TIMESTAMP"
+    DOUBLE = "DOUBLE PRECISION"
+    REAL = "REAL"
 
 class JavaPropertyType(str, Enum):
     LONG = "Long"
@@ -27,6 +31,9 @@ class JavaPropertyType(str, Enum):
     INSTANT = "Instant"
     UUID = "UUID"
     LOCAL_DATE = "LocalDate"
+    LOCAL_DATE_TIME = "LocalDateTime"
+    DOUBLE = "Double"
+    FLOAT = "Float"
 
 class RelationshipType(str, Enum):
     ONE_TO_MANY = "ONE_TO_MANY"
@@ -43,6 +50,7 @@ class EntityAttributeDefinition(BaseModel):
     nullable: bool = Field(default=False, description="Whether the column permits NULL")
     isPrimaryKey: bool = Field(default=False, description="True if primary key")
     isUnique: bool = Field(default=False, description="True if unique constraint applies")
+    validationRules: List[str] = Field(default_factory=list)
     hasIndex: bool = Field(default=False, description="True if index should be generated")
     defaultValue: Optional[str] = Field(default=None, description="Default SQL expression")
 
@@ -70,12 +78,14 @@ class SqlSchemaScript(BaseModel):
     dialect: str = Field(default="postgresql_h2")
 
 class ModelSqlGenerationRequest(BaseModel):
+    databaseEngine: DatabaseEngine = DatabaseEngine.POSTGRESQL
     draft: SpecificationDraft = Field(..., description="Active requirements draft or blueprint")
     apiKey: Optional[str] = Field(default=None, description="Ephemeral LLM API Key")
     provider: Optional[str] = Field(default=None, description="Optional LLM provider: 'gemini', 'groq', 'openai', or 'mock'")
     modelName: Optional[str] = Field(default=None, description="Optional custom LLM model name")
 
 class ModelSqlRefinementRequest(BaseModel):
+    databaseEngine: Optional[DatabaseEngine] = None
     currentResponse: "DataModelSynthesisResponse" = Field(..., description="Current synthesis payload")
     feedbackPrompt: str = Field(..., min_length=3, description="Natural language adjustment prompt")
     targetEntity: Optional[str] = Field(default=None, description="Specific target entity or None for global")

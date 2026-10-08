@@ -216,7 +216,7 @@ def test_generation_graph_finishes_without_docker_for_all_combinations(session_w
             {"name": "name", "type": "String", "nullable": False, "validationRules": ["@NotBlank"]},
         ]}], "userStories": [],
     }
-    state = generation_graph.invoke({"session_id": identity, "blueprint": blueprint, "workspace_path": str(ws), "execution_mode": "SOURCE_ONLY", "logs": [], "generated_files": {}})
+    state = generation_graph.invoke({"session_id": identity, "blueprint": blueprint, "workspace_path": str(ws), "execution_mode": "SOURCE_ONLY", "generation_mode": "DETERMINISTIC", "logs": [], "generated_files": {}})
     assert state["status"] == "COMPLETED"
     assert state["test_metrics"]["verificationSkipped"]
     assert not state["test_metrics"]["allPassed"]

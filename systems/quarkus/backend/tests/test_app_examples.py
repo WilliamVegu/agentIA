@@ -402,6 +402,8 @@ def test_example_publish_to_git_with_mocked_boundary(tmp_path, monkeypatch):
     workspace.mkdir(parents=True, exist_ok=True)
     (workspace / "pom.xml").write_text("<project></project>", encoding="utf-8")
     _create_session_row(session_id, status=SessionStatus.COMPLETED, phase=SessionPhase.VERIFIED)
+    from reliability_helpers import prepare_source_delivery
+    prepare_source_delivery(session_id,workspace)
 
     captured = {}
 
@@ -515,7 +517,7 @@ def test_example_export_blocked_when_quality_gate_fails(tmp_path, monkeypatch):
 
         export = client.get(f"/api/v1/sessions/{session_id}/export")
         assert export.status_code == 403
-        assert "Quality Gate is BLOCKED" in export.json()["detail"]
+        assert "Source delivery" in export.json()["detail"]
     finally:
         _delete_session(session_id)
 
@@ -527,6 +529,8 @@ def test_example_export_returns_a_zip_when_gate_passes(tmp_path, monkeypatch):
     workspace.mkdir(parents=True, exist_ok=True)
     (workspace / "pom.xml").write_text("<project></project>", encoding="utf-8")
     _create_session_row(session_id, status=SessionStatus.COMPLETED, phase=SessionPhase.VERIFIED)
+    from reliability_helpers import prepare_source_delivery
+    prepare_source_delivery(session_id,workspace)
 
     try:
         response = client.get(f"/api/v1/sessions/{session_id}/export")
@@ -568,11 +572,15 @@ def test_example_pipeline_stops_at_blocked_quality_gate(tmp_path, monkeypatch):
             LifecyclePhase.DEVOPS_DEPLOY,
             stop_on_gate=True,
             auto_deploy=False,
-        )
+         provider='mock')
 
         assert pipeline_runner._pipeline_statuses.get(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
         # DevOps assets must not be produced once the gate blocks the run.
-        assert not (tmp_path / session_id / "docker-compose.yml").exists()
+        with SessionLocal() as db:
+            assert db.get(GenerationSessionDB,session_id).status==SessionStatus.BLOCKED
+        # Build manifests may exist before verification; no runtime may be launched.
+        from app.models.reliability import DeploymentOperation
+        with SessionLocal() as db: assert db.query(DeploymentOperation).filter_by(session_id=session_id).count()==0
     finally:
         _delete_session(session_id)
         pipeline_runner._pause_events.pop(session_id, None)
@@ -600,17 +608,19 @@ def test_example_sse_event_history_is_recorded():
     from app.api import routes_session
 
     session_id = "example-sse-session"
+    _create_session_row(session_id)
     routes_session.broadcast_session_event(
         session_id, "phase_transition", {"sessionId": session_id, "phase": "STORIES"}
     )
 
     try:
-        history = routes_session.SESSION_EVENT_HISTORY[session_id]
+        from app.services.session_event_service import read_events
+        history = read_events(session_id)
         assert len(history) == 1
         assert history[0]["event"] == "phase_transition"
         assert json.loads(history[0]["data"])["phase"] == "STORIES"
     finally:
-        routes_session.SESSION_EVENT_HISTORY.pop(session_id, None)
+        _delete_session(session_id)
 
 
 def test_example_session_detail_is_json_serializable(tmp_path, monkeypatch):
@@ -636,10 +646,10 @@ def test_example_delete_cancels_the_session():
 
     try:
         response = client.delete(f"/api/v1/sessions/{session_id}")
-        assert response.status_code == 204
+        assert response.status_code == 409
 
         detail = client.get(f"/api/v1/sessions/{session_id}")
-        assert detail.json()["status"] == "CANCELLED"
+        assert detail.json()["status"] == "QUEUED"
 
         missing = client.delete("/api/v1/sessions/example-missing-session")
         assert missing.status_code == 404

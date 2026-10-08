@@ -6,6 +6,11 @@ __pycache__/
 *.pyo
 *.pyd
 .venv/
+.venv-reliability-*/
+node_modules/
+.uvcache/
+.runtime/
+coverage/
 venv/
 env/
 target/

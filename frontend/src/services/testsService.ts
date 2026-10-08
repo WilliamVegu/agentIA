@@ -35,7 +35,7 @@ export const testsService = {
       sessionId,
       filePath,
       modifiedCode,
-      promptHint,
+      guidanceHint: promptHint,
     });
     return response.data;
   },

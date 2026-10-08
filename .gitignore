@@ -25,6 +25,7 @@ wheels/
 !.env.example
 venv/
 .venv/
+.venv-reliability-*/
 .uvcache/
 .runtime/
 ENV/
@@ -56,6 +57,7 @@ Thumbs.db
 # Database / Local storage
 *.db
 *.sqlite3
+*.db.*
 *.log
 
 # Generated test & execution workspaces
@@ -120,3 +122,6 @@ reports/**/recovered-executable.zip
 .codex-remote-attachments/
 
 
+
+# Disposable reliability dependency cache
+.npm-reliability-cache/

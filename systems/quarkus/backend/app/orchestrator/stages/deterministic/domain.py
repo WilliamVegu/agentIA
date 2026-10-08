@@ -10,32 +10,19 @@ boundary, which dispatches here for DETERMINISTIC sessions.
 """
 
 from app.orchestrator.stages.deterministic.schema import identifier
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any, List
 from app.orchestrator.state import GenerationAgentState
 
 def _map_java_type(attr_type: str) -> str:
-    t = attr_type.lower()
-    if t in ("string", "str", "text"):
-        return "String"
-    elif t in ("int", "integer"):
-        return "Integer"
-    elif t in ("long", "id"):
-        return "Long"
-    elif t in ("double", "float"):
-        return "Double"
-    elif t in ("decimal", "bigdecimal"):
-        return "java.math.BigDecimal"
-    elif t in ("boolean", "bool"):
-        return "Boolean"
-    elif t in ("date", "datetime", "timestamp"):
-        return "java.time.LocalDateTime"
-    elif t == "uuid":
-        return "java.util.UUID"
-    return "String"
+    from app.services.domain_descriptor import java_type
+    return java_type(attr_type)
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
@@ -48,6 +35,8 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
 
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        from app.services.domain_descriptor import identifier, constraints
+        id_name, id_type = identifier(ent)
         id_name, id_type = identifier(ent)
         id_cap = id_name[0].upper() + id_name[1:]
         attrs = ent.get("attributes", [])
@@ -70,6 +59,11 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
             is_required = a.get("required", False) or (not a.get("nullable", True))
             
             field_annotations = []
+            from app.services.model_sql_service import to_snake_case
+            column_name = a.get('columnName') or to_snake_case(name)
+            unique = ', unique = true' if a.get('isUnique') else ''
+            precision = ', precision = 19, scale = 2' if jtype == 'java.math.BigDecimal' else ''
+            field_annotations.append(f'    @Column(name = "{column_name}", nullable = {str(not (is_required or is_id)).lower()}{unique}{precision})')
             if is_id:
                 strategy = "UUID" if id_type in ("java.util.UUID", "String") else "IDENTITY"
                 field_annotations.append(f"    @Id\n    @GeneratedValue(strategy = GenerationType.{strategy})")
@@ -80,6 +74,10 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
                     else:
                         field_annotations.append("    @NotNull")
             
+            if not is_id:
+                for rule in constraints(a):
+                    if '    '+rule not in field_annotations:
+                        field_annotations.append('    '+rule)
             ann_str = ("\n".join(field_annotations) + "\n") if field_annotations else ""
             fields_code.append(f"{ann_str}    private {jtype} {name};")
             
@@ -91,6 +89,18 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
     public void set{cap_name}({jtype} {name}) {{
         this.{name} = {name};
     }}""")
+
+        # Keep scalar FK DTO fields and add a read-only association for JPA schema validation.
+        for attribute in attrs:
+            target=attribute.get('referencesEntity')
+            if target:
+                column=attribute.get('columnName') or to_snake_case(attribute['name'])
+                target_entity=next(entity for entity in entities if entity['name']==target)
+                primary=next(item for item in target_entity['attributes'] if item['name']==attribute['referencesAttribute'])
+                referenced=primary.get('columnName') or to_snake_case(primary['name'])
+                fields_code.append(f'    @ManyToOne(fetch = FetchType.LAZY)\n'
+                    f'    @JoinColumn(name = "{column}", referencedColumnName = "{referenced}", insertable = false, updatable = false)\n'
+                    f'    private {target} {attribute["name"]}Reference;')
 
         entity_src = f"""package {package_name}.model.entity;
 
@@ -131,7 +141,7 @@ public class {ent_name} {{
         for a in non_id_attrs:
             jtype = _map_java_type(a.get("type", "String"))
             is_req = a.get("required", False) or (not a.get("nullable", True))
-            ann = "@NotBlank " if (is_req and jtype == "String") else ("@NotNull " if is_req else "")
+            ann = " ".join(constraints(a)) + (" " if constraints(a) else "")
             create_params.append(f"{ann}{jtype} {a.get('name')}")
 
         create_dto_src = f"""package {package_name}.model.dto;
@@ -186,8 +196,8 @@ public record {ent_name}Response(
         base_dir = Path(workspace_path)
         for p, code in [(entity_path, entity_src), (create_dto_path, create_dto_src), (resp_dto_path, resp_dto_src)]:
             fp = base_dir / p
-            fp.parent.mkdir(parents=True, exist_ok=True)
-            fp.write_text(code, encoding="utf-8")
+            io_path(fp.parent).mkdir(parents=True, exist_ok=True)
+            io_path(fp).write_text(code, encoding="utf-8")
 
         logs.append(f"[DOMAIN] Generated {ent_name} entity, Create{ent_name}Request record, and {ent_name}Response record")
 

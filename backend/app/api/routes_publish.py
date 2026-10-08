@@ -50,7 +50,8 @@ async def export_session_project(session_id: str):
     finally:
         db.close()
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(status_code=404, detail="Project workspace directory not found")
 
@@ -93,7 +94,8 @@ async def publish_session_project(session_id: str, payload: PublishRequest):
     finally:
         db.close()
 
-    ws_path = Path(settings.WORKSPACE_DIR) / session_id
+    from app.services.workspace_guard import get_validated_workspace_path
+    ws_path = get_validated_workspace_path(session_id, require_exists=True)
     if not ws_path.exists() or not ws_path.is_dir():
         raise HTTPException(status_code=404, detail="Project workspace directory not found")
 
@@ -115,5 +117,7 @@ async def publish_session_project(session_id: str, payload: PublishRequest):
         )
         return PublishResponse(**result)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Git publishing failed: {str(e)}")
-
+        from app.services.git_service import GitPublishConflict
+        from app.services.secret_redaction import redact
+        raise HTTPException(status_code=409 if isinstance(e, GitPublishConflict) else 400,
+                            detail=redact(str(e))) from None

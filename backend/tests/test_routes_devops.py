@@ -102,6 +102,10 @@ def test_source_mode_skips_deploy_even_when_source_audit_would_block(blocked_dev
 
 def test_deploy_devops_clean_session_behavior(clean_devops_session):
     sess_id = clean_devops_session
+    from app.models.execution import ExecutionMode
+    with SessionLocal() as db:
+        db.get(GenerationSessionDB, sess_id).execution_mode = ExecutionMode.SOURCE_ONLY
+        db.commit()
     # Default source mode never starts Docker, regardless of this host's daemon.
     response = client.post(f"/api/v1/devops/{sess_id}/deploy", json={"hostPort": 8080})
     assert response.status_code == 200, response.text

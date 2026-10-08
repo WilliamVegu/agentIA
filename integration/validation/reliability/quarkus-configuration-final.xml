@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="12" failures="0" skipped="0" tests="12" time="3.845" timestamp="2026-10-08T16:54:51.153840-05:00" hostname="VeguFam"><testcase classname="" name="backend.tests.test_artifact_revision" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_artifact_revision.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_artifact_revision.py:3: in &lt;module&gt;
+    from test_draft_authority import session
+backend\tests\test_draft_authority.py:5: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_deployment_identity" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_deployment_identity.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_deployment_identity.py:1: in &lt;module&gt;
+    from test_draft_authority import session
+backend\tests\test_draft_authority.py:5: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_draft_authority" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_draft_authority.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_draft_authority.py:5: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_draft_domain_projection" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_draft_domain_projection.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_draft_domain_projection.py:4: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_execution_mode_contract" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_execution_mode_contract.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_execution_mode_contract.py:1: in &lt;module&gt;
+    from test_draft_authority import session
+backend\tests\test_draft_authority.py:5: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_generated_validation_contract" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_generated_validation_contract.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_generated_validation_contract.py:1: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_native_runtime_integration" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_native_runtime_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_native_runtime_integration.py:4: in &lt;module&gt;
+    from integration.native_runtime_cases import run_native_case
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_normalized_domain" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_normalized_domain.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_normalized_domain.py:2: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_persisted_repair" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_persisted_repair.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_persisted_repair.py:4: in &lt;module&gt;
+    from test_draft_authority import session
+backend\tests\test_draft_authority.py:5: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_report_consistency" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_report_consistency.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_report_consistency.py:19: in &lt;module&gt;
+    from test_draft_authority import session
+backend\tests\test_draft_authority.py:5: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_routes_tests" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_routes_tests.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_routes_tests.py:2: in &lt;module&gt;
+    from test_draft_authority import session
+backend\tests\test_draft_authority.py:5: in &lt;module&gt;
+    from integration.reliability_fixtures import ledger_draft
+E   ModuleNotFoundError: No module named 'integration'</error></testcase><testcase classname="" name="backend.tests.test_runtime_data_safety" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\willi\Downloads\agentIA\systems\quarkus\backend\tests\test_runtime_data_safety.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+..\..\.runtime\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\tests\test_runtime_data_safety.py:75: in &lt;module&gt;
+    from integration.runtime_data_safety_cases import run_db_conservation
+E   ModuleNotFoundError: No module named 'integration'</error></testcase></testsuite></testsuites>

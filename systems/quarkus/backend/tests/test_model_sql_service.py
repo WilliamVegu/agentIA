@@ -61,8 +61,8 @@ def test_synthesize_domain_models_primary_key_and_audit(sample_draft: Specificat
 
         # Check audit fields
         audit_names = [a.name for a in entity.attributes if a.name in ("createdAt", "updatedAt")]
-        assert len(audit_names) == 2
-        assert entity.hasAuditFields is True
+        assert audit_names == []
+        assert entity.hasAuditFields is False
 
 def test_generate_schema_sql_syntax_and_constraints():
     entities = [
@@ -164,8 +164,9 @@ def test_generate_seed_data_sql_inserts():
     ]
 
     dml = generate_seed_data_sql(entities)
-    assert "INSERT INTO customers (id, email) VALUES" in dml
-    assert "1" in dml
+    assert "INSERT INTO customers (email) VALUES" in dml
+    assert "Test Email" in dml
+    assert "(id," not in dml
 
 def test_generate_mermaid_er_diagram():
     entities = [

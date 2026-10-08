@@ -67,14 +67,16 @@ def test_get_session_by_id(sample_spec):
     assert "status" in detail
 
 def test_broadcast_session_event_string_id():
-    from app.api.routes_session import broadcast_session_event, SESSION_EVENT_HISTORY
-    test_sid = "test-session-sse-id-type"
-    broadcast_session_event(test_sid, "phase_transition", {"phase": "SCAFFOLDING"})
-    events = SESSION_EVENT_HISTORY.get(test_sid, [])
-    assert len(events) >= 1
-    last_event = events[-1]
-    assert isinstance(last_event["id"], str)
-    assert last_event["id"] == "1"
-    assert last_event["event"] == "phase_transition"
-
-
+    from app.api.routes_session import broadcast_session_event
+    from app.services.session_event_service import read_events
+    from app.models.session import SessionLocal,GenerationSessionDB
+    test_sid='test-session-sse-id-type'
+    with SessionLocal() as db:
+        db.add(GenerationSessionDB(id=test_sid,spec_id='sse-spec',spec_name='SSE'))
+        db.commit()
+    broadcast_session_event(test_sid,'phase_transition',{'phase':'SCAFFOLDING'})
+    events=read_events(test_sid)
+    assert len(events)==1
+    assert isinstance(events[0]['id'],str)
+    assert events[0]['id']=='1'
+    assert events[0]['event']=='phase_transition'

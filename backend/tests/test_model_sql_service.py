@@ -61,8 +61,8 @@ def test_synthesize_domain_models_primary_key_and_audit(sample_draft: Specificat
 
         # Check audit fields
         audit_names = [a.name for a in entity.attributes if a.name in ("createdAt", "updatedAt")]
-        assert len(audit_names) == 2
-        assert entity.hasAuditFields is True
+        assert audit_names == []
+        assert entity.hasAuditFields is False
 
 def test_generate_schema_sql_syntax_and_constraints():
     entities = [
@@ -260,7 +260,7 @@ def test_synthesize_domain_models_prevents_duplicate_foreign_key_column():
                 tableName="order_items",
                 attributes=[
                     EntityAttribute(name="productName", type="String", isPrimaryKey=False),
-                    EntityAttribute(name="orderId", type="Long", isPrimaryKey=False),  # Already present!
+                    EntityAttribute(name="orderId", type="Long", isPrimaryKey=False, referencesEntity="Order"),  # Already present!
                     EntityAttribute(name="quantity", type="Integer", isPrimaryKey=False),
                 ]
             )
@@ -301,8 +301,5 @@ def test_synthesize_domain_models_deduplicates_raw_attributes():
         userStories=[]
     )
 
-    response = model_sql_service.synthesize_domain_models_and_sql(draft)
-    customer = next(e for e in response.entities if e.name == "Customer")
-    email_cols = [a for a in customer.attributes if a.columnName == "email"]
-    assert len(email_cols) == 1
-
+    with pytest.raises(ValueError,match="Atributo duplicado"):
+        model_sql_service.synthesize_domain_models_and_sql(draft)

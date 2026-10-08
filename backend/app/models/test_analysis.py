@@ -76,7 +76,7 @@ class CodeRepairPatch(BaseModel):
     explanation: str = Field(..., description="Rationale for the change")
 
 class RepairIterationRecord(BaseModel):
-    iterationNumber: int = Field(..., ge=1, le=5)
+    iterationNumber: int = Field(..., ge=1, le=3)
     diagnostics: List[FailureDiagnostic]
     patchesApplied: List[CodeRepairPatch]
     passedTestsBefore: int = 0
@@ -133,7 +133,9 @@ class RepairExecutionRequest(BaseModel):
     sourceFiles: Dict[str, str] = Field(default_factory=dict)
     apiKey: Optional[str] = None
 
-class ManualRepairRequest(BaseModel):
+from app.models.contract_aliases import AliasContract
+
+class ManualRepairRequest(AliasContract, BaseModel):
     filePath: str = Field(..., description="File to modify")
     modifiedCode: Optional[str] = Field(None, description="Full replacement source or patched snippet")
     guidanceHint: Optional[str] = Field(None, description="Natural language direction for the repair agent")

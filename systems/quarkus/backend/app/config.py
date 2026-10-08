@@ -45,10 +45,13 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_SESSIONS: int = Field(default=2, description="Max concurrent Docker sandbox executions")
     
     # Sandbox & Docker Execution
+    DOCKER_ENABLED: bool = True
     DOCKER_IMAGE: str = Field(
         default="maven:3.9-eclipse-temurin-21",
         description="Docker base image with pre-cached Maven 3.9 and Java 21 LTS"
     )
+    GRADLE_CACHE_DIR: str = Field(default=str(Path.home() / '.gradle'), description='Explicit prepared Gradle cache; verification never downloads dependencies')
+    GRADLE_DOCKER_IMAGE: str = Field(default='gradle:8.10.2-jdk21')
     MAVEN_CACHE_DIR: str = Field(
         default=str(Path.home() / ".m2" / "repository"),
         description="Host path to Maven local repository for read-only mount"
@@ -76,7 +79,7 @@ class Settings(BaseSettings):
     )
     
     # Maximum auto-repair iterations (Adaptive Constitution Principle V)
-    MAX_REPAIR_ATTEMPTS: int = 5
+    MAX_REPAIR_ATTEMPTS: int = Field(default=3, ge=1, le=3)
     
     # Allow offline mock fallback without requiring external API keys
     ALLOW_OFFLINE_MOCK: bool = Field(default=False, description="Allow falling back to offline-mock when no API key is supplied")

@@ -10,18 +10,20 @@ const mocks = vi.hoisted(() => ({
   changeMode: vi.fn().mockResolvedValue({}), verify: vi.fn().mockResolvedValue({ status: 'COMPLETED' }),
   status: vi.fn(), logs: vi.fn().mockResolvedValue([]), deploy: vi.fn(), diagnostics: vi.fn(),
   subscribe: vi.fn(), unsubscribe: vi.fn(), proxy: vi.fn(), stop: vi.fn(), smoke: vi.fn(),
-  restart: vi.fn(), cleanup: vi.fn(), cancel: vi.fn(),
+  restart: vi.fn(), cleanup: vi.fn(), cleanupPreview: vi.fn(), cancel: vi.fn(),
   configuration: vi.fn(), generate: vi.fn(),
 }));
 vi.mock('../context/StudioContext', () => ({ useStudio: () => mocks.studio }));
 vi.mock('../context/LlmContext', () => ({ useLlm: () => ({ provider: 'mock', apiKey: '' }) }));
 vi.mock('../services/sessionService', () => ({ sessionService: { quickStart: mocks.quickStart, changeExecutionMode: mocks.changeMode, verify: mocks.verify } }));
-vi.mock('../services/devopsService', () => ({ devopsService: { getConfiguration: mocks.configuration, generateManifests: mocks.generate, getDeploymentStatus: mocks.status, getLogs: mocks.logs, deployLocal: mocks.deploy, getDiagnostics: mocks.diagnostics, proxyPlayground: mocks.proxy, stopContainers: mocks.stop, runSmokeTest: mocks.smoke, restartLocal: mocks.restart, cleanupLocal: mocks.cleanup, cancelLocal: mocks.cancel, getPlaygroundResources: vi.fn().mockResolvedValue({ resources: [] }) } }));
+vi.mock('../services/devopsService', () => ({ devopsService: { getConfiguration: mocks.configuration, generateManifests: mocks.generate, getDeploymentStatus: mocks.status, getLogs: mocks.logs, deployLocal: mocks.deploy, getDiagnostics: mocks.diagnostics, proxyPlayground: mocks.proxy, stopContainers: mocks.stop, runSmokeTest: mocks.smoke, restartLocal: mocks.restart, cleanupLocal: mocks.cleanup, cleanupPreview: mocks.cleanupPreview, cancelLocal: mocks.cancel, getPlaygroundResources: vi.fn().mockResolvedValue({ resources: [] }) } }));
 vi.mock('../services/exportService', () => ({ exportService: { getArtifactContent: vi.fn().mockRejectedValue(new Error('not generated')) } }));
 vi.mock('../services/deploymentLogStream', () => ({ subscribeDeploymentLogs: mocks.subscribe }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(window,'confirm').mockReturnValue(true);
+  mocks.cleanupPreview.mockResolvedValue({ sessionId: 'own', confirmationToken: 'preview-identity', resources: { container: ['own-container'], volume: ['own-volume'] } });
   mocks.configuration.mockResolvedValue(null);
   mocks.subscribe.mockImplementation((_id, logs) => { logs([]); return mocks.unsubscribe; });
   mocks.studio.activeSessionId = null;
@@ -124,7 +126,7 @@ describe('Elección de ejecución local', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo eliminar los datos/ }));
     fireEvent.click(button);
     expect((await screen.findAllByText('Datos propios eliminados.')).length).toBeGreaterThan(0);
-    expect(mocks.cleanup).toHaveBeenCalledWith('cleanup', true);
+    expect(mocks.cleanup).toHaveBeenCalledWith('cleanup', true, 'preview-identity');
     expect(screen.getByRole('checkbox', { name: /Confirmo eliminar los datos/ })).not.toBeChecked();
     fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo eliminar los datos/ }));
     mocks.studio.activeSessionId = 'other'; view.rerender(<DevOpsDeploymentView />);

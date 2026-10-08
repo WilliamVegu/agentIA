@@ -2,6 +2,8 @@ import os
 import time
 import asyncio
 import subprocess
+import uuid
+import json
 from pathlib import Path
 from typing import Optional, Callable, List
 from pydantic import BaseModel, Field
@@ -28,6 +30,9 @@ class DockerExecutionResult(BaseModel):
 
     # Feature 012 (FR-001, FR-009). Defaulted so every pre-existing construction
     # remains valid.
+    verification_skipped: bool = False
+    verification_interrupted: bool = False
+    evidence_error: Optional[str] = None
     fallback_used: bool = False
     fallback_reason: Optional[str] = None
     matched_pattern: Optional[str] = None
@@ -61,15 +66,19 @@ def build_docker_cmd(
     # unchanged on hosts that do not need it.
     mount_suffix = getattr(settings, "DOCKER_MOUNT_SUFFIX", "") or ""
 
-    return [
-        "docker", "run", "--rm",
-        "--network", "none",
-        "-v", f"{ws_path}:/workspace{mount_suffix}",
-        "-v", f"{m2_path}:/root/.m2/repository:ro{mount_suffix}",
-        "-w", "/workspace",
-        docker_image,
-        "mvn", "test", "-o"
-    ]
+    from app.services.build_layout import build_layout
+    tool, directory, _ = build_layout(ws_path)
+    working = '/workspace' + ('/bootstrap' if directory == 'bootstrap' else '')
+    common = ['docker', 'run', '--rm', '--pull', 'never', '--network', 'none',
+        '-v', f'{ws_path}:/workspace{mount_suffix}', '-w', working]
+    if tool == 'gradle':
+        cache = str(Path(getattr(settings, 'GRADLE_CACHE_DIR')).resolve())
+        # The read-only host cache is copied to a disposable Linux filesystem.
+        return common + ['-v', f'{cache}:/cache:ro{mount_suffix}',
+            getattr(settings, 'GRADLE_DOCKER_IMAGE'), 'sh', '-c',
+            'mkdir -p /tmp/gradle-home && cp -R /cache/. /tmp/gradle-home/ && export GRADLE_USER_HOME=/tmp/gradle-home && gradle --no-daemon --console=plain --offline build']
+    return common + ['-v', f'{m2_path}:/root/.m2/repository:ro{mount_suffix}',
+        docker_image, 'mvn', 'verify', '-B', '-ntp', '-o']
 
 OFFLINE_SANDBOX_STDOUT = (
     "[INFO] Scanning for projects...\n"
@@ -197,6 +206,9 @@ async def run_docker_sandbox(
     m2_cache = maven_cache_path or settings.MAVEN_CACHE_DIR
     image = docker_image or settings.DOCKER_IMAGE
     cmd = build_docker_cmd(workspace_path, m2_cache, image)
+    owner = uuid.uuid4().hex
+    container_name = 'agentia-quarkus-verification-' + owner
+    cmd[3:3] = ['--name', container_name, '--label', 'io.agentia.verification=' + owner]
 
     stdout_chunks: List[str] = []
     stderr_chunks: List[str] = []
@@ -239,7 +251,15 @@ async def run_docker_sandbox(
             process.kill()
         except Exception:
             pass
+        # Killing the CLI does not stop its container. Remove only the matching owner.
+        try:
+            details = subprocess.run(['docker', 'inspect', container_name], capture_output=True, text=True, timeout=10)
+            if details.returncode == 0 and json.loads(details.stdout)[0]['Config']['Labels'].get('io.agentia.verification') == owner:
+                subprocess.run(['docker', 'rm', '-f', container_name], capture_output=True, timeout=15, check=True)
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError):
+            stderr_chunks.append('Owned verification container cleanup could not be confirmed.\n')
         return DockerExecutionResult(
+            verification_interrupted=True,
             exit_code=-1,
             stdout="".join(stdout_chunks),
             stderr=f"Execution timed out after {timeout_seconds} seconds.",
@@ -314,3 +334,81 @@ async def run_docker_sandbox(
         stderr=stderr_text,
         duration_ms=duration_ms
     )
+
+
+import re
+from dataclasses import dataclass
+_SUREFIRE_SUMMARY_RE = re.compile(
+    r"Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)"
+)
+
+
+@dataclass(frozen=True)
+class TestCounts:
+    """What the build actually reported running.
+
+    Reported rather than assumed because the alternative -- a fixed
+    ``totalTests=5, passedTests=5`` on every success -- is a fabricated figure in
+    the one field the whole acceptance signal rests on.
+    """
+
+    total: int
+    failures: int
+    errors: int
+    skipped: int
+
+    @property
+    def passed(self) -> int:
+        return max(self.total - self.failures - self.errors - self.skipped, 0)
+
+    @property
+    def all_passed(self) -> bool:
+        return self.failures == 0 and self.errors == 0
+
+
+def parse_test_counts(stdout: str) -> Optional[TestCounts]:
+    """The build's final surefire summary, or ``None`` when none was printed.
+
+    Surefire emits a ``Tests run:`` line per test class and again as a final
+    total, so the **last** match is the summary. ``None`` is meaningful and is not
+    zero: a build that reports success without ever printing a summary has not
+    demonstrated that any test ran, and callers must not render that as a pass.
+    """
+    matches = _SUREFIRE_SUMMARY_RE.findall(stdout or "")
+    if not matches:
+        return None
+    total, failures, errors, skipped = (int(value) for value in matches[-1])
+    return TestCounts(total=total, failures=failures, errors=errors, skipped=skipped)
+
+
+def mount_spec(
+    host_path: str,
+    container_path: str,
+    *,
+    read_only: bool = False,
+    suffix: str = "",
+) -> str:
+    """Compose a ``-v`` / ``--volume`` specification with correctly joined options.
+
+    **Docker separates the options after the second colon with COMMAS**, as in
+    ``/host:/container:ro,Z``. The previous code concatenated them --
+    ``f"...:ro{mount_suffix}"`` -- which for the documented ``:Z`` suffix produced
+    ``:ro:Z``. Docker rejects that with ``invalid spec ... too many colons`` and
+    exits 125 *before Maven runs*, so on any host that needs a label suffix every
+    session failed to build for a reason that looks exactly like a real build
+    failure. Only the combination is affected: a lone ``:Z`` or a lone ``:ro`` is
+    valid, which is why this survived on unlabelled hosts.
+
+    The suffix is accepted in any of the shapes a host configuration might supply
+    (``Z``, ``:Z``, ``,Z``) so an operator cannot half-fix the setting.
+    """
+    options: List[str] = []
+    if read_only:
+        options.append("ro")
+    cleaned = (suffix or "").strip().lstrip(":,").strip()
+    options.extend(part for part in cleaned.split(",") if part)
+
+    spec = f"{host_path}:{container_path}"
+    if options:
+        spec += ":" + ",".join(options)
+    return spec

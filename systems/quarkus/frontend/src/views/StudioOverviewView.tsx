@@ -22,7 +22,8 @@ import { SingleRowCard } from '../components/common/SingleRowCard';
 import { AssistedScrollBtn } from '../components/common/AssistedScrollBtn';
 import { useStudio } from '../context/StudioContext';
 import { useLlm } from '../context/LlmContext';
-import { sessionService } from '../services/sessionService';
+import { sessionService,ExecutionMode } from '../services/sessionService';
+import { ExecutionModeSelector } from '../components/common/ExecutionModeSelector';
 import { orchestratorService } from '../services/orchestratorService';
 
 export const StudioOverviewView: React.FC = () => {
@@ -42,6 +43,8 @@ export const StudioOverviewView: React.FC = () => {
 
   // Quick Start Form state
   const [serviceName, setServiceName] = useState('');
+  const [executionMode,setExecutionMode]=useState<ExecutionMode>('SOURCE_ONLY');
+  const [autoDeploy,setAutoDeploy]=useState(false);
   const [database, setDatabase] = useState<'POSTGRESQL' | 'MYSQL' | 'H2'>('POSTGRESQL');
   const [prompt, setPrompt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,6 +64,8 @@ export const StudioOverviewView: React.FC = () => {
         service_name: serviceName.trim(),
         prompt: prompt.trim(),
         database: database,
+        execution_mode: executionMode,
+        auto_deploy: isAuto && executionMode === 'DOCKER' && autoDeploy,
         auto_run: isAuto,
         llm_provider: provider,
         api_key: apiKey,
@@ -193,7 +198,7 @@ export const StudioOverviewView: React.FC = () => {
             </h2>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Crea un microservicio reactivo ultraligero con especificación en español, arquitectura en 4 capas, entidades Panache, código Quarkus 3 y suites de prueba QuarkusTest generadas 100% por IA.
+              Crea un microservicio reactivo ultraligero con especificación en español, arquitectura en 4 capas, entidades Panache, código Quarkus 3 y suites de prueba QuarkusTest. El modo y la evidencia de cada ejecución se muestran por separado.
             </p>
 
             <div className="space-y-4 pt-2">
@@ -247,6 +252,9 @@ export const StudioOverviewView: React.FC = () => {
                   className="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-xs leading-relaxed focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
+
+              <ExecutionModeSelector value={executionMode} onChange={setExecutionMode}/>
+              {executionMode === 'DOCKER' && <label className="block text-xs"><input type="checkbox" checked={autoDeploy} onChange={event=>setAutoDeploy(event.target.checked)}/> Desplegar automáticamente tras aprobar las pruebas</label>}
 
               <div className="pt-1">
                 <p className="text-[11px] text-blue-300/80 mb-2 flex items-center gap-1.5">
@@ -483,7 +491,7 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Historias BDD</span>
                 <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {projectOverview?.totalStories || 4}
+                  {projectOverview?.userStoriesCount ?? 0}
                 </div>
                 <span className="text-[11px] text-slate-500">Criterios G/W/T</span>
               </div>
@@ -491,7 +499,7 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Entidades SQL</span>
                 <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {projectOverview?.totalEntities || 2}
+                  {projectOverview?.entitiesCount ?? 0}
                 </div>
                 <span className="text-[11px] text-slate-500">Tablas relacionales</span>
               </div>
@@ -499,25 +507,25 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Suites de Tests</span>
                 <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-2">
-                  ✅ Aprobadas
+                  {projectOverview?.testsPassed === true ? 'Aprobadas con evidencia' : 'Sin pruebas aprobadas'}
                 </div>
-                <span className="text-[11px] text-slate-500">Mockito & WebMvc</span>
+                <span className="text-[11px] text-slate-500">JUnit / Quarkus</span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Quality Gate</span>
                 <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-2">
-                  ✅ APROBADO
+                  {projectOverview?.securityAuditVerdict ?? 'Sin evaluar'}
                 </div>
-                <span className="text-[11px] text-slate-500">Puntaje: {projectOverview?.qualityScore || 95}/100</span>
+                <span className="text-[11px] text-slate-500">Puntaje: {projectOverview?.qualityScore ?? "Sin evaluar"}/100</span>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Despliegue</span>
                 <div className="text-base font-bold font-mono text-blue-600 dark:text-blue-400 mt-2 truncate">
-                  {projectOverview?.deploymentStatus || 'RUNNING'}
+                  {projectOverview?.deploymentStatus ?? 'UNKNOWN'}
                 </div>
-                <span className="text-[11px] text-slate-500">Puerto :8080</span>
+                <span className="text-[11px] text-slate-500">{projectOverview?.deploymentUrl ?? 'Sin URL verificada'}</span>
               </div>
             </div>
           </div>

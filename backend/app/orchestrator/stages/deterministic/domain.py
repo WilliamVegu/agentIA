@@ -8,39 +8,20 @@ The node module of the same name now delegates to the stage execution
 boundary, which dispatches here for DETERMINISTIC sessions.
 """
 
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any, List
 from app.orchestrator.state import GenerationAgentState
 from app.orchestrator.stages.deterministic import module_layout
 
 def _map_java_type(attr_type: str) -> str:
-    t = attr_type.rsplit('.', 1)[-1].lower()
-    if t in ("string", "str", "text"):
-        return "String"
-    elif t in ("int", "integer"):
-        return "Integer"
-    elif t in ("long", "id"):
-        return "Long"
-    elif t == "double":
-        return "Double"
-    elif t == "float":
-        return "Float"
-    elif t in ("decimal", "bigdecimal"):
-        return "java.math.BigDecimal"
-    elif t in ("boolean", "bool"):
-        return "Boolean"
-    elif t in ("date", "datetime", "timestamp", "localdatetime"):
-        return "java.time.LocalDateTime"
-    elif t == "localdate":
-        return "java.time.LocalDate"
-    elif t == "instant":
-        return "java.time.Instant"
-    elif t == "uuid":
-        return "java.util.UUID"
-    return "String"
+    from app.services.domain_descriptor import java_type
+    return java_type(attr_type)
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
     generated_files = state.get("generated_files", {})
@@ -54,6 +35,8 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
 
     for ent in entities:
         ent_name = ent.get("name", "Entity")
+        from app.services.domain_descriptor import identifier, constraints
+        id_name, id_type = identifier(ent)
         from app.services.model_sql_service import to_plural_table_name, to_snake_case
         table_name = ent.get("tableName") or ent.get("table_name") or to_plural_table_name(ent_name)
         attrs = ent.get("attributes", [])
@@ -68,9 +51,9 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
         getter_setter_code = []
         for a in attrs:
             name = a.get("name")
-            is_id = a.get("isPrimaryKey") or a.get("is_identifier", False) or name == "id"
+            is_id = name == id_name
             if is_id:
-                jtype = "Long"
+                jtype = id_type
             else:
                 jtype = _map_java_type(a.get("type", "String"))
             is_required = a.get("required", False) or (not a.get("nullable", True))
@@ -81,7 +64,8 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
             precision = ', precision = 19, scale = 2' if jtype == 'java.math.BigDecimal' else ''
             field_annotations.append(f'    @Column(name = "{column_name}", nullable = {str(not (is_required or is_id)).lower()}{unique}{precision})')
             if is_id:
-                field_annotations.append("    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)")
+                strategy = "UUID" if id_type in ("java.util.UUID", "String") else "IDENTITY"
+                field_annotations.append(f"    @Id\n    @GeneratedValue(strategy = GenerationType.{strategy})")
             else:
                 if is_required:
                     if jtype == "String":
@@ -89,6 +73,10 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
                     else:
                         field_annotations.append("    @NotNull")
             
+            if not is_id:
+                for rule in constraints(a):
+                    if '    '+rule not in field_annotations:
+                        field_annotations.append('    '+rule)
             ann_str = ("\n".join(field_annotations) + "\n") if field_annotations else ""
             fields_code.append(f"{ann_str}    private {jtype} {name};")
             
@@ -100,6 +88,18 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
     public void set{cap_name}({jtype} {name}) {{
         this.{name} = {name};
     }}""")
+
+        # Keep scalar FK DTO fields and add a read-only association for JPA schema validation.
+        for attribute in attrs:
+            target=attribute.get('referencesEntity')
+            if target:
+                column=attribute.get('columnName') or to_snake_case(attribute['name'])
+                target_entity=next(entity for entity in entities if entity['name']==target)
+                primary=next(item for item in target_entity['attributes'] if item['name']==attribute['referencesAttribute'])
+                referenced=primary.get('columnName') or to_snake_case(primary['name'])
+                fields_code.append(f'    @ManyToOne(fetch = FetchType.LAZY)\n'
+                    f'    @JoinColumn(name = "{column}", referencedColumnName = "{referenced}", insertable = false, updatable = false)\n'
+                    f'    private {target} {attribute["name"]}Reference;')
 
         entity_src = f"""package {package_name}.model.entity;
 
@@ -123,12 +123,12 @@ public class {ent_name} {{
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         {ent_name} that = ({ent_name}) o;
-        return Objects.equals(id, that.id);
+        return Objects.equals({id_name}, that.{id_name});
     }}
 
     @Override
     public int hashCode() {{
-        return Objects.hash(id);
+        return Objects.hash({id_name});
     }}
 }}
 """
@@ -140,7 +140,7 @@ public class {ent_name} {{
         for a in non_id_attrs:
             jtype = _map_java_type(a.get("type", "String"))
             is_req = a.get("required", False) or (not a.get("nullable", True))
-            ann = "@NotBlank " if (is_req and jtype == "String") else ("@NotNull " if is_req else "")
+            ann = " ".join(constraints(a)) + (" " if constraints(a) else "")
             create_params.append(f"{ann}{jtype} {a.get('name')}")
 
         create_dto_src = f"""package {package_name}.model.dto;
@@ -159,7 +159,7 @@ public record Create{ent_name}Request(
             aname = a.get("name")
             is_id = a.get("isPrimaryKey") or a.get("is_identifier", False) or aname == "id"
             if is_id:
-                jtype = "Long"
+                jtype = id_type
             else:
                 jtype = _map_java_type(a.get("type", "String"))
             cap_name = aname[0].upper() + aname[1:]
@@ -195,8 +195,8 @@ public record {ent_name}Response(
         base_dir = Path(workspace_path)
         for p, code in [(entity_path, entity_src), (create_dto_path, create_dto_src), (resp_dto_path, resp_dto_src)]:
             fp = base_dir / p
-            fp.parent.mkdir(parents=True, exist_ok=True)
-            fp.write_text(code, encoding="utf-8")
+            io_path(fp.parent).mkdir(parents=True, exist_ok=True)
+            io_path(fp).write_text(code, encoding="utf-8")
 
         logs.append(f"[DOMAIN] Generated {ent_name} entity, Create{ent_name}Request record, and {ent_name}Response record")
 

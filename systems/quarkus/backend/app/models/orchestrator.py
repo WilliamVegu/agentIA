@@ -115,6 +115,9 @@ class PhaseTransitionRequest(BaseModel):
 
 
 class ProjectOverviewSummary(BaseModel):
+    execution_mode: str = Field("SOURCE_ONLY", alias="executionMode")
+    verification_outcome: str = Field("NOT_RUN", alias="verificationOutcome")
+    tests_executed: bool = Field(False, alias="testsExecuted")
     model_config = ConfigDict(populate_by_name=True)
 
     session_id: str = Field(..., alias="sessionId")

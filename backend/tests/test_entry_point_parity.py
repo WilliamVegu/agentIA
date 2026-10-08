@@ -147,7 +147,7 @@ def test_the_worker_decides_the_mode_with_the_credentials_and_states_the_key(wor
 
     asyncio.run(
         rs.execute_generation_pipeline(
-            SESSION_ID, "spec-parity", "OrderService", {"serviceName": "x"},
+            SESSION_ID, "spec-parity", "OrderService", __import__("integration.reliability_fixtures",fromlist=["ledger_draft"]).ledger_draft(),
             api_key="sk-threaded", provider="deepseek",
         )
     )

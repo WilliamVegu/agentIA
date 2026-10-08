@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="12" skipped="0" tests="50" time="4.169" timestamp="2026-10-08T11:00:32.863478-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_qe_session_surface" name="test_a_missing_session_row_reports_no_fallback" time="0.104" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_missing_metrics_column_reports_no_fallback" time="0.011" /><testcase classname="backend.tests.test_qe_session_surface" name="test_empty_metrics_report_no_fallback" time="0.010" /><testcase classname="backend.tests.test_qe_session_surface" name="test_persisted_fallback_metrics_are_read_back_as_true" time="0.011" /><testcase classname="backend.tests.test_qe_session_surface" name="test_persisted_real_verification_is_read_back_as_false" time="0.011" /><testcase classname="backend.tests.test_qe_session_surface" name="test_corrupt_metrics_degrade_to_no_fallback" time="0.010" /><testcase classname="backend.tests.test_qe_session_surface" name="test_metrics_that_are_not_an_object_degrade_to_no_fallback" time="0.011" /><testcase classname="backend.tests.test_qe_session_surface" name="test_persisting_without_a_row_is_a_no_op" time="0.011" /><testcase classname="backend.tests.test_qe_session_surface" name="test_persisting_without_metrics_leaves_the_row_untouched" time="0.013" /><testcase classname="backend.tests.test_qe_session_surface" name="test_persisting_metrics_writes_the_json_that_the_reader_expects" time="0.014" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_row_that_rejects_assignment_does_not_break_the_session" time="0.016" /><testcase classname="backend.tests.test_qe_session_surface" name="test_diagnostics_delegate_to_the_single_writer" time="0.014" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_broadcast_event_carries_a_string_id_and_the_event_name_twice" time="0.030" /><testcase classname="backend.tests.test_qe_session_surface" name="test_event_ids_increase_within_a_session" time="0.024" /><testcase classname="backend.tests.test_qe_session_surface" name="test_untrusted_payload_cannot_override_the_committed_event_type" time="0.018" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_threaded_producer_publishes_committed_events" time="0.020" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_subscriber_without_an_event_loop_reads_committed_progress" time="0.020" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_disconnected_subscriber_does_not_consume_the_live_subscriber_event" time="0.529" /><testcase classname="backend.tests.test_qe_session_surface" name="test_streaming_an_unknown_session_is_a_404" time="0.013" /><testcase classname="backend.tests.test_qe_session_surface" name="test_the_stream_replays_history_then_cleans_up_the_subscriber" time="0.031" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_live_event_reaches_a_connected_stream_after_the_replay" time="0.532" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_disconnected_client_is_unsubscribed" time="0.078" /><testcase classname="backend.tests.test_qe_session_surface" name="test_an_idle_stream_emits_a_keepalive" time="0.023" /><testcase classname="backend.tests.test_qe_session_surface" name="test_completed_without_evidence_is_listed_at_zero_percent" time="0.085" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_session_with_no_artifacts_is_listed_at_zero_percent" time="0.021" /><testcase classname="backend.tests.test_qe_session_surface" name="test_reading_artifacts_does_not_promote_an_unverified_session" time="0.029" /><testcase classname="backend.tests.test_qe_session_surface" name="test_a_failing_lifecycle_calculation_does_not_break_the_session_list" time="0.017" /><testcase classname="backend.tests.test_qe_session_surface" name="test_the_limit_is_respected" time="0.032" /><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_creates_a_requirements_session_without_running_it" time="0.023" /><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_writes_the_prompt_into_the_workspace_spec" time="0.022" /><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_accepts_prompt_as_an_alias_and_sets_auto_pilot" time="0.017" /><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_without_a_name_uses_a_stable_default" time="0.019" /><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_with_an_empty_name_falls_back_to_the_default" time="0.017" /><testcase classname="backend.tests.test_qe_session_surface" name="test_quick_start_without_any_text_writes_no_spec_file" time="0.019" /><testcase classname="backend.tests.test_qe_session_surface" name="test_reading_an_unknown_session_is_a_404" time="0.014" /><testcase classname="backend.tests.test_qe_session_surface" name="test_reading_a_session_surfaces_the_persisted_fallback_flag" time="0.019" /><testcase classname="backend.tests.test_qe_session_surface" name="test_reading_a_session_without_metrics_reports_no_fallback" time="0.018" /><testcase classname="backend.tests.test_qe_session_surface" name="test_cancelling_an_unknown_session_is_a_404" time="0.015" /><testcase classname="backend.tests.test_qe_session_surface" name="test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot" time="0.020"><failure message="fastapi.exceptions.HTTPException: 409: No existe operación activa que cancelar">backend\tests\test_qe_session_surface.py:596: in test_cancelling_a_session_marks_it_cancelled_and_frees_its_slot
+    asyncio.run(rs.cancel_session(SESSION_ID))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:844: in cancel_session
+    if not cancel_pipeline(session_id): raise HTTPException(409,'No existe operación activa que cancelar')
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   fastapi.exceptions.HTTPException: 409: No existe operación activa que cancelar</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_completed_run_records_verified_and_reports_the_substituted_verification" time="0.050"><failure message="pydantic_core._pydantic_core.ValidationError: 1 validation error for SpecificationDraft&#10;packageName&#10;  Field required [type=missing, input_value={'serviceName': 'x'}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:645: in test_a_completed_run_records_verified_and_reports_the_substituted_verification
+    asyncio.run(
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SpecificationDraft
+E   packageName
+E     Field required [type=missing, input_value={'serviceName': 'x'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_completed_run_with_a_real_verification_reports_no_fallback" time="0.040"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:672: in test_a_completed_run_with_a_real_verification_reports_no_fallback
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_the_pipeline_streams_phase_transitions_logs_and_verification" time="0.038"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:703: in test_the_pipeline_streams_phase_transitions_logs_and_verification
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_the_test_node_announces_test_synthesis" time="0.041"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:735: in test_the_test_node_announces_test_synthesis
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_repair_beyond_the_limit_is_reported_as_blocked" time="0.045"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:754: in test_a_repair_beyond_the_limit_is_reported_as_blocked
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_blocked_run_is_persisted_and_diagnosed" time="0.041"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:769: in test_a_blocked_run_is_persisted_and_diagnosed
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_a_crash_inside_the_graph_still_terminates_the_session" time="0.042"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:788: in test_a_crash_inside_the_graph_still_terminates_the_session
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_the_instruction_revision_is_recorded_when_the_set_loads" time="0.057"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:808: in test_the_instruction_revision_is_recorded_when_the_set_loads
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_an_unloadable_instruction_set_does_not_break_the_offline_path" time="0.058"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:822: in test_an_unloadable_instruction_set_does_not_break_the_offline_path
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_the_worker_slot_is_released_even_when_the_run_crashes" time="0.043"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:844: in test_the_worker_slot_is_released_even_when_the_run_crashes
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase><testcase classname="backend.tests.test_qe_session_surface" name="test_the_generation_state_is_kept_for_inspection" time="0.041"><failure message="pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft&#10;serviceName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing&#10;packageName&#10;  Field required [type=missing, input_value={}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.13/v/missing">backend\tests\test_qe_session_surface.py:854: in test_the_generation_state_is_kept_for_inspection
+    asyncio.run(rs.execute_generation_pipeline(SESSION_ID, "spec-qe", "OrderService", {}))
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.runtime\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend\app\api\routes_session.py:201: in execute_generation_pipeline
+    payload=SpecificationDraft.model_validate(blueprint_dict).model_dump()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SpecificationDraft
+E   serviceName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing
+E   packageName
+E     Field required [type=missing, input_value={}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/missing</failure></testcase></testsuite></testsuites>

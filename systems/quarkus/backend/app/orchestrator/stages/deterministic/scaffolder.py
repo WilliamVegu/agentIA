@@ -1,13 +1,16 @@
 """Native Quarkus offline generator, restored and wired into the Studio stage boundary."""
 
 import os
+from app.services.workspace_guard import io_path
 from pathlib import Path
 from typing import Dict, Any
 from app.orchestrator.state import GenerationAgentState
 from app.models.session import SessionPhase
 
 def emit(state: GenerationAgentState) -> Dict[str, Any]:
-    blueprint = state.get("blueprint", {})
+    from app.services.domain_descriptor import normalize_blueprint
+    blueprint = normalize_blueprint(state.get("blueprint", {}))
+    state["blueprint"] = blueprint
     service_name = blueprint.get("serviceName") or blueprint.get("service_name", "sample-service")
     package_name = blueprint.get("packageName") or blueprint.get("package_name", "com.corp.service")
     workspace_path = state.get("workspace_path", "./workspaces/sample")
@@ -160,6 +163,18 @@ def emit(state: GenerationAgentState) -> Dict[str, Any]:
 </project>
 """
 
+    flyway_dependency = '<dependency><groupId>io.quarkus</groupId><artifactId>quarkus-flyway</artifactId></dependency>'
+    flyway_artifact = {'POSTGRESQL':'flyway-database-postgresql', 'MYSQL':'flyway-mysql'}.get(selected_database)
+    if flyway_artifact:
+        flyway_dependency += f'<dependency><groupId>org.flywaydb</groupId><artifactId>{flyway_artifact}</artifactId></dependency>'
+    dependency_end = pom_xml.rindex('</dependencies>')
+    pom_xml = pom_xml[:dependency_end] + flyway_dependency + pom_xml[dependency_end:]
+    from app.services.model_sql_service import schema_sql_from_draft
+    from app.models.requirements import SpecificationDraft
+    schema_draft = SpecificationDraft.model_validate({**blueprint, 'userStories':blueprint.get('userStories',[])})
+    for engine in ('H2','POSTGRESQL','MYSQL'):
+        generated_files['src/main/resources/db/migration/'+engine.lower()+'/V1__initial.sql'] = schema_sql_from_draft(schema_draft, engine)
+
     # 2. application.properties (Quarkus convention; replaces application.yml)
     app_properties = f"""quarkus.application.name={service_name}
 quarkus.http.port={port}
@@ -170,7 +185,11 @@ quarkus.datasource.jdbc.url=jdbc:h2:mem:{service_name.replace('-', '_')};DB_CLOS
 quarkus.datasource.username=sa
 quarkus.datasource.password=
 
-quarkus.hibernate-orm.database.generation=update
+quarkus.hibernate-orm.database.generation=validate
+quarkus.flyway.migrate-at-start=true
+quarkus.flyway.clean-disabled=true
+quarkus.flyway.locations=classpath:db/migration/h2
+%prod.quarkus.flyway.locations=classpath:db/migration/{selected_database.lower()}
 quarkus.hibernate-orm.log.sql=false
 %test.quarkus.http.test-port=0
 %prod.quarkus.datasource.db-kind={database_kind}
@@ -179,7 +198,21 @@ quarkus.hibernate-orm.log.sql=false
 %prod.quarkus.datasource.password=${{DB_PASSWORD:}}
 """
 
-    generated_files["pom.xml"] = pom_xml
+    selected_build = (blueprint.get('inputInterface') or {}).get('buildToolPreference') or 'maven'
+    if selected_build == 'gradle':
+        dependencies = ['quarkus-rest-jackson','quarkus-hibernate-orm-panache','quarkus-hibernate-validator','quarkus-smallrye-health','quarkus-smallrye-openapi','quarkus-jdbc-h2','quarkus-flyway']
+        if driver not in dependencies:
+            dependencies.append(driver)
+        dependency_lines = '\n'.join("    implementation 'io.quarkus:"+item+"'" for item in dependencies)
+        if flyway_artifact:
+            dependency_lines += "\n    implementation 'org.flywaydb:"+flyway_artifact+"'"
+        generated_files['settings.gradle'] = "pluginManagement { repositories { mavenCentral(); gradlePluginPortal() } }\nrootProject.name = '"+service_name+"'\n"
+        generated_files['build.gradle'] = "plugins { id 'java'; id 'io.quarkus' version '"+quarkus_version+"' }\n" + "group = '"+package_name+"'\nversion = '1.0.0-SNAPSHOT'\nrepositories { mavenCentral() }\njava { toolchain { languageVersion = JavaLanguageVersion.of(21) } }\ndependencies {\n    implementation enforcedPlatform('io.quarkus.platform:quarkus-bom:"+quarkus_version+"')\n" + dependency_lines + "\n    testImplementation 'io.quarkus:quarkus-junit5'\n    testImplementation 'org.mockito:mockito-junit-jupiter:5.11.0'\n}\ntest { useJUnitPlatform(); systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager' }\n"
+    elif selected_build == 'maven':
+        generated_files['pom.xml'] = pom_xml
+    else:
+        raise ValueError('Herramienta de build no soportada')
+
     generated_files["src/main/resources/application.properties"] = app_properties
 
     # No Application.java / main class is emitted: Quarkus does not need one --
@@ -191,8 +224,8 @@ quarkus.hibernate-orm.log.sql=false
     base_dir = Path(workspace_path)
     for rel_path, content in generated_files.items():
         file_path = base_dir / rel_path
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(content, encoding="utf-8")
+        io_path(file_path.parent).mkdir(parents=True, exist_ok=True)
+        io_path(file_path).write_text(content, encoding="utf-8")
 
     logs.append("[SCAFFOLDER] Created pom.xml and application.properties (Quarkus)")
 

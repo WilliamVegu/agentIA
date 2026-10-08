@@ -61,7 +61,7 @@ class WorkspaceVerification:
         return self.platform_test_path is not None
 
 
-def run_workspace_verification(workspace_path, log_callback=None, mode=None):
+def _run_workspace_verification(workspace_path, log_callback=None, mode=None):
     """Claim the same session lock as deployment before changing or verifying sources."""
     selected = execution_mode(workspace_path=workspace_path, explicit=mode)
     ws = Path(workspace_path).resolve()
@@ -285,3 +285,10 @@ def _run_sandbox_blocking(
         return asyncio.run(run_docker_sandbox(workspace_path, log_callback=log_callback, **kwargs))
     with concurrent.futures.ThreadPoolExecutor() as pool:
         return pool.submit(asyncio.run, run_docker_sandbox(workspace_path, log_callback=log_callback, **kwargs)).result()
+
+
+def run_workspace_verification(workspace_path, log_callback=None, mode=None):
+    verification = _run_workspace_verification(workspace_path, log_callback, mode)
+    from app.services.verification_evidence import record_verification
+    record_verification(Path(workspace_path).name, verification, 'springboot-offline')
+    return verification

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="240.144" timestamp="2026-10-08T16:28:15.934606-05:00" hostname="VeguFam"><testcase classname="backend.tests.test_native_runtime_integration" name="test_native_two_sessions_collision_restart_and_controls" time="239.650"><failure message="AssertionError: Traceback (most recent call last):&#10;  File &quot;&lt;string&gt;&quot;, line 1, in &lt;module&gt;&#10;AssertionError">backend\tests\test_native_runtime_integration.py:8: in test_native_two_sessions_collision_restart_and_controls
+    run_native_case('springboot',tmp_path,monkeypatch)
+integration\native_runtime_cases.py:125: in run_native_case
+    assert observed.returncode==0,observed.stderr
+           ^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Traceback (most recent call last):
+E     File "&lt;string&gt;", line 1, in &lt;module&gt;
+E   AssertionError</failure></testcase></testsuite></testsuites>

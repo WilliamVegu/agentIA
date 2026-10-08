@@ -89,6 +89,7 @@ class DeploymentLogSnapshot(BaseModel):
 
 class LocalCleanupRequest(BaseModel):
     deleteData: bool = False
+    confirmationToken: Optional[str] = None
 
 
 class LocalCancelRequest(BaseModel):

@@ -1,0 +1,32 @@
+{
+  "framework": "quarkus",
+  "buildTool": "gradle",
+  "databaseEngine": "H2",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\quarkus-gradle-h2",
+  "checks": [
+    {
+      "check": "invalid-email-invalid",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance-0",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance--1",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-None",
+      "status": 400
+    },
+    {
+      "check": "unique-email",
+      "status": 409
+    },
+    {
+      "check": "CRUD-UUID-date-decimal",
+      "status": "PASSED"
+    }
+  ]
+}

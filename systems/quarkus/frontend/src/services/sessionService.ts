@@ -1,9 +1,15 @@
 import apiClient from './apiClient';
 
+export type ExecutionMode = 'SOURCE_ONLY' | 'DOCKER';
+
 export interface QuickStartPayload {
   service_name: string;
+  execution_mode?: ExecutionMode;
+  auto_deploy?: boolean;
   prompt?: string;
   raw_text?: string;
+  databaseEngine?: 'POSTGRESQL' | 'MYSQL' | 'H2';
+  /** Compatibility alias; conflicting values are rejected by the API. */
   database?: 'POSTGRESQL' | 'MYSQL' | 'H2';
   auto_run?: boolean;
   llm_provider?: string;
@@ -14,7 +20,9 @@ export interface SessionListItem {
   sessionId: string;
   specId: string;
   specName: string;
-  status: 'CREATED' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED';
+  status: 'CREATED' | 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'BLOCKED' | 'PAUSED' | 'CANCELLED' | 'INTERRUPTED';
+  executionMode?: ExecutionMode;
+  verificationOutcome?: string;
   phase?: string;
   currentLifecyclePhase: string;
   lifecycleMode: string;
@@ -51,8 +59,17 @@ export const sessionService = {
   },
 
   async quickStart(payload: QuickStartPayload) {
-    const response = await apiClient.post('/sessions/quick-start', payload);
+    const { database, databaseEngine, ...rest } = payload;
+    const response = await apiClient.post('/sessions/quick-start', { ...rest, databaseEngine: databaseEngine ?? database, ...(databaseEngine && database ? { database } : {}) });
     return response.data;
+  },
+
+  async changeExecutionMode(sessionId: string,executionMode: ExecutionMode) {
+    return (await apiClient.patch('/sessions/'+sessionId+'/execution-mode',{executionMode})).data;
+  },
+
+  async verifySession(sessionId: string) {
+    return (await apiClient.post('/sessions/'+sessionId+'/verify')).data;
   },
 
   async cancelSession(sessionId: string) {
@@ -64,7 +81,7 @@ export const sessionService = {
       sessionId,
       filePath,
       modifiedCode,
-      promptHint,
+      guidanceHint: promptHint,
     });
     return response.data;
   },

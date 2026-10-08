@@ -293,7 +293,8 @@ paths:
       tags:
       - Sessions
       summary: Cancel Session
-      description: Cancels active or queued session.
+      description: Request cancellation; only the owning worker acknowledges its terminal
+        state.
       operationId: cancel_session_api_v1_sessions__session_id__delete
       parameters:
       - name: session_id
@@ -868,6 +869,35 @@ paths:
           description: Cookie de sesión requerida.
       security:
       - StudioSession: []
+  /api/v1/devops/{session_id}/cleanup/preview:
+    get:
+      tags:
+      - DevOps, Containerization & Deployment
+      summary: Preview Cleanup
+      operationId: preview_cleanup_api_v1_devops__session_id__cleanup_preview_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Cookie de sesión requerida.
+      security:
+      - StudioSession: []
 components:
   securitySchemes:
     StudioSession:
@@ -1273,6 +1303,11 @@ components:
           type: boolean
           title: Deletedata
           default: false
+        confirmationToken:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Confirmationtoken
       type: object
       title: LocalCleanupRequest
     LocalDeploymentSession:
@@ -1572,7 +1607,7 @@ components:
             type: object
           - type: 'null'
           title: Inputinterface
-      additionalProperties: true
+      additionalProperties: false
       type: object
       title: QuickStartSessionRequest
     QuickStartSessionResponse:

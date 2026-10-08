@@ -63,8 +63,8 @@ class StandardsComplianceViolation(BaseModel):
 
 
 class CodeQualityMetrics(BaseModel):
-    averageCyclomaticComplexity: float = Field(default=1.0, description="Average cyclomatic complexity per method")
-    maxCyclomaticComplexity: int = Field(default=1, description="Maximum cyclomatic complexity observed in any method")
+    averageCyclomaticComplexity: float = Field(default=0.0, description="Average cyclomatic complexity per method")
+    maxCyclomaticComplexity: int = Field(default=0, description="Maximum cyclomatic complexity observed in any method")
     totalMethodsAudited: int = Field(default=0, description="Total methods evaluated")
     methodsExceedingThreshold: int = Field(default=0, description="Methods with cyclomatic complexity > 10")
     totalLinesOfCode: int = Field(default=0, description="Total executable lines of code")
@@ -75,7 +75,7 @@ class CodeQualityMetrics(BaseModel):
 
 class QualityGateVerdict(BaseModel):
     status: QualityGateStatus
-    score: int = Field(..., ge=0, le=100, description="Composite quality score from 0 to 100")
+    score: Optional[int] = Field(..., ge=0, le=100, description="Composite quality score from 0 to 100")
     criticalCount: int = Field(default=0)
     highCount: int = Field(default=0)
     mediumCount: int = Field(default=0)
@@ -91,6 +91,7 @@ class SecurityQualityAuditReport(BaseModel):
     metrics: CodeQualityMetrics
     vulnerabilities: List[SecurityVulnerabilityFinding] = Field(default_factory=list)
     violations: List[StandardsComplianceViolation] = Field(default_factory=list)
+    evaluatedStatus: str = "EVALUATED"
     auditedAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
@@ -101,6 +102,8 @@ class AuditRequest(BaseModel):
 
 
 class RemediationRequest(BaseModel):
+    persist: Optional[bool] = None
+    expectedFingerprint: Optional[str] = None
     sessionId: Optional[str] = None
     findingId: str = Field(..., description="ID of finding or violation to remediate")
     filePath: str = Field(..., description="File path to patch")

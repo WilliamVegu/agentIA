@@ -1,0 +1,32 @@
+[
+  {
+    "studio": "springboot",
+    "suite": "migration",
+    "exitCode": 0,
+    "outcome": "PASSED",
+    "counts": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "log": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\migration\\springboot-migration.log",
+    "report": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\migration\\springboot-migration.xml",
+    "liveProviderCalls": 0
+  },
+  {
+    "studio": "quarkus",
+    "suite": "migration",
+    "exitCode": 0,
+    "outcome": "PASSED",
+    "counts": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "log": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\migration\\quarkus-migration.log",
+    "report": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\migration\\quarkus-migration.xml",
+    "liveProviderCalls": 0
+  }
+]

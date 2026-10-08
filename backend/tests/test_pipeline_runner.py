@@ -82,7 +82,7 @@ def test_pipeline_runner_full_run(runner_session):
     _stop_events[session_id] = threading.Event()
 
     # Execute all steps
-    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
+    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert (ws_path / "spec.md").exists()
     assert (ws_path / "user_stories.json").exists()
@@ -107,7 +107,7 @@ def test_pipeline_runner_hot_pause(runner_session):
     # Signal pause immediately before start
     _pause_events[session_id].set()
 
-    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
+    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert _pipeline_statuses.get(session_id) == PipelineRunStatus.PAUSED
     # Step 3 and later should not be created
@@ -128,7 +128,7 @@ def test_pipeline_runner_quality_gate_block(runner_session, monkeypatch):
     import app.services.pipeline_runner as pr
     monkeypatch.setattr(pr, "audit_workspace", lambda *args, **kwargs: mock_audit)
 
-    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False)
+    _execute_pipeline_steps(session_id, LifecyclePhase.DEVOPS_DEPLOY, stop_on_gate=True, auto_deploy=False, provider='mock')
 
     assert _pipeline_statuses.get(session_id) == PipelineRunStatus.AWAITING_INTERVENTION
     # Manifests must exist before verification to include driver/Actuator dependencies.
@@ -175,7 +175,7 @@ def test_the_sequential_path_verifies_the_workspace(runner_session, monkeypatch)
     _stop_events[session_id] = threading.Event()
     _execute_pipeline_steps(
         session_id, LifecyclePhase.CODE_TESTS, stop_on_gate=True, auto_deploy=False
-    )
+    , provider='mock')
 
     assert calls, "the sequential path did not verify the workspace"
 
@@ -226,7 +226,7 @@ def test_a_substituted_verification_is_not_reported_as_a_pass(runner_session, mo
     _stop_events[session_id] = threading.Event()
     _execute_pipeline_steps(
         session_id, LifecyclePhase.CODE_TESTS, stop_on_gate=True, auto_deploy=False
-    )
+    , provider='mock')
 
     db = SessionLocal()
     try:
@@ -259,7 +259,7 @@ def test_a_verifier_that_raises_is_recorded_as_unverified(runner_session, monkey
     _stop_events[session_id] = threading.Event()
     _execute_pipeline_steps(
         session_id, LifecyclePhase.CODE_TESTS, stop_on_gate=True, auto_deploy=False
-    )
+    , provider='mock')
 
     db = SessionLocal()
     try:

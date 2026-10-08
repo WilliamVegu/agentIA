@@ -647,10 +647,10 @@ class {ent_name}IntegrationTest {{
         api_key: Optional[str] = None,
     ) -> RepairIterationRecord:
         """
-        Executes a single surgical self-repair attempt bounded by the adaptive constitutional limit of 5.
+        Executes a single surgical self-repair attempt bounded by the adaptive constitutional limit of 3.
         """
         start_time = time.time()
-        max_attempts = getattr(settings, "MAX_REPAIR_ATTEMPTS", 5)
+        max_attempts = settings.MAX_REPAIR_ATTEMPTS
 
         if iteration_number > max_attempts:
             raise ValueError(f"Constitution Principle V Violation: Auto-repair cycle hard-capped at {max_attempts} iterations.")
@@ -667,18 +667,17 @@ class {ent_name}IntegrationTest {{
         combined_diff = "\n".join(all_diffs) or "-- Evaluated code contracts; adaptive verification active"
         duration = round(time.time() - start_time, 2)
 
-        outcome = RepairOutcome.SUCCESS if len(patches) > 0 and iteration_number < max_attempts else (
-            RepairOutcome.FAILED_BLOCKED if iteration_number >= max_attempts else RepairOutcome.FAILED_CONTINUE
-        )
+        # Planning a patch cannot prove compilation or tests succeeded.
+        outcome = RepairOutcome.FAILED_BLOCKED if iteration_number >= max_attempts else RepairOutcome.FAILED_CONTINUE
 
         return RepairIterationRecord(
             iterationNumber=iteration_number,
             diagnostics=diagnostics,
             patchesApplied=patches,
-            passedTestsBefore=max(0, 5 - len(diagnostics)),
-            failedTestsBefore=len(diagnostics),
-            passedTestsAfter=5 if outcome == RepairOutcome.SUCCESS else 0,
-            failedTestsAfter=0 if outcome == RepairOutcome.SUCCESS else len(diagnostics),
+            passedTestsBefore=0,
+            failedTestsBefore=0,
+            passedTestsAfter=0,
+            failedTestsAfter=0,
             diffSummary=combined_diff,
             durationSeconds=duration,
             outcome=outcome,

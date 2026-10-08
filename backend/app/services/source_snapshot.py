@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import uuid
 import zipfile
+import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -72,8 +73,8 @@ class SourceSnapshot:
                         data = source.read_bytes()
                         output.writestr(relative, data)
                         target = self.working / relative
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        target.write_bytes(data)
+                        _io_path(target.parent).mkdir(parents=True, exist_ok=True)
+                        _io_path(target).write_bytes(data)
                         files[relative] = hashlib.sha256(data).hexdigest()
             fingerprint = workspace_fingerprint(self.working)
             if not before or fingerprint != before or workspace_fingerprint(self.workspace) != before:
@@ -95,7 +96,7 @@ class SourceSnapshot:
         from app.sandbox.docker_runner import parse_test_counts
         counts = parse_test_counts(result.stdout)
         self.manifest.update(verification='PASSED' if result.is_success and not source_changed and counts and
-            counts.total > 0 and counts.all_passed else ('OUTDATED' if source_changed else 'NOT_PASSED'),
+            counts.total > 0 and counts.passed == counts.total and not result.fallback_used and not result.verification_skipped and not result.verification_interrupted and not result.evidence_error else ('OUTDATED' if source_changed else 'NOT_PASSED'),
             exitCode=result.exit_code, tests=counts.total if counts else 0)
         reports = {}
         for root, dirs, files in os.walk(self.working):
@@ -112,6 +113,24 @@ class SourceSnapshot:
                     _io_path(target).write_bytes(data)
                     reports[relative.as_posix()] = hashlib.sha256(data).hexdigest()
         self.manifest['reports'] = reports
+        if self.manifest['verification'] == 'PASSED':
+            totals=[0,0,0,0]
+            try:
+                if not reports: raise ValueError('No se conservaron informes XML')
+                for relative in reports:
+                    root=ET.parse(_io_path(self.directory/'reports'/relative)).getroot()
+                    suites=[root] if root.tag=='testsuite' else root.findall('testsuite')
+                    if not suites: raise ValueError('Informe sin suite')
+                    for suite in suites:
+                        values=[int(suite.get(key,'0')) for key in ['tests','failures','errors','skipped']]
+                        if any(value<0 for value in values): raise ValueError('Conteos negativos')
+                        totals=[left+right for left,right in zip(totals,values)]
+                if totals[0]<=0 or totals[1:]!=[0,0,0] or not counts or counts.total!=totals[0]:
+                    raise ValueError('XML y resumen de pruebas no acreditan la misma suite aprobada')
+            except (ValueError,OSError,ET.ParseError) as error:
+                self.manifest['verification']='NOT_PASSED'
+                result.evidence_error=str(error)
+                result.exit_code=result.exit_code or 1
         jars = {}
         for source in self.working.rglob('*.jar'):
             relative = source.relative_to(self.working)
@@ -131,6 +150,7 @@ class SourceSnapshot:
             _io_path(target).write_bytes(data)
             jars[relative.as_posix()] = hashlib.sha256(data).hexdigest()
         self.manifest['executableJars'] = jars
+        self.manifest['exitCode']=result.exit_code
         self._save()
 
     def close(self):
@@ -196,8 +216,8 @@ def materialize_snapshot(workspace, snapshot_id, fingerprint):
         with zipfile.ZipFile(archive) as contents:
             for name in contents.namelist():
                 target = working / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(contents.read(name))
+                _io_path(target.parent).mkdir(parents=True, exist_ok=True)
+                _io_path(target).write_bytes(contents.read(name))
         from app.services.verification_policy import workspace_fingerprint
         if workspace_fingerprint(working) != fingerprint:
             raise ValueError('Snapshot cambió al materializar')

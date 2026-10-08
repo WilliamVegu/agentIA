@@ -43,6 +43,8 @@ class GenerationSessionDB(Base):
     phase = Column(SQLEnum(SessionPhase), nullable=False, default=SessionPhase.INITIALIZATION)
     queue_position = Column(Integer, nullable=True, default=0)
     repair_attempts = Column(Integer, nullable=False, default=0)
+    execution_mode = Column(String(20), nullable=False, default="SOURCE_ONLY")
+    database_engine = Column(String(20), nullable=False, default="POSTGRESQL")
     current_lifecycle_phase = Column(String(50), nullable=True, default="INITIAL")
     lifecycle_mode = Column(String(50), nullable=True, default="GUIDED_STEP")
     phase_progress_json = Column(Text, nullable=True)
@@ -60,69 +62,25 @@ class GenerationSessionDB(Base):
     # session detail surface can report what a session cost without reading the
     # cost store. The cost store remains the system of record; this is a copy.
     cost_record_json = Column(Text, nullable=True)
+    revision_id = Column(String(36), nullable=True)
+    configuration_version = Column(Integer, nullable=False, default=0)
+    operation_version = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
 
-Base.metadata.create_all(bind=engine)
-
-from sqlalchemy import text
-def _ensure_sqlite_lifecycle_columns():
-    try:
-        with engine.connect() as conn:
-            res = conn.execute(text("PRAGMA table_info(generation_sessions)")).fetchall()
-            existing_cols = [r[1] for r in res]
-            if existing_cols:
-                if "current_lifecycle_phase" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN current_lifecycle_phase VARCHAR(50) DEFAULT 'INITIAL'"))
-                if "lifecycle_mode" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN lifecycle_mode VARCHAR(50) DEFAULT 'GUIDED_STEP'"))
-                if "phase_progress_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN phase_progress_json TEXT"))
-                conn.commit()
-    except Exception:
-        pass
-
-_ensure_sqlite_lifecycle_columns()
-
-
-def _ensure_generation_columns():
-    """Additive SQLite migration for the feature-011 generation journal and
-    provenance columns (T013). Mirrors the lifecycle shim above so an existing
-    studio.db picks up the new columns without a migration tool.
-
-    Purely additive: no existing column is dropped, retyped, or repurposed, and
-    phase_progress_json keeps its existing meaning.
-    """
-    try:
-        with engine.connect() as conn:
-            res = conn.execute(text("PRAGMA table_info(generation_sessions)")).fetchall()
-            existing_cols = [r[1] for r in res]
-            if existing_cols:
-                if "generation_journal_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN generation_journal_json TEXT"))
-                if "artifact_provenance_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN artifact_provenance_json TEXT"))
-                if "verification_metrics_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN verification_metrics_json TEXT"))
-                if "cost_record_json" not in existing_cols:
-                    conn.execute(text("ALTER TABLE generation_sessions ADD COLUMN cost_record_json TEXT"))
-                conn.commit()
-    except Exception:
-        pass
-
-
-_ensure_generation_columns()
-
 from pydantic import BaseModel, Field, ConfigDict
 
 # Pydantic Response Schemas
+from app.models.execution import ExecutionMode, VerificationOutcome
+from app.models.devops import DatabaseEngine
 class GenerationSessionSummary(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     session_id: str = Field(..., alias="sessionId")
     status: SessionStatus
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
     queue_position: Optional[int] = Field(0, alias="queuePosition")
     stream_url: str = Field(..., alias="streamUrl")
 
@@ -133,25 +91,37 @@ class GenerationSessionListItem(BaseModel):
     spec_id: Optional[str] = Field(None, alias="specId")
     spec_name: str = Field(..., alias="specName")
     status: SessionStatus
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
+    verification_outcome: VerificationOutcome = Field(VerificationOutcome.NOT_RUN, alias="verificationOutcome")
+    error_message: Optional[str] = Field(None, alias="errorMessage")
     phase: Optional[SessionPhase] = Field(None, alias="phase")
     current_lifecycle_phase: Optional[str] = Field("INITIAL", alias="currentLifecyclePhase")
     lifecycle_mode: Optional[str] = Field("GUIDED_STEP", alias="lifecycleMode")
     completion_percentage: float = Field(0.0, alias="completionPercentage")
     created_at: datetime = Field(..., alias="createdAt")
 
-class QuickStartSessionRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+from app.models.contract_aliases import AliasContract
+
+class QuickStartSessionRequest(AliasContract, BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
+    auto_deploy: bool = Field(False, alias="autoDeploy")
 
     service_name: Optional[str] = Field(None, alias="serviceName")
     spec_name: Optional[str] = Field(None, alias="specName")
     raw_text: Optional[str] = Field(None, alias="rawText")
     prompt: Optional[str] = Field(None, alias="prompt")
-    database_engine: Optional[str] = Field("POSTGRESQL", alias="databaseEngine")
+    database_engine: DatabaseEngine = Field(DatabaseEngine.POSTGRESQL, alias="databaseEngine")
     auto_run: Optional[bool] = Field(False, alias="autoRun")
     api_key: Optional[str] = Field(None, alias="apiKey")
     llm_provider: Optional[str] = Field(None, alias="llmProvider")
+    model_name: Optional[str] = Field(None, alias="modelName")
+    # The "interfaz de entrada" (levantando_observaciones): volume, data needs,
+    # integrations, architecture/build-tool preference. Drives the InferenceEngine.
+    input_interface: Optional[dict] = Field(None, alias="inputInterface")
 
 class QuickStartSessionResponse(BaseModel):
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
     model_config = ConfigDict(populate_by_name=True)
 
     session_id: str = Field(..., alias="sessionId")
@@ -170,6 +140,9 @@ class GenerationSessionDetail(BaseModel):
     spec_id: str = Field(..., alias="specId")
     spec_name: str = Field(..., alias="specName")
     status: SessionStatus
+    execution_mode: ExecutionMode = Field(ExecutionMode.SOURCE_ONLY, alias="executionMode")
+    verification_outcome: VerificationOutcome = Field(VerificationOutcome.NOT_RUN, alias="verificationOutcome")
+    available_actions: list[str] = Field(default_factory=list, alias="availableActions")
     phase: SessionPhase
     queue_position: Optional[int] = Field(0, alias="queuePosition")
     repair_attempts: int = Field(0, alias="repairAttempts")
@@ -182,3 +155,6 @@ class GenerationSessionDetail(BaseModel):
     # "no known fallback" rather than raising.
     verification_fallback_used: bool = Field(False, alias="verificationFallbackUsed")
 
+
+# Register additive tables without modifying a database at import time.
+from app.models import reliability as _reliability_models  # noqa: E402,F401
