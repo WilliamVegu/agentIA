@@ -1,1 +1,138 @@
 sk-3a9e6ecccedb4251b01e378ff89fa07c
+name: Main Config
+version: 1.0.0
+schema: v1
+
+requestOptions:
+  caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+  verifySsl: false
+
+models:
+  # --- GPT-5 Codex & Flagship Models (Recommended for Coding & Agents) ---
+  - name: GPT-5.3 Codex
+    provider: openai
+    model: genailab-maas-gpt-5.3-codex
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  - name: GPT-5.4
+    provider: openai
+    model: genailab-maas-gpt-5.4
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  - name: GPT-5.2 Codex
+    provider: openai
+    model: genailab-maas-gpt-5.2-codex
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  # --- GPT-4 & Gemini Models ---
+  - name: GPT-4o
+    provider: openai
+    model: genailab-maas-gpt-4o
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  - name: Gemini 2.5 Pro
+    provider: openai
+    model: gemini-2.5-pro
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - edit
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  - name: Gemini 2.5 Flash
+    provider: openai
+    model: gemini-2.5-flash
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - edit
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  # --- Tab Autocomplete Models ---
+  - name: GPT-5.4 Mini (Autocomplete)
+    provider: openai
+    model: genailab-maas-gpt-5.4-mini
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - autocomplete
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  - name: GPT-4o Mini
+    provider: openai
+    model: azure/genailab-maas-gpt-4o-mini
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - chat
+      - autocomplete
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
+  # --- Embeddings Model (Codebase Indexing) ---
+  - name: Text Embedding 3 Large
+    provider: openai
+    model: azure/genailab-maas-text-embedding-3-large
+    apiKey: sk-DC9gQNfAlnUte6YKeTBN0g
+    apiBase: https://genailab.tcs.in/v1
+    useResponsesApi: false
+    roles:
+      - embed
+    requestOptions:
+      caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
+      verifySsl: false
+
