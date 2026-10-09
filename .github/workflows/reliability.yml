@@ -23,17 +23,19 @@ jobs:
           BACKEND=backend
           if [ "${{ matrix.studio }}" = quarkus ]; then BACKEND=systems/quarkus/backend; fi
           python -m pip install -r "$BACKEND/requirements.txt" -c integration/constraints.txt
+          python -m pip install -r integration/requirements-test.txt
       - name: Backend suite and isolated integration contracts
         shell: bash
         run: |
           mkdir -p integration/validation/reliability/ci
           if [ "${{ matrix.studio }}" = quarkus ]; then cd systems/quarkus; fi
-          export PYTHONPATH="$PWD/backend"
+          export PYTHONPATH="$(python -c 'import os; print(os.pathsep.join([os.path.abspath("backend"), os.environ["GITHUB_WORKSPACE"]]))')"
           python -m pytest backend/tests -q --junitxml=backend-results.xml
           cd "$GITHUB_WORKSPACE"
           export PYTHONPATH="$PWD"
           python integration/verify_sources.py
           python -m pytest integration/test_launcher.py integration/test_reliability_fixtures.py integration/test_source_revisions.py integration/test_reliability_journeys.py integration/test_windows_paths.py integration/test_restart_recovery.py -q --junitxml=integration-results.xml
+          python -m pytest integration/test_reliability_bdd.py -q --junitxml=bdd-results.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:

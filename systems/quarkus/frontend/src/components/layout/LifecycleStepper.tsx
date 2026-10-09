@@ -128,7 +128,7 @@ export const LifecycleStepper: React.FC = () => {
               {isQueued && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
                   <Clock className="w-3 h-3" />
-                  <span>En Cola Concurrente (Docker Max: 2)</span>
+                  <span>Sesión en espera</span>
                 </span>
               )}
             </span>
@@ -266,7 +266,7 @@ export const LifecycleStepper: React.FC = () => {
                 )}
               </div>
               <div className="text-[10px] opacity-80">
-                {isDone ? 'Verificado' : isOutdated ? 'Requiere sync' : isCurrent ? 'En curso' : 'Pendiente'}
+                {isDone ? 'Completado' : isOutdated ? 'Requiere sync' : isCurrent ? 'En curso' : 'Pendiente'}
               </div>
             </button>
           );

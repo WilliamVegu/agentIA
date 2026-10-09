@@ -5,6 +5,7 @@ import json
 import shutil
 import uuid
 import tempfile
+import time
 from pathlib import Path
 from app.services.source_snapshot import _io_path
 
@@ -24,6 +25,19 @@ OWNED = {
 
 class AssetConflict(ValueError):
     pass
+
+
+def _replace_atomic(temporary, destination):
+    # Antivirus/indexers can briefly hold a Windows file after staging it.
+    # Retry only sharing/access violations; preserve rollback for persistent errors.
+    for attempt in range(5):
+        try:
+            temporary.replace(destination)
+            return
+        except OSError as error:
+            if getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 4:
+                raise
+            time.sleep(0.05 * (attempt + 1))
 
 
 def inventory(root):
@@ -58,7 +72,7 @@ def generate_safely(workspace, session_id, writer, **configuration):
         ledger_file = root / '.agentia-runtime' / 'generated-assets.json'
         if ledger_file.exists():
             try:
-                ledger = json.loads(ledger_file.read_text(encoding='utf-8'))
+                ledger = json.loads(_io_path(ledger_file).read_text(encoding='utf-8'))
                 if ledger['sessionId'] != session_id or ledger['formatVersion'] != 1:
                     raise ValueError('identity')
                 if type(ledger.get('templateVersion')) is not int or ledger['templateVersion'] > TEMPLATE_VERSION:
@@ -107,7 +121,7 @@ def generate_safely(workspace, session_id, writer, **configuration):
                 temporary = _io_path(destination.with_name(destination.name + '.agentia-' + uuid.uuid4().hex + '.tmp'))
                 try:
                     shutil.copyfile(_io_path(stage / name), temporary)
-                    temporary.replace(_io_path(destination))
+                    _replace_atomic(temporary, _io_path(destination))
                 finally:
                     temporary.unlink(missing_ok=True)
             ledger = {'formatVersion': 1, 'templateVersion': TEMPLATE_VERSION, 'sessionId': session_id,
@@ -116,7 +130,7 @@ def generate_safely(workspace, session_id, writer, **configuration):
             temporary = _io_path(ledger_file.with_name(ledger_file.name + '.' + uuid.uuid4().hex + '.tmp'))
             try:
                 temporary.write_text(json.dumps(ledger, indent=2), encoding='utf-8')
-                temporary.replace(_io_path(ledger_file))
+                _replace_atomic(temporary, _io_path(ledger_file))
             finally:
                 temporary.unlink(missing_ok=True)
         except Exception:

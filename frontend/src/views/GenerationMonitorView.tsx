@@ -155,7 +155,7 @@ export const GenerationMonitorView: React.FC = () => {
   const currentPhase = livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || 'INITIALIZATION';
   const repairs = activeSession?.repairAttempts || 0;
   // The configured cap, shared with the repair history header so the two cannot disagree.
-  const repairAttemptsLimit = (lastEvent as { maxIterations?: number } | null)?.maxIterations ?? 5;
+  const repairAttemptsLimit = (lastEvent as { maxIterations?: number } | null)?.maxIterations ?? 3;
   const isCompleted = currentStatus === 'COMPLETED';
   const isSourceOnly = activeSession?.executionMode === 'SOURCE_ONLY';
   const verificationPassed = activeSession?.verificationOutcome === 'PASSED';
@@ -281,7 +281,7 @@ export const GenerationMonitorView: React.FC = () => {
         <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 font-medium">Límite Constitucional</span>
           <div className="text-sm font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
-            Máx 5 (Principio V)
+            Máx {repairAttemptsLimit} (Principio V)
           </div>
         </div>
       </div>

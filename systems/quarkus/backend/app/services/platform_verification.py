@@ -1,9 +1,10 @@
 """Platform-owned Quarkus persistence gate, independent of generated unit-test mocks."""
 import re
 from pathlib import Path
+from app.services.workspace_guard import io_path
 
 def inject_contract_test(workspace_path):
-    ws=Path(workspace_path)
+    ws=io_path(Path(workspace_path))
     sources=list((ws/'src/main/java').rglob('*.java'))
     packages=[]
     for file in sources:

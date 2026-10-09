@@ -1,0 +1,35 @@
+........................................................................ [ 10%]
+..................................s..................................... [ 21%]
+........................................................................ [ 32%]
+........................................................................ [ 42%]
+.....................................................................s.. [ 53%]
+........................................................................ [ 64%]
+............................................ss.....................s.... [ 74%]
+........................................................................ [ 85%]
+.............................................s.......................... [ 96%]
+...........................                                              [100%]
+=============================== warnings summary ===============================
+../../../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+backend/app/main.py:114
+  /repo/systems/quarkus/backend/app/main.py:114: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+../../../usr/local/lib/python3.12/site-packages/fastapi/applications.py:4745
+  /usr/local/lib/python3.12/site-packages/fastapi/applications.py:4745: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+669 passed, 6 skipped, 3 warnings in 142.37s (0:02:22)

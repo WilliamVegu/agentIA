@@ -1,0 +1,22 @@
+{
+  "framework": "quarkus",
+  "sourceFingerprint": "c8a703c57c4145068709ab5e52fce62b6f8663cd9fcbe5a13ff749abaa5244a5",
+  "liveProviderCalls": 0,
+  "mutations": [
+    {
+      "removed": "@Email",
+      "outcome": "EXPECTED_REJECTION",
+      "observedStatus": 500,
+      "expectedStatus": 400
+    },
+    {
+      "removed": "@Positive",
+      "outcome": "EXPECTED_REJECTION",
+      "observedStatus": 500,
+      "expectedStatus": 400
+    }
+  ],
+  "outcome": "PASSED",
+  "restoredContract": "PASSED",
+  "sourceUnchanged": true
+}

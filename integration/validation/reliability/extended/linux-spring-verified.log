@@ -1,0 +1,48 @@
+........................................................................ [  4%]
+.............sssssssssssssssss.......................................... [  8%]
+...............................s............................s.ssssssss.s [ 13%]
+ss...................................................................... [ 17%]
+...............s........................................................ [ 22%]
+........................................................................ [ 26%]
+..........ssss.ss....................................................sss [ 30%]
+s........................................s................sssssss....... [ 35%]
+........................................................................ [ 39%]
+.........s.......................................................sss.... [ 44%]
+...............ssssssssssssssssssss...................................ss [ 48%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 61%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+..........................ss...............s..........s................. [ 84%]
+.....s.................................................................. [ 88%]
+......................................................................s. [ 92%]
+..................................................ss...ssssssss......ss. [ 97%]
+.........s..........s......................                              [100%]
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+backend/app/main.py:222
+  /repo/backend/app/main.py:222: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+../usr/local/lib/python3.12/site-packages/fastapi/applications.py:4745
+  /usr/local/lib/python3.12/site-packages/fastapi/applications.py:4745: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1532 passed, 95 skipped, 3 warnings in 162.09s (0:02:42)

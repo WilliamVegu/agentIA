@@ -1,0 +1,27 @@
+{
+  "outcome": "FAILED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "0c7b32d30876e182675cee85c7f85ec3b590bf9b086f5f89cca86f819990b52a",
+  "framework": "springboot",
+  "buildTool": "maven",
+  "databaseEngine": "H2",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\validation-mutation\\springboot-edf8c23c",
+  "checks": [
+    {
+      "check": "relational-invalid-accountKey",
+      "status": 409
+    },
+    {
+      "check": "relational-invalid-effectiveDate",
+      "status": 400
+    },
+    {
+      "check": "relational-invalid-recordedAt",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-invalid",
+      "status": 500
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+
+> agentia-frontend@1.0.0 test
+> vitest run --no-file-parallelism --run
+
+
+ RUN  v5.0.1 C:/Users/willi/Downloads/agentIA/frontend
+
+Error: Test Crash Failure
+    at BadComponent (C:/Users/willi/Downloads/agentIA/frontend/src/test/layout.test.tsx:149:13)
+    at renderWithHooks (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:378:16)
+    at invokeEventListeners (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:320:3)
+    at HTMLUnknownElementImpl._dispatch (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:269:9)
+    at HTMLUnknownElementImpl.dispatchEvent (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:137:17)
+Error: Test Crash Failure
+    at BadComponent (C:/Users/willi/Downloads/agentIA/frontend/src/test/layout.test.tsx:149:13)
+    at renderWithHooks (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (C:\Users\willi\Downloads\agentIA\frontend\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:378:16)
+    at invokeEventListeners (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:320:3)
+    at HTMLUnknownElementImpl._dispatch (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:269:9)
+    at HTMLUnknownElementImpl.dispatchEvent (C:\Users\willi\Downloads\agentIA\frontend\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:137:17)
+
+ Test Files  18 passed (18)
+      Tests  113 passed (113)
+   Start at  09:01:36
+   Duration  113.76s (environment 43%, import 40%, setup 8%, tests 7%, transform 1%)
+
+Environment  jsdom was created 18 times · 47.92s total, 43% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments

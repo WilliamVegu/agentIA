@@ -1,0 +1,45 @@
+[
+  {
+    "studio": "springboot",
+    "suite": "journeys",
+    "exitCode": 1,
+    "outcome": "FAILED",
+    "counts": {
+      "tests": 34,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "log": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\closure-verified\\springboot-journeys.log",
+    "report": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\closure-verified\\springboot-journeys.xml",
+    "liveProviderCalls": 0
+  },
+  {
+    "studio": "quarkus",
+    "suite": "journeys",
+    "exitCode": 0,
+    "outcome": "PASSED",
+    "counts": {
+      "tests": 34,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "log": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\closure-verified\\quarkus-journeys.log",
+    "report": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\closure-verified\\quarkus-journeys.xml",
+    "liveProviderCalls": 0
+  },
+  {
+    "studio": "both",
+    "suite": "process-restart",
+    "exitCode": 0,
+    "outcome": "PASSED",
+    "counts": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "liveProviderCalls": 0
+  }
+]

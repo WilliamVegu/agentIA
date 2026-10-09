@@ -1,0 +1,27 @@
+{
+  "outcome": "FAILED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "28c44c70bc42397be9010625b2a434e5345f8b06b42f0b8f721642d7a0ddeb09",
+  "framework": "quarkus",
+  "buildTool": "maven",
+  "databaseEngine": "H2",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\validation-mutation\\quarkus-cc9e8175",
+  "checks": [
+    {
+      "check": "relational-invalid-accountKey",
+      "status": 409
+    },
+    {
+      "check": "relational-invalid-effectiveDate",
+      "status": 400
+    },
+    {
+      "check": "relational-invalid-recordedAt",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-invalid",
+      "status": 500
+    }
+  ]
+}

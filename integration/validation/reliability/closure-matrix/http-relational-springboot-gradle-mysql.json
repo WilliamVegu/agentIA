@@ -1,0 +1,10 @@
+{
+  "outcome": "FAILED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "ba50de56fce02a7195df69838e32a0036e4b1278f62e93049a50b62df5394b78",
+  "framework": "springboot",
+  "buildTool": "gradle",
+  "databaseEngine": "MYSQL",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-gradle-mysql",
+  "checks": []
+}

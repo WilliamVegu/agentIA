@@ -161,9 +161,15 @@ async def get_session_requirements(session_id: str):
     from app.services.draft_revision_service import get_revision
     result = get_revision(session_id)
     draft = result['draft']
+    raw_prompt = draft.get('markdownSpec', '') if draft else ''
+    if draft is None:
+        from app.services.workspace_guard import resolve_workspace_file, io_path
+        specification = resolve_workspace_file(session_id, 'spec.md')
+        if io_path(specification).is_file():
+            raw_prompt = io_path(specification).read_text(encoding='utf-8')
     return {**result, 'sessionId': session_id, 'hasDraft': draft is not None,
             'serviceName': draft['serviceName'] if draft else None,
-            'rawPrompt': draft.get('markdownSpec','') if draft else ''}
+            'rawPrompt': raw_prompt}
 
 
 @router.post('/sessions/{session_id}/save')

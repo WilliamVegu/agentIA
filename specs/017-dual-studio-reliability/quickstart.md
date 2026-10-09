@@ -54,6 +54,16 @@ Matriz: ambos frameworks × Maven/Gradle × H2/PostgreSQL/MySQL. Preparar imagen
 
 Probar health nativo, CRUD, UUID/clave personalizada, fechas, decimal, unique/FK, correo inválido, importe negativo/cero => 400 y ausencia => 404. Exigir suite >0, exit code e informes/fingerprint vigentes. Compilación sola no certifica BDD.
 
+La regresión negativa de validación trabaja sobre copias propias de la matriz Maven preparada: elimina cada anotación, exige que el contrato HTTP detecte el defecto y restaura las fuentes antes de repetir el contrato. No modifica proyectos del usuario ni las fixtures originales:
+
+```powershell
+$env:AGENTIA_VALIDATION_MUTATION = '1'
+& '.\.venv-reliability-spring\Scripts\python.exe' -m pytest integration/test_validation_mutation.py -q --junitxml=integration/validation/reliability/validation-mutation.xml
+Remove-Item Env:AGENTIA_VALIDATION_MUTATION
+```
+
+Es opt-in y requiere Docker disponible, imagen Maven/Java 21 y cache preparado. Un fallo de build/infraestructura no acredita detección del defecto. Los JSON conservan el status inesperado por anotación y el contrato restaurado.
+
 Insertar registro, stop sin `-v`, restart y leerlo. Ocupar 8080 con servicio ajeno: no debe acreditar salud. Probar Compose fallido, Docker ausente, colisión y stale image. Cleanup sólo sobre recursos etiquetados/registrados; sin prune ni detención global.
 
 El runner elimina credenciales de los procesos de prueba, separa paquetes `app`, SQLite y temporales y no admite fallback. `--studio springboot` o `--studio quarkus` selecciona un estudio. Las pruebas de runtime son opt-in:
@@ -75,3 +85,5 @@ Dos clientes SSE reciben todas las secuencias; replay o resync al reconectar. Re
 Cada caso de [matriz](contracts/regression-matrix.md) registra framework, commit, revisión, configuración, fixture, esperado/observado, exit code, informes/fingerprint y skip explícito si corresponde. H01–H14 no cierran sólo con mocks si requieren runtime. Adjuntar diez paneles, CI con defectos centinela y revisiones de fuentes autorizadas; conservar baseline.
 
 IA real es opt-in manual fuera del CI, con límite de llamadas/coste definido antes de ejecutarla y credencial sólo en memoria/entorno. Normalmente cero llamadas; resultados mock no se presentan como validación de proveedor real.
+
+Revisión del 2026-10-09: contratos HTTP Spring repetidos sin otra carga Docker, seis aprobados; recorridos finales 34 por estudio y dos reinicios en procesos nuevos. Migración final 13/12. La comprobación de rutas profundas incluye generación, prueba de persistencia y hash de proveniencia; no acorta artificialmente la ruta para hacer pasar el producto. Linux/CI remoto, IA real, BDD completo y Trivy remoto se mantienen identificados como capacidades pendientes en la matriz.

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="6" time="4.856" timestamp="2026-10-09T07:32:21.320000-05:00" hostname="VeguFam"><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[H2-maven-springboot]" time="0.941"><failure message="RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.">integration\test_generated_domain.py:166: in test_native_relational_http_matrix
+    http_contract(framework,MATRIX_WORK/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:64: in http_contract
+    docker(*command);started_app=True
+    ^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:14: in docker
+    if completed.returncode: raise RuntimeError(completed.stderr)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[H2-gradle-springboot]" time="0.608"><failure message="RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.">integration\test_generated_domain.py:166: in test_native_relational_http_matrix
+    http_contract(framework,MATRIX_WORK/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:64: in http_contract
+    docker(*command);started_app=True
+    ^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:14: in docker
+    if completed.returncode: raise RuntimeError(completed.stderr)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[POSTGRESQL-maven-springboot]" time="0.608"><failure message="RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.">integration\test_generated_domain.py:166: in test_native_relational_http_matrix
+    http_contract(framework,MATRIX_WORK/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:43: in http_contract
+    docker('network','create','--label',LABEL+'='+owner,network);created_network=True
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:14: in docker
+    if completed.returncode: raise RuntimeError(completed.stderr)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[POSTGRESQL-gradle-springboot]" time="0.689"><failure message="RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.">integration\test_generated_domain.py:166: in test_native_relational_http_matrix
+    http_contract(framework,MATRIX_WORK/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:43: in http_contract
+    docker('network','create','--label',LABEL+'='+owner,network);created_network=True
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:14: in docker
+    if completed.returncode: raise RuntimeError(completed.stderr)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[MYSQL-maven-springboot]" time="0.660"><failure message="RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.">integration\test_generated_domain.py:166: in test_native_relational_http_matrix
+    http_contract(framework,MATRIX_WORK/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:43: in http_contract
+    docker('network','create','--label',LABEL+'='+owner,network);created_network=True
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:14: in docker
+    if completed.returncode: raise RuntimeError(completed.stderr)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.</failure></testcase><testcase classname="integration.test_generated_domain" name="test_native_relational_http_matrix[MYSQL-gradle-springboot]" time="0.638"><failure message="RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.">integration\test_generated_domain.py:166: in test_native_relational_http_matrix
+    http_contract(framework,MATRIX_WORK/('relational-'+framework+'-'+tool+'-'+engine.lower()),tool,engine,extended=True)
+integration\test_generated_domain.py:43: in http_contract
+    docker('network','create','--label',LABEL+'='+owner,network);created_network=True
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:14: in docker
+    if completed.returncode: raise RuntimeError(completed.stderr)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   RuntimeError: failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: El sistema no puede encontrar el archivo especificado.</failure></testcase></testsuite></testsuites>

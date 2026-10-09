@@ -61,3 +61,11 @@ Consulte [modos y comportamiento](../docs/dual-studio-reliability.md), [migraci�
 Las pruebas usan dos venv de fiabilidad independientes, SQLite/temporales propios y cero llamadas IA. Desde la raíz: `python -m integration.reliability_smoke --suite journeys --test-root .runtime/reliability/journeys --evidence-dir integration/validation/reliability/journeys`. Use `--suite migration` para ensayar bases legacy. `runtime` y `java-matrix` requieren `--docker`; ejecútelas secuencialmente y siga la preparación del quickstart.
 
 SOURCE_ONLY exporta fuentes auditadas con estado UNVERIFIED cuando no se ejecutaron tests. DOCKER exige reportes y huellas vigentes para certificar verificación. Stop/restart conservan datos; cleanup necesita confirmación explícita. Una revisión guardada debe aprobarse por separado y los conflictos devuelven 409. La reparación automática tiene tres intentos persistidos por ciclo.
+## Revisión de cierre (2026-10-09)
+
+La matriz Java/HTTP local cubre las doce combinaciones; la repetición HTTP Spring registra seis casos aprobados. Los recorridos finales (`integration/validation/reliability/final-journeys`) contienen 34 pruebas por estudio y dos recuperaciones de proceso; `final-migration` conserva la migración aditiva. Consulte `RESULTADOS.md` y la matriz FR/constituciones para diferenciar evidencia local y capacidades externas pendientes. La prueba opt-in `integration/test_validation_mutation.py` usa copias aisladas, Docker y cache Maven offline para comprobar que perder anotaciones de validación rompe el contrato HTTP.
+### Validación ampliada
+
+Instale `integration/requirements-test.txt` en el entorno aislado para ejecutar `python -m pytest integration/test_reliability_bdd.py -q`. Los diez escenarios Gherkin españoles levantan dos backends HTTP propios, eliminan credenciales heredadas y comprueban entrega de fuentes, revisiones concurrentes y ambas rutas ZIP. No acreditan generación con IA real.
+
+Resultados Windows/Linux, frontends, navegador y Trivy: [validación ampliada](validation/reliability/extended/RESULTADOS.md). Las dependencias Java conservan hallazgos críticos pendientes; DeepSeek aceptó la credencial pero informó saldo no disponible. No interpretar suites aprobadas como certificación global de seguridad.

@@ -3,6 +3,7 @@ import json
 import socket
 import subprocess
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -87,7 +88,17 @@ def persist(row):
         if not _persist_runtime(row): return False
         temporary = directory / ("deployment-" + uuid.uuid4().hex + ".tmp")
         temporary.write_text(row.model_dump_json(), encoding="utf-8")
-        temporary.replace(directory / "deployment.json")
+        try:
+            for attempt in range(5):
+                try:
+                    temporary.replace(directory / "deployment.json")
+                    break
+                except OSError as error:
+                    if getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 4:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def restore(session_id):

@@ -188,8 +188,9 @@ export const CodeExplorerView: React.FC = () => {
 
   const filteredArtifacts = categories[selectedCategory] || artifacts || [];
 
-  const finalState = repairData?.finalState || (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : 'VERIFIED');
+  const finalState = repairData?.finalState ?? (activeSession?.status === 'BLOCKED' ? 'BLOCKED' : null);
   const totalIters = repairData?.totalIterations ?? (Array.isArray(repairs) ? repairs.length : 0);
+  const repairLimit = (repairData as { maxIterations?: number } | null)?.maxIterations ?? 3;
   const isBlocked = finalState === 'BLOCKED';
 
   const testArtifacts = (artifacts || []).filter(
@@ -217,7 +218,7 @@ export const CodeExplorerView: React.FC = () => {
                   : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
               }`}
             >
-              {finalState}
+              {finalState ?? 'Sin evidencia de ejecución'}
             </span>
           </div>
         </div>
@@ -225,7 +226,7 @@ export const CodeExplorerView: React.FC = () => {
         <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 dark:text-slate-400 font-medium">Iteraciones de Auto-Reparación</span>
           <div className="text-base font-bold font-mono text-slate-900 dark:text-white mt-1">
-            {totalIters} / 5
+            {totalIters} / {repairLimit}
           </div>
         </div>
 
@@ -247,7 +248,7 @@ export const CodeExplorerView: React.FC = () => {
                 🛑 Sesión Bloqueada por Intervención Humana (Principio V de la Constitución)
               </strong>
               <span>
-                Se han agotado los 5 intentos permitidos de auto-reparación adaptativa. Aplique una corrección o sugerencia en la subpestaña de Intervención Manual para desbloquear el flujo.
+                La sesión requiere intervención. Se han ejecutado {totalIters} de {repairLimit} intentos de auto-reparación. Aplique una corrección o sugerencia en la subpestaña de Intervención Manual para desbloquear el flujo.
               </span>
             </div>
           </div>

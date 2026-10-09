@@ -1,7 +1,7 @@
 # Plan de implementación: fiabilidad de Spring Boot y Quarkus
 
 **Rama:** `dual-systems-selector` · **Base:** `cd50688c8188b47ba789ec30683a50eabc7bd593`  
-**Fecha:** 2026-10-07, America/Lima · **Estado:** planificación; ninguna corrección implementada.  
+**Fecha del plan:** 2026-10-07, America/Lima · **Estado actual:** implementación y revisión local; ver tasks.md y RESULTADOS.md para validaciones y pendientes externos.
 **Entrada:** [especificación](spec.md), [hallazgos](audit-summary.md) y análisis previo de la rama de la imagen.
 
 ## Resultado previsto

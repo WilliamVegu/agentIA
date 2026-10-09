@@ -1,0 +1,10 @@
+{
+  "outcome": "FAILED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "894ceda50777a4aeb55e45348c747d286bbe5da36532e0e26655939ae3899e5c",
+  "framework": "springboot",
+  "buildTool": "maven",
+  "databaseEngine": "MYSQL",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-maven-mysql",
+  "checks": []
+}

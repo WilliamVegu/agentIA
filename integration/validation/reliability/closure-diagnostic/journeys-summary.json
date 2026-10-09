@@ -1,0 +1,30 @@
+[
+  {
+    "studio": "springboot",
+    "suite": "journeys",
+    "exitCode": 1,
+    "outcome": "FAILED",
+    "counts": {
+      "tests": 34,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0
+    },
+    "log": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\closure-diagnostic\\springboot-journeys.log",
+    "report": "C:\\Users\\willi\\Downloads\\agentIA\\integration\\validation\\reliability\\closure-diagnostic\\springboot-journeys.xml",
+    "liveProviderCalls": 0
+  },
+  {
+    "studio": "both",
+    "suite": "process-restart",
+    "exitCode": 0,
+    "outcome": "PASSED",
+    "counts": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "liveProviderCalls": 0
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "outcome": "FAILED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "7d0c6a34e8d66248abc8de6799539f39ce61408a672662318a318afac51e27a2",
+  "framework": "springboot",
+  "buildTool": "gradle",
+  "databaseEngine": "H2",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-gradle-h2",
+  "checks": []
+}

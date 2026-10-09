@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="403.764" timestamp="2026-10-09T07:42:34.603989-05:00" hostname="VeguFam"><testcase classname="integration.test_validation_mutation" name="test_removed_validation_breaks_native_contract[springboot]" time="134.383"><failure message="AssertionError: AssertionError(&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})&#10;  assert 500 == 400&quot;)&#10;assert ((&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})\nassert 500 == 400&quot;,) and '(' == 'email'&#10; +  where (&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})\nassert 500 == 400&quot;,) = AssertionError(&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})\nassert 500 == 400&quot;).args&#10;  &#10;  - email&#10;  + ()">integration\test_validation_mutation.py:41: in test_removed_validation_breaks_native_contract
+    result=http_contract(framework,workspace,'maven','H2',extended=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:93: in http_contract
+    assert status==400,(field,value,status,body)
+E   AssertionError: ('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})
+E   assert 500 == 400
+
+During handling of the above exception, another exception occurred:
+integration\test_validation_mutation.py:45: in test_removed_validation_breaks_native_contract
+    assert error.args and error.args[0][0]==field and error.args[0][2]==201,error
+E   AssertionError: AssertionError("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})
+E     assert 500 == 400")
+E   assert (("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})\nassert 500 == 400",) and '(' == 'email'
+E    +  where ("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})\nassert 500 == 400",) = AssertionError("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'Could not commit JPA transaction', 'timestamp': '2026-10-09T12:44:47.949492602', 'status': 500})\nassert 500 == 400").args
+E
+E     - email
+E     + ()</failure></testcase><testcase classname="integration.test_validation_mutation" name="test_removed_validation_breaks_native_contract[quarkus]" time="269.048"><failure message="AssertionError: AssertionError(&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})&#10;  assert 500 == 400&quot;)&#10;assert ((&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})\nassert 500 == 400&quot;,) and '(' == 'email'&#10; +  where (&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})\nassert 500 == 400&quot;,) = AssertionError(&quot;('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})\nassert 500 == 400&quot;).args&#10;  &#10;  - email&#10;  + ()">integration\test_validation_mutation.py:41: in test_removed_validation_breaks_native_contract
+    built=subprocess.run(command,stdout=stream,stderr=subprocess.STDOUT,timeout=300)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration\test_generated_domain.py:93: in http_contract
+    assert status==400,(field,value,status,body)
+E   AssertionError: ('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})
+E   assert 500 == 400
+
+During handling of the above exception, another exception occurred:
+integration\test_validation_mutation.py:45: in test_removed_validation_breaks_native_contract
+    except AssertionError as error:
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: AssertionError("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})
+E     assert 500 == 400")
+E   assert (("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})\nassert 500 == 400",) and '(' == 'email'
+E    +  where ("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})\nassert 500 == 400",) = AssertionError("('email', 'invalid', 500, {'error': 'Internal Server Error', 'message': 'An unexpected error occurred', 'timestamp': '2026-10-09T12:49:17.097693714', 'status': 500})\nassert 500 == 400").args
+E
+E     - email
+E     + ()</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,69 @@
+........................................................................ [  4%]
+.............sssssssssssssssss.......................................... [  8%]
+...............................s............................s.ssssssss.s [ 13%]
+ss...........................F.......................................... [ 17%]
+...............s........................................................ [ 22%]
+........................................................................ [ 26%]
+..........ssss.ss....................................................sss [ 31%]
+s........................................s................sssssss....... [ 35%]
+........................................................................ [ 39%]
+.........s.......................................................sss.... [ 44%]
+...............ssssssssssssssssssss...................................ss [ 48%]
+......F................................................................. [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+........................ss...............s..........s................... [ 84%]
+...s.................................................................... [ 88%]
+....................................................................s... [ 93%]
+................................................ss...ssssssss......ss... [ 97%]
+.......s..........s......................                                [100%]
+=================================== FAILURES ===================================
+___________ test_published_contract_matches_actual_routes_and_models ___________
+backend/tests/test_devops_contract.py:21: in test_published_contract_matches_actual_routes_and_models
+    assert contract == build_contract(app, COOKIE)
+E   AssertionError: assert {'openapi': '...}}, ...}, ...} == {'openapi': '...}}, ...}, ...}
+E
+E     Omitting 4 identical items, use -vv to show
+E     Differing items:
+E     {'components': {'securitySchemes': {'StudioSession': {'type': 'apiKey', 'in': 'cookie', 'name': 'agentia_session'}}, '... ['SKIPPED_BY_CHOICE', 'DEGRADED', 'IDLE', 'BUILDING', 'RUNNING', 'HEALTHY', ...], 'title': 'DeploymentStatus'}, ...}}} != {'components': {'securitySchemes': {'StudioSession': {'type': 'apiKey', 'in': 'cookie', 'name': 'agentia_session'}}, '... ['SKIPPED_BY_CHOICE', 'DEGRADED', 'IDLE', 'BUILDING', 'RUNNING', 'HEALTHY', ...], 'title': 'DeploymentStatus'}, ...}}}
+E     Use -v to get more diff
+_____ test_reading_requirements_returns_the_prompt_and_the_stored_stories ______
+backend/tests/test_qe_api_surface.py:155: in test_reading_requirements_returns_the_prompt_and_the_stored_stories
+    assert body["rawPrompt"] == ""
+E   AssertionError: assert '# Order Serv...ar órdenes.\n' == ''
+E
+E     + # Order Service
+E     +
+E     + Gestionar órdenes.
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+backend/app/main.py:222
+  /repo/backend/app/main.py:222: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    @app.on_event("startup")
+
+../usr/local/lib/python3.12/site-packages/fastapi/applications.py:4745
+  /usr/local/lib/python3.12/site-packages/fastapi/applications.py:4745: DeprecationWarning:
+          on_event is deprecated, use lifespan event handlers instead.
+
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_devops_contract.py::test_published_contract_matches_actual_routes_and_models
+FAILED backend/tests/test_qe_api_surface.py::test_reading_requirements_returns_the_prompt_and_the_stored_stories
+2 failed, 1528 passed, 95 skipped, 3 warnings in 265.29s (0:04:25)

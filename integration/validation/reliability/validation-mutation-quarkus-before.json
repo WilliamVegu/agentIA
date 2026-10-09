@@ -1,0 +1,8 @@
+{
+  "framework": "quarkus",
+  "sourceFingerprint": "c8a703c57c4145068709ab5e52fce62b6f8663cd9fcbe5a13ff749abaa5244a5",
+  "liveProviderCalls": 0,
+  "mutations": [],
+  "outcome": "FAILED",
+  "sourceUnchanged": true
+}

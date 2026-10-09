@@ -19,13 +19,14 @@ import { useStudio } from '../context/StudioContext';
 import { useSSE, SSELogEvent } from '../hooks/useSSE';
 import { sessionService } from '../services/sessionService';
 import apiClient from '../services/apiClient';
+import { VerificationStatus, verificationMessage } from '../components/common/VerificationStatus';
 
 const LANGGRAPH_STAGES = [
   { key: 'SCAFFOLDING', label: '1. Scaffolding', desc: 'Arquetipo Maven pom.xml y estructura' },
   { key: 'CODE_GEN', label: '2. Generación Código', desc: 'Controllers, Services y Modelos Java 21' },
   { key: 'TEST_SYNTHESIS', label: '3. Síntesis Tests', desc: 'Pruebas unitarias Mockito y WebMvcTest' },
   { key: 'SANDBOX_BUILD', label: '4. Compilación Docker', desc: 'mvn clean test en sandbox aislado' },
-  { key: 'SELF_REPAIR_LOOP', label: '5. Auto-Reparación', desc: 'Diagnóstico AST y parches quirúrgicos (Max 5)' },
+  { key: 'SELF_REPAIR_LOOP', label: '5. Auto-Reparación', desc: 'Diagnóstico AST y parches quirúrgicos (Max 3)' },
   { key: 'VERIFIED', label: '6. Verificado', desc: 'Build exitoso y Quality Gate aprobado' },
 ];
 
@@ -123,13 +124,17 @@ export const GenerationMonitorView: React.FC = () => {
   const currentStatus = activeSession?.status || 'RUNNING';
   const currentPhase = livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || 'INITIALIZATION';
   const repairs = activeSession?.repairAttempts || 0;
+  const repairAttemptsLimit = (lastEvent as { maxIterations?: number } | null)?.maxIterations ?? 3;
   const isCompleted = currentStatus === 'COMPLETED';
+  const isSourceOnly = activeSession?.executionMode === 'SOURCE_ONLY';
+  const verificationPassed = activeSession?.verificationOutcome === 'PASSED';
   const isBlocked = currentStatus === 'BLOCKED';
   const isAutoPilot = activeSession?.lifecycleMode === 'AUTO_PILOT' || (activeSession as any)?.lifecycle_mode === 'AUTO_PILOT';
   const isActiveRunning = currentStatus === 'RUNNING' || (currentStatus === 'QUEUED' && isAutoPilot);
 
   return (
     <div className="space-y-6">
+      <VerificationStatus session={activeSession} />
       {/* Top Status Card */}
       <SingleRowCard
         title="Fase 5: Orquestación y Monitoreo en Vivo (LangGraph)"
@@ -230,7 +235,7 @@ export const GenerationMonitorView: React.FC = () => {
                   : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
               }`}
             >
-              {currentStatus}
+              {activeSession?.verificationOutcome || (isSourceOnly ? 'SKIPPED_BY_CHOICE' : 'PENDING')}
             </span>
           </div>
         </div>
@@ -238,14 +243,14 @@ export const GenerationMonitorView: React.FC = () => {
         <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 font-medium">Iteración Auto-Reparación</span>
           <div className="text-sm font-bold font-mono text-slate-900 dark:text-white mt-1">
-            {repairs} / 5 intentos
+            {repairs} / {repairAttemptsLimit} intentos
           </div>
         </div>
 
         <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
           <span className="text-slate-500 font-medium">Límite Constitucional</span>
           <div className="text-sm font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
-            Máx 5 (Principio V)
+            Máx {repairAttemptsLimit} (Principio V)
           </div>
         </div>
       </div>
@@ -269,7 +274,8 @@ export const GenerationMonitorView: React.FC = () => {
           const rawPhase = (livePhase || activeSession?.phase || activeSession?.currentLifecyclePhase || lifecycle?.currentPhase || '').toUpperCase();
           const currentStageIndex = PHASE_TO_STAGE_INDEX[rawPhase] ?? (isQueued ? -1 : 0);
 
-          const isDone = isCompleted || idx < currentStageIndex;
+          const isExecutionStage = idx >= 3;
+          const isDone = (!isExecutionStage || verificationPassed) && (isCompleted || idx < currentStageIndex);
           const isActive = !isCompleted && !isBlocked && idx === currentStageIndex;
           const isFailedStage = isBlocked && idx === currentStageIndex;
 
@@ -298,7 +304,7 @@ export const GenerationMonitorView: React.FC = () => {
                   <Clock className="w-4 h-4 text-slate-400" />
                 )}
               </div>
-              <p className="text-[11px] opacity-80 leading-snug">{st.desc}</p>
+              <p className="text-[11px] opacity-80 leading-snug">{isSourceOnly && isExecutionStage ? 'Omitida por elección; no acredita ejecución.' : st.desc}</p>
             </div>
           );
         })}
@@ -310,11 +316,11 @@ export const GenerationMonitorView: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             <h4 className="text-base font-bold">
-              🎉 ¡Microservicio Generado y Verificado al 100%!
+              {verificationPassed ? 'Microservicio generado con pruebas de ejecución aprobadas.' : 'Generación completada; consulte el resultado de verificación.'}
             </h4>
           </div>
           <p className="text-xs">
-            Pruebas Unitarias Mockito y QuarkusTest: <strong>5/5 Pasadas (100%)</strong> | Sandbox verificado sin errores.
+            {verificationMessage(activeSession)}
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
@@ -342,7 +348,7 @@ export const GenerationMonitorView: React.FC = () => {
             </h4>
           </div>
           <p className="text-xs">
-            Se agotaron los 5 intentos permitidos de auto-reparación adaptativa sin resolver todos los fallos de compilación detectados.
+            La sesión requiere intervención. Se han ejecutado {repairs} de {repairAttemptsLimit} intentos de auto-reparación.
           </p>
           <button
             onClick={() => setActiveTab(6)}

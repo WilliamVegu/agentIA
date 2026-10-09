@@ -152,7 +152,7 @@ def test_reading_requirements_returns_the_prompt_and_the_stored_stories(session)
 
     assert response.status_code == 200
     body = response.json()
-    assert body["rawPrompt"] == ""
+    assert body["rawPrompt"] == "# Order Service\n\nGestionar órdenes.\n"
     assert body["hasDraft"] is False
     assert body["draft"] is None
     assert body["approvalStatus"] == "NEEDS_REVIEW"

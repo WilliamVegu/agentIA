@@ -33,6 +33,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
+from app.services.workspace_guard import io_path
 
 #: Fixed file name. The model owns ``src/test/java/**`` in general, but this path
 #: is written after every stage has finished, so no stage can collide with it.
@@ -211,7 +212,7 @@ def inject_contract_test(workspace_path: str) -> Optional[str]:
     ``None`` means the preconditions were absent and no platform verification ran.
     The caller must surface that rather than treat it as a pass.
     """
-    workspace = Path(workspace_path)
+    workspace = io_path(Path(workspace_path))
     rendered = render_contract_test(workspace)
     if rendered is None:
         return None
@@ -230,7 +231,7 @@ def strip_vcs_metadata(workspace_path: str) -> Tuple[str, ...]:
     """
     import shutil
 
-    workspace = Path(workspace_path)
+    workspace = io_path(Path(workspace_path))
     removed: List[str] = []
     for name in VCS_DIRECTORIES:
         for candidate in sorted(workspace.rglob(name)):

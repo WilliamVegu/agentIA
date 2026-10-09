@@ -1,0 +1,51 @@
+{
+  "outcome": "PASSED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "b699e78ee2d8f238ab234e9c494042af6e60823d8ca7575acd8e57453e53343c",
+  "framework": "springboot",
+  "buildTool": "maven",
+  "databaseEngine": "H2",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\validation-mutation\\springboot-edf8c23c",
+  "checks": [
+    {
+      "check": "relational-invalid-accountKey",
+      "status": 409
+    },
+    {
+      "check": "relational-invalid-effectiveDate",
+      "status": 400
+    },
+    {
+      "check": "relational-invalid-recordedAt",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-invalid",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance-0",
+      "status": 400
+    },
+    {
+      "check": "invalid-balance--1",
+      "status": 400
+    },
+    {
+      "check": "invalid-email-None",
+      "status": 400
+    },
+    {
+      "check": "parent-delete-does-not-cascade",
+      "status": "PASSED"
+    },
+    {
+      "check": "unique-email",
+      "status": 409
+    },
+    {
+      "check": "CRUD-UUID-date-decimal",
+      "status": "PASSED"
+    }
+  ]
+}

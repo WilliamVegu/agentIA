@@ -27,8 +27,54 @@ from test_local_docker_runtime import runtime
 
 
 def project(tmp_path):
+    from app.services.source_snapshot import _io_path
+    tmp_path = _io_path(tmp_path)
     (tmp_path / 'pom.xml').write_text('<project><dependencies></dependencies></project>')
     return tmp_path
+
+
+def test_transient_windows_sharing_violation_keeps_atomic_asset_commit(tmp_path, monkeypatch):
+    ws = project(tmp_path)
+    original = Path.replace
+    failures = []
+    def sharing_violation(path, destination):
+        if Path(destination).name == 'generated-assets.json' and len(failures) < 2:
+            failures.append(str(destination))
+            error = PermissionError('temporary sharing violation')
+            error.winerror = 32
+            raise error
+        return original(path, destination)
+    monkeypatch.setattr(Path, 'replace', sharing_violation)
+    generate_all_devops_assets(str(ws), 'transient', db_engine='H2')
+    assert len(failures) == 2
+    registry = json.loads((ws/'.agentia-runtime/generated-assets.json').read_text(encoding='utf-8'))
+    assert registry['sessionId'] == 'transient'
+    assert all(asset_generation.inventory(ws)[name] == digest for name,digest in registry['files'].items())
+    assert not list((ws/'.agentia-runtime').glob('*.tmp'))
+
+
+def test_persistent_windows_sharing_violation_rolls_back_assets(tmp_path, monkeypatch):
+    ws = project(tmp_path)
+    generate_all_devops_assets(str(ws), 'persistent', db_engine='H2')
+    before = asset_generation.inventory(ws)
+    ledger = (ws/'.agentia-runtime/generated-assets.json').read_bytes()
+    original = Path.replace
+    failures = []
+    def sharing_violation(path, destination):
+        if Path(destination).name == 'generated-assets.json':
+            failures.append(str(destination))
+            error = PermissionError('persistent sharing violation')
+            error.winerror = 32
+            raise error
+        return original(path, destination)
+    monkeypatch.setattr(Path, 'replace', sharing_violation)
+    monkeypatch.setattr(asset_generation.time, 'sleep', lambda seconds: None)
+    with pytest.raises(PermissionError, match='persistent'):
+        generate_all_devops_assets(str(ws), 'persistent', db_engine='H2', host_port=18081)
+    assert len(failures) == 5
+    assert asset_generation.inventory(ws) == before
+    assert (ws/'.agentia-runtime/generated-assets.json').read_bytes() == ledger
+    assert not list((ws/'.agentia-runtime').glob('*.tmp'))
 
 
 def test_new_assets_versioned_idempotent_and_configuration_can_change(tmp_path):

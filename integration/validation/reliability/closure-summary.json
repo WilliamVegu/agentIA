@@ -1,0 +1,174 @@
+{
+  "reviewDate": "2026-10-09",
+  "timezone": "America/Lima",
+  "implementationBaseCommit": "02f8ef2",
+  "codeState": "local corrections after implementation base; no new publication",
+  "outcome": "LOCAL_VALIDATION_PASSED",
+  "reports": [
+    {
+      "report": "closure-first-failure.xml",
+      "counts": {
+        "tests": 1620,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 45
+      },
+      "sha256": "d3cea1763a63d82c00d15e5230daa29fd76101db6fb8b719718dcfb14f961006",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "quarkus-closure-full.xml",
+      "counts": {
+        "tests": 672,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 6
+      },
+      "sha256": "4471f42e6dc0efe70a6be8ddc3c58b3120d7631df2d7b50a5cdc705e4524accb",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-source-io-verified.xml",
+      "counts": {
+        "tests": 60,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "62d4bda6858749b73c93141c7bdc42f4bb012bf9d44c9653ce3e7b68d858ce58",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-atomic-assets.xml",
+      "counts": {
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "6162f23dd9239c1560c2befb41e2e231796537094fa5418fc20401708962e70b",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-integration.xml",
+      "counts": {
+        "tests": 29,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "fdb1aa558a7802f04f9514398cfa6f95dcd50cebf4558c4b66739c4f84f42093",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-paths.xml",
+      "counts": {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "88bef1a30cbf88c91a95018584bf5881508f4cde6e02fbb972f04ed35deacf67",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "validation-mutation-verified.xml",
+      "counts": {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "857e66a93e7992e7e508b411d1cb295e4e8bc497e9ea7f8bcbc91c99865f6b3d",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "closure-http-verified/springboot-native-http.xml",
+      "counts": {
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "d2d1afbeaabd8cb8afd207043d539763b6abc0131b1cab914dde8305ef8e5821",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "current-matrix/quarkus-native-http.xml",
+      "counts": {
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "3fd727ea65f3002dd5711c9ce2b10ddc2e45cf33aec111f00bc207a276ad08d3",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-journeys/springboot-journeys.xml",
+      "counts": {
+        "tests": 34,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "a3e774a2e4825201d59b0d08c307594169d5cd57ff651928478de9f3b6133fbb",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-journeys/quarkus-journeys.xml",
+      "counts": {
+        "tests": 34,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "bf12685c9f67ce141befdd3c4e6cf85198dacd10964f784b222fcbb76c08c8cb",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-journeys/real-restart.xml",
+      "counts": {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "d4abe36bcc738066dd3d3ea0c5c64eb33811c14aa34ea13efbeb4ac240f61cf9",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-migration/springboot-migration.xml",
+      "counts": {
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "b5099f9286d31dfb4591062834a482e02a07cc75a2d090caa6c1f6a75213f93d",
+      "outcome": "PASSED"
+    },
+    {
+      "report": "final-migration/quarkus-migration.xml",
+      "counts": {
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sha256": "392cd6936eb1751c678da6e0bf20db4922fee016ecc067d0f60e052e39e67133",
+      "outcome": "PASSED"
+    }
+  ],
+  "liveProviderCalls": 0,
+  "authorizedHistoricalRevisions": 186,
+  "baselineSha256": "2fd6cc9cf71b196e3d22d0aa155e4ad83d7abf45063d80438b44daaa44c3bbba",
+  "countsOverlap": true,
+  "pendingCapabilities": [
+    "remote Windows/Linux CI",
+    "live IA provider",
+    "complete BDD",
+    "remote Trivy",
+    "exhaustive visual/mode coverage"
+  ]
+}

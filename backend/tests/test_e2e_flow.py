@@ -182,7 +182,7 @@ def test_full_unified_orchestration_e2e(monkeypatch):
     runner._active_threads[sid].join(timeout=15)
     assert not runner._active_threads[sid].is_alive()
     status=client.get(f'/api/v1/sessions/{sid}')
-    assert status.json()['status']=='COMPLETED',status.json()
+    assert status.json()['status']=='COMPLETED',json.dumps(status.json(),ensure_ascii=False)
     assert status.json()['verificationOutcome']=='SKIPPED_BY_CHOICE'
     stored=json.loads((Path(settings.WORKSPACE_DIR)/sid/'specification_draft.json').read_text(encoding='utf-8'))
     assert stored['packageName']=='com.audit.custom'

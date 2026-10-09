@@ -1,6 +1,6 @@
 # Matriz de cierre de hallazgos
 
-**Estado inicial de todas las filas: PENDIENTE.** Son criterios futuros, no resultados de correcciones. Ejecutar en ambos estudios salvo alcance explícito. Ninguna fila cierra por generar documentación, compilar sin tests, cambiar un mock o consumir tiempo. T063 añadirá enlaces de evidencia, commit y estado final.
+Los siguientes casos conservan los criterios originales de aceptación. El registro de revisión al final distingue resultados locales comprobados y capacidades pendientes; una aprobación local no acredita ejecución remota ni un proveedor IA real.
 
 Capas: U = unitario, A = API/contrato, F = frontend, I = integración de proceso/Git/Docker, J = Java y HTTP reales. Las pruebas I/J usan fixtures propias de T004; nunca recursos/DB del usuario. La generación IA se simula únicamente en tests, no como fallback de producción.
 
@@ -41,10 +41,12 @@ Cada celda ejecuta tests reales, empaquetado nativo offline y HTTP de contrato (
 
 | Framework / build | H2 | PostgreSQL | MySQL |
 |---|---|---|---|
-| Spring / Maven | PENDIENTE | PENDIENTE | PENDIENTE |
-| Spring / Gradle | PENDIENTE | PENDIENTE | PENDIENTE |
-| Quarkus / Maven | PENDIENTE | PENDIENTE | PENDIENTE |
-| Quarkus / Gradle | PENDIENTE | PENDIENTE | PENDIENTE |
+| Spring / Maven | JAVA/HTTP PASSED | JAVA/HTTP PASSED | JAVA/HTTP PASSED |
+| Spring / Gradle | JAVA/HTTP PASSED | JAVA/HTTP PASSED | JAVA/HTTP PASSED |
+| Quarkus / Maven | JAVA/HTTP PASSED | JAVA/HTTP PASSED | JAVA/HTTP PASSED |
+| Quarkus / Gradle | JAVA/HTTP PASSED | JAVA/HTTP PASSED | JAVA/HTTP PASSED |
+
+Evidencia Java: `integration/validation/reliability/current-matrix/java-matrix-relational-{springboot,quarkus}-all-all.json`. HTTP Quarkus: `current-matrix/quarkus-native-http.xml`. Repetición HTTP Spring: `closure-http-verified/springboot-native-http.xml`, seis casos aprobados el 2026-10-09. Las seis huellas Spring coinciden exactamente con las de la matriz Java anterior; el fallo previo bajo carga se conserva. Estos resultados corresponden a fixtures explícitamente offline, sin proveedor IA.
 
 Preparación online y ejecución offline se documentan separadas. La red privada con DB no implica permiso para descargar dependencias o llamar proveedores IA. Tests Java de validación deben fallar al introducir deliberadamente el defecto en fixture; quitar defecto después y conservar ambas evidencias.
 
@@ -74,3 +76,35 @@ Los diez paneles: overview, especificación, requisitos, arquitectura, modelos/S
 ## Registro al cerrar una fila
 
 Registrar ID, framework, commit, TIDs, fecha, input/revisión/config, esperado/observado, proceso/exit code, conteos, informes, fingerprint y recursos fixture. Estado final: CERRADO, FALLA o PENDIENTE con motivo/capacidad requerida. Un skip no equivale a CERRADO. Evidencia nueva bajo `integration/validation/reliability/`; no sobrescribir informes históricos ni persistir secretos.
+
+## Revisión local del 2026-10-09 (T063)
+
+Código de partida: `02f8ef2`; correcciones posteriores locales en escritura de pruebas de persistencia y lectura de hashes de artefactos sobre rutas largas. Todos los enlaces siguientes parten de `integration/validation/reliability/`. El registro aplica a ambos estudios salvo indicación explícita. Las suites completas anteriores tienen 1572/663 pruebas aprobadas; `final-journeys` actualiza los recorridos a 34 por estudio y dos reinicios reales. No sumar suites solapadas como pruebas únicas.
+
+| Fila | Estado / evidencia / alcance |
+|---|---|
+| H01 | CERRADO local: `test_workspace_boundary` en XML completos; `final-paths.xml` verifica generación, inyección y proveniencia a más de 400 caracteres; errores de acceso conservan bloqueo. T009, T011–T013, T059. |
+| H02 | CERRADO local: `test_draft_authority`, `test_artifact_revision`, `final-journeys/*-journeys.xml` y runtime Auto-Pilot. Revisión/configuración/personalización conservadas. T017–T022, T045–T049. |
+| H03 | CERRADO local: gates y reportes vacíos/ausentes en XML Quarkus, `quarkus-offline-choice-final.xml` y `ui.md`; no PASSED sintético. T024, T026, T029–T030. |
+| H04 | CERRADO validación local: JAVA/HTTP PASSED en las doce combinaciones; `validation-mutation-verified.xml` (2) prueba cuatro anotaciones eliminadas/detectadas y dos contratos restaurados, sin modificar fuentes originales. BDD completo PENDIENTE. T031–T037. |
+| H05 | CERRADO runtime local: `spring-native-autopilot-final.xml`, `quarkus-native-autopilot-verified.xml` y JSON `*-native-identity-current`; tres sesiones propias, Auto-Pilot, colisión, Docker ausente y proceso nuevo. T038–T044. |
+| H06 | CERRADO local: `spring-db-conservation-current.xml` (3), `quarkus-db-conservation-current.xml` (6), `standalone-ownership-current.xml` (4) y matriz HTTP. Recursos del usuario no utilizados. T010, T014, T016, T041, T044. |
+| H07 | CERRADO local: `test_git_safety` en `final-journeys` usa bare propio; divergencia sin force, origin preservado y token centinela excluido. No certifica un proveedor Git remoto. T010, T015–T016. |
+| H08 | CERRADO local: contratos DB/alias y `test_normalized_domain`, matrix Java/HTTP, `frontend-*-contract-final.log`. T033, T036–T037, T046–T050. |
+| H09 | CERRADO local: seis contratos Quarkus y builds offline con DDL propio por motor; MySQL conserva UUID/FK/fecha/decimal y datos. T031, T036–T037. |
+| H10 | CERRADO local: `final-journeys`, checkpoints 51/14 y `events.json`; target, pausa/resume, cancel terminal y CAS persistidos. T023, T025–T027, T051–T054. |
+| H11 | CERRADO local: doce combinaciones Java/HTTP y huellas/reportes no vacíos. T031–T037. |
+| H12 | CERRADO local: gates/auditoría vacíos, `ui.md`, contratos/paneles 23/25; cero/null conservados. T024, T029–T030, T045, T048–T050. |
+| H13 | CERRADO local: `test_persisted_repair`, `final-journeys` y paneles; escritura no acredita resolución, hint-only no muta y tres intentos sobreviven reinicio. T024, T028, T046–T049. |
+| H14 | PENDIENTE ejecución remota/CVE: `generated-ci-{spring,quarkus}.xml` acredita scanner, secretos y gates locales; no acredita GitHub/GitLab ni Trivy remoto. T056–T057. |
+| O01 | PENDIENTE Linux/instalación limpia remota: preflight y dos entornos Windows comprobados; `.github/workflows/reliability.yml` preparado. T001–T004, T055, T059. |
+| O02 | CERRADO local: `test_session_events`, `final-journeys` y `events.json`; dos suscriptores, replay/resync y persistencia previa a emisión. T023, T051–T054. |
+| O03 | CERRADO local: `final-journeys/real-restart.xml` (2) y aislamiento/telemetría en suites; recuperación sin efectos externos automáticos. T005–T008, T025, T051–T054. |
+| O04 | PENDIENTE cobertura externa exhaustiva: matriz Java/HTTP y tres sesiones runtime comprobadas; recorridos API/Vitest usan proveedor mock explícito. No certifican IA real ni toda combinación de navegación visual y modo. T037, T044, T050, T060–T061. |
+| O05 | CERRADO local: `verify_sources.py` aprobó el manifest vigente de 186 archivos; `final-integration.xml` incluye comprobaciones negativas del manifest. Baseline histórico inmutable. T001, T058. |
+| O06 | CERRADO local: reparación persistida, checkpoints y contratos UI; constante efectiva tres, sin reset por restart. T023–T025, T028, T048, T054. |
+| O07 | CERRADO para MAX_PATH/OpenAPI/modo: `final-paths.xml`, suites y fixtures sin relajar gates. El cierre de la suite completa posterior consta en RESULTADOS. T002–T003, T011, T055, T059. |
+
+Contraste FR-01–FR-18: FR-01–03 corresponden a H01/H06/H07; FR-04–05 a H02; FR-06–08 a H03/H10/H12/H13/O06; FR-09–10 a H04/H08/H09/H11; FR-11–12 a H05/matriz; FR-13–14 a `ui.md`/O02; FR-15 a O01/O05/H14; FR-16 a `final-migration`/O03; FR-17 a la matriz y sus pruebas negativas; FR-18 a los límites de propiedad, SOURCE_ONLY y publicación explícita. FR-15/17 conservan pendientes externos; no se declara cumplimiento universal.
+
+Constituciones contrastadas: `.specify/memory/constitution.md` (Spring 1.1.0 y aclaración SOURCE_ONLY) y `systems/quarkus/.specify/memory/constitution.md` (Quarkus 2.0.0). Capas/Records/validación/handlers se comprueban en fixtures nativas; offline, suites no vacías y reparación=3 tienen evidencia local. Cero llamadas IA y ninguna credencial añadida. Quarkus VII exige ausencia de fallback silencioso: tests de configuración explícita aprobados; la generación mock se declara diagnóstico y no prueba un LLM. Quarkus VIII/BDD español completo y cobertura de toda generación LLM quedan PENDIENTES. No se modifican las constituciones ni se fabrica aprobación constitucional.

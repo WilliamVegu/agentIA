@@ -1,0 +1,10 @@
+{
+  "outcome": "FAILED",
+  "liveProviderCalls": 0,
+  "workspaceFingerprint": "81f7316177580fbc0921a804edfd305a7f318aa4a582f3d24a5b3a5d6c039aaa",
+  "framework": "springboot",
+  "buildTool": "gradle",
+  "databaseEngine": "POSTGRESQL",
+  "workspace": "C:\\Users\\willi\\Downloads\\agentIA\\.runtime\\reliability\\java\\relational-springboot-gradle-postgresql",
+  "checks": []
+}

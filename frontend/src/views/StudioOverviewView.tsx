@@ -460,10 +460,10 @@ export const StudioOverviewView: React.FC = () => {
             <div className="p-6 rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 space-y-4 shadow-sm">
               <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-base">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>🎉 ¡Microservicio completamente sintetizado y verificado con éxito!</span>
+                <span>Generación del microservicio completada.</span>
               </div>
               <p className="text-xs text-slate-700 dark:text-slate-300">
-                Todos los artefactos para <strong>`{activeSession?.specName || 'order-service'}`</strong> están listos y validados: historias de usuario BDD, arquitectura en 4 capas, esquema SQL relacional, código Java 21 / Spring Boot 3, pruebas unitarias Mockito, auditoría SAST con Quality Gate APROBADO y manifiestos Docker / Kubernetes.
+                Artefactos de <strong>{activeSession?.specName || activeSessionId}</strong> disponibles. La aprobación de pruebas, seguridad y despliegue depende de la evidencia indicada para esta sesión.
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button

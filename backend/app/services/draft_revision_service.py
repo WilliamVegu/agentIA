@@ -148,7 +148,7 @@ def get_revision(session_id, revision_id=None):
 
 
 def record_artifact(session_id, relative_path, phase, revision_id):
-    from app.services.workspace_guard import resolve_workspace_file
+    from app.services.workspace_guard import resolve_workspace_file, io_path
     file = resolve_workspace_file(session_id, relative_path, require_exists=True)
     with SessionLocal() as db:
         revision = db.get(DraftRevision, revision_id)
@@ -157,7 +157,7 @@ def record_artifact(session_id, relative_path, phase, revision_id):
         session = db.get(GenerationSessionDB, session_id)
         db.merge(ArtifactProvenance(session_id=session_id, relative_path=relative_path, phase=phase,
             revision_id=revision_id, input_hash=revision.canonical_hash,
-            content_hash=hashlib.sha256(file.read_bytes()).hexdigest(),
+            content_hash=hashlib.sha256(io_path(file).read_bytes()).hexdigest(),
             status='CURRENT' if session.revision_id == revision_id else 'OUTDATED'))
         db.commit()
 

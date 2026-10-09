@@ -3,6 +3,6 @@
   "liveProviderCalls": 0,
   "studios": ["springboot", "quarkus"],
   "checks": ["two live subscribers receive the same durable event", "disconnect does not consume another subscriber's events", "cursor replay", "expired cursor resync", "recursive secret redaction", "fresh process crash and startup INTERRUPTED", "source and event history retained", "no automatic external effects on recovery"],
-  "evidence": ["journeys/springboot-journeys.xml", "journeys/quarkus-journeys.xml", "journeys/real-restart.xml"],
+  "evidence": ["final-journeys/springboot-journeys.xml", "final-journeys/quarkus-journeys.xml", "final-journeys/real-restart.xml"],
   "scope": "isolated local API and real subprocess tests; no live provider calls"
 }

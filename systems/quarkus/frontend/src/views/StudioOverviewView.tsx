@@ -300,7 +300,7 @@ export const StudioOverviewView: React.FC = () => {
                 </h2>
                 <p className="text-xs text-slate-300 mt-1">
                   Java 21 LTS &nbsp;|&nbsp; Quarkus 3.x &nbsp;|&nbsp; Base de Datos:{' '}
-                  <strong>{projectOverview?.database || 'POSTGRESQL'}</strong> &nbsp;|&nbsp; Sesión:{' '}
+                  <strong>{projectOverview?.databaseEngine || '—'}</strong> &nbsp;|&nbsp; Sesión:{' '}
                   <code className="text-blue-300 font-mono">{activeSessionId}</code>
                 </p>
               </div>
@@ -407,10 +407,10 @@ export const StudioOverviewView: React.FC = () => {
             <div className="p-6 rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 space-y-4 shadow-sm">
               <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-base">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>🎉 ¡Microservicio completamente sintetizado y verificado con éxito!</span>
+                <span>Generación del microservicio completada.</span>
               </div>
               <p className="text-xs text-slate-700 dark:text-slate-300">
-                Todos los artefactos para <strong>`{activeSession?.specName || 'servicio-pedidos'}`</strong> están listos y validados: historias de usuario BDD, arquitectura en 4 capas, esquema SQL relacional, código Java 21 / Quarkus 3, pruebas unitarias y de integración QuarkusTest, auditoría SAST con Quality Gate APROBADO y manifiestos Docker / Kubernetes.
+                Artefactos de <strong>{activeSession?.specName || activeSessionId}</strong> disponibles. La aprobación de pruebas, seguridad y despliegue depende de la evidencia indicada para esta sesión.
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
@@ -507,7 +507,7 @@ export const StudioOverviewView: React.FC = () => {
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
                 <span className="text-slate-500 font-medium">Suites de Tests</span>
                 <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-2">
-                  {projectOverview?.testsPassed === true ? 'Aprobadas con evidencia' : 'Sin pruebas aprobadas'}
+                  {projectOverview?.testsExecuted === false ? 'No ejecutadas' : projectOverview?.testsPassed === true ? 'Aprobadas con evidencia' : 'Sin pruebas aprobadas'}
                 </div>
                 <span className="text-[11px] text-slate-500">JUnit / Quarkus</span>
               </div>

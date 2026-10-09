@@ -62,9 +62,11 @@ def test_corruption_invalidates_evidence_and_delivery(runtime, kind):
     if kind == 'source':
         (snapshot.directory / 'sources.zip').write_bytes(b'corrupt')
     elif kind == 'report':
-        (snapshot.directory / 'reports/target/surefire-reports/suite.xml').write_text('changed')
+        from app.services.source_snapshot import _io_path
+        _io_path(snapshot.directory / 'reports/target/surefire-reports/suite.xml').write_text('changed')
     elif kind == 'jar':
-        (snapshot.directory / 'artifacts/target/application.jar').write_bytes(b'changed')
+        from app.services.source_snapshot import _io_path
+        _io_path(snapshot.directory / 'artifacts/target/application.jar').write_bytes(b'changed')
     else:
         (snapshot.directory / 'manifest.json').write_text('[]')
     with pytest.raises((ValueError, OSError)):

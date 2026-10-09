@@ -29,6 +29,18 @@ state={'blueprint':ledger_draft(),'workspace_path':str(workspace),'generated_fil
 for module in [scaffolder,domain,service,controller,test_synthesis]: state.update(module.emit(state))
 assert len(state['generated_files'])>8
 for name,content in state['generated_files'].items(): assert io_path(workspace/name).read_text(encoding='utf-8')==content
+from app.services.platform_verification import inject_contract_test
+io_path(workspace/'schema.sql').write_text('CREATE TABLE ledger_entries (entry_id UUID PRIMARY KEY);',encoding='utf-8')
+contract=inject_contract_test(str(workspace))
+assert contract is not None, 'Deep workspace must retain the platform persistence gate'
+assert 'PlatformPersistenceContractTest' in io_path(workspace/contract).read_text(encoding='utf-8')
+from app.services.draft_revision_service import save_revision,record_artifact
+from app.models.reliability import ArtifactProvenance
+revision=save_revision('deep-io',ledger_draft())
+relative=(workspace/contract).relative_to(Path(settings.WORKSPACE_DIR)/'deep-io').as_posix()
+record_artifact('deep-io',relative,'CODE_TESTS',revision['revisionId'])
+with SessionLocal() as db:
+    assert db.query(ArtifactProvenance).filter_by(session_id='deep-io',relative_path=relative,status='CURRENT').one().content_hash
 
 """
     result=subprocess.run([python_for(studio),'-c',source],env=env,cwd=ROOT,capture_output=True,text=True,timeout=45)
