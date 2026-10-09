@@ -1745,8 +1745,8 @@
       "studio": "springboot",
       "path": "backend/tests/test_generation_stages_offline.py",
       "beforeSha256": "6d0c2828911a7b147e6f99904b8c5ac297e8355f9d3bd13fc0aa3057549511e8",
-      "afterSha256": "23ef411328ca44f72eb0b703a74968552b9e89bf12636961432cd7b758c3dd07",
-      "afterNormalizedSha256": "0441e7369cd8755aed0308e2898b18c9d9dc131be08b660d35e53f4d815f60b3",
+      "afterSha256": "3519ed564a7b714b5dfdb704daea36c8dcbd9df90450887d552764b994ec886c",
+      "afterNormalizedSha256": "098c430f913588ccd2f67caab0c9be5d901d39b000c79ae0040f3a5b7c4aafa3",
       "tasks": [
         "T031",
         "T032",
@@ -4634,8 +4634,8 @@
       "studio": "quarkus",
       "path": "backend/tests/test_generation_stages_offline.py",
       "beforeSha256": "50fd2ab4d971edcc600510606386397a1c1c7c928a55799846049140831e99ac",
-      "afterSha256": "c636fa8c0eae1ab8f47450e0c11036adc2c91c16c704167db02a74f11ae29813",
-      "afterNormalizedSha256": "01079f7a1c68c6e50b1d5a3d1d6a9ddfbc9efa764fc75c21da761ed3e0640950",
+      "afterSha256": "d2af9e25d37b645de8e1c39ea0e198b865b6aa60c93aba7fc0e0a4752b063825",
+      "afterNormalizedSha256": "a9fd98cc8925fc8bd14f07ee179212b8dd3df59de184abd9ed1b9c11c72857eb",
       "tasks": [
         "T031",
         "T032",

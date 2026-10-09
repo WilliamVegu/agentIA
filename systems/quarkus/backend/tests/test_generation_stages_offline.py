@@ -203,4 +203,4 @@ def test_historical_incomplete_annotations_remain_rejected_and_unchanged(baselin
     with pytest.raises(ValueError,match='sin parámetros'):
         normalize_blueprint(payload)
     entry=next(item for item in baseline['per_blueprint'] if item['blueprint_id']==name)
-    assert hashlib.sha256(original.read_bytes()).hexdigest()==entry['historicalInputSha256']
+    _assert_recorded_hash(original, entry['historicalInputSha256'])
