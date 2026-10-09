@@ -30,17 +30,25 @@ def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _assert_recorded_hash(path: Path, expected: str) -> None:
+    """Git may check text out with LF or CRLF; retain strict content identity."""
+    raw = path.read_bytes()
+    lf = raw.replace(b"\r\n", b"\n")
+    assert expected in {hashlib.sha256(value).hexdigest()
+                        for value in (raw, lf, lf.replace(b"\n", b"\r\n"))}
+
+
 @pytest.fixture(scope="module")
 def baseline() -> dict:
     revisions=REPO_ROOT/'backend/tests/fixtures/reliability_generation_revisions.json'
     recorded=json.loads(revisions.read_text(encoding='utf-8'))
     assert recorded['formatVersion']==1
-    assert recorded['historicalBaselineSha256']==hashlib.sha256(BASELINE_JSON.read_bytes()).hexdigest()
+    _assert_recorded_hash(BASELINE_JSON, recorded['historicalBaselineSha256'])
     for entry in recorded['per_blueprint']:
         name=entry['blueprint_id']+'.json'
         original=REPO_ROOT/'backend/tests/fixtures/baseline_blueprints'/name
-        assert entry['historicalInputSha256']==hashlib.sha256(original.read_bytes()).hexdigest()
-        assert entry['inputSha256']==hashlib.sha256((CORPUS_DIR/name).read_bytes()).hexdigest()
+        _assert_recorded_hash(original, entry['historicalInputSha256'])
+        _assert_recorded_hash(CORPUS_DIR/name, entry['inputSha256'])
         for path,item in entry['comparison_subset_content'].items():
             assert _sha256(item['content'])==item['sha256']==entry['artifact_digests'][path]
     return recorded

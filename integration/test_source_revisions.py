@@ -38,6 +38,20 @@ def test_subsequent_unlisted_mutation_is_rejected(fixture):
     assert check_sources(root)
 
 
+def test_baseline_checkout_line_endings_preserve_identity(fixture):
+    root, source, revisions = fixture
+    baseline = root / 'integration/source-snapshots.json'
+    lf = json.dumps(json.loads(baseline.read_text()), indent=2).encode() + b'\n'
+    revisions['baselineSha256'] = digest(lf.replace(b'\n', b'\r\n'))
+    write(root, revisions)
+    baseline.write_bytes(lf)
+    assert check_sources(root) == []
+    baseline.write_bytes(lf.replace(b'\n', b'\r\n'))
+    assert check_sources(root) == []
+    baseline.write_bytes(lf.replace(b'springboot', b'corrupt'))
+    assert check_sources(root)
+
+
 @pytest.mark.parametrize('corruption',['baseline','before','path','tasks','duplicate'])
 def test_revision_manifest_tampering_is_rejected(fixture,corruption):
     root,source,revisions=fixture

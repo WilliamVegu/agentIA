@@ -30,7 +30,7 @@ def check_sources(root=ROOT):
     if revision_file.is_file():
         try:
             revisions=json.loads(revision_file.read_text(encoding='utf-8'))
-            if revisions.get('formatVersion')!=1 or revisions.get('baselineSha256')!=hashlib.sha256(baseline).hexdigest() or not re.fullmatch('[a-f0-9]{40}',revisions.get('baseCommit','')):
+            if revisions.get('formatVersion')!=1 or revisions.get('baselineSha256') not in {hashlib.sha256(value).hexdigest() for value in (baseline, baseline.replace(b'\r\n', b'\n'), baseline.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))} or not re.fullmatch('[a-f0-9]{40}',revisions.get('baseCommit','')):
                 raise ValueError('identidad del baseline o versión inválida')
             for revision in revisions['revisions']:
                 name=revision['studio'];relative=revision['path'];key=(name,relative)

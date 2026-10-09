@@ -1745,8 +1745,8 @@
       "studio": "springboot",
       "path": "backend/tests/test_generation_stages_offline.py",
       "beforeSha256": "6d0c2828911a7b147e6f99904b8c5ac297e8355f9d3bd13fc0aa3057549511e8",
-      "afterSha256": "8e3c0e8659959a506921fc769b296dfa1c6e0952f93e7e5e6be296eaeb6bda2a",
-      "afterNormalizedSha256": "531d28fd516945ef4937f846b95bc4500c87fe645c644b3cf2b0d9c49ef9be28",
+      "afterSha256": "23ef411328ca44f72eb0b703a74968552b9e89bf12636961432cd7b758c3dd07",
+      "afterNormalizedSha256": "0441e7369cd8755aed0308e2898b18c9d9dc131be08b660d35e53f4d815f60b3",
       "tasks": [
         "T031",
         "T032",
@@ -3147,35 +3147,6 @@
         "T049",
         "T050",
         "T054"
-      ],
-      "evidence": [
-        "integration/validation/reliability/extended/springboot-full.xml",
-        "integration/validation/reliability/extended/quarkus-full.xml",
-        "integration/validation/reliability/extended/linux-spring-verified.xml",
-        "integration/validation/reliability/extended/linux-quarkus-final.xml",
-        "integration/validation/reliability/extended/corrections-final.xml",
-        "integration/validation/reliability/extended/bdd-export-verified.xml",
-        "integration/validation/reliability/extended/windows-spring-ui.log",
-        "integration/validation/reliability/extended/windows-quarkus-ui.log",
-        "integration/validation/reliability/extended/linux-spring-ui.log",
-        "integration/validation/reliability/extended/linux-quarkus-ui.log"
-      ]
-    },
-    {
-      "studio": "springboot",
-      "path": "reports/verify-61c0f29/runtime/workspaces/330dab8e-c435-4fce-8ba3-dc46d67c705e/.gradle/9.2.0/fileHashes/fileHashes.lock",
-      "beforeSha256": "2e1eba00b21f2f209eb62ae2512bd5bee30bcbe49ebb7fe2ff3e2e106db6d49d",
-      "afterSha256": "fe669250bdf4fdc8e9ceb305496ee67d16691734bafea0a4eabd0356d2fbb2cf",
-      "afterNormalizedSha256": "fe669250bdf4fdc8e9ceb305496ee67d16691734bafea0a4eabd0356d2fbb2cf",
-      "tasks": [
-        "T014",
-        "T038",
-        "T039",
-        "T040",
-        "T041",
-        "T042",
-        "T043",
-        "T044"
       ],
       "evidence": [
         "integration/validation/reliability/extended/springboot-full.xml",
@@ -4663,8 +4634,8 @@
       "studio": "quarkus",
       "path": "backend/tests/test_generation_stages_offline.py",
       "beforeSha256": "50fd2ab4d971edcc600510606386397a1c1c7c928a55799846049140831e99ac",
-      "afterSha256": "4751567d6e1f2f7558c5be0a1566d658846cb04effd538a11423e87babe3823b",
-      "afterNormalizedSha256": "10b2cd625c6286ce48c2ee370214886495ed31945353cdccaa362fa24c9b7156",
+      "afterSha256": "c636fa8c0eae1ab8f47450e0c11036adc2c91c16c704167db02a74f11ae29813",
+      "afterNormalizedSha256": "01079f7a1c68c6e50b1d5a3d1d6a9ddfbc9efa764fc75c21da761ed3e0640950",
       "tasks": [
         "T031",
         "T032",
