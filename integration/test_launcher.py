@@ -79,7 +79,9 @@ class LauncherTests(unittest.TestCase):
                 launcher.npm_command(str(node), str(wrapper))
             cli = root / 'node_modules/npm/bin/npm-cli.js'
             cli.parent.mkdir(parents=True); cli.touch()
-            self.assertEqual(launcher.npm_command(str(node), str(wrapper)), [str(node), str(cli)])
+            # Windows runners may expose TEMP through an 8.3 alias (RUNNER~1).
+            # The launcher resolves npm-cli to its canonical path before Node runs it.
+            self.assertEqual(launcher.npm_command(str(node), str(wrapper)), [str(node), str(cli.resolve())])
 
 
 if __name__ == '__main__':

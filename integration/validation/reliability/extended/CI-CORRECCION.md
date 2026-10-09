@@ -12,3 +12,5 @@ No se omiten pruebas ni se permiten fallos de jobs. Las vulnerabilidades Java y 
 Evidencia local: ci-fix-spring.xml, ci-fix-quarkus.xml y ci-fix-integration.xml. La nueva ejecución remota se verifica después del push.
 
 La primera corrección dejó dos comprobaciones finales de inputs históricos con hash crudo; se corrigieron también tras leer el nuevo job Linux. Copias aisladas con todos los JSON convertidos a LF reproducen el checkout Linux y aprueban siete pruebas por estudio (ci-lf-spring.xml / ci-lf-quarkus.xml).
+
+Al alcanzar integración en Windows apareció una expectativa de test incorrecta: TEMP usa el alias 8.3 RUNNER~1 y npm-cli se resuelve a runneradmin. El launcher ya devolvía el archivo correcto; la prueba ahora exige su ruta canónica y continúa rechazando npm.cmd sin npm-cli. Evidencia: ci-fix-launcher.xml.
