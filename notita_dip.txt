@@ -136,3 +136,19 @@ models:
       caBundlePath: C:/Users/GenAIAUGPERUSR3/.continue/certs.pem
       verifySsl: false
 
+%%% fix prompt 
+Fix the corporate SSL certificate / "unable to get local issuer certificate" connection error for Continue and VS Code by performing the following steps:
+
+1. In PowerShell, export all Windows root and CA certificates from the Windows Certificate Store to the file ~/.continue/certs.pem:
+   - Export from Cert:\CurrentUser\Root, Cert:\CurrentUser\CA, Cert:\LocalMachine\Root, and Cert:\LocalMachine\CA in PEM format.
+
+2. Set the Windows User environment variable NODE_EXTRA_CA_CERTS pointing to that exported certs.pem file so Node.js and VS Code extensions trust the corporate CA.
+
+3. Update ~/.continue/config.yaml to ensure:
+   - requestOptions has caBundlePath pointing to the absolute path of certs.pem (using forward slashes) and verifySsl: false.
+   - All models (especially gpt-5 models) have useResponsesApi: false so Continue uses /v1/chat/completions instead of /v1/responses.
+
+4. Update VS Code's user settings.json (%APPDATA%\Code\User\settings.json) to include "http.proxyStrictSSL": false.
+
+5. Verify that Node.js can connect to the base URL without SSL errors.
+
